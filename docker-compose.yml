@@ -19,7 +19,7 @@ services:
     mem_limit: 768m
 
   web:
-    image: nginx:1.27-alpine
+    image: docker.m.daocloud.io/library/nginx:1.27-alpine
     restart: unless-stopped
     depends_on:
       app:

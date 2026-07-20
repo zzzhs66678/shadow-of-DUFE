@@ -1,4 +1,4 @@
-FROM node:22-alpine AS build
+FROM docker.m.daocloud.io/library/node:22-alpine AS build
 
 WORKDIR /app
 ENV WRANGLER_LOG_PATH=/tmp/wrangler.log
