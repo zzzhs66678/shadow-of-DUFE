@@ -1,0 +1,28 @@
+{
+	email off
+}
+
+(dufesh_proxy) {
+	encode zstd gzip
+	reverse_proxy app:3000
+
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "SAMEORIGIN"
+	}
+
+	@course_data path /data/*
+	header @course_data Cache-Control "public, max-age=3600, stale-while-revalidate=86400"
+
+	@site_images path /images/*
+	header @site_images Cache-Control "public, max-age=604800, immutable"
+}
+
+dufesh.cn, www.dufesh.cn {
+	import dufesh_proxy
+}
+
+http://112.126.75.74 {
+	import dufesh_proxy
+}
