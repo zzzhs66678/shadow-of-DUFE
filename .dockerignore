@@ -3,7 +3,6 @@
 .codex_tmp
 .vinext
 .wrangler
-build
 dist
 node_modules
 outputs
