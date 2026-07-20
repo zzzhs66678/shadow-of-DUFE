@@ -1,7 +1,3 @@
-{
-	email off
-}
-
 (dufesh_proxy) {
 	encode zstd gzip
 	reverse_proxy app:3000
