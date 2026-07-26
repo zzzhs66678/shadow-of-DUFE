@@ -1,6 +1,5 @@
 (dufesh_proxy) {
 	encode zstd gzip
-	reverse_proxy app:3000
 
 	header {
 		X-Content-Type-Options "nosniff"
@@ -13,6 +12,17 @@
 
 	@site_images path /images/*
 	header @site_images Cache-Control "public, max-age=604800, immutable"
+
+	handle_path /resources/files/* {
+		root * /srv/resources
+		header Cache-Control "public, max-age=3600"
+		header Content-Security-Policy "default-src 'none'; frame-ancestors 'self'"
+		file_server
+	}
+
+	handle {
+		reverse_proxy app:3000
+	}
 }
 
 dufesh.cn, www.dufesh.cn {

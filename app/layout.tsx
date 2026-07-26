@@ -4,8 +4,8 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL("https://dufesh.cn"),
   title: {
-    default: "DUFESH｜东财学习与空间索引",
-    template: "%s｜DUFESH",
+    default: "东财之影｜课表、空教室与学习资料",
+    template: "%s｜东财之影",
   },
   description:
     "面向东北财经大学学生的课程、资料与校园空间索引。",
@@ -13,24 +13,15 @@ export const metadata: Metadata = {
     icon: "/favicon.svg",
   },
   openGraph: {
-    title: "DUFESH｜东财学习与空间索引",
-    description: "知道学什么，也知道现在去哪里学。",
+    title: "东财之影｜课表、空教室与学习资料",
+    description: "打开就知道下一节课、资料和此刻可用的教室。",
     type: "website",
     locale: "zh_CN",
-    images: [
-      {
-        url: "/images/dufesh-social.png",
-        width: 1731,
-        height: 909,
-        alt: "DUFESH 将课程、教室与学习资料重新连接",
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "DUFESH｜东财学习与空间索引",
-    description: "知道学什么，也知道现在去哪里学。",
-    images: ["/images/dufesh-social.png"],
+    title: "东财之影｜课表、空教室与学习资料",
+    description: "打开就知道下一节课、资料和此刻可用的教室。",
   },
 };
 

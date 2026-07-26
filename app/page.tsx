@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { DufeHub } from "./DufeHub";
+import { DufeHubV2 } from "./DufeHubV2";
 
 export const metadata: Metadata = {
-  title: "DUFESH｜东财学习与空间索引",
+  title: "东财之影｜课表、空教室与学习资料",
   description:
-    "按学院、专业与年级查课程，按日期和节次寻找可自习教室，并快速进入东财常用服务。",
+    "为东北财经大学学生提供个性课表、空教室查询与课程资料索引。",
 };
 
 export default function Home() {
-  return <DufeHub />;
+  return <DufeHubV2 />;
 }

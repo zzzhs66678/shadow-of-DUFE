@@ -30,6 +30,7 @@ services:
       - "443:443/udp"
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - /srv/apps/dufesh/shared/resources/published:/srv/resources:ro
       - caddy_data:/data
       - caddy_config:/config
     mem_limit: 128m
