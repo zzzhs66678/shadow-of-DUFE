@@ -7,6 +7,19 @@ import {
   useState,
   type CSSProperties,
 } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
 
 type Term = "fall" | "spring";
 type View = "home" | "catalog" | "schedule" | "rooms" | "me";
@@ -214,6 +227,23 @@ function daysUntil(date: string) {
   const today = new Date(`${todayISO()}T00:00:00`);
   const target = new Date(`${date}T00:00:00`);
   return Math.ceil((target.getTime() - today.getTime()) / 86_400_000);
+}
+
+function dateISO(date: Date) {
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+    .toISOString()
+    .slice(0, 10);
+}
+
+function dateAtOffset(offset: number) {
+  const date = new Date();
+  date.setHours(12, 0, 0, 0);
+  date.setDate(date.getDate() + offset);
+  return date;
+}
+
+function weekdayNumber(date: Date) {
+  return date.getDay() || 7;
 }
 
 function courseMark(title: string) {
@@ -612,6 +642,19 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
               ),
             }))
           }
+          onDeleteCalendar={(kind, id) =>
+            setSaved((state) => ({
+              ...state,
+              activities:
+                kind === "activity"
+                  ? state.activities.filter((item) => item.id !== id)
+                  : state.activities,
+              assignments:
+                kind === "assignment"
+                  ? state.assignments.filter((item) => item.id !== id)
+                  : state.assignments,
+            }))
+          }
         />
       )}
       {view === "catalog" && (
@@ -794,6 +837,7 @@ function HomePage({
   onSetup,
   onEditCalendar,
   onToggleAssignment,
+  onDeleteCalendar,
 }: {
   data: SiteData;
   saved: SavedState;
@@ -806,13 +850,17 @@ function HomePage({
   onSetup: () => void;
   onEditCalendar: (request: CalendarEditorRequest) => void;
   onToggleAssignment: (id: string) => void;
+  onDeleteCalendar: (
+    kind: CalendarEditorRequest["kind"],
+    id: string,
+  ) => void;
 }) {
   const profileMajor = data.majors.find(
     (item) => item.id === saved.profile?.majorId,
   );
-  const today = new Date().getDay() || 7;
+  const today = weekdayNumber(new Date());
   const nowBlock = currentBlock();
-  const todayItems = activeSchedules
+  const todayCourses = activeSchedules
     .filter(
       (item) =>
         item.weekday === today &&
@@ -820,6 +868,12 @@ function HomePage({
         scheduleOccursInWeek(item, week.week),
     )
     .sort((a, b) => a.block - b.block);
+  const todayActivities = saved.activities
+    .filter((item) => item.weekday === today)
+    .sort((a, b) => a.block - b.block);
+  const todayAssignments = saved.assignments.filter(
+    (item) => !item.completed && item.dueDate === todayISO(),
+  );
   const freeByBuilding = data.buildings
     .map((name) => {
       const all = data.schedules.filter(
@@ -851,7 +905,6 @@ function HomePage({
       : week.state === "active"
         ? `第 ${week.week} 周`
         : "学期已结束";
-  const remainingItems = todayItems.filter((item) => item.block >= nowBlock);
   const bestBuilding = freeByBuilding[0];
   const nextAssignment = saved.assignments
     .filter((item) => !item.completed)
@@ -865,9 +918,92 @@ function HomePage({
   const assignmentDays = nextAssignment
     ? daysUntil(nextAssignment.dueDate)
     : null;
+  const todayAgenda = [
+    ...todayCourses.map((item) => ({
+      key: `course-${item.id}`,
+      kind: "course" as const,
+      order: item.block * 100,
+      eyebrow: data.periods[item.block - 1]?.short || `第 ${item.block} 大节`,
+      title: item.title,
+      meta: `${item.building}${item.room} · ${item.teacher || "教师待补"}`,
+      item,
+    })),
+    ...todayActivities.map((item) => ({
+      key: `activity-${item.id}`,
+      kind: "activity" as const,
+      order: item.block * 100 + 1,
+      eyebrow: data.periods[item.block - 1]?.short || `第 ${item.block} 大节`,
+      title: item.title,
+      meta: `${item.location || "未设置地点"} · 个人日程`,
+      item,
+    })),
+    ...todayAssignments.map((item) => ({
+      key: `assignment-${item.id}`,
+      kind: "assignment" as const,
+      order: 999,
+      eyebrow: "今天截止",
+      title: item.title,
+      meta: data.courses.find((course) => course.id === item.courseId)?.title ||
+        "未关联课程",
+      item,
+    })),
+  ].sort((a, b) => a.order - b.order);
+  const upcomingAgenda = Array.from({ length: 7 }, (_, index) => {
+    const date = dateAtOffset(index + 1);
+    const iso = dateISO(date);
+    const weekday = weekdayNumber(date);
+    const dateWeek = schoolWeek(date, term);
+    const classes = activeSchedules
+      .filter(
+        (item) =>
+          item.weekday === weekday &&
+          dateWeek.state === "active" &&
+          scheduleOccursInWeek(item, dateWeek.week),
+      )
+      .map((item) => ({
+        key: `future-course-${iso}-${item.id}`,
+        kind: "course" as const,
+        order: item.block,
+        title: item.title,
+        meta: `${data.periods[item.block - 1]?.short} · ${item.building}${item.room}`,
+        item,
+      }));
+    const activities = saved.activities
+      .filter((item) => item.weekday === weekday)
+      .map((item) => ({
+        key: `future-activity-${iso}-${item.id}`,
+        kind: "activity" as const,
+        order: item.block + 0.1,
+        title: item.title,
+        meta: `${data.periods[item.block - 1]?.short} · ${item.location || "个人日程"}`,
+        item,
+      }));
+    const assignments = saved.assignments
+      .filter((item) => !item.completed && item.dueDate === iso)
+      .map((item) => ({
+        key: `future-assignment-${item.id}`,
+        kind: "assignment" as const,
+        order: 99,
+        title: item.title,
+        meta: `${data.courses.find((course) => course.id === item.courseId)?.title || "未关联课程"} · 截止`,
+        item,
+      }));
+    return {
+      iso,
+      label: new Intl.DateTimeFormat("zh-CN", {
+        month: "numeric",
+        day: "numeric",
+        weekday: "short",
+      }).format(date),
+      items: [...classes, ...activities, ...assignments].sort(
+        (a, b) => a.order - b.order,
+      ),
+    };
+  }).filter((group) => group.items.length);
+
   return (
-    <div className="page-wrap today-page focus-page">
-      <header className="focus-head">
+    <div className="page-wrap today-page focus-page focus-page-v5">
+      <header className="focus-head focus-head-v5">
         <div>
           <span>{dateText}</span>
           <h1>今日学习台</h1>
@@ -893,173 +1029,205 @@ function HomePage({
         </button>
       )}
 
-      <section className="focus-grid">
-        <article className="focus-next">
-          <header>
-            <span>{nextClass ? "下一节" : "接下来"}</span>
-            <time>
-              {nextClass
-                ? data.periods[nextClass.block - 1]?.time
-                : data.periods[nowBlock - 1]?.short}
-            </time>
-          </header>
-          <div>
-            <i>{nextClass ? courseMark(nextClass.title) : "空"}</i>
-            <span>
-              <h2>
-                {nextClass
-                  ? nextClass.title
-                  : saved.profile
-                    ? "今天没有后续课程"
-                    : "课表还没有生成"}
-              </h2>
-              <p>
-                {nextClass
-                  ? `${nextClass.teacher || "教师待补"} · ${nextClass.building}${nextClass.room}`
-                  : saved.profile
-                    ? "看看附近的空教室"
-                    : "先设置你的专业和班级"}
-              </p>
-            </span>
-          </div>
-          <footer>
-            <button onClick={() => onGo("schedule")}>我的课表</button>
-            <button onClick={() => onSearch("material")}>课程资料</button>
-          </footer>
-        </article>
-
-        <aside className="focus-side">
-          <article className="focus-assignment">
-            <header>
-              <span>下次作业</span>
-              <button
-                onClick={() =>
-                  onEditCalendar(
-                    nextAssignment
-                      ? { kind: "assignment", id: nextAssignment.id }
-                      : { kind: "assignment" },
-                  )
-                }
-              >
-                {nextAssignment ? "编辑" : "＋ 添加"}
-              </button>
-            </header>
-            {nextAssignment ? (
-              <>
-                <strong>
-                  {assignmentDays !== null && assignmentDays < 0
-                    ? `逾期 ${Math.abs(assignmentDays)} 天`
-                    : assignmentDays === 0
-                      ? "今天截止"
-                      : `${assignmentDays} 天后`}
-                </strong>
-                <h3>{nextAssignment.title}</h3>
-                <small>
-                  {assignmentCourse?.title || "未关联课程"} ·{" "}
-                  {nextAssignment.dueDate}
-                </small>
-                <button
-                  className="assignment-done"
-                  onClick={() => onToggleAssignment(nextAssignment.id)}
-                >
-                  标记完成
-                </button>
-              </>
-            ) : (
-              <button
-                className="assignment-empty"
-                onClick={() => onEditCalendar({ kind: "assignment" })}
-              >
-                <b>还没有待交作业</b>
-                <small>添加截止日期后，这里会自动倒计时。</small>
-              </button>
-            )}
-          </article>
-          <button className="focus-room" onClick={() => onGo("rooms")}>
-            <span>此刻空教室</span>
-            <strong>{bestBuilding?.free ?? 0}</strong>
-            <small>
-              {bestBuilding ? `${bestBuilding.name} · 当前最多` : "查看教学楼"}
-            </small>
-            <b>查看全部 →</b>
-          </button>
-        </aside>
-      </section>
-
-      <section className="study-status-strip" aria-label="今日状态">
-        <button onClick={() => onGo("schedule")}>
-          <span>今天还剩</span>
-          <b>{remainingItems.length} 个课程时段</b>
-          <i>查看课表 →</i>
-        </button>
-        <button onClick={() => onEditCalendar({ kind: "activity" })}>
-          <span>个人日程</span>
-          <b>{saved.activities.length} 项活动</b>
-          <i>添加活动 →</i>
-        </button>
-        <button onClick={() => onEditCalendar({ kind: "assignment" })}>
-          <span>课程任务</span>
+      <section className="day-brief" aria-label="下一项安排">
+        <div className="day-brief-main">
+          <span>{nextClass ? "接下来" : "今日状态"}</span>
           <b>
-            {saved.assignments.filter((item) => !item.completed).length} 项待办
+            {nextClass
+              ? nextClass.title
+              : saved.profile
+                ? "课程已结束，留一点时间给自己"
+                : "设置专业后，今天的安排会出现在这里"}
           </b>
-          <i>管理作业 →</i>
+          <small>
+            {nextClass
+              ? `${data.periods[nextClass.block - 1]?.time} · ${nextClass.building}${nextClass.room} · ${nextClass.teacher || "教师待补"}`
+              : "课表、日程与作业会按时间自动汇总"}
+          </small>
+        </div>
+        <div className="day-brief-assignment">
+          <span>最近作业</span>
+          {nextAssignment ? (
+            <button
+              onClick={() =>
+                onEditCalendar({ kind: "assignment", id: nextAssignment.id })
+              }
+            >
+              <b>
+                {assignmentDays !== null && assignmentDays < 0
+                  ? `逾期 ${Math.abs(assignmentDays)} 天`
+                  : assignmentDays === 0
+                    ? "今天截止"
+                    : `${assignmentDays} 天后`}
+              </b>
+              <small>
+                {nextAssignment.title} · {assignmentCourse?.title || "未关联课程"}
+              </small>
+            </button>
+          ) : (
+            <button onClick={() => onEditCalendar({ kind: "assignment" })}>
+              <b>暂无待交作业</b>
+              <small>添加一个截止日期</small>
+            </button>
+          )}
+        </div>
+        <button className="day-brief-room" onClick={() => onGo("rooms")}>
+          <span>此刻空教室</span>
+          <b>{bestBuilding?.free ?? 0}</b>
+          <small>{bestBuilding?.name || "查看教学楼"} · 查看全部 →</small>
         </button>
       </section>
 
-      <nav className="focus-actions" aria-label="常用入口">
-        <button onClick={() => onSearch("course")}>
-          <i>⌕</i>
-          <span>找课程</span>
-        </button>
-        <button onClick={() => onSearch("material")}>
-          <i>文</i>
-          <span>找资料</span>
-        </button>
-        <a
-          href="https://ginkgostu.dufe.edu.cn/"
-          target="_blank"
-          rel="noreferrer"
-        >
-          <i>果</i>
-          <span>白果云</span>
-        </a>
-        <a href="https://jwc.dufe.edu.cn/" target="_blank" rel="noreferrer">
-          <i>教</i>
-          <span>教务处</span>
-        </a>
-      </nav>
-
-      <section className="focus-timeline">
+      <section className="focus-timeline unified-agenda">
         <header>
           <div>
-            <span>今日课表</span>
-            <b>{todayItems.length} 个时段</b>
+            <span>今天</span>
+            <b>{todayAgenda.length} 项安排</b>
           </div>
-          <button onClick={() => onGo("schedule")}>编辑课表</button>
+          <button onClick={() => onEditCalendar({ kind: "activity" })}>
+            ＋ 添加日程
+          </button>
         </header>
         <div>
-          {todayItems.length ? (
-            todayItems.map((item) => (
-              <button
-                key={item.id}
-                className={item.block < nowBlock ? "past" : ""}
-                onClick={() => onGo("schedule")}
+          {todayAgenda.length ? (
+            todayAgenda.map((agenda) => (
+              <article
+                key={agenda.key}
+                className={`agenda-row ${agenda.kind} ${agenda.order < nowBlock * 100 ? "past" : ""}`}
               >
-                <time>{data.periods[item.block - 1]?.short}</time>
+                <time>{agenda.eyebrow}</time>
                 <span>
-                  <strong>{item.title}</strong>
-                  <small>
-                    {item.building}
-                    {item.room} · {item.teacher}
-                  </small>
+                  <em>{agenda.kind === "course" ? "课程" : agenda.kind === "activity" ? "日程" : "作业"}</em>
+                  <strong>{agenda.title}</strong>
+                  <small>{agenda.meta}</small>
                 </span>
-              </button>
+                {agenda.kind === "course" ? (
+                  <button onClick={() => onGo("schedule")}>查看</button>
+                ) : (
+                  <div>
+                    {agenda.kind === "assignment" && (
+                      <button onClick={() => onToggleAssignment(agenda.item.id)}>
+                        完成
+                      </button>
+                    )}
+                    <button
+                      onClick={() =>
+                        onEditCalendar({
+                          kind: agenda.kind,
+                          id: agenda.item.id,
+                        })
+                      }
+                    >
+                      编辑
+                    </button>
+                    <button
+                      className="danger"
+                      onClick={() =>
+                        onDeleteCalendar(agenda.kind, agenda.item.id)
+                      }
+                    >
+                      删除
+                    </button>
+                  </div>
+                )}
+              </article>
             ))
           ) : (
-            <p>今天没有课程安排。</p>
+            <div className="agenda-empty">
+              <b>今天还没有安排</b>
+              <p>把学习、社团或个人计划加进来，学习台会替你按时间排好。</p>
+              <button onClick={() => onEditCalendar({ kind: "activity" })}>
+                添加第一项日程
+              </button>
+            </div>
           )}
         </div>
       </section>
+
+      <section className="week-ahead">
+        <header>
+          <div>
+            <span>接下来七天</span>
+            <b>课程、日程和截止日期放在同一条时间线上</b>
+          </div>
+          <button onClick={() => onGo("schedule")}>管理全部 →</button>
+        </header>
+        <div>
+          {upcomingAgenda.length ? (
+            upcomingAgenda.map((group) => (
+              <article key={group.iso}>
+                <time>{group.label}</time>
+                <div>
+                  {group.items.map((agenda) => (
+                    <button
+                      key={agenda.key}
+                      onClick={() =>
+                        agenda.kind === "course"
+                          ? onGo("schedule")
+                          : onEditCalendar({
+                              kind: agenda.kind,
+                              id: agenda.item.id,
+                            })
+                      }
+                    >
+                      <i>{agenda.kind === "course" ? "课" : agenda.kind === "activity" ? "程" : "交"}</i>
+                      <span>
+                        <strong>{agenda.title}</strong>
+                        <small>{agenda.meta}</small>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </article>
+            ))
+          ) : (
+            <p>未来七天暂时没有课程、日程或截止任务。</p>
+          )}
+        </div>
+      </section>
+
+      <section className="study-management">
+        <header>
+          <span>管理我的学习</span>
+          <h2>需要操作的内容，放在信息之后。</h2>
+        </header>
+        <div>
+          <button onClick={() => onGo("schedule")}>
+            <i>01</i>
+            <b>编辑我的课表</b>
+            <span>添加、移除课程或导出图片</span>
+          </button>
+          <button onClick={() => onEditCalendar({ kind: "activity" })}>
+            <i>02</i>
+            <b>添加个人日程</b>
+            <span>自习、社团、考试或生活安排</span>
+          </button>
+          <button onClick={() => onEditCalendar({ kind: "assignment" })}>
+            <i>03</i>
+            <b>添加课程作业</b>
+            <span>记录截止日期并自动倒计时</span>
+          </button>
+        </div>
+      </section>
+
+      <nav className="campus-services" aria-label="校园服务">
+        <header>
+          <span>校园服务</span>
+          <p>常用入口留在学习流的下方，不打断你查看今天。</p>
+        </header>
+        <a href="https://ginkgostu.dufe.edu.cn/" target="_blank" rel="noreferrer">
+          <i>果</i><span><b>白果云</b><small>学生服务</small></span><em>↗</em>
+        </a>
+        <a href="https://jwc.dufe.edu.cn/" target="_blank" rel="noreferrer">
+          <i>教</i><span><b>教务处</b><small>官方教学信息</small></span><em>↗</em>
+        </a>
+        <button onClick={() => onSearch("course")}>
+          <i>课</i><span><b>找课程</b><small>全校、专业与教师</small></span><em>→</em>
+        </button>
+        <button onClick={() => onSearch("material")}>
+          <i>文</i><span><b>找资料</b><small>教材、课件与题库</small></span><em>→</em>
+        </button>
+      </nav>
 
       <section className="knowledge-tribute">
         <figure className="tribute-photo">
@@ -1250,6 +1418,75 @@ function CatalogPage({
   );
 }
 
+function DraggableScheduleCard({
+  schedule,
+  onOpen,
+  onRemove,
+}: {
+  schedule: Schedule;
+  onOpen: () => void;
+  onRemove: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    isDragging,
+  } = useDraggable({ id: `schedule:${schedule.id}` });
+  const style: CSSProperties | undefined = transform
+    ? {
+        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+      }
+    : undefined;
+  return (
+    <article
+      ref={setNodeRef}
+      style={style}
+      className={`draggable-schedule ${isDragging ? "dragging" : ""}`}
+      {...attributes}
+    >
+      <button
+        className="schedule-card-main"
+        onClick={onOpen}
+        {...listeners}
+      >
+        <strong>{schedule.title}</strong>
+        <span>{schedule.teacher}</span>
+        <small>
+          {schedule.building}
+          {schedule.room}
+        </small>
+      </button>
+      <button
+        className="schedule-card-remove"
+        data-export-ignore="true"
+        onClick={(event) => {
+          event.stopPropagation();
+          onRemove();
+        }}
+        aria-label={`从课表移除 ${schedule.title}`}
+      >
+        移除
+      </button>
+    </article>
+  );
+}
+
+function ScheduleTrash({ active }: { active: boolean }) {
+  const { isOver, setNodeRef } = useDroppable({ id: "schedule-trash" });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`schedule-trash ${active ? "visible" : ""} ${isOver ? "over" : ""}`}
+      aria-hidden={!active}
+    >
+      <i>×</i>
+      <span>{isOver ? "松手移除" : "拖到这里移除"}</span>
+    </div>
+  );
+}
+
 function SchedulePage({
   data,
   term,
@@ -1302,7 +1539,17 @@ function SchedulePage({
   const [finderBlock, setFinderBlock] = useState(currentBlock);
   const [visibleLimit, setVisibleLimit] = useState(80);
   const [exporting, setExporting] = useState(false);
+  const [finderOpen, setFinderOpen] = useState(false);
+  const [draggingScheduleId, setDraggingScheduleId] = useState("");
+  const [lastRemovedId, setLastRemovedId] = useState("");
   const timetableRef = useRef<HTMLElement>(null);
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 350, tolerance: 8 },
+    }),
+    useSensor(KeyboardSensor),
+  );
   const needle = normalize(query);
   const searchPool = data.courses.filter(
     (course) =>
@@ -1374,6 +1621,32 @@ function SchedulePage({
       activePlanId: id,
     }));
   }
+  function removeSchedule(id: string) {
+    onRemove(id);
+    setLastRemovedId(id);
+    window.setTimeout(
+      () => setLastRemovedId((current) => (current === id ? "" : current)),
+      4500,
+    );
+  }
+  function handleDragStart(event: DragStartEvent) {
+    const id = String(event.active.id).replace("schedule:", "");
+    setDraggingScheduleId(id);
+    if ("vibrate" in navigator) navigator.vibrate(12);
+  }
+  function handleDragEnd(event: DragEndEvent) {
+    const id = String(event.active.id).replace("schedule:", "");
+    setDraggingScheduleId("");
+    if (event.over?.id === "schedule-trash") {
+      removeSchedule(id);
+      if ("vibrate" in navigator) navigator.vibrate([22, 30, 22]);
+    }
+  }
+  function undoRemove() {
+    if (!lastRemovedId) return;
+    onAdd(lastRemovedId);
+    setLastRemovedId("");
+  }
   async function exportTimetable() {
     if (!timetableRef.current || exporting) return;
     setExporting(true);
@@ -1431,10 +1704,28 @@ function SchedulePage({
         ))}
         <button onClick={newPlan}>＋ 新建方案</button>
       </div>
-      <div className="lineup-workspace">
-        <aside className="course-pool finder-pool">
+      {finderOpen && (
+        <button
+          className="finder-backdrop"
+          onClick={() => setFinderOpen(false)}
+          aria-label="关闭找课程"
+        />
+      )}
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragCancel={() => setDraggingScheduleId("")}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="lineup-workspace">
+        <aside className={`course-pool finder-pool ${finderOpen ? "open" : ""}`}>
           <header>
-            <h2>找课程</h2>
+            <div className="finder-title">
+              <h2>找课程</h2>
+              <button onClick={() => setFinderOpen(false)} aria-label="关闭">
+                完成
+              </button>
+            </div>
             <div className="finder-tabs">
               <button
                 className={finderMode === "search" ? "active" : ""}
@@ -1605,6 +1896,13 @@ function SchedulePage({
                 {conflicts.size ? `${conflicts.size} 个冲突` : "无冲突"}
               </p>
               <button
+                className="open-course-finder"
+                data-export-ignore="true"
+                onClick={() => setFinderOpen(true)}
+              >
+                ＋ 添加课程
+              </button>
+              <button
                 data-export-ignore="true"
                 onClick={exportTimetable}
                 disabled={exporting}
@@ -1647,25 +1945,12 @@ function SchedulePage({
                     }
                   >
                     {cell.map((item) => (
-                      <button
+                      <DraggableScheduleCard
                         key={item.id}
-                        onClick={() => onCourse(courses.get(item.courseId)!)}
-                      >
-                        <strong>{item.title}</strong>
-                        <span>{item.teacher}</span>
-                        <small>
-                          {item.building}
-                          {item.room}
-                        </small>
-                        <i
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onRemove(item.id);
-                          }}
-                        >
-                          ×
-                        </i>
-                      </button>
+                        schedule={item}
+                        onOpen={() => onCourse(courses.get(item.courseId)!)}
+                        onRemove={() => removeSchedule(item.id)}
+                      />
                     ))}
                     {personal.map((item) => (
                       <button
@@ -1728,78 +2013,128 @@ function SchedulePage({
                 </button>
               </div>
             </header>
-            <div className="planner-columns">
-              <div>
-                <b>每周活动</b>
-                {saved.activities.length ? (
-                  saved.activities
-                    .slice()
-                    .sort((a, b) => a.weekday - b.weekday || a.block - b.block)
-                    .map((item) => (
+            <div className="planner-stream">
+              {[
+                ...saved.activities.map((item) => ({
+                  key: `activity-${item.id}`,
+                  kind: "activity" as const,
+                  order: item.weekday * 100 + item.block,
+                  label: `周${weekdayShort[item.weekday - 1]} · ${data.periods[item.block - 1]?.short}`,
+                  title: item.title,
+                  meta: item.location || "未设置地点",
+                  completed: false,
+                  item,
+                })),
+                ...saved.assignments.map((item) => ({
+                  key: `assignment-${item.id}`,
+                  kind: "assignment" as const,
+                  order: 1000 + new Date(item.dueDate).getTime(),
+                  label: item.completed
+                    ? "已完成"
+                    : daysUntil(item.dueDate) < 0
+                      ? `逾期 ${Math.abs(daysUntil(item.dueDate))} 天`
+                      : daysUntil(item.dueDate) === 0
+                        ? "今天截止"
+                        : `${daysUntil(item.dueDate)} 天后`,
+                  title: item.title,
+                  meta: `${courses.get(item.courseId)?.title || "未关联课程"} · ${item.dueDate}`,
+                  completed: item.completed,
+                  item,
+                })),
+              ]
+                .sort((a, b) => Number(a.completed) - Number(b.completed) || a.order - b.order)
+                .map((entry) => (
+                  <article
+                    key={entry.key}
+                    className={entry.completed ? "completed" : ""}
+                  >
+                    <time>{entry.label}</time>
+                    <span>
+                      <em>{entry.kind === "activity" ? "日程" : "作业"}</em>
+                      <strong>{entry.title}</strong>
+                      <small>{entry.meta}</small>
+                    </span>
+                    <div>
+                      {entry.kind === "assignment" && (
+                        <button
+                          onClick={() =>
+                            setSaved((state) => ({
+                              ...state,
+                              assignments: state.assignments.map((item) =>
+                                item.id === entry.item.id
+                                  ? { ...item, completed: !item.completed }
+                                  : item,
+                              ),
+                            }))
+                          }
+                        >
+                          {entry.completed ? "恢复" : "完成"}
+                        </button>
+                      )}
                       <button
-                        key={item.id}
                         onClick={() =>
-                          onEditCalendar({ kind: "activity", id: item.id })
+                          onEditCalendar({
+                            kind: entry.kind,
+                            id: entry.item.id,
+                          })
                         }
                       >
-                        <i className={item.color} />
-                        <span>
-                          <strong>{item.title}</strong>
-                          <small>
-                            周{weekdayShort[item.weekday - 1]} · 第 {item.block}{" "}
-                            大节
-                            {item.location ? ` · ${item.location}` : ""}
-                          </small>
-                        </span>
+                        编辑
                       </button>
-                    ))
-                ) : (
-                  <p>点击课表空白格，也可以直接添加活动。</p>
-                )}
-              </div>
-              <div>
-                <b>课程作业</b>
-                {saved.assignments.length ? (
-                  saved.assignments
-                    .slice()
-                    .sort(
-                      (a, b) =>
-                        Number(a.completed) - Number(b.completed) ||
-                        new Date(a.dueDate).getTime() -
-                          new Date(b.dueDate).getTime(),
-                    )
-                    .map((item) => (
                       <button
-                        key={item.id}
-                        className={item.completed ? "completed" : ""}
+                        className="danger"
                         onClick={() =>
-                          onEditCalendar({ kind: "assignment", id: item.id })
+                          setSaved((state) => ({
+                            ...state,
+                            activities:
+                              entry.kind === "activity"
+                                ? state.activities.filter(
+                                    (item) => item.id !== entry.item.id,
+                                  )
+                                : state.activities,
+                            assignments:
+                              entry.kind === "assignment"
+                                ? state.assignments.filter(
+                                    (item) => item.id !== entry.item.id,
+                                  )
+                                : state.assignments,
+                          }))
                         }
                       >
-                        <time>
-                          {item.completed
-                            ? "已完成"
-                            : daysUntil(item.dueDate) < 0
-                              ? `逾期 ${Math.abs(daysUntil(item.dueDate))} 天`
-                              : `${daysUntil(item.dueDate)} 天`}
-                        </time>
-                        <span>
-                          <strong>{item.title}</strong>
-                          <small>
-                            {courses.get(item.courseId)?.title || "未关联课程"} ·{" "}
-                            {item.dueDate}
-                          </small>
-                        </span>
+                        删除
                       </button>
-                    ))
-                ) : (
-                  <p>添加作业后，学习台会自动显示最近截止日期。</p>
-                )}
-              </div>
+                    </div>
+                  </article>
+                ))}
+              {!saved.activities.length && !saved.assignments.length && (
+                <div className="planner-empty">
+                  <b>还没有个人安排</b>
+                  <p>添加活动或作业后，它们会按时间出现在同一条列表里。</p>
+                </div>
+              )}
             </div>
           </section>
         </section>
       </div>
+        <ScheduleTrash active={Boolean(draggingScheduleId)} />
+        <DragOverlay>
+          {draggingScheduleId ? (
+            <div className="schedule-drag-overlay">
+              <strong>
+                {activeSchedules.find((item) => item.id === draggingScheduleId)
+                  ?.title || "课程"}
+              </strong>
+              <small>拖到下方即可移除</small>
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+      {lastRemovedId && (
+        <div className="remove-undo" role="status">
+          <span>课程已从当前课表移除</span>
+          <button onClick={undoRemove}>撤销</button>
+        </div>
+      )}
     </div>
   );
 }

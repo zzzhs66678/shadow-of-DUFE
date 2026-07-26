@@ -5682,6 +5682,631 @@ kbd {
   color: white;
 }
 
+/* V9：统一学习流。确定性信息优先，操作在信息之后。 */
+.focus-page-v5 .focus-head-v5 {
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.focus-page-v5 .focus-head-v5 h1 {
+  font-size: clamp(38px, 4.4vw, 62px);
+}
+
+.day-brief {
+  background: #171615;
+  color: #f7f3eb;
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(230px, .7fr) minmax(180px, .5fr);
+  min-height: 178px;
+}
+
+.day-brief > * {
+  border: 0;
+  border-left: 1px solid #3b3834;
+  padding: 26px 28px;
+  text-align: left;
+}
+
+.day-brief > :first-child {
+  border-left: 0;
+}
+
+.day-brief span {
+  color: #d8666b;
+  font: 700 10px/1 var(--mono);
+  letter-spacing: .12em;
+}
+
+.day-brief-main,
+.day-brief-assignment,
+.day-brief-room {
+  display: flex;
+  flex-direction: column;
+}
+
+.day-brief-main b {
+  font: 560 clamp(25px, 3vw, 42px)/1.08 var(--sans);
+  letter-spacing: -.045em;
+  margin: auto 0 10px;
+}
+
+.day-brief small {
+  color: #aaa49b;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.day-brief-assignment > button {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: end;
+  padding: 0;
+  text-align: left;
+}
+
+.day-brief-assignment b {
+  font: 500 24px/1.1 var(--serif);
+  margin-bottom: 9px;
+}
+
+.day-brief-room {
+  background: #a51f25;
+  color: white;
+}
+
+.day-brief-room span,
+.day-brief-room small {
+  color: #f0c7c9;
+}
+
+.day-brief-room b {
+  font: 500 54px/1 var(--serif);
+  margin: auto 0 8px;
+}
+
+.focus-page-v5 .unified-agenda {
+  border-bottom: 0;
+  padding-bottom: 26px;
+}
+
+.unified-agenda > div {
+  border-bottom: 1px solid var(--focus-line);
+}
+
+.agenda-row {
+  align-items: center;
+  border-top: 1px solid var(--focus-line);
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 100px minmax(0, 1fr) auto;
+  min-height: 78px;
+  padding: 12px 0;
+}
+
+.agenda-row > time {
+  color: var(--focus-red);
+  font: 10px/1.4 var(--mono);
+}
+
+.agenda-row > span {
+  display: grid;
+  gap: 4px;
+}
+
+.agenda-row > span em {
+  color: var(--focus-muted);
+  font: 700 8px/1 var(--mono);
+  font-style: normal;
+  letter-spacing: .1em;
+}
+
+.agenda-row > span strong {
+  font-size: 14px;
+}
+
+.agenda-row > span small {
+  color: var(--focus-muted);
+  font-size: 10px;
+}
+
+.agenda-row > div {
+  display: flex;
+  gap: 5px;
+}
+
+.agenda-row > button,
+.agenda-row > div button {
+  background: transparent;
+  border: 1px solid var(--focus-line);
+  color: var(--focus-ink);
+  font-size: 9px;
+  padding: 7px 9px;
+}
+
+.agenda-row button.danger,
+.planner-stream button.danger {
+  color: var(--focus-red);
+}
+
+.agenda-row.past {
+  opacity: .48;
+}
+
+.agenda-empty {
+  padding: 34px 0;
+}
+
+.agenda-empty b {
+  font-size: 18px;
+}
+
+.agenda-empty p,
+.week-ahead > div > p {
+  color: var(--focus-muted);
+  font-size: 11px;
+  margin: 7px 0 16px;
+}
+
+.agenda-empty button {
+  background: #171615;
+  border: 0;
+  color: white;
+  font-size: 10px;
+  padding: 10px 14px;
+}
+
+.week-ahead {
+  border-top: 1px solid var(--focus-line);
+  display: grid;
+  gap: 30px;
+  grid-template-columns: 210px minmax(0, 1fr);
+  padding: 48px 0 54px;
+}
+
+.week-ahead > header span,
+.study-management > header span,
+.campus-services > header span {
+  color: var(--focus-red);
+  font: 700 9px/1 var(--mono);
+  letter-spacing: .11em;
+}
+
+.week-ahead > header b {
+  color: var(--focus-muted);
+  display: block;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.7;
+  margin-top: 10px;
+}
+
+.week-ahead > header button {
+  background: transparent;
+  border: 0;
+  color: var(--focus-red);
+  font-size: 10px;
+  margin-top: 24px;
+  padding: 0;
+}
+
+.week-ahead > div {
+  display: grid;
+}
+
+.week-ahead > div > article {
+  border-top: 1px solid var(--focus-line);
+  display: grid;
+  gap: 15px;
+  grid-template-columns: 105px 1fr;
+  padding: 13px 0;
+}
+
+.week-ahead > div > article:last-child {
+  border-bottom: 1px solid var(--focus-line);
+}
+
+.week-ahead article > time {
+  color: var(--focus-muted);
+  font: 10px/1.5 var(--mono);
+  padding-top: 9px;
+}
+
+.week-ahead article > div {
+  display: grid;
+  gap: 4px;
+}
+
+.week-ahead article button {
+  align-items: center;
+  background: rgba(255, 255, 255, .34);
+  border: 0;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 28px 1fr;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.week-ahead article button i {
+  align-items: center;
+  background: #ded8cd;
+  border-radius: 50%;
+  color: var(--focus-red);
+  display: flex;
+  font-size: 9px;
+  font-style: normal;
+  height: 28px;
+  justify-content: center;
+}
+
+.week-ahead article button span {
+  display: grid;
+  gap: 2px;
+}
+
+.week-ahead article button strong {
+  font-size: 11px;
+}
+
+.week-ahead article button small {
+  color: var(--focus-muted);
+  font-size: 9px;
+}
+
+.study-management {
+  background: #ded9cf;
+  display: grid;
+  gap: 34px;
+  grid-template-columns: minmax(200px, .6fr) 1.4fr;
+  padding: 34px;
+}
+
+.study-management h2 {
+  font: 500 25px/1.2 var(--serif);
+  margin: 12px 0 0;
+  max-width: 310px;
+}
+
+.study-management > div {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.study-management > div button {
+  background: transparent;
+  border: 0;
+  border-left: 1px solid #bbb4a9;
+  display: flex;
+  flex-direction: column;
+  min-height: 125px;
+  padding: 7px 20px;
+  text-align: left;
+}
+
+.study-management button i {
+  color: var(--focus-red);
+  font: 9px/1 var(--mono);
+  font-style: normal;
+}
+
+.study-management button b {
+  font-size: 13px;
+  margin: auto 0 7px;
+}
+
+.study-management button span {
+  color: var(--focus-muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.campus-services {
+  border-bottom: 1px solid var(--focus-line);
+  display: grid;
+  grid-template-columns: 1.15fr repeat(4, 1fr);
+  margin-top: 54px;
+}
+
+.campus-services > * {
+  border: 0;
+  border-left: 1px solid var(--focus-line);
+  min-height: 102px;
+}
+
+.campus-services > header {
+  border-left: 0;
+  padding: 18px 20px 18px 0;
+}
+
+.campus-services > header p {
+  color: var(--focus-muted);
+  font-size: 9px;
+  line-height: 1.55;
+  margin: 12px 0 0;
+}
+
+.campus-services > a,
+.campus-services > button {
+  align-items: center;
+  background: transparent;
+  color: var(--focus-ink);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  padding: 15px;
+  text-align: left;
+  text-decoration: none;
+}
+
+.campus-services > a > i,
+.campus-services > button > i {
+  align-items: center;
+  background: #dcd7cd;
+  border-radius: 50%;
+  color: var(--focus-red);
+  display: flex;
+  font-size: 11px;
+  font-style: normal;
+  height: 32px;
+  justify-content: center;
+}
+
+.campus-services span {
+  display: grid;
+  gap: 4px;
+}
+
+.campus-services b {
+  font-size: 11px;
+}
+
+.campus-services small {
+  color: var(--focus-muted);
+  font-size: 8px;
+}
+
+.campus-services em {
+  color: var(--focus-red);
+  font-size: 11px;
+  font-style: normal;
+}
+
+/* 课表：桌面保留课程池，手机用底部抽屉；课程支持长按拖走与显式移除。 */
+.finder-title {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.finder-title > button {
+  background: transparent;
+  border: 0;
+  color: var(--red);
+  display: none;
+  font-size: 12px;
+}
+
+.open-course-finder {
+  display: none;
+}
+
+.draggable-schedule {
+  background: #ecd7d2;
+  border-left: 3px solid var(--red);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 78px;
+  position: relative;
+  touch-action: manipulation;
+  transition: box-shadow .18s ease, opacity .18s ease, transform .18s ease;
+  z-index: 1;
+}
+
+.draggable-schedule.dragging {
+  opacity: .18;
+  z-index: 20;
+}
+
+.schedule-card-main {
+  background: transparent;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 10px 7px 9px 10px;
+  text-align: left;
+}
+
+.schedule-card-main strong {
+  display: -webkit-box;
+  font-size: 11px;
+  line-height: 1.25;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.schedule-card-main span,
+.schedule-card-main small {
+  color: #6f625e;
+  font-size: 8px;
+  margin-top: 4px;
+}
+
+.schedule-card-remove {
+  background: transparent;
+  border: 0;
+  border-left: 1px solid rgba(165, 31, 37, .15);
+  color: var(--red);
+  font-size: 8px;
+  padding: 5px;
+  writing-mode: vertical-rl;
+}
+
+.schedule-trash {
+  align-items: center;
+  background: #171615;
+  border: 1px solid #4d4944;
+  border-radius: 999px;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  color: white;
+  display: flex;
+  gap: 9px;
+  left: 50%;
+  opacity: 0;
+  padding: 10px 20px;
+  pointer-events: none;
+  position: fixed;
+  transform: translate(-50%, 30px);
+  transition: .2s ease;
+  z-index: 130;
+}
+
+.schedule-trash.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, 0);
+}
+
+.schedule-trash.over {
+  background: #a51f25;
+  border-color: #e68d91;
+  transform: translate(-50%, 0) scale(1.08);
+}
+
+.schedule-trash i {
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-style: normal;
+  height: 22px;
+  line-height: 19px;
+  text-align: center;
+  width: 22px;
+}
+
+.schedule-trash span {
+  font-size: 10px;
+}
+
+.schedule-drag-overlay {
+  background: #ecd7d2;
+  border-left: 4px solid #a51f25;
+  box-shadow: 0 16px 45px rgba(20, 18, 16, .22);
+  display: grid;
+  gap: 5px;
+  min-width: 150px;
+  padding: 14px;
+}
+
+.schedule-drag-overlay strong {
+  font-size: 12px;
+}
+
+.schedule-drag-overlay small {
+  color: #786b67;
+  font-size: 9px;
+}
+
+.remove-undo {
+  align-items: center;
+  background: #171615;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  color: white;
+  display: flex;
+  gap: 20px;
+  left: 50%;
+  padding: 12px 16px;
+  position: fixed;
+  transform: translateX(-50%);
+  z-index: 140;
+}
+
+.remove-undo span {
+  font-size: 10px;
+}
+
+.remove-undo button {
+  background: transparent;
+  border: 0;
+  color: #ef7d82;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 0;
+}
+
+.planner-stream {
+  border-top: 1px solid var(--line);
+  display: grid;
+}
+
+.planner-stream > article {
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 110px minmax(0, 1fr) auto;
+  min-height: 74px;
+  padding: 10px 0;
+}
+
+.planner-stream > article.completed {
+  opacity: .45;
+}
+
+.planner-stream article > time {
+  color: var(--red);
+  font: 9px/1.4 var(--mono);
+}
+
+.planner-stream article > span {
+  display: grid;
+  gap: 3px;
+}
+
+.planner-stream article em {
+  color: var(--muted);
+  font: 8px/1 var(--mono);
+  font-style: normal;
+}
+
+.planner-stream article strong {
+  font-size: 12px;
+}
+
+.planner-stream article small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.planner-stream article > div {
+  display: flex;
+  gap: 5px;
+}
+
+.planner-stream article > div button {
+  background: transparent;
+  border: 1px solid var(--line);
+  font-size: 9px;
+  padding: 7px 9px;
+}
+
+.planner-empty {
+  padding: 28px 0;
+}
+
+.planner-empty b {
+  font-size: 14px;
+}
+
+.planner-empty p {
+  color: var(--muted);
+  font-size: 10px;
+}
+
 /* 空教室 V5：采用成熟的楼栋 / 楼层 / 单层地图层级。 */
 .page-wrap.living-spaces.rooms-v5 {
   --map-bg: #ece9e1;
@@ -6469,5 +7094,398 @@ kbd {
 
   .planner-columns {
     grid-template-columns: 1fr;
+  }
+}
+
+/* V9 final mobile cascade：微信内置浏览器不自动放大，页面不产生横向溢出。 */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html,
+body,
+.site-shell {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+@media (max-width: 780px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  .hub-topbar {
+    position: relative;
+    top: auto;
+  }
+
+  .page-wrap {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .page-wrap.today-page.focus-page.focus-page-v5 {
+    min-height: 0;
+    padding: 17px 14px calc(102px + env(safe-area-inset-bottom));
+    width: 100%;
+  }
+
+  .focus-page-v5 .focus-head-v5 {
+    align-items: end;
+    grid-template-columns: minmax(0, 1fr) 38px;
+    margin-bottom: 10px;
+  }
+
+  .focus-page-v5 .focus-head-v5 h1 {
+    font-size: clamp(34px, 10.5vw, 43px);
+    white-space: nowrap;
+  }
+
+  .focus-page-v5 .focus-head-v5 > p {
+    align-items: start;
+    gap: 10px;
+  }
+
+  .day-brief {
+    display: grid;
+    grid-template-columns: 1fr 112px;
+    min-height: 0;
+  }
+
+  .day-brief > * {
+    min-width: 0;
+    padding: 16px;
+  }
+
+  .day-brief-main {
+    grid-column: 1 / -1;
+    min-height: 150px;
+  }
+
+  .day-brief-main b {
+    font-size: clamp(24px, 7vw, 31px);
+    margin-top: 34px;
+  }
+
+  .day-brief-assignment {
+    border-left: 0;
+    border-top: 1px solid #3b3834;
+    min-height: 112px;
+  }
+
+  .day-brief-assignment b {
+    font-size: 19px;
+  }
+
+  .day-brief-room {
+    border-top: 1px solid #ba555a;
+    min-height: 112px;
+  }
+
+  .day-brief-room b {
+    font-size: 37px;
+  }
+
+  .focus-page-v5 .unified-agenda {
+    padding: 32px 0 20px;
+  }
+
+  .agenda-row {
+    gap: 9px;
+    grid-template-columns: 68px minmax(0, 1fr);
+    min-height: 82px;
+    padding: 11px 0;
+  }
+
+  .agenda-row > time {
+    font-size: 8px;
+  }
+
+  .agenda-row > span strong {
+    font-size: 12px;
+  }
+
+  .agenda-row > div,
+  .agenda-row > button {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+
+  .agenda-row > div button,
+  .agenda-row > button {
+    padding: 6px 8px;
+  }
+
+  .week-ahead {
+    display: block;
+    padding: 36px 0 40px;
+  }
+
+  .week-ahead > header {
+    align-items: end;
+    display: flex;
+    gap: 16px;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+
+  .week-ahead > header b {
+    display: none;
+  }
+
+  .week-ahead > header button {
+    margin: 0;
+  }
+
+  .week-ahead > div > article {
+    gap: 8px;
+    grid-template-columns: 72px 1fr;
+  }
+
+  .study-management {
+    display: block;
+    margin: 0 -14px;
+    padding: 28px 14px;
+  }
+
+  .study-management h2 {
+    font-size: 22px;
+    margin-bottom: 24px;
+  }
+
+  .study-management > div {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .study-management > div button {
+    border-left: 0;
+    border-top: 1px solid #bbb4a9;
+    display: grid;
+    gap: 6px 12px;
+    grid-template-columns: 30px 1fr;
+    min-height: 76px;
+    padding: 13px 0;
+  }
+
+  .study-management button i {
+    grid-row: 1 / 3;
+    padding-top: 4px;
+  }
+
+  .study-management button b {
+    margin: 0;
+  }
+
+  .campus-services {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    margin-top: 38px;
+  }
+
+  .campus-services > header {
+    border-bottom: 1px solid var(--focus-line);
+    grid-column: 1 / -1;
+    min-height: 78px;
+    padding-right: 0;
+  }
+
+  .campus-services > a,
+  .campus-services > button {
+    border-bottom: 1px solid var(--focus-line);
+    grid-template-columns: 28px 1fr;
+    min-height: 82px;
+    padding: 12px 9px;
+  }
+
+  .campus-services > a:nth-of-type(1),
+  .campus-services > button:nth-of-type(1) {
+    border-left: 0;
+  }
+
+  .campus-services em {
+    display: none;
+  }
+
+  .knowledge-tribute {
+    padding-top: 54px;
+  }
+
+  .lineup-workspace {
+    display: block;
+  }
+
+  .finder-backdrop {
+    background: rgba(18, 16, 14, .42);
+    border: 0;
+    inset: 0;
+    position: fixed;
+    z-index: 109;
+  }
+
+  .course-pool.finder-pool {
+    background: var(--paper);
+    border: 0;
+    border-radius: 20px 20px 0 0;
+    bottom: 0;
+    display: block;
+    left: 0;
+    margin: 0;
+    max-height: 86dvh;
+    opacity: 0;
+    overflow: hidden;
+    padding-bottom: env(safe-area-inset-bottom);
+    pointer-events: none;
+    position: fixed;
+    right: 0;
+    transform: translateY(105%);
+    transition: opacity .18s ease, transform .28s cubic-bezier(.2, .8, .2, 1);
+    z-index: 110;
+  }
+
+  .course-pool.finder-pool.open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  .course-pool.finder-pool > header {
+    padding: 18px 16px 10px;
+  }
+
+  .finder-title > button {
+    display: block;
+  }
+
+  .course-pool.finder-pool > div {
+    display: grid;
+    max-height: 54dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 8px 12px 20px;
+  }
+
+  .course-pool.finder-pool article {
+    border: 0;
+    border-top: 1px solid var(--line);
+    margin: 0;
+    width: 100%;
+  }
+
+  .timetable-panel {
+    border: 0;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .timetable-panel > header {
+    align-items: end;
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .timetable-tools {
+    align-items: flex-end;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    justify-content: flex-end;
+  }
+
+  .timetable-tools p {
+    flex-basis: 100%;
+  }
+
+  .open-course-finder {
+    display: block;
+  }
+
+  .week-grid {
+    grid-template-columns: 28px repeat(5, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .grid-corner,
+  .day-head {
+    font-size: 8px;
+    padding: 7px 1px;
+  }
+
+  .block-head,
+  .schedule-cell {
+    min-height: 112px;
+    padding: 2px;
+  }
+
+  .draggable-schedule {
+    display: block;
+    min-height: 0;
+    touch-action: manipulation;
+  }
+
+  .schedule-card-main {
+    min-height: 82px;
+    padding: 6px 2px 5px 4px;
+    width: 100%;
+  }
+
+  .schedule-card-main strong {
+    font-size: 8px;
+    -webkit-line-clamp: 3;
+  }
+
+  .schedule-card-main span,
+  .schedule-card-main small {
+    font-size: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .schedule-card-remove {
+    border-left: 0;
+    border-top: 1px solid rgba(165, 31, 37, .15);
+    display: block;
+    font-size: 7px;
+    padding: 4px 1px;
+    width: 100%;
+    writing-mode: initial;
+  }
+
+  .personal-planner {
+    margin-top: 34px;
+  }
+
+  .personal-planner > header {
+    align-items: end;
+    gap: 10px;
+  }
+
+  .planner-stream > article {
+    gap: 8px;
+    grid-template-columns: 66px minmax(0, 1fr);
+    min-height: 88px;
+  }
+
+  .planner-stream article > div {
+    grid-column: 2;
+  }
+
+  .planner-stream article > div button {
+    padding: 6px 8px;
+  }
+
+  .schedule-trash {
+    bottom: calc(78px + env(safe-area-inset-bottom));
+  }
+
+  .remove-undo {
+    bottom: calc(78px + env(safe-area-inset-bottom));
+    max-width: calc(100% - 24px);
+    width: max-content;
   }
 }
