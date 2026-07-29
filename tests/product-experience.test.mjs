@@ -37,3 +37,21 @@ test("mobile timetable offers daily and week views without changing export", () 
   assert.match(component, /export-canvas/);
   assert.match(productStyles, /\.timetable-panel\.export-canvas \.week-grid/);
 });
+
+test("room finder supports intent-based recommendations and device memory", () => {
+  assert.match(component, /RoomIntent/);
+  assert.match(component, /targetBlocks/);
+  assert.match(component, /roomIsAvailable/);
+  assert.match(component, /availableUntil/);
+  assert.match(component, /favoriteRooms/);
+  assert.match(component, /recentRooms/);
+  assert.match(productStyles, /\.room-recommendations/);
+  assert.match(productStyles, /\.room-intents/);
+});
+
+test("customer-facing copy does not expose planning notes", () => {
+  assert.doesNotMatch(component, /需要操作的内容，放在信息之后/);
+  assert.doesNotMatch(component, /这个搜索词会作为后续补充别名的依据/);
+  assert.doesNotMatch(component, /常用入口留在学习流的下方/);
+  assert.doesNotMatch(component, /课程、教室与资料关系正在抵达/);
+});

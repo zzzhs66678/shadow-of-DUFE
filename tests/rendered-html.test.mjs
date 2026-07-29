@@ -30,8 +30,8 @@ test("server-renders the branded data-loading shell", async () => {
 
   const html = await response.text();
   assert.match(html, /<title>东财之影｜课表、空教室与学习资料｜东财之影<\/title>/i);
-  assert.match(html, /正在展开校园索引/);
-  assert.match(html, /课程、教室与资料关系正在抵达/);
+  assert.match(html, /正在加载课程数据/);
+  assert.match(html, /稍等一下，马上就好/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/i);
 });
 

@@ -104,6 +104,8 @@ type SavedState = {
   activePlanId: string;
   activities: PersonalActivity[];
   assignments: Assignment[];
+  favoriteRooms: string[];
+  recentRooms: string[];
 };
 type CalendarEditorRequest =
   | { kind: "activity"; weekday?: number; block?: number; id?: string }
@@ -153,6 +155,8 @@ const emptySavedState: SavedState = {
   activePlanId: "default",
   activities: [],
   assignments: [],
+  favoriteRooms: [],
+  recentRooms: [],
 };
 
 function todayISO() {
@@ -182,7 +186,7 @@ function currentBlock() {
 
 function scheduleWeeksLabel(schedule: Schedule) {
   const weeks = [...new Set(schedule.weeks ?? [])].sort((a, b) => a - b);
-  if (!weeks.length) return "周次待补";
+  if (!weeks.length) return "周次未标注";
   const ranges: Array<[number, number]> = [];
   for (const week of weeks) {
     const last = ranges[ranges.length - 1];
@@ -343,10 +347,10 @@ export function DufeHubV2() {
       <main className="data-loading" aria-live="polite">
         <Wordmark />
         <div>
-          <span>正在展开校园索引</span>
+          <span>正在加载课程数据</span>
           <i />
         </div>
-        <p>课程、教室与资料关系正在抵达。</p>
+        <p>稍等一下，马上就好。</p>
       </main>
     );
   }
@@ -410,6 +414,12 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           activities: Array.isArray(parsed.activities) ? parsed.activities : [],
           assignments: Array.isArray(parsed.assignments)
             ? parsed.assignments
+            : [],
+          favoriteRooms: Array.isArray(parsed.favoriteRooms)
+            ? parsed.favoriteRooms
+            : [],
+          recentRooms: Array.isArray(parsed.recentRooms)
+            ? parsed.recentRooms
             : [],
         };
       }
@@ -515,7 +525,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           key: `room-${fullRoom}`,
           kind: "room",
           title: fullRoom,
-          meta: "查看教室当前与后续状态",
+          meta: "查看今天哪些时段有课",
           room: schedule.room,
           score: 2,
         });
@@ -745,6 +755,8 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           query={roomQuery}
           setQuery={setRoomQuery}
           nextClass={nextClass}
+          saved={saved}
+          setSaved={setSaved}
         />
       )}
       {view === "me" && (
@@ -966,7 +978,7 @@ function HomePage({
       order: item.block * 100,
       eyebrow: data.periods[item.block - 1]?.short || `第 ${item.block} 大节`,
       title: item.title,
-      meta: `${item.building}${item.room} · ${item.teacher || "教师待补"}`,
+      meta: `${item.building}${item.room} · ${item.teacher || "教师未标注"}`,
       item,
     })),
     ...todayActivities.map((item) => ({
@@ -1063,7 +1075,7 @@ function HomePage({
             onEditCalendar({ kind: "assignment", id: nextAssignment.id }),
         }
       : {
-          label: "校园建议",
+          label: "顺路看看",
           title: primaryClass
             ? `下一站 ${primaryClass.building}${primaryClass.room}`
             : `${bestBuilding?.name || "教学楼"}此刻更容易找到座位`,
@@ -1097,8 +1109,8 @@ function HomePage({
 
       {!saved.profile && (
         <button className="focus-setup" onClick={onSetup}>
-          <span>选择专业和班级，自动生成我的课表</span>
-          <b>开始设置 →</b>
+          <span>选好专业和班级，先把自己的课表认领回来</span>
+          <b>去选择 →</b>
         </button>
       )}
 
@@ -1120,16 +1132,16 @@ function HomePage({
                   ? primaryClass.title
                   : saved.profile
                     ? "把今天留给自己的安排"
-                    : "先建立你的专业与班级"}
+                    : "先告诉我你在哪个班"}
               </h2>
               <p>
                 {primaryClass
                   ? `${data.periods[primaryClass.block - 1]?.time} · ${primaryClass.building}${primaryClass.room}`
-                  : "课程、日程与作业会在这里自动汇成一张今日卡片。"}
+                  : "选好班级后，下一节课会出现在这里。"}
               </p>
               {primaryClass && (
                 <small>
-                  {primaryClass.teacher || "教师待补"} ·{" "}
+                  {primaryClass.teacher || "教师未标注"} ·{" "}
                   {scheduleWeeksLabel(primaryClass)}
                 </small>
               )}
@@ -1265,7 +1277,7 @@ function HomePage({
           ) : (
             <div className="agenda-empty">
               <b>今天还没有安排</b>
-              <p>把学习、社团或个人计划加进来，学习台会替你按时间排好。</p>
+              <p>上课、自习、社团都可以记在这里。</p>
               <button onClick={() => onEditCalendar({ kind: "activity" })}>
                 添加第一项日程
               </button>
@@ -1278,7 +1290,7 @@ function HomePage({
         <header>
           <div>
             <span>接下来七天</span>
-            <b>课程、日程和截止日期放在同一条时间线上</b>
+            <b>先看看接下来几天</b>
           </div>
           <button onClick={() => onGo("schedule")}>管理全部 →</button>
         </header>
@@ -1311,15 +1323,15 @@ function HomePage({
               </article>
             ))
           ) : (
-            <p>未来七天暂时没有课程、日程或截止任务。</p>
+            <p>接下来七天还没有安排。</p>
           )}
         </div>
       </section>
 
       <section className="study-management">
         <header>
-          <span>管理我的学习</span>
-          <h2>需要操作的内容，放在信息之后。</h2>
+          <span>加点新安排</span>
+          <h2>课表、日程和作业都在这里改。</h2>
         </header>
         <div>
           <button onClick={() => onGo("schedule")}>
@@ -1343,7 +1355,7 @@ function HomePage({
       <nav className="campus-services" aria-label="校园服务">
         <header>
           <span>校园服务</span>
-          <p>常用入口留在学习流的下方，不打断你查看今天。</p>
+          <p>平时常去的几个地方。</p>
         </header>
         <a href="https://ginkgostu.dufe.edu.cn/" target="_blank" rel="noreferrer">
           <i>果</i><span><b>白果云</b><small>学生服务</small></span><em>↗</em>
@@ -1538,7 +1550,7 @@ function CatalogPage({
           </div>
           {!items.length && (
             <div className="quiet-empty">
-              <b>这里暂时没有匹配课程</b>
+              <b>没找到这门课</b>
               <p>切换年级或学期继续查看。</p>
             </div>
           )}
@@ -1766,7 +1778,7 @@ function SchedulePage({
             kind: "course" as const,
             block: item.block,
             title: item.title,
-            meta: `${item.building}${item.room} · ${item.teacher || "教师待补"}`,
+            meta: `${item.building}${item.room} · ${item.teacher || "教师未标注"}`,
             schedule: item,
           })),
         ...saved.activities
@@ -1853,7 +1865,7 @@ function SchedulePage({
         <div>
           <h1>我的课表</h1>
           <p>
-            {saved.profile?.className || "自由组合课程，冲突只提醒、不阻止。"}
+            {saved.profile?.className || "按自己的节奏排一张课表。"}
           </p>
         </div>
         <div className="schedule-heading-actions">
@@ -2067,7 +2079,7 @@ function SchedulePage({
                 );
               })
             ) : (
-              <p className="pool-empty">这个条件下暂时没有课程。</p>
+              <p className="pool-empty">这个条件下没有找到课程。</p>
             )}
             {pool.length < poolAll.length && (
               <button
@@ -2251,7 +2263,7 @@ function SchedulePage({
           {!activeSchedules.length && (
             <div className="timetable-empty">
               <b>课表还是空的</b>
-              <p>从左侧按任意一种方式找课。</p>
+              <p>点“添加课程”开始选课。</p>
             </div>
           )}
           <section className="personal-planner">
@@ -2371,7 +2383,7 @@ function SchedulePage({
               {!saved.activities.length && !saved.assignments.length && (
                 <div className="planner-empty">
                   <b>还没有个人安排</b>
-                  <p>添加活动或作业后，它们会按时间出现在同一条列表里。</p>
+                  <p>活动和作业会按时间排在一起。</p>
                 </div>
               )}
             </div>
@@ -2675,6 +2687,8 @@ function RoomsPage({
   query,
   setQuery,
   nextClass,
+  saved,
+  setSaved,
 }: {
   data: SiteData;
   term: Term;
@@ -2687,28 +2701,118 @@ function RoomsPage({
   query: string;
   setQuery: (v: string) => void;
   nextClass?: Schedule;
+  saved: SavedState;
+  setSaved: React.Dispatch<React.SetStateAction<SavedState>>;
 }) {
+  type RoomIntent = "now" | "next" | "two" | "until-class";
+  const [intent, setIntent] = useState<RoomIntent>("now");
+  const [floorChoice, setFloorChoice] = useState("");
+  const [selectedRoom, setSelectedRoom] = useState("");
   const selectedDate = new Date(`${date}T12:00:00`);
   const weekday = selectedDate.getDay() || 7;
   const selectedWeek = schoolWeek(selectedDate, term);
   const activeThisWeek = (item: Schedule) =>
     selectedWeek.state === "active" &&
     scheduleOccursInWeek(item, selectedWeek.week);
-  const buildingSchedules = data.schedules.filter(
-    (item) => item.term === term && item.building === building && item.room,
+  const nextClassToday =
+    nextClass &&
+    nextClass.weekday === weekday &&
+    selectedWeek.state === "active" &&
+    scheduleOccursInWeek(nextClass, selectedWeek.week)
+      ? nextClass
+      : undefined;
+  const targetBlocks =
+    intent === "now"
+      ? [block]
+      : intent === "next"
+        ? block < 4
+          ? [block + 1]
+          : []
+        : intent === "two"
+          ? block < 4
+            ? [block, block + 1]
+            : []
+          : nextClassToday
+            ? nextClassToday.block > block
+              ? Array.from(
+                  { length: nextClassToday.block - block },
+                  (_, index) => block + index,
+                )
+              : []
+            : Array.from({ length: 5 - block }, (_, index) => block + index);
+  const roomSchedules = data.schedules.filter(
+    (item) =>
+      item.term === term && data.buildings.includes(item.building) && item.room,
+  );
+  const schedulesByRoom = new Map<string, Schedule[]>();
+  const roomsByBuilding = new Map<string, string[]>();
+  for (const item of roomSchedules) {
+    const key = `${item.building}|${item.room}`;
+    const schedules = schedulesByRoom.get(key) ?? [];
+    schedules.push(item);
+    schedulesByRoom.set(key, schedules);
+    const rooms = roomsByBuilding.get(item.building) ?? [];
+    if (!rooms.includes(item.room)) rooms.push(item.room);
+    roomsByBuilding.set(item.building, rooms);
+  }
+  for (const rooms of roomsByBuilding.values()) {
+    rooms.sort((a, b) => a.localeCompare(b, "zh-CN", { numeric: true }));
+  }
+  const buildingSchedules = roomSchedules.filter(
+    (item) => item.building === building,
   );
   const rooms = [...new Set(buildingSchedules.map((item) => item.room))].sort(
     (a, b) => a.localeCompare(b, "zh-CN", { numeric: true }),
   );
-  const occupied = new Map(
-    buildingSchedules
+
+  function roomKey(buildingName: string, room: string) {
+    return `${buildingName}|${room}`;
+  }
+
+  function conflictFor(buildingName: string, room: string) {
+    if (!targetBlocks.length) return undefined;
+    return (schedulesByRoom.get(roomKey(buildingName, room)) ?? [])
       .filter(
         (item) =>
           item.weekday === weekday &&
-          item.block === block &&
+          targetBlocks.includes(item.block) &&
           activeThisWeek(item),
       )
-      .map((item) => [item.room, item]),
+      .sort((a, b) => a.block - b.block)[0];
+  }
+
+  function roomIsAvailable(buildingName: string, room: string) {
+    return targetBlocks.length > 0 && !conflictFor(buildingName, room);
+  }
+
+  function roomNextUse(buildingName: string, room: string) {
+    const afterBlock = Math.max(block, ...targetBlocks);
+    return (schedulesByRoom.get(roomKey(buildingName, room)) ?? [])
+      .filter(
+        (item) =>
+          item.weekday === weekday &&
+          item.block > afterBlock &&
+          activeThisWeek(item),
+      )
+      .sort((a, b) => a.block - b.block)[0];
+  }
+
+  function availableUntil(buildingName: string, room: string) {
+    const next = roomNextUse(buildingName, room);
+    return next
+      ? `可用至 ${data.periods[next.block - 1]?.time.split("–")[0]}`
+      : "今天后面都空着";
+  }
+
+  const occupied = new Map(
+    rooms
+      .map((room) => [room, conflictFor(building, room)] as const)
+      .filter(
+        (entry): entry is readonly [string, Schedule] => Boolean(entry[1]),
+      ),
+  );
+  const unavailableRooms = new Set(
+    rooms.filter((room) => !roomIsAvailable(building, room)),
   );
   const floors = new Map<string, string[]>();
   for (const room of rooms) {
@@ -2719,7 +2823,6 @@ function RoomsPage({
   const sortedFloors = [...floors.entries()].sort(
     (a, b) => Number(b[0]) - Number(a[0]),
   );
-  const [floorChoice, setFloorChoice] = useState("");
   const defaultFloor =
     sortedFloors.find(([floor]) => floor === "1")?.[0] ??
     sortedFloors.at(-1)?.[0] ??
@@ -2733,20 +2836,99 @@ function RoomsPage({
   const visibleActiveRooms = activeFloorRooms.filter(
     (room) => !needle || normalize(room).includes(needle),
   );
-  function nextUse(room: string) {
-    const next = buildingSchedules
-      .filter(
-        (item) =>
-          item.room === room &&
-          item.weekday === weekday &&
-          item.block > block &&
-          activeThisWeek(item),
-      )
-      .sort((a, b) => a.block - b.block)[0];
-    return next
-      ? `可用至 ${data.periods[next.block - 1]?.time.split("–")[0]}`
-      : "今日后续无课";
+
+  const recommendations = data.buildings
+    .flatMap((buildingName) =>
+      (roomsByBuilding.get(buildingName) ?? []).map((room) => {
+        const key = roomKey(buildingName, room);
+        const nextUse = roomNextUse(buildingName, room);
+        const favorite = saved.favoriteRooms.includes(key);
+        const recentIndex = saved.recentRooms.indexOf(key);
+        let score = nextUse?.block ?? 5;
+        if (buildingName === nextClassToday?.building) score += 30;
+        if (buildingName === building) score += 12;
+        if (favorite) score += 22;
+        if (recentIndex >= 0) score += Math.max(0, 8 - recentIndex);
+        const reason = favorite
+          ? "你收藏过"
+          : buildingName === nextClassToday?.building
+            ? "和下一节课同楼"
+            : recentIndex >= 0
+              ? "最近看过"
+              : nextUse
+                ? "空闲时间更长"
+                : "今天后面没有排课";
+        return {
+          key,
+          building: buildingName,
+          room,
+          score,
+          favorite,
+          reason,
+          until: availableUntil(buildingName, room),
+        };
+      }),
+    )
+    .filter((item) => roomIsAvailable(item.building, item.room))
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        a.building.localeCompare(b.building, "zh-CN") ||
+        a.room.localeCompare(b.room, "zh-CN", { numeric: true }),
+    )
+    .slice(0, 3);
+
+  const intentOptions: Array<{
+    id: RoomIntent;
+    label: string;
+    detail: string;
+  }> = [
+    { id: "now", label: "现在就去", detail: "这一大节空着" },
+    { id: "next", label: "下一大节", detail: "提前找个位置" },
+    { id: "two", label: "连上两大节", detail: "适合久坐学习" },
+    {
+      id: "until-class",
+      label: "等到下节课",
+      detail: nextClassToday ? `空到去${nextClassToday.building}` : "今天剩余时间",
+    },
+  ];
+  const targetLabel = targetBlocks.length
+    ? targetBlocks
+        .map((item) => data.periods[item - 1]?.short)
+        .filter(Boolean)
+        .join("、")
+    : "今天没有足够的连续时段";
+  const selectedRoomInfo = selectedRoom
+    ? {
+        key: selectedRoom,
+        building: selectedRoom.split("|")[0],
+        room: selectedRoom.split("|")[1],
+      }
+    : null;
+
+  function selectRoom(buildingName: string, room: string) {
+    const key = roomKey(buildingName, room);
+    setSelectedRoom(key);
+    setBuilding(buildingName);
+    setFloorChoice(room.match(/\d/)?.[0] ?? "");
+    setSaved((state) => ({
+      ...state,
+      recentRooms: [key, ...state.recentRooms.filter((item) => item !== key)].slice(
+        0,
+        8,
+      ),
+    }));
   }
+
+  function toggleFavorite(key: string) {
+    setSaved((state) => ({
+      ...state,
+      favoriteRooms: state.favoriteRooms.includes(key)
+        ? state.favoriteRooms.filter((item) => item !== key)
+        : [key, ...state.favoriteRooms],
+    }));
+  }
+
   return (
     <div className="page-wrap rooms-page living-spaces rooms-v5">
       <header className="map-heading">
@@ -2755,8 +2937,8 @@ function RoomsPage({
           <h1>空教室</h1>
           <p>
             {nextClass
-              ? `下一节在 ${nextClass.building}${nextClass.room}`
-              : "按课表推算，抵达后请以现场为准。"}
+              ? `下一节在 ${nextClass.building}${nextClass.room}，先找个顺路的位置。`
+              : "看看哪间教室正好适合你。"}
           </p>
         </div>
         <label>
@@ -2768,6 +2950,28 @@ function RoomsPage({
           />
         </label>
       </header>
+
+      <section className="room-intents" aria-label="选择空教室查询方式">
+        <header>
+          <span>你准备待多久？</span>
+          <small>{targetLabel}</small>
+        </header>
+        <div>
+          {intentOptions.map((item) => (
+            <button
+              key={item.id}
+              className={intent === item.id ? "active" : ""}
+              disabled={
+                (item.id === "two" || item.id === "next") && block >= 4
+              }
+              onClick={() => setIntent(item.id)}
+            >
+              <b>{item.label}</b>
+              <span>{item.detail}</span>
+            </button>
+          ))}
+        </div>
+      </section>
 
       <section className="map-time">
         <div>
@@ -2783,7 +2987,7 @@ function RoomsPage({
           ))}
         </div>
         <label>
-          <span>搜索教室</span>
+          <span>教室号</span>
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -2792,22 +2996,66 @@ function RoomsPage({
         </label>
       </section>
 
+      <section className="room-recommendations">
+        <header>
+          <div>
+            <span>先看这几间</span>
+            <h2>{recommendations.length ? "离你更近，也空得更久" : "这段时间没有合适的教室"}</h2>
+          </div>
+          <small>{weekdayLabels[weekday % 7]} · {targetLabel}</small>
+        </header>
+        <div>
+          {recommendations.map((item, index) => (
+            <article key={item.key}>
+              <button
+                className="recommendation-main"
+                onClick={() => selectRoom(item.building, item.room)}
+              >
+                <span>0{index + 1} · {item.reason}</span>
+                <strong>{item.building}{item.room}</strong>
+                <small>{item.until}</small>
+              </button>
+              <button
+                className={item.favorite ? "favorite active" : "favorite"}
+                onClick={() => toggleFavorite(item.key)}
+                aria-label={item.favorite ? "取消收藏" : "收藏教室"}
+              >
+                {item.favorite ? "★" : "☆"}
+              </button>
+            </article>
+          ))}
+          {!recommendations.length && (
+            <p>换一个起始节次，或者只查一大节试试。</p>
+          )}
+        </div>
+      </section>
+
+      {(saved.favoriteRooms.length > 0 || saved.recentRooms.length > 0) && (
+        <nav className="room-memory" aria-label="常用和最近查看的教室">
+          <span>{saved.favoriteRooms.length ? "常用" : "最近看过"}</span>
+          {(saved.favoriteRooms.length
+            ? saved.favoriteRooms
+            : saved.recentRooms
+          )
+            .slice(0, 6)
+            .map((key) => {
+              const [buildingName, room] = key.split("|");
+              return (
+                <button
+                  key={key}
+                  onClick={() => selectRoom(buildingName, room)}
+                >
+                  {buildingName}{room}
+                </button>
+              );
+            })}
+        </nav>
+      )}
+
       <nav className="building-tabs" aria-label="选择教学楼">
         {data.buildings.map((item) => {
-          const all = data.schedules.filter(
-            (entry) =>
-              entry.term === term && entry.building === item && entry.room,
-          );
-          const allRooms = new Set(all.map((entry) => entry.room));
-          const busyRooms = new Set(
-            all
-              .filter(
-                (entry) =>
-                  entry.weekday === weekday &&
-                  entry.block === block &&
-                  activeThisWeek(entry),
-              )
-              .map((entry) => entry.room),
+          const available = (roomsByBuilding.get(item) ?? []).filter((room) =>
+            roomIsAvailable(item, room),
           );
           return (
             <button
@@ -2819,7 +3067,7 @@ function RoomsPage({
               }}
             >
               <span>{item}</span>
-              <b>{Math.max(0, allRooms.size - busyRooms.size)}</b>
+              <b>{available.length}</b>
               <small>间空闲</small>
             </button>
           );
@@ -2831,7 +3079,7 @@ function RoomsPage({
           <span>楼层</span>
           {sortedFloors.map(([floor, floorRooms]) => {
             const free = floorRooms.filter(
-              (room) => !occupied.has(room),
+              (room) => roomIsAvailable(building, room),
             ).length;
             return (
               <button
@@ -2855,8 +3103,9 @@ function RoomsPage({
               </span>
               <h2>
                 {
-                  visibleActiveRooms.filter((room) => !occupied.has(room))
-                    .length
+                  visibleActiveRooms.filter((room) =>
+                    roomIsAvailable(building, room),
+                  ).length
                 }{" "}
                 间可用
               </h2>
@@ -2882,14 +3131,21 @@ function RoomsPage({
               {visibleActiveRooms.length ? (
                 visibleActiveRooms.map((room, index) => {
                   const lesson = occupied.get(room);
+                  const available = !unavailableRooms.has(room);
+                  const key = roomKey(building, room);
                   return (
                     <button
                       key={room}
-                      className={lesson ? "busy" : "free"}
+                      className={`${available ? "free" : "busy"} ${selectedRoom === key ? "selected" : ""} ${saved.favoriteRooms.includes(key) ? "favorite" : ""}`}
                       style={{ "--room-order": index } as CSSProperties}
+                      onClick={() => selectRoom(building, room)}
                     >
                       <strong>{room}</strong>
-                      <span>{lesson ? lesson.title : nextUse(room)}</span>
+                      <span>
+                        {available
+                          ? availableUntil(building, room)
+                          : lesson?.title || "这段时间不连续空闲"}
+                      </span>
                     </button>
                   );
                 })
@@ -2901,8 +3157,10 @@ function RoomsPage({
         </div>
 
         <aside className="map-summary">
-          <span>当前可用</span>
-          <strong>{rooms.length - occupied.size}</strong>
+          <span>符合条件</span>
+          <strong>
+            {rooms.filter((room) => roomIsAvailable(building, room)).length}
+          </strong>
           <small>间教室</small>
           <div>
             <b>
@@ -2913,10 +3171,27 @@ function RoomsPage({
             </b>
             <p>
               {nextClass
-                ? `下一节在${nextClass.building}，可优先查看同楼教室。`
-                : "绿色教室当前课表未发现占用。"}
+                ? `下一节在${nextClass.building}，同楼的教室已经排在前面。`
+                : "绿色教室符合你刚刚选择的时间。"}
             </p>
           </div>
+          {selectedRoomInfo && (
+            <div className="selected-room-card">
+              <span>刚刚查看</span>
+              <b>{selectedRoomInfo.building}{selectedRoomInfo.room}</b>
+              <small>
+                {availableUntil(
+                  selectedRoomInfo.building,
+                  selectedRoomInfo.room,
+                )}
+              </small>
+              <button onClick={() => toggleFavorite(selectedRoomInfo.key)}>
+                {saved.favoriteRooms.includes(selectedRoomInfo.key)
+                  ? "★ 已收藏"
+                  : "☆ 设为常用"}
+              </button>
+            </div>
+          )}
           <p>{data.disclaimer}</p>
         </aside>
       </section>
@@ -2928,7 +3203,9 @@ function RoomsPage({
         </header>
         <div>
           {sortedFloors.map(([floor, floorRooms]) => {
-            const free = floorRooms.filter((room) => !occupied.has(room));
+            const free = floorRooms.filter((room) =>
+              roomIsAvailable(building, room),
+            );
             return (
               <button
                 key={floor}
@@ -2973,7 +3250,7 @@ function MePage({
           <p>专业、班级与课表保存在当前设备。</p>
         </div>
         <button onClick={onSetup}>
-          {saved.profile ? "修改个人设置" : "建立我的档案"}
+          {saved.profile ? "修改专业班级" : "设置专业班级"}
         </button>
       </header>
       <div className="me-grid">
@@ -2984,7 +3261,7 @@ function MePage({
           <p>
             {saved.profile
               ? `${saved.profile.entranceYear} 级 · ${saved.profile.className || "未选择班级"}`
-              : "设置后自动生成班级课程，之后仍可自由修改。"}
+              : "选好班级，就能看到自己的课表。"}
           </p>
           <button onClick={onSetup}>编辑</button>
         </article>
@@ -2996,7 +3273,7 @@ function MePage({
         <article>
           <span>保存状态</span>
           <strong>已保存</strong>
-          <p>当前无需密码，清除浏览器数据前请注意备份。</p>
+          <p>目前保存在这台设备，清理浏览器前记得先留个备份。</p>
         </article>
         <article>
           <span>隐私</span>
@@ -3006,10 +3283,10 @@ function MePage({
       </div>
       <section className="trust-panel">
         <div>
-          <h2>登录功能准备中</h2>
+          <h2>以后换手机也能接着用</h2>
         </div>
         <p>
-          备案和平台资质完成后，可以把当前课表同步到账号；不登录仍可使用公开功能。
+          微信登录开通后，课表和日程就能跟着账号走；不登录也照常查课和找教室。
         </p>
         <button
           onClick={() => {
@@ -3103,7 +3380,7 @@ function SearchCommand({
               <div className="search-zero">
                 <strong>没有直接结果</strong>
                 <p>
-                  试试简称、课程号或切换搜索类型。这个搜索词会作为后续补充别名的依据。
+                  试试课程简称、课程号或教师姓名。
                 </p>
               </div>
             )
@@ -3410,13 +3687,13 @@ function CourseDrawer({
                   >
                     <div>
                       <header>
-                        <strong>{first.teacher || "教师待补"}</strong>
+                        <strong>{first.teacher || "教师未标注"}</strong>
                         <span className={section.conflict ? "conflict" : "available"}>
                           {section.conflict ? "与当前课表冲突" : "时间可用"}
                         </span>
                       </header>
                       <small>
-                        {first.classNames || "班级待补"} · {section.id}
+                        {first.classNames || "班级未标注"} · {section.id}
                       </small>
                       <div className="section-meetings">
                         {section.meetings.map((meeting) => (
@@ -3452,7 +3729,7 @@ function CourseDrawer({
                 );
               })
             ) : (
-              <p className="quiet-empty">当前筛选下没有教学班，试试清空一个条件。</p>
+              <p className="quiet-empty">没找到合适的班次，少选一个条件试试。</p>
             )}
           </div>
         </section>
@@ -3524,7 +3801,7 @@ function CourseDrawer({
                     <span className={section.conflict ? "conflict" : "available"}>
                       {section.conflict ? "冲突" : "可用"}
                     </span>
-                    <strong>{first.teacher || "教师待补"}</strong>
+                    <strong>{first.teacher || "教师未标注"}</strong>
                     <small>
                       {section.meetings
                         .map(
@@ -3637,7 +3914,7 @@ function Onboarding({
         <div className="onboarding-copy">
           <p>个性化设置</p>
           <h2>先选你的基本信息</h2>
-          <span>系统会生成本学期课表，你仍可以随时增删课程。</span>
+              <span>选完就能看到本学期课表，之后也可以随时调整。</span>
         </div>
         {step === 1 && (
           <div className="choice-grid years">
@@ -3706,11 +3983,11 @@ function Onboarding({
                 </button>
               ))}
               {!classes.length && (
-                <p>当前数据中没有精确匹配的班级，可以先按专业生成默认课程。</p>
+                <p>没找到对应班级，可以先跳过，之后自己选课。</p>
               )}
             </div>
             <button className="finish-button" onClick={finish}>
-              {className ? `使用 ${className} 开始` : "按专业生成并开始"}
+              {className ? `使用 ${className} 开始` : "先完成，稍后选课"}
             </button>
           </div>
         )}
@@ -3721,7 +3998,7 @@ function Onboarding({
           >
             ← 上一步
           </button>
-          <span>信息保存在当前浏览器，暂不需要账号或密码。</span>
+          <span>现在先存在这台设备里，不用注册。</span>
         </footer>
       </section>
     </div>
