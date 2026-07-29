@@ -15,6 +15,11 @@
 - 课程数据由 Excel 离线生成到 `public/data/course-data.json`。
 - 当前个人档案、课表、日程和作业保存在浏览器 `localStorage`；微信登录和云端多设备同步尚未接入。
 - AI 是未来可选增强功能，不得阻塞无 AI 用户的课程、课表、空教室和资料功能。
+- 本地待验收版本已建立独立的 `product-system.css` 体验层，统一颜色、间距、圆角、焦点态和移动端交互规范。
+- 今日学习台首屏已改为下一节课主卡、最近作业、规则建议和接下来三项安排；无作业时不显示空作业卡。
+- 课程详情已支持按教师、星期、节次和冲突状态筛选教学班，并可暂存最多 4 个班次比较；加入时一次加入该教学班的全部时段。
+- 手机课表已提供“近日（今天及未来两天）/整周”双视图；图片导出始终强制使用完整周课表。
+- 以上体验改动当前只在本地预览，尚未发布到阿里云或备用站。
 - 主站服务器：阿里云 ECS，Docker 应用由 Caddy 反向代理。
 - 正式域名：`dufesh.cn` / `www.dufesh.cn`；域名是否公开解析取决于 ICP 备案状态。
 - 私有预览：`https://dufesh.zzzhs66678.chatgpt.site`。
@@ -60,6 +65,7 @@
 
 - 数据生成：`node scripts/build-course-data.mjs`
 - 数据与周次回归：`node --test tests/course-schedule-logic.test.mjs`
+- 核心体验回归：`node --test tests/product-experience.test.mjs`
 - 全站构建：`npm run build`
 - 发布采用不可变 release 目录并原子切换，保留上一版本用于回滚。
 

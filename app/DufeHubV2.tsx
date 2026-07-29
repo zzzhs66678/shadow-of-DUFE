@@ -180,6 +180,35 @@ function currentBlock() {
   return 4;
 }
 
+function scheduleWeeksLabel(schedule: Schedule) {
+  const weeks = [...new Set(schedule.weeks ?? [])].sort((a, b) => a - b);
+  if (!weeks.length) return "周次待补";
+  const ranges: Array<[number, number]> = [];
+  for (const week of weeks) {
+    const last = ranges[ranges.length - 1];
+    if (last && week === last[1] + 1) last[1] = week;
+    else ranges.push([week, week]);
+  }
+  return `${ranges
+    .map(([start, end]) => (start === end ? start : `${start}-${end}`))
+    .join("、")}周`;
+}
+
+function schedulesOverlap(first: Schedule, second: Schedule) {
+  if (
+    first.weekday !== second.weekday ||
+    first.block !== second.block ||
+    first.term !== second.term
+  ) {
+    return false;
+  }
+  const firstWeeks = first.weeks ?? [];
+  const secondWeeks = second.weeks ?? [];
+  if (!firstWeeks.length || !secondWeeks.length) return true;
+  const secondSet = new Set(secondWeeks);
+  return firstWeeks.some((week) => secondSet.has(week));
+}
+
 function normalize(value: string) {
   return value.toLocaleLowerCase("zh-CN").replace(/[\s·•—_\-（）()]/g, "");
 }
@@ -530,20 +559,26 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
     }));
   }
 
+  function addSchedules(ids: string[], label?: string) {
+    const existing = new Set(activePlan?.scheduleIds ?? []);
+    const uniqueIds = [...new Set(ids)];
+    const additions = uniqueIds.filter((id) => !existing.has(id));
+    if (additions.length) {
+      updateActivePlan((current) => [...current, ...additions]);
+    }
+    const schedule = schedules.get(uniqueIds[0]);
+    const title = label || schedule?.title || "课程";
+    setAddFeedback(
+      additions.length
+        ? `${title}的 ${additions.length} 个时段已加入课表`
+        : `${title} 已在课表中`,
+    );
+    window.setTimeout(() => setAddFeedback(""), additions.length ? 1700 : 1300);
+    if (additions.length && "vibrate" in navigator) navigator.vibrate(28);
+  }
+
   function addSchedule(id: string) {
-    const schedule = schedules.get(id);
-    const alreadyAdded = activePlan?.scheduleIds.includes(id) ?? false;
-    if (!alreadyAdded) {
-      updateActivePlan((ids) => [...ids, id]);
-    }
-    if (!alreadyAdded && schedule) {
-      setAddFeedback(`${schedule.title} 已加入课表`);
-      window.setTimeout(() => setAddFeedback(""), 1700);
-      if ("vibrate" in navigator) navigator.vibrate(28);
-    } else if (schedule) {
-      setAddFeedback(`${schedule.title} 已在课表中`);
-      window.setTimeout(() => setAddFeedback(""), 1300);
-    }
+    addSchedules([id]);
   }
 
   function openSearch(kind: SearchKind = "all") {
@@ -780,7 +815,8 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
             (item) => item.term === term && item.courseId === selectedCourse.id,
           )}
           activeIds={new Set(activePlan?.scheduleIds ?? [])}
-          onAdd={addSchedule}
+          activeSchedules={activeSchedules}
+          onAddMany={addSchedules}
           onClose={() => setSelectedCourse(null)}
         />
       )}
@@ -1005,6 +1041,38 @@ function HomePage({
       ),
     };
   }).filter((group) => group.items.length);
+  const primaryClass =
+    todayCourses.find((item) => item.block >= nowBlock) ?? nextClass;
+  const nextThree = todayAgenda
+    .filter((item) => item.order >= nowBlock * 100 || item.kind === "assignment")
+    .slice(0, 3);
+  const campusSuggestion =
+    assignmentDays !== null && assignmentDays <= 2
+      ? {
+          label: "优先级提醒",
+          title:
+            assignmentDays < 0
+              ? `${nextAssignment?.title}已经逾期`
+              : assignmentDays === 0
+                ? `${nextAssignment?.title}今天截止`
+                : `${nextAssignment?.title}只剩 ${assignmentDays} 天`,
+          detail: assignmentCourse?.title || "课程任务",
+          action: "查看作业",
+          onClick: () =>
+            nextAssignment &&
+            onEditCalendar({ kind: "assignment", id: nextAssignment.id }),
+        }
+      : {
+          label: "校园建议",
+          title: primaryClass
+            ? `下一站 ${primaryClass.building}${primaryClass.room}`
+            : `${bestBuilding?.name || "教学楼"}此刻更容易找到座位`,
+          detail: primaryClass
+            ? `${data.periods[primaryClass.block - 1]?.time} · 提前查看同楼空教室`
+            : `${bestBuilding?.free ?? 0} 间教室在当前节次可用`,
+          action: "查看空教室",
+          onClick: () => onGo("rooms"),
+        };
 
   return (
     <div className="page-wrap today-page focus-page focus-page-v5">
@@ -1034,53 +1102,110 @@ function HomePage({
         </button>
       )}
 
-      <section className="day-brief" aria-label="下一项安排">
-        <div className="day-brief-main">
-          <span>{nextClass ? "接下来" : "今日状态"}</span>
-          <b>
-            {nextClass
-              ? nextClass.title
-              : saved.profile
-                ? "课程已结束，留一点时间给自己"
-                : "设置专业后，今天的安排会出现在这里"}
-          </b>
-          <small>
-            {nextClass
-              ? `${data.periods[nextClass.block - 1]?.time} · ${nextClass.building}${nextClass.room} · ${nextClass.teacher || "教师待补"}`
-              : "课表、日程与作业会按时间自动汇总"}
-          </small>
-        </div>
-        <div className="day-brief-assignment">
-          <span>最近作业</span>
-          {nextAssignment ? (
+      <section className="today-command-deck" aria-label="今日关键信息">
+        <article className="now-card">
+          <header>
+            <span>{primaryClass ? "接下来" : "此刻"}</span>
+            <small>
+              {primaryClass
+                ? data.periods[primaryClass.block - 1]?.short
+                : "今天没有后续课程"}
+            </small>
+          </header>
+          <div>
+            <i>{primaryClass ? courseMark(primaryClass.title) : "空"}</i>
+            <span>
+              <h2>
+                {primaryClass
+                  ? primaryClass.title
+                  : saved.profile
+                    ? "把今天留给自己的安排"
+                    : "先建立你的专业与班级"}
+              </h2>
+              <p>
+                {primaryClass
+                  ? `${data.periods[primaryClass.block - 1]?.time} · ${primaryClass.building}${primaryClass.room}`
+                  : "课程、日程与作业会在这里自动汇成一张今日卡片。"}
+              </p>
+              {primaryClass && (
+                <small>
+                  {primaryClass.teacher || "教师待补"} ·{" "}
+                  {scheduleWeeksLabel(primaryClass)}
+                </small>
+              )}
+            </span>
+          </div>
+          <footer>
+            <button onClick={() => onGo("schedule")}>打开课表</button>
+            <button onClick={() => onGo("rooms")}>附近空教室</button>
+          </footer>
+        </article>
+
+        <div className="today-side-stack">
+          {nextAssignment && (
             <button
+              className="assignment-glance"
               onClick={() =>
                 onEditCalendar({ kind: "assignment", id: nextAssignment.id })
               }
             >
+              <span>最近作业</span>
               <b>
                 {assignmentDays !== null && assignmentDays < 0
-                  ? `逾期 ${Math.abs(assignmentDays)} 天`
+                  ? `已逾期 ${Math.abs(assignmentDays)} 天`
                   : assignmentDays === 0
                     ? "今天截止"
-                    : `${assignmentDays} 天后`}
+                    : `${assignmentDays} 天后截止`}
               </b>
-              <small>
-                {nextAssignment.title} · {assignmentCourse?.title || "未关联课程"}
-              </small>
-            </button>
-          ) : (
-            <button onClick={() => onEditCalendar({ kind: "assignment" })}>
-              <b>暂无待交作业</b>
-              <small>添加一个截止日期</small>
+              <strong>{nextAssignment.title}</strong>
+              <small>{assignmentCourse?.title || "未关联课程"} →</small>
             </button>
           )}
+          <button className="campus-suggestion" onClick={campusSuggestion.onClick}>
+            <span>{campusSuggestion.label}</span>
+            <b>{campusSuggestion.title}</b>
+            <small>{campusSuggestion.detail}</small>
+            <em>{campusSuggestion.action} →</em>
+          </button>
         </div>
-        <button className="day-brief-room" onClick={() => onGo("rooms")}>
-          <span>此刻空教室</span>
-          <b>{bestBuilding?.free ?? 0}</b>
-          <small>{bestBuilding?.name || "查看教学楼"} · 查看全部 →</small>
-        </button>
+
+        <article className="agenda-glance">
+          <header>
+            <div>
+              <span>今天余下</span>
+              <b>{nextThree.length} 项</b>
+            </div>
+            <button onClick={() => onEditCalendar({ kind: "activity" })}>
+              ＋ 日程
+            </button>
+          </header>
+          <div>
+            {nextThree.length ? (
+              nextThree.map((item) => (
+                <button
+                  key={`glance-${item.key}`}
+                  onClick={() =>
+                    item.kind === "course"
+                      ? onGo("schedule")
+                      : onEditCalendar({ kind: item.kind, id: item.item.id })
+                  }
+                >
+                  <time>{item.eyebrow}</time>
+                  <span>
+                    <strong>{item.title}</strong>
+                    <small>{item.meta}</small>
+                  </span>
+                  <em>→</em>
+                </button>
+              ))
+            ) : (
+              <div className="agenda-glance-empty">
+                <b>没有必须处理的事项</b>
+                <small>可以去看看当前可用的自习空间。</small>
+              </div>
+            )}
+          </div>
+        </article>
       </section>
 
       <section className="focus-timeline unified-agenda">
@@ -1545,6 +1670,9 @@ function SchedulePage({
   const [visibleLimit, setVisibleLimit] = useState(80);
   const [exporting, setExporting] = useState(false);
   const [finderOpen, setFinderOpen] = useState(false);
+  const [mobileScheduleView, setMobileScheduleView] = useState<
+    "agenda" | "week"
+  >("agenda");
   const [draggingScheduleId, setDraggingScheduleId] = useState("");
   const [lastRemovedId, setLastRemovedId] = useState("");
   const timetableRef = useRef<HTMLElement>(null);
@@ -1611,6 +1739,49 @@ function SchedulePage({
       )
     )
       conflicts.add(item.id);
+  const mobileDays = Array.from({ length: 3 }, (_, index) => {
+    const day = dateAtOffset(index);
+    const weekday = weekdayNumber(day);
+    const dateWeek = schoolWeek(day, term);
+    return {
+      iso: dateISO(day),
+      label:
+        index === 0
+          ? "今天"
+          : new Intl.DateTimeFormat("zh-CN", {
+              month: "numeric",
+              day: "numeric",
+              weekday: "short",
+            }).format(day),
+      entries: [
+        ...activeSchedules
+          .filter(
+            (item) =>
+              item.weekday === weekday &&
+              dateWeek.state === "active" &&
+              scheduleOccursInWeek(item, dateWeek.week),
+          )
+          .map((item) => ({
+            id: `course-${item.id}`,
+            kind: "course" as const,
+            block: item.block,
+            title: item.title,
+            meta: `${item.building}${item.room} · ${item.teacher || "教师待补"}`,
+            schedule: item,
+          })),
+        ...saved.activities
+          .filter((item) => item.weekday === weekday)
+          .map((item) => ({
+            id: `activity-${item.id}`,
+            kind: "activity" as const,
+            block: item.block,
+            title: item.title,
+            meta: item.location || "个人日程",
+            activity: item,
+          })),
+      ].sort((a, b) => a.block - b.block),
+    };
+  });
   function newPlan() {
     const id = `plan-${Date.now()}`;
     setSaved((state) => ({
@@ -1656,6 +1827,9 @@ function SchedulePage({
     if (!timetableRef.current || exporting) return;
     setExporting(true);
     try {
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
       const { toPng } = await import("html-to-image");
       const dataUrl = await toPng(timetableRef.current, {
         cacheBust: true,
@@ -1908,7 +2082,10 @@ function SchedulePage({
             )}
           </div>
         </aside>
-        <section className="timetable-panel" ref={timetableRef}>
+        <section
+          className={`timetable-panel ${exporting ? "export-canvas" : ""}`}
+          ref={timetableRef}
+        >
           <header>
             <div>
               <h2>{activePlan?.name ?? "我的课表"}</h2>
@@ -1934,6 +2111,67 @@ function SchedulePage({
               </button>
             </div>
           </header>
+          <div
+            className="mobile-schedule-switch"
+            data-export-ignore="true"
+            aria-label="切换课表视图"
+          >
+            <button
+              className={mobileScheduleView === "agenda" ? "active" : ""}
+              onClick={() => setMobileScheduleView("agenda")}
+            >
+              近日
+            </button>
+            <button
+              className={mobileScheduleView === "week" ? "active" : ""}
+              onClick={() => setMobileScheduleView("week")}
+            >
+              整周
+            </button>
+          </div>
+          <div
+            className={`mobile-schedule-agenda ${mobileScheduleView === "agenda" ? "active" : ""}`}
+            data-export-ignore="true"
+          >
+            {mobileDays.map((day) => (
+              <article key={day.iso}>
+                <header>
+                  <b>{day.label}</b>
+                  <small>{day.entries.length} 项</small>
+                </header>
+                <div>
+                  {day.entries.length ? (
+                    day.entries.map((entry) => (
+                      <button
+                        key={entry.id}
+                        className={entry.kind}
+                        onClick={() =>
+                          entry.kind === "course"
+                            ? onCourse(courses.get(entry.schedule.courseId)!)
+                            : onEditCalendar({
+                                kind: "activity",
+                                id: entry.activity.id,
+                              })
+                        }
+                      >
+                        <time>{data.periods[entry.block - 1]?.short}</time>
+                        <span>
+                          <strong>{entry.title}</strong>
+                          <small>{entry.meta}</small>
+                        </span>
+                        <em>→</em>
+                      </button>
+                    ))
+                  ) : (
+                    <p>没有课程或日程</p>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+          <div
+            className={`week-overview-scroll ${mobileScheduleView === "week" ? "mobile-active" : ""}`}
+          >
           <div className="week-grid">
             <div className="grid-corner">节次</div>
             {weekdayShort.slice(0, 5).map((day) => (
@@ -2008,6 +2246,7 @@ function SchedulePage({
                 );
               }),
             ])}
+          </div>
           </div>
           {!activeSchedules.length && (
             <div className="timetable-empty">
@@ -2892,16 +3131,28 @@ function CourseDrawer({
   materials,
   offerings,
   activeIds,
-  onAdd,
+  activeSchedules,
+  onAddMany,
   onClose,
 }: {
   course: Course;
   materials: Material[];
   offerings: Schedule[];
   activeIds: Set<string>;
-  onAdd: (id: string) => void;
+  activeSchedules: Schedule[];
+  onAddMany: (ids: string[], label?: string) => void;
   onClose: () => void;
 }) {
+  const [sectionQuery, setSectionQuery] = useState("");
+  const [teacherFilter, setTeacherFilter] = useState("all");
+  const [weekdayFilter, setWeekdayFilter] = useState(0);
+  const [blockFilter, setBlockFilter] = useState(0);
+  const [weekFilter, setWeekFilter] = useState(0);
+  const [buildingFilter, setBuildingFilter] = useState("all");
+  const [conflictFilter, setConflictFilter] = useState<
+    "all" | "available" | "conflict"
+  >("all");
+  const [compareIds, setCompareIds] = useState<string[]>([]);
   const sectionMap = new Map<string, Schedule[]>();
   for (const offering of offerings) {
     const sectionKey =
@@ -2917,6 +3168,12 @@ function CourseDrawer({
       meetings: meetings.sort(
         (a, b) => a.weekday - b.weekday || a.block - b.block,
       ),
+      conflict: meetings.some((meeting) =>
+        activeSchedules.some(
+          (active) =>
+            active.id !== meeting.id && schedulesOverlap(meeting, active),
+        ),
+      ),
     }))
     .sort((a, b) => {
       const firstA = a.meetings[0];
@@ -2926,6 +3183,78 @@ function CourseDrawer({
         firstA.classNames.localeCompare(firstB.classNames, "zh-CN")
       );
     });
+  const teachers = [
+    ...new Set(sections.map((section) => section.meetings[0]?.teacher).filter(Boolean)),
+  ].sort((a, b) => a.localeCompare(b, "zh-CN"));
+  const offeringBuildings = [
+    ...new Set(
+      offerings.map((offering) => offering.building).filter(Boolean),
+    ),
+  ].sort((a, b) => a.localeCompare(b, "zh-CN"));
+  const sectionNeedle = normalize(sectionQuery);
+  const filteredSections = sections.filter((section) => {
+    const first = section.meetings[0];
+    if (!first) return false;
+    if (teacherFilter !== "all" && first.teacher !== teacherFilter) return false;
+    if (
+      weekdayFilter &&
+      !section.meetings.some((meeting) => meeting.weekday === weekdayFilter)
+    ) {
+      return false;
+    }
+    if (
+      blockFilter &&
+      !section.meetings.some((meeting) => meeting.block === blockFilter)
+    ) {
+      return false;
+    }
+    if (
+      weekFilter &&
+      !section.meetings.some((meeting) =>
+        scheduleOccursInWeek(meeting, weekFilter),
+      )
+    ) {
+      return false;
+    }
+    if (
+      buildingFilter !== "all" &&
+      !section.meetings.some(
+        (meeting) => meeting.building === buildingFilter,
+      )
+    ) {
+      return false;
+    }
+    if (conflictFilter === "available" && section.conflict) return false;
+    if (conflictFilter === "conflict" && !section.conflict) return false;
+    if (
+      sectionNeedle &&
+      !normalize(
+        section.meetings
+          .map(
+            (meeting) =>
+              `${meeting.teacher} ${meeting.classNames} ${meeting.building}${meeting.room} ${meeting.timeText}`,
+          )
+          .join(" "),
+      ).includes(sectionNeedle)
+    ) {
+      return false;
+    }
+    return true;
+  });
+  const comparedSections = compareIds
+    .map((id) => sections.find((section) => section.id === id))
+    .filter((section): section is (typeof sections)[number] => Boolean(section));
+
+  function toggleCompare(id: string) {
+    setCompareIds((current) =>
+      current.includes(id)
+        ? current.filter((item) => item !== id)
+        : current.length < 4
+          ? [...current, id]
+          : [...current.slice(1), id],
+    );
+  }
+
   return (
     <div className="modal-backdrop drawer-backdrop" onMouseDown={onClose}>
       <aside
@@ -2948,106 +3277,278 @@ function CourseDrawer({
             </span>
           </div>
         </div>
-        {course.textbook && (
-          <section className="material-block">
-            <span>教材信息</span>
-            <strong>{course.textbook}</strong>
-            {course.author && (
-              <p>
-                {course.author}
-                {course.publisher ? ` · ${course.publisher}` : ""}
-              </p>
-            )}
-          </section>
-        )}
-        {materials.length > 0 && (
-          <section className="course-materials">
-            <div className="drawer-section-heading">
-              <div>
-                <span className="drawer-label">学习资料</span>
-                <small>{materials.length} 份 · 原件可下载</small>
-              </div>
-              <em>PDF ≤ 50 MB 可在线预览</em>
-            </div>
-            <div className="course-material-list">
-              {materials.slice(0, 40).map((item) => (
-                <article key={`${item.id}-${item.courseTitle}-${item.name}`}>
-                  <div className="material-file-mark">{item.kind}</div>
-                  <div>
-                    <small>{item.category || "其他"} · {formatFileSize(item.sizeBytes)}</small>
-                    <strong title={item.name}>{item.name}</strong>
-                  </div>
-                  <div className="material-actions">
-                    {item.previewable && (
-                      <a href={item.previewUrl} target="_blank" rel="noreferrer">
-                        预览
-                      </a>
-                    )}
-                    <a href={item.downloadUrl} download>
-                      下载
-                    </a>
-                  </div>
-                </article>
-              ))}
-            </div>
-            {materials.length > 40 && (
-              <p className="quiet-empty">
-                当前先显示 40 份，完整资料页将在下一步加入筛选与分页。
-              </p>
-            )}
-          </section>
-        )}
-        <section>
+        <section className="course-offerings-section">
           <div className="drawer-section-heading">
             <div>
-              <span className="drawer-label">本学期开课</span>
+              <span className="drawer-label">选择教学班</span>
               <small>
                 {sections.length} 个班次 ·{" "}
                 {new Set(offerings.map((item) => item.teacher).filter(Boolean)).size}{" "}
                 位教师
               </small>
             </div>
+            <em>最多保留 4 个候选比较</em>
+          </div>
+          <div className="section-filter-bar">
+            <input
+              value={sectionQuery}
+              onChange={(event) => setSectionQuery(event.target.value)}
+              placeholder="搜教师、班级或教室"
+            />
+            <select
+              value={teacherFilter}
+              onChange={(event) => setTeacherFilter(event.target.value)}
+              aria-label="按教师筛选"
+            >
+              <option value="all">全部教师</option>
+              {teachers.map((teacher) => (
+                <option key={teacher} value={teacher}>
+                  {teacher}
+                </option>
+              ))}
+            </select>
+            <select
+              value={weekdayFilter}
+              onChange={(event) => setWeekdayFilter(Number(event.target.value))}
+              aria-label="按星期筛选"
+            >
+              <option value={0}>全部星期</option>
+              {weekdayShort.slice(0, 5).map((day, index) => (
+                <option key={day} value={index + 1}>
+                  周{day}
+                </option>
+              ))}
+            </select>
+            <select
+              value={blockFilter}
+              onChange={(event) => setBlockFilter(Number(event.target.value))}
+              aria-label="按节次筛选"
+            >
+              <option value={0}>全部节次</option>
+              {[1, 2, 3, 4].map((item) => (
+                <option key={item} value={item}>
+                  第 {item} 大节
+                </option>
+              ))}
+            </select>
+            <select
+              value={weekFilter}
+              onChange={(event) => setWeekFilter(Number(event.target.value))}
+              aria-label="按周次筛选"
+            >
+              <option value={0}>全部周次</option>
+              {Array.from({ length: 18 }, (_, index) => index + 1).map(
+                (item) => (
+                  <option key={item} value={item}>
+                    第 {item} 周
+                  </option>
+                ),
+              )}
+            </select>
+            <select
+              value={buildingFilter}
+              onChange={(event) => setBuildingFilter(event.target.value)}
+              aria-label="按地点筛选"
+            >
+              <option value="all">全部地点</option>
+              {offeringBuildings.map((building) => (
+                <option key={building} value={building}>
+                  {building}
+                </option>
+              ))}
+            </select>
+            <select
+              value={conflictFilter}
+              onChange={(event) =>
+                setConflictFilter(
+                  event.target.value as "all" | "available" | "conflict",
+                )
+              }
+              aria-label="按冲突筛选"
+            >
+              <option value="all">全部状态</option>
+              <option value="available">只看不冲突</option>
+              <option value="conflict">只看冲突</option>
+            </select>
+          </div>
+          <div className="section-filter-summary">
+            <span>找到 {filteredSections.length} 个班次</span>
+            {(sectionQuery ||
+              teacherFilter !== "all" ||
+              weekdayFilter ||
+              blockFilter ||
+              weekFilter ||
+              buildingFilter !== "all" ||
+              conflictFilter !== "all") && (
+              <button
+                onClick={() => {
+                  setSectionQuery("");
+                  setTeacherFilter("all");
+                  setWeekdayFilter(0);
+                  setBlockFilter(0);
+                  setWeekFilter(0);
+                  setBuildingFilter("all");
+                  setConflictFilter("all");
+                }}
+              >
+                清空筛选
+              </button>
+            )}
           </div>
           <div className="offering-list">
-            {sections.length ? (
-              sections.map((section) => {
+            {filteredSections.length ? (
+              filteredSections.map((section) => {
                 const first = section.meetings[0];
                 const added = section.meetings.every((other) =>
                   activeIds.has(other.id),
                 );
+                const compared = compareIds.includes(section.id);
                 return (
-                  <article key={section.id}>
+                  <article
+                    key={section.id}
+                    className={`${section.conflict ? "has-conflict" : ""} ${compared ? "is-compared" : ""}`}
+                  >
                     <div>
-                      <strong>{first.teacher || "教师待补"}</strong>
-                      <small>{first.classNames || "班级待补"}</small>
+                      <header>
+                        <strong>{first.teacher || "教师待补"}</strong>
+                        <span className={section.conflict ? "conflict" : "available"}>
+                          {section.conflict ? "与当前课表冲突" : "时间可用"}
+                        </span>
+                      </header>
+                      <small>
+                        {first.classNames || "班级待补"} · {section.id}
+                      </small>
                       <div className="section-meetings">
                         {section.meetings.map((meeting) => (
                           <span key={meeting.id}>
                             {weekdayLabels[meeting.weekday % 7]} ·{" "}
                             {meeting.timeText} · {meeting.building}
-                            {meeting.room}
+                            {meeting.room} · {scheduleWeeksLabel(meeting)}
                           </span>
                         ))}
                       </div>
                     </div>
-                    <button
-                      className={added ? "added" : ""}
-                      onClick={() =>
-                        section.meetings.forEach((other) => onAdd(other.id))
-                      }
-                    >
-                      {added
-                        ? `已加入 ${section.meetings.length} 个时段`
-                        : `加入 ${section.meetings.length} 个时段`}
-                    </button>
+                    <footer>
+                      <button
+                        className={`compare-button ${compared ? "active" : ""}`}
+                        onClick={() => toggleCompare(section.id)}
+                      >
+                        {compared ? "已选作比较" : "加入比较"}
+                      </button>
+                      <button
+                        className={added ? "added" : ""}
+                        disabled={added}
+                        onClick={() =>
+                          onAddMany(
+                            section.meetings.map((meeting) => meeting.id),
+                            course.title,
+                          )
+                        }
+                      >
+                        {added ? "已在课表" : "加入课表"}
+                      </button>
+                    </footer>
                   </article>
                 );
               })
             ) : (
-              <p className="quiet-empty">本学期暂未匹配到具体开课时段。</p>
+              <p className="quiet-empty">当前筛选下没有教学班，试试清空一个条件。</p>
             )}
           </div>
         </section>
+
+        {(course.textbook || materials.length > 0) && (
+          <section className="drawer-resources">
+            <div className="drawer-section-heading">
+              <div>
+                <span className="drawer-label">教材与学习资料</span>
+                <small>{materials.length} 份资料 · 原件可下载</small>
+              </div>
+            </div>
+            {course.textbook && (
+              <div className="material-block">
+                <span>教材信息</span>
+                <strong>{course.textbook}</strong>
+                {course.author && (
+                  <p>
+                    {course.author}
+                    {course.publisher ? ` · ${course.publisher}` : ""}
+                  </p>
+                )}
+              </div>
+            )}
+            {materials.length > 0 && (
+              <div className="course-materials">
+                <div className="course-material-list">
+                  {materials.slice(0, 40).map((item) => (
+                    <article key={`${item.id}-${item.courseTitle}-${item.name}`}>
+                      <div className="material-file-mark">{item.kind}</div>
+                      <div>
+                        <small>
+                          {item.category || "其他"} · {formatFileSize(item.sizeBytes)}
+                        </small>
+                        <strong title={item.name}>{item.name}</strong>
+                      </div>
+                      <div className="material-actions">
+                        {item.previewable && (
+                          <a href={item.previewUrl} target="_blank" rel="noreferrer">
+                            预览
+                          </a>
+                        )}
+                        <a href={item.downloadUrl} download>
+                          下载
+                        </a>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
+        {comparedSections.length > 0 && (
+          <section className="section-compare-tray" aria-label="教学班比较">
+            <header>
+              <div>
+                <span>班次比较</span>
+                <b>{comparedSections.length} / 4</b>
+              </div>
+              <button onClick={() => setCompareIds([])}>清空</button>
+            </header>
+            <div>
+              {comparedSections.map((section) => {
+                const first = section.meetings[0];
+                return (
+                  <article key={`compare-${section.id}`}>
+                    <span className={section.conflict ? "conflict" : "available"}>
+                      {section.conflict ? "冲突" : "可用"}
+                    </span>
+                    <strong>{first.teacher || "教师待补"}</strong>
+                    <small>
+                      {section.meetings
+                        .map(
+                          (meeting) =>
+                            `${weekdayLabels[meeting.weekday % 7]} ${meeting.timeText}`,
+                        )
+                        .join(" / ")}
+                    </small>
+                    <button
+                      onClick={() =>
+                        onAddMany(
+                          section.meetings.map((meeting) => meeting.id),
+                          course.title,
+                        )
+                      }
+                    >
+                      选择此班
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
       </aside>
     </div>
   );
