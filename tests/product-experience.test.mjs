@@ -19,6 +19,20 @@ test("today page keeps the one-glance command deck", () => {
   assert.match(productStyles, /\.agenda-glance/);
 });
 
+test("campus services jump from the personal page without crowding today", () => {
+  const homeStart = component.indexOf("function HomePage");
+  const meStart = component.indexOf("function MePage");
+  const searchStart = component.indexOf("function SearchCommand");
+  const homeSource = component.slice(homeStart, meStart);
+  const meSource = component.slice(meStart, searchStart);
+
+  assert.doesNotMatch(homeSource, /campus-gateway/);
+  assert.match(meSource, /campus-gateway/);
+  assert.match(component, /web\.traceint\.com\/web\/index\.html/);
+  assert.match(component, /person_card\/index\?sessionid=/);
+  assert.match(component, /ginkgostu\.dufe\.edu\.cn\/notice\/system/);
+});
+
 test("course drawer filters and compares teaching sections", () => {
   assert.match(component, /sectionQuery/);
   assert.match(component, /teacherFilter/);

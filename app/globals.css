@@ -3478,6 +3478,87 @@ kbd {
   padding: 35px 0;
 }
 
+.campus-gateway {
+  background: var(--ink);
+  color: var(--paper);
+  display: grid;
+  gap: 28px;
+  grid-template-columns: minmax(210px, .7fr) minmax(0, 1.6fr);
+  margin-top: 60px;
+  padding: 32px;
+}
+
+.campus-gateway > header > span {
+  color: #dc7478;
+  font: 700 10px/1 var(--mono);
+  letter-spacing: .12em;
+}
+
+.campus-gateway > header h2 {
+  font: 400 30px/1.15 var(--serif);
+  margin: 16px 0 10px;
+}
+
+.campus-gateway > header p {
+  color: color-mix(in srgb, currentColor 62%, transparent);
+  font-size: 11px;
+  line-height: 1.7;
+  margin: 0;
+}
+
+.campus-gateway > nav {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.campus-gateway > nav > a {
+  align-items: center;
+  border-left: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  color: inherit;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  min-height: 112px;
+  padding: 18px;
+  text-decoration: none;
+}
+
+.campus-gateway > nav > a:hover {
+  background: color-mix(in srgb, currentColor 7%, transparent);
+}
+
+.campus-gateway > nav i {
+  align-items: center;
+  border: 1px solid color-mix(in srgb, currentColor 26%, transparent);
+  border-radius: 50%;
+  color: #dc7478;
+  display: flex;
+  font-size: 12px;
+  font-style: normal;
+  height: 38px;
+  justify-content: center;
+}
+
+.campus-gateway > nav span {
+  display: grid;
+  gap: 6px;
+}
+
+.campus-gateway > nav b {
+  font-size: 12px;
+}
+
+.campus-gateway > nav small {
+  color: color-mix(in srgb, currentColor 55%, transparent);
+  font-size: 9px;
+}
+
+.campus-gateway > nav em {
+  color: #dc7478;
+  font-size: 12px;
+  font-style: normal;
+}
+
 .trust-panel h2 {
   font: 400 28px/1.3 var(--serif);
   margin: 10px 0 0;
@@ -4933,6 +5014,23 @@ kbd {
 
   .me-grid > article {
     min-height: 220px;
+  }
+
+  .campus-gateway {
+    grid-template-columns: 1fr;
+    margin-top: 28px;
+    padding: 24px 18px 12px;
+  }
+
+  .campus-gateway > nav {
+    grid-template-columns: 1fr;
+  }
+
+  .campus-gateway > nav > a {
+    border-left: 0;
+    border-top: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+    min-height: 76px;
+    padding: 12px 0;
   }
 
   .me-grid article > strong {

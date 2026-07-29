@@ -138,6 +138,13 @@ type MaterialManifest = {
 };
 
 const STORAGE_KEY = "dufesh:student-profile:v2";
+const campusLinks = {
+  library:
+    "https://web.traceint.com/web/index.html#/pages/index/index?r=1785318814",
+  campusCard:
+    "https://sso.dufe.edu.cn/app.php/open_apps/person_card/index?sessionid=",
+  ginkgo: "https://ginkgostu.dufe.edu.cn/notice/system",
+} as const;
 const weekdayLabels = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 const weekdayShort = ["一", "二", "三", "四", "五", "六", "日"];
 const courseAliases: Record<string, string[]> = {
@@ -1351,25 +1358,6 @@ function HomePage({
           </button>
         </div>
       </section>
-
-      <nav className="campus-services" aria-label="校园服务">
-        <header>
-          <span>校园服务</span>
-          <p>平时常去的几个地方。</p>
-        </header>
-        <a href="https://ginkgostu.dufe.edu.cn/" target="_blank" rel="noreferrer">
-          <i>果</i><span><b>白果云</b><small>学生服务</small></span><em>↗</em>
-        </a>
-        <a href="https://jwc.dufe.edu.cn/" target="_blank" rel="noreferrer">
-          <i>教</i><span><b>教务处</b><small>官方教学信息</small></span><em>↗</em>
-        </a>
-        <button onClick={() => onSearch("course")}>
-          <i>课</i><span><b>找课程</b><small>全校、专业与教师</small></span><em>→</em>
-        </button>
-        <button onClick={() => onSearch("material")}>
-          <i>文</i><span><b>找资料</b><small>教材、课件与题库</small></span><em>→</em>
-        </button>
-      </nav>
 
       <section className="knowledge-tribute">
         <figure className="tribute-photo">
@@ -3349,6 +3337,39 @@ function MePage({
           <p>不使用 GPS，不采集与课程服务无关的信息。</p>
         </article>
       </div>
+      <section className="campus-gateway" aria-labelledby="campus-gateway-title">
+        <header>
+          <span>东财常用</span>
+          <h2 id="campus-gateway-title">从这里直接打开</h2>
+          <p>在当前手机打开学校服务，不经过本站中转。</p>
+        </header>
+        <nav aria-label="东财常用服务">
+          <a href={campusLinks.library} target="_blank" rel="noreferrer">
+            <i>座</i>
+            <span>
+              <b>我去图书馆</b>
+              <small>预约常用座位</small>
+            </span>
+            <em>↗</em>
+          </a>
+          <a href={campusLinks.campusCard} target="_blank" rel="noreferrer">
+            <i>码</i>
+            <span>
+              <b>东财校园码</b>
+              <small>打开个人校园码</small>
+            </span>
+            <em>↗</em>
+          </a>
+          <a href={campusLinks.ginkgo} target="_blank" rel="noreferrer">
+            <i>果</i>
+            <span>
+              <b>白果云</b>
+              <small>签到与课程通知</small>
+            </span>
+            <em>↗</em>
+          </a>
+        </nav>
+      </section>
       <section className="trust-panel">
         <div>
           <h2>以后换手机也能接着用</h2>
