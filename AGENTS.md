@@ -8,8 +8,9 @@
 2. 再检查与本次任务直接相关的代码、数据和测试。
 3. 只有需要理解设计原因时才读 `docs/DECISIONS.md`。
 4. 涉及未来功能范围或优先级时读 `docs/ROADMAP.md`。
-5. 只有需要回滚或核对版本时才读 `docs/RELEASES.md`。
-6. `PROJECT_CONTEXT.md` 是旧版完整历史档案，默认不要读取。
+5. 涉及“小影”、白果云或图书馆预约时读 `docs/XIAOYING.md`。
+6. 只有需要回滚或核对版本时才读 `docs/RELEASES.md`。
+7. `PROJECT_CONTEXT.md` 是旧版完整历史档案，默认不要读取。
 
 ## 更新规则
 
