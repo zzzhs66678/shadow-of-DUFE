@@ -4351,6 +4351,20 @@ kbd {
 .offering-list article > div {
   display: grid;
   gap: 4px;
+  min-width: 0;
+}
+
+.offering-list .section-meetings {
+  display: grid;
+  gap: 5px;
+  margin-top: 5px;
+}
+
+.offering-list .section-meetings span {
+  background: color-mix(in srgb, var(--paper-deep) 70%, transparent);
+  border-left: 2px solid var(--accent);
+  line-height: 1.45;
+  padding: 6px 8px;
 }
 
 .offering-list article span,

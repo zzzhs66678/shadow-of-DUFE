@@ -41,6 +41,9 @@ type Course = {
 };
 type Schedule = {
   id: string;
+  sectionId?: string;
+  meetingIndex?: number;
+  sourceRow?: string;
   term: Term;
   courseId: string;
   title: string;
@@ -48,6 +51,7 @@ type Schedule = {
   weekday: number;
   block: number;
   periods: number[];
+  weeks?: number[];
   timeText: string;
   building: string;
   room: string;
@@ -210,6 +214,7 @@ function schoolWeek(date = new Date(), term: Term = "fall") {
 
 function scheduleOccursInWeek(schedule: Schedule, week: number) {
   if (week < 1 || week > 18) return false;
+  if (Array.isArray(schedule.weeks)) return schedule.weeks.includes(week);
   const weekExpression = schedule.timeText.match(/^(.+?周(?:单周|双周)?)/)?.[1];
   if (!weekExpression) return true;
   if (weekExpression.includes("单周") && week % 2 === 0) return false;
@@ -1840,6 +1845,14 @@ function SchedulePage({
                         item.block === finderBlock)),
                 );
                 const first = offerings[0];
+                const sectionIds = [
+                  ...new Set(
+                    offerings.map((item) => item.sectionId ?? item.id),
+                  ),
+                ];
+                const teacherCount = new Set(
+                  offerings.map((item) => item.teacher).filter(Boolean),
+                ).size;
                 return (
                   <article key={course.id}>
                     <button
@@ -1851,7 +1864,7 @@ function SchedulePage({
                         <strong>{course.title}</strong>
                         <small>
                           {first
-                            ? `${first.teacher} · ${first.building}${first.room}`
+                            ? `${sectionIds.length} 个班次 · ${teacherCount || 1} 位教师`
                             : course.teachers.slice(0, 2).join(" / ") ||
                               course.id}
                         </small>
@@ -1860,10 +1873,20 @@ function SchedulePage({
                     {first && (
                       <button
                         className="quick-add"
-                        onClick={() => onAdd(first.id)}
-                        aria-label={`添加${course.title}`}
+                        onClick={() => {
+                          if (sectionIds.length > 1) {
+                            onCourse(course);
+                            return;
+                          }
+                          offerings.forEach((item) => onAdd(item.id));
+                        }}
+                        aria-label={
+                          sectionIds.length > 1
+                            ? `选择${course.title}的教师和班次`
+                            : `添加${course.title}`
+                        }
                       >
-                        ＋
+                        {sectionIds.length > 1 ? "选" : "＋"}
                       </button>
                     )}
                   </article>
@@ -2879,6 +2902,30 @@ function CourseDrawer({
   onAdd: (id: string) => void;
   onClose: () => void;
 }) {
+  const sectionMap = new Map<string, Schedule[]>();
+  for (const offering of offerings) {
+    const sectionKey =
+      offering.sectionId ??
+      `${offering.courseId}-${offering.teacher}-${offering.classNames}`;
+    const section = sectionMap.get(sectionKey) ?? [];
+    section.push(offering);
+    sectionMap.set(sectionKey, section);
+  }
+  const sections = [...sectionMap.entries()]
+    .map(([id, meetings]) => ({
+      id,
+      meetings: meetings.sort(
+        (a, b) => a.weekday - b.weekday || a.block - b.block,
+      ),
+    }))
+    .sort((a, b) => {
+      const firstA = a.meetings[0];
+      const firstB = b.meetings[0];
+      return (
+        firstA.teacher.localeCompare(firstB.teacher, "zh-CN") ||
+        firstA.classNames.localeCompare(firstB.classNames, "zh-CN")
+      );
+    });
   return (
     <div className="modal-backdrop drawer-backdrop" onMouseDown={onClose}>
       <aside
@@ -2951,37 +2998,47 @@ function CourseDrawer({
           </section>
         )}
         <section>
-          <span className="drawer-label">本学期开课</span>
+          <div className="drawer-section-heading">
+            <div>
+              <span className="drawer-label">本学期开课</span>
+              <small>
+                {sections.length} 个班次 ·{" "}
+                {new Set(offerings.map((item) => item.teacher).filter(Boolean)).size}{" "}
+                位教师
+              </small>
+            </div>
+          </div>
           <div className="offering-list">
-            {offerings.length ? (
-              offerings.slice(0, 18).map((item) => {
-                const sameSection = offerings.filter(
-                  (other) =>
-                    other.teacher === item.teacher &&
-                    other.classNames === item.classNames,
-                );
-                const added = sameSection.every((other) =>
+            {sections.length ? (
+              sections.slice(0, 36).map((section) => {
+                const first = section.meetings[0];
+                const added = section.meetings.every((other) =>
                   activeIds.has(other.id),
                 );
                 return (
-                  <article key={item.id}>
+                  <article key={section.id}>
                     <div>
-                      <strong>{item.teacher || "教师待补"}</strong>
-                      <span>
-                        {weekdayLabels[item.weekday % 7]} · {item.timeText}
-                      </span>
-                      <small>
-                        {item.building}
-                        {item.room} · {item.classNames}
-                      </small>
+                      <strong>{first.teacher || "教师待补"}</strong>
+                      <small>{first.classNames || "班级待补"}</small>
+                      <div className="section-meetings">
+                        {section.meetings.map((meeting) => (
+                          <span key={meeting.id}>
+                            {weekdayLabels[meeting.weekday % 7]} ·{" "}
+                            {meeting.timeText} · {meeting.building}
+                            {meeting.room}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                     <button
                       className={added ? "added" : ""}
                       onClick={() =>
-                        sameSection.forEach((other) => onAdd(other.id))
+                        section.meetings.forEach((other) => onAdd(other.id))
                       }
                     >
-                      {added ? "已加入" : "加入该班次"}
+                      {added
+                        ? `已加入 ${section.meetings.length} 个时段`
+                        : `加入 ${section.meetings.length} 个时段`}
                     </button>
                   </article>
                 );
@@ -3044,8 +3101,7 @@ function Onboarding({
   }
   function finish() {
     if (!college || !majorId) return;
-    const grade = Math.min(4, Math.max(1, 2026 - entranceYear + 1));
-    let selected = className
+    const selected = className
       ? data.schedules
           .filter(
             (item) =>
@@ -3054,26 +3110,8 @@ function Onboarding({
           )
           .map((item) => item.id)
       : [];
-    if (!selected.length) {
-      const ids = new Set(
-        data.majorCourses
-          .filter(
-            (item) =>
-              item.majorId === majorId &&
-              item.term === term &&
-              item.year === grade,
-          )
-          .map((item) => item.courseId),
-      );
-      selected = data.schedules
-        .filter((item) => item.term === term && ids.has(item.courseId))
-        .filter(
-          (item, index, all) =>
-            all.findIndex((other) => other.courseId === item.courseId) ===
-            index,
-        )
-        .map((item) => item.id);
-    }
+    // 没选具体班级时不能替用户猜教师或课序号；专业课程索引仍可浏览，
+    // 具体班次由用户在课程池中选择。
     onSave({ entranceYear, college, majorId, className }, selected);
   }
   return (

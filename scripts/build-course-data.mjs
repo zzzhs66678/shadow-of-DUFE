@@ -1,5 +1,10 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import {
+  extractMeetingTimes,
+  parseWeeks,
+  splitMeetingLocations,
+} from "./course-schedule-logic.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const sourcePath = resolve(
@@ -106,6 +111,8 @@ const majorCourseMap = new Map();
 const schedules = [];
 const publicElectives = new Map();
 const unmatchedClasses = new Set();
+let sourceScheduleRows = 0;
+let multiMeetingRows = 0;
 
 for (const config of Object.values(termConfig)) {
   const rows = sheets[config.sheet].values.slice(1);
@@ -165,26 +172,49 @@ for (const config of Object.values(termConfig)) {
       );
     }
 
-    const location = clean(row[16]);
-    const building = parseBuilding(location);
-    if (building) {
-      const periods = parsePeriods(row[15]);
+    const meetingTimes = extractMeetingTimes(row[15]);
+    const meetingLocations = splitMeetingLocations(row[16]);
+    const legacyBuilding = parseBuilding(row[16]);
+    if (!legacyBuilding || !meetingTimes.length) continue;
+
+    sourceScheduleRows += 1;
+    if (meetingTimes.length > 1) multiMeetingRows += 1;
+    const sourceRow = clean(row[2]);
+    const sectionNumber = clean(row[8]);
+    const legacyId = `${config.key}-${courseId}-${sectionNumber}-${sourceScheduleRows}`;
+    const sectionId = `${config.key}-${courseId}-${sectionNumber}-${sourceRow}`;
+
+    meetingTimes.forEach((timeText, meetingIndex) => {
+      const location =
+        meetingLocations[meetingIndex] ??
+        meetingLocations.at(-1) ??
+        clean(row[16]);
+      const building = parseBuilding(location);
+      if (!building) return;
+      const periods = parsePeriods(timeText);
       schedules.push({
-        id: `${config.key}-${courseId}-${clean(row[8])}-${schedules.length + 1}`,
+        id:
+          meetingIndex === 0
+            ? legacyId
+            : `${legacyId}-m${meetingIndex + 1}`,
+        sectionId,
+        meetingIndex: meetingIndex + 1,
+        sourceRow,
         term: config.key,
         courseId,
         title,
         teacher,
-        weekday: parseWeekday(row[15]),
+        weekday: parseWeekday(timeText),
         block: blockForPeriods(periods),
         periods,
-        timeText: clean(row[15]),
+        weeks: parseWeeks(timeText),
+        timeText,
         building,
         room: parseRoom(location, building),
         classNames: classNames.join("、"),
         linked,
       });
-    }
+    });
   }
 }
 
@@ -226,6 +256,8 @@ const payload = {
       sheets["下学期分类"].values.length -
       2,
     unmatchedClassLabels: unmatchedClasses.size,
+    sourceScheduleRows,
+    multiMeetingRows,
     roomScheduleRows: schedules.length,
   },
 };
@@ -241,6 +273,8 @@ console.log(
       courses: payload.courses.length,
       majorCourses: payload.majorCourses.length,
       schedules: payload.schedules.length,
+      sourceScheduleRows: payload.quality.sourceScheduleRows,
+      multiMeetingRows: payload.quality.multiMeetingRows,
       publicElectives: payload.publicElectives.length,
       unmatchedClassLabels: payload.quality.unmatchedClassLabels,
       outputPath,
