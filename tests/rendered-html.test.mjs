@@ -54,7 +54,13 @@ test("course index preserves the expected source relationships", async () => {
     "砺金楼",
   ]);
   assert.ok(data.majorCourses.length > 4000);
-  assert.ok(data.schedules.length > 4500);
-  assert.ok(data.schedules.every((item) => data.buildings.includes(item.building)));
+  assert.ok(data.schedules.length > 5800);
+  const roomSchedules = data.schedules.filter((item) =>
+    data.buildings.includes(item.building),
+  );
+  assert.equal(roomSchedules.length, data.quality.roomScheduleRows);
+  assert.ok(
+    data.schedules.some((item) => !data.buildings.includes(item.building)),
+  );
   assert.ok(data.courses.every((course) => course.id && course.title));
 });

@@ -3010,7 +3010,7 @@ function CourseDrawer({
           </div>
           <div className="offering-list">
             {sections.length ? (
-              sections.slice(0, 36).map((section) => {
+              sections.map((section) => {
                 const first = section.meetings[0];
                 const added = section.meetings.every((other) =>
                   activeIds.has(other.id),

@@ -72,7 +72,9 @@ test("generated data preserves teachers, sections and all meetings", async () =>
   assert.ok(teachers.size > 3);
   assert.equal(data.quality.sourceScheduleRows, 4537);
   assert.equal(data.quality.multiMeetingRows, 831);
-  assert.equal(data.schedules.length, 5417);
+  assert.equal(data.quality.roomScheduleRows, 5417);
+  assert.ok(data.quality.allSourceScheduleRows > data.quality.sourceScheduleRows);
+  assert.ok(data.schedules.length > data.quality.roomScheduleRows);
   assert.ok(
     data.schedules.every(
       (item) =>
@@ -82,4 +84,60 @@ test("generated data preserves teachers, sections and all meetings", async () =>
         item.weeks.length > 0,
     ),
   );
+});
+
+test("off-map sports venues remain selectable without entering room occupancy", async () => {
+  const data = JSON.parse(
+    await readFile(
+      new URL("../public/data/course-data.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const sports = data.schedules.filter(
+    (item) => item.courseId === "11180891" && item.term === "fall",
+  );
+
+  assert.ok(sports.length > 10);
+  assert.ok(sports.some((item) => item.teacher === "周龙起"));
+  assert.ok(
+    sports.some(
+      (item) =>
+        item.weekday === 1 &&
+        item.periods.join(",") === "1,2" &&
+        item.weeks[0] === 5 &&
+        item.weeks.at(-1) === 18 &&
+        item.building.includes("田径场"),
+    ),
+  );
+  assert.ok(
+    sports.every(
+      (item) =>
+        !["之远楼", "笃行楼", "书音楼", "播慧楼", "砺金楼"].includes(
+          item.building,
+        ),
+    ),
+  );
+});
+
+test("all 47 computer culture sections are present and the drawer is not capped", async () => {
+  const data = JSON.parse(
+    await readFile(
+      new URL("../public/data/course-data.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const sections = new Set(
+    data.schedules
+      .filter(
+        (item) => item.courseId === "71170581" && item.term === "fall",
+      )
+      .map((item) => item.sectionId),
+  );
+  assert.equal(sections.size, 47);
+
+  const ui = await readFile(
+    new URL("../app/DufeHubV2.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(ui, /sections\.slice\(0,\s*36\)/);
 });

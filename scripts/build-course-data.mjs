@@ -80,8 +80,15 @@ const parseMajor = (className, config) => {
 const parseBuilding = (location) =>
   buildings.find((building) => clean(location).includes(building)) ?? "";
 
+const parseVenue = (location) => {
+  const value = clean(location);
+  const targetBuilding = parseBuilding(value);
+  if (targetBuilding) return targetBuilding;
+  return value.replace(/^校本部/, "") || "地点待补";
+};
+
 const parseRoom = (location, building) => {
-  if (!building) return "";
+  if (!building || !buildings.includes(building)) return "";
   const tail = clean(location).split(building).at(-1) ?? "";
   return tail.replace(/^[（(][^）)]*[）)]/, "").replace(/[^\dA-Za-z-]/g, "");
 };
@@ -113,6 +120,9 @@ const publicElectives = new Map();
 const unmatchedClasses = new Set();
 let sourceScheduleRows = 0;
 let multiMeetingRows = 0;
+let allSourceScheduleRows = 0;
+let allMultiMeetingRows = 0;
+let roomScheduleRows = 0;
 
 for (const config of Object.values(termConfig)) {
   const rows = sheets[config.sheet].values.slice(1);
@@ -174,24 +184,35 @@ for (const config of Object.values(termConfig)) {
 
     const meetingTimes = extractMeetingTimes(row[15]);
     const meetingLocations = splitMeetingLocations(row[16]);
-    const legacyBuilding = parseBuilding(row[16]);
-    if (!legacyBuilding || !meetingTimes.length) continue;
+    if (!meetingTimes.length) continue;
 
-    sourceScheduleRows += 1;
-    if (meetingTimes.length > 1) multiMeetingRows += 1;
+    allSourceScheduleRows += 1;
+    if (meetingTimes.length > 1) allMultiMeetingRows += 1;
+    const hasTargetBuilding = meetingLocations.some((location) =>
+      Boolean(parseBuilding(location)),
+    );
+    if (hasTargetBuilding) {
+      sourceScheduleRows += 1;
+      if (meetingTimes.length > 1) multiMeetingRows += 1;
+    }
     const sourceRow = clean(row[2]);
     const sectionNumber = clean(row[8]);
-    const legacyId = `${config.key}-${courseId}-${sectionNumber}-${sourceScheduleRows}`;
     const sectionId = `${config.key}-${courseId}-${sectionNumber}-${sourceRow}`;
+    // Preserve the V10 IDs used by existing local timetables. New schedules
+    // outside the five-building room map use the stable section identifier.
+    const legacyId = hasTargetBuilding
+      ? `${config.key}-${courseId}-${sectionNumber}-${sourceScheduleRows}`
+      : `${sectionId}-venue`;
 
     meetingTimes.forEach((timeText, meetingIndex) => {
       const location =
         meetingLocations[meetingIndex] ??
         meetingLocations.at(-1) ??
         clean(row[16]);
-      const building = parseBuilding(location);
-      if (!building) return;
+      const targetBuilding = parseBuilding(location);
+      const building = parseVenue(location);
       const periods = parsePeriods(timeText);
+      if (targetBuilding) roomScheduleRows += 1;
       schedules.push({
         id:
           meetingIndex === 0
@@ -258,7 +279,9 @@ const payload = {
     unmatchedClassLabels: unmatchedClasses.size,
     sourceScheduleRows,
     multiMeetingRows,
-    roomScheduleRows: schedules.length,
+    allSourceScheduleRows,
+    allMultiMeetingRows,
+    roomScheduleRows,
   },
 };
 
@@ -275,6 +298,9 @@ console.log(
       schedules: payload.schedules.length,
       sourceScheduleRows: payload.quality.sourceScheduleRows,
       multiMeetingRows: payload.quality.multiMeetingRows,
+      allSourceScheduleRows: payload.quality.allSourceScheduleRows,
+      allMultiMeetingRows: payload.quality.allMultiMeetingRows,
+      roomScheduleRows: payload.quality.roomScheduleRows,
       publicElectives: payload.publicElectives.length,
       unmatchedClassLabels: payload.quality.unmatchedClassLabels,
       outputPath,
