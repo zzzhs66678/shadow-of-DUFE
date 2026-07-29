@@ -2704,8 +2704,10 @@ function RoomsPage({
   saved: SavedState;
   setSaved: React.Dispatch<React.SetStateAction<SavedState>>;
 }) {
-  type RoomIntent = "now" | "next" | "two" | "until-class";
-  const [intent, setIntent] = useState<RoomIntent>("now");
+  type RoomStartMode = "now" | "next" | "manual";
+  type RoomDuration = "one" | "two" | "until-class";
+  const [startMode, setStartMode] = useState<RoomStartMode>("now");
+  const [duration, setDuration] = useState<RoomDuration>("one");
   const [floorChoice, setFloorChoice] = useState("");
   const [selectedRoom, setSelectedRoom] = useState("");
   const selectedDate = new Date(`${date}T12:00:00`);
@@ -2722,24 +2724,20 @@ function RoomsPage({
       ? nextClass
       : undefined;
   const targetBlocks =
-    intent === "now"
+    duration === "one"
       ? [block]
-      : intent === "next"
+      : duration === "two"
         ? block < 4
-          ? [block + 1]
+          ? [block, block + 1]
           : []
-        : intent === "two"
-          ? block < 4
-            ? [block, block + 1]
+        : nextClassToday
+          ? nextClassToday.block > block
+            ? Array.from(
+                { length: nextClassToday.block - block },
+                (_, index) => block + index,
+              )
             : []
-          : nextClassToday
-            ? nextClassToday.block > block
-              ? Array.from(
-                  { length: nextClassToday.block - block },
-                  (_, index) => block + index,
-                )
-              : []
-            : Array.from({ length: 5 - block }, (_, index) => block + index);
+          : Array.from({ length: 5 - block }, (_, index) => block + index);
   const roomSchedules = data.schedules.filter(
     (item) =>
       item.term === term && data.buildings.includes(item.building) && item.room,
@@ -2878,26 +2876,50 @@ function RoomsPage({
     )
     .slice(0, 3);
 
-  const intentOptions: Array<{
-    id: RoomIntent;
+  const startOptions: Array<{
+    id: RoomStartMode;
     label: string;
     detail: string;
   }> = [
-    { id: "now", label: "现在就去", detail: "这一大节空着" },
-    { id: "next", label: "下一大节", detail: "提前找个位置" },
-    { id: "two", label: "连上两大节", detail: "适合久坐学习" },
+    { id: "now", label: "现在", detail: "从当前大节开始" },
+    { id: "next", label: "下一大节", detail: "提前找好位置" },
+    { id: "manual", label: "自己选时间", detail: "用下方日期和节次" },
+  ];
+  const durationOptions: Array<{
+    id: RoomDuration;
+    label: string;
+    detail: string;
+  }> = [
+    { id: "one", label: "一大节", detail: "够上一轮自习" },
+    { id: "two", label: "连续两大节", detail: "中途不用换教室" },
     {
       id: "until-class",
-      label: "等到下节课",
+      label: "直到我的下节课",
       detail: nextClassToday ? `空到去${nextClassToday.building}` : "今天剩余时间",
     },
   ];
-  const targetLabel = targetBlocks.length
+  const periodLabel = targetBlocks.length
     ? targetBlocks
         .map((item) => data.periods[item - 1]?.short)
         .filter(Boolean)
         .join("、")
     : "今天没有足够的连续时段";
+  const selectedPeriod = data.periods[block - 1];
+  const startLabel =
+    startMode === "now"
+      ? `现在 · ${selectedPeriod?.short}`
+      : startMode === "next"
+        ? `下一大节 · ${selectedPeriod?.short}`
+        : `${date.replaceAll("-", "/")} · ${selectedPeriod?.short}`;
+  const durationLabel =
+    duration === "one"
+      ? "一大节"
+      : duration === "two"
+        ? "连续两大节"
+        : "直到我的下节课";
+  const querySummary = targetBlocks.length
+    ? `${startLabel} · ${durationLabel}`
+    : periodLabel;
   const selectedRoomInfo = selectedRoom
     ? {
         key: selectedRoom,
@@ -2929,6 +2951,25 @@ function RoomsPage({
     }));
   }
 
+  function chooseStart(nextMode: RoomStartMode) {
+    setStartMode(nextMode);
+    if (nextMode === "now") {
+      setDate(todayISO());
+      setBlock(currentBlock());
+      return;
+    }
+    if (nextMode === "next") {
+      const current = currentBlock();
+      if (current < 4) {
+        setDate(todayISO());
+        setBlock(current + 1);
+      } else {
+        setDate(dateISO(dateAtOffset(1)));
+        setBlock(1);
+      }
+    }
+  }
+
   return (
     <div className="page-wrap rooms-page living-spaces rooms-v5">
       <header className="map-heading">
@@ -2946,45 +2987,72 @@ function RoomsPage({
           <input
             type="date"
             value={date}
-            onChange={(event) => setDate(event.target.value)}
+            onChange={(event) => {
+              setDate(event.target.value);
+              setStartMode("manual");
+            }}
           />
         </label>
       </header>
 
       <section className="room-intents" aria-label="选择空教室查询方式">
         <header>
-          <span>你准备待多久？</span>
-          <small>{targetLabel}</small>
+          <span>先选时间，再选时长</span>
+          <small>{querySummary}</small>
         </header>
-        <div>
-          {intentOptions.map((item) => (
-            <button
-              key={item.id}
-              className={intent === item.id ? "active" : ""}
-              disabled={
-                (item.id === "two" || item.id === "next") && block >= 4
-              }
-              onClick={() => setIntent(item.id)}
-            >
-              <b>{item.label}</b>
-              <span>{item.detail}</span>
-            </button>
-          ))}
+        <div className="room-intent-groups">
+          <div className="room-intent-group">
+            <p><b>1</b><span>什么时候去</span></p>
+            <div>
+              {startOptions.map((item) => (
+                <button
+                  key={item.id}
+                  className={startMode === item.id ? "active" : ""}
+                  onClick={() => chooseStart(item.id)}
+                >
+                  <b>{item.label}</b>
+                  <span>{item.detail}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="room-intent-group">
+            <p><b>2</b><span>准备待多久</span></p>
+            <div>
+              {durationOptions.map((item) => (
+                <button
+                  key={item.id}
+                  className={duration === item.id ? "active" : ""}
+                  disabled={item.id === "two" && block >= 4}
+                  onClick={() => setDuration(item.id)}
+                >
+                  <b>{item.label}</b>
+                  <span>{item.detail}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
       <section className="map-time">
-        <div>
-          {data.periods.map((item) => (
-            <button
-              key={item.block}
-              className={block === item.block ? "active" : ""}
-              onClick={() => setBlock(item.block)}
-            >
-              <b>{item.short}</b>
-              <span>{item.time}</span>
-            </button>
-          ))}
+        <div className="manual-periods">
+          <span>自选起始节次</span>
+          <div>
+            {data.periods.map((item) => (
+              <button
+                key={item.block}
+                className={block === item.block ? "active" : ""}
+                onClick={() => {
+                  setBlock(item.block);
+                  setStartMode("manual");
+                }}
+              >
+                <b>{item.short}</b>
+                <span>{item.time}</span>
+              </button>
+            ))}
+          </div>
         </div>
         <label>
           <span>教室号</span>
@@ -3002,7 +3070,7 @@ function RoomsPage({
             <span>先看这几间</span>
             <h2>{recommendations.length ? "离你更近，也空得更久" : "这段时间没有合适的教室"}</h2>
           </div>
-          <small>{weekdayLabels[weekday % 7]} · {targetLabel}</small>
+          <small>{weekdayLabels[weekday % 7]} · {querySummary}</small>
         </header>
         <div>
           {recommendations.map((item, index) => (

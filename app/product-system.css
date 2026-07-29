@@ -558,11 +558,44 @@
   font-size: 11px;
 }
 
-.room-intents > div {
+.room-intent-groups {
   display: grid;
-  gap: 8px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: 16px;
+}
+
+.room-intent-group {
+  min-width: 0;
+}
+
+.room-intent-group > p {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  margin: 0 0 9px;
+}
+
+.room-intent-group > p b {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.13);
+  border-radius: 50%;
+  display: inline-flex;
+  font-size: 10px;
+  height: 22px;
+  justify-content: center;
+  width: 22px;
+}
+
+.room-intent-group > p span {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.room-intent-group > div {
+  display: grid;
+  gap: 7px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .room-intents button {
@@ -596,6 +629,22 @@
 .room-intents button:disabled {
   cursor: not-allowed;
   opacity: 0.34;
+}
+
+.map-time > .manual-periods {
+  display: block;
+}
+
+.manual-periods > span {
+  color: var(--ds-muted);
+  display: block;
+  font-size: 10px;
+  margin-bottom: 7px;
+}
+
+.manual-periods > div {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
 }
 
 .room-recommendations {
@@ -1007,12 +1056,22 @@
     gap: 5px;
   }
 
-  .room-intents > div {
-    display: flex;
+  .room-intent-groups {
+    display: block;
     margin-left: -2px;
     margin-right: -2px;
-    overflow-x: auto;
     padding: 2px;
+  }
+
+  .room-intent-group + .room-intent-group {
+    border-top: 1px solid rgba(255, 255, 255, 0.13);
+    margin-top: 15px;
+    padding-top: 14px;
+  }
+
+  .room-intent-group > div {
+    display: flex;
+    overflow-x: auto;
   }
 
   .room-intents button {

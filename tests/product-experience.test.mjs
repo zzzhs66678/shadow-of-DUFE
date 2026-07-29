@@ -39,7 +39,10 @@ test("mobile timetable offers daily and week views without changing export", () 
 });
 
 test("room finder supports intent-based recommendations and device memory", () => {
-  assert.match(component, /RoomIntent/);
+  assert.match(component, /RoomStartMode/);
+  assert.match(component, /RoomDuration/);
+  assert.match(component, /什么时候去/);
+  assert.match(component, /准备待多久/);
   assert.match(component, /targetBlocks/);
   assert.match(component, /roomIsAvailable/);
   assert.match(component, /availableUntil/);
