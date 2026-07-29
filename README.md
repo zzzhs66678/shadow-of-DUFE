@@ -6,6 +6,7 @@
 
 - `docs/CURRENT_STATE.md`：当前生效的产品与技术事实。
 - `docs/DECISIONS.md`：仍然有效的长期设计决定。
+- `docs/ROADMAP.md`：计划中的产品、UI 与前端体验路线图。
 - `docs/RELEASES.md`：精简发布记录。
 - `PROJECT_CONTEXT.md`：旧版完整历史档案，仅在追溯旧方案时读取。
 

@@ -7,14 +7,16 @@
 1. 先读 `docs/CURRENT_STATE.md`，它是当前事实的唯一入口。
 2. 再检查与本次任务直接相关的代码、数据和测试。
 3. 只有需要理解设计原因时才读 `docs/DECISIONS.md`。
-4. 只有需要回滚或核对版本时才读 `docs/RELEASES.md`。
-5. `PROJECT_CONTEXT.md` 是旧版完整历史档案，默认不要读取。
+4. 涉及未来功能范围或优先级时读 `docs/ROADMAP.md`。
+5. 只有需要回滚或核对版本时才读 `docs/RELEASES.md`。
+6. `PROJECT_CONTEXT.md` 是旧版完整历史档案，默认不要读取。
 
 ## 更新规则
 
 - 功能完成后，只把最终生效的事实写入 `docs/CURRENT_STATE.md`。
 - 持久且会影响以后实现的决定，才写入 `docs/DECISIONS.md`。
 - 每次正式发布只在 `docs/RELEASES.md` 增加一条简短记录。
+- 计划功能、优先级和验收标准写入 `docs/ROADMAP.md`，不得当作已上线事实。
 - 不复制聊天记录、搜索过程、临时方案或已经被推翻的设计。
 - 不为了“清洁历史”重写 Git 历史；使用小而明确的提交保留可回滚性。
 - 不提交密码、Cookie、SSH 私钥、AppSecret、验证码等敏感信息。
