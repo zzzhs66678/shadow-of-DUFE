@@ -1,4 +1,13 @@
-# vinext-starter
+# 东财之影
+
+面向东北财经大学学生的课程、个人课表、空教室与学习资料网站。
+
+开始维护前先读：
+
+- `docs/CURRENT_STATE.md`：当前生效的产品与技术事实。
+- `docs/DECISIONS.md`：仍然有效的长期设计决定。
+- `docs/RELEASES.md`：精简发布记录。
+- `PROJECT_CONTEXT.md`：旧版完整历史档案，仅在追溯旧方案时读取。
 
 A clean full-stack starter running on
 [vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
