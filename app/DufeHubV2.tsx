@@ -21,6 +21,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import {
+  clearPersonalSyncMetadata,
   loadPersonalSyncMetadata,
   savePersonalSyncMetadata,
   synchronizePersonalState,
@@ -113,6 +114,22 @@ type SavedState = {
   favoriteRooms: string[];
   recentRooms: string[];
 };
+type AccountDevice = {
+  id: string;
+  label: string;
+  platform: string;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  active: boolean;
+  current: boolean;
+};
+type AccountState = {
+  status: "loading" | "anonymous" | "authenticated";
+  user: { id: string; displayName: string | null; avatarUrl: string | null } | null;
+  session: { expiresAt: string; deviceId: string | null } | null;
+  wechatAvailable: boolean;
+};
+type CloudSyncStatus = "local" | "syncing" | "synced" | "conflict" | "offline";
 type CalendarEditorRequest =
   | { kind: "activity"; weekday?: number; block?: number; id?: string }
   | { kind: "assignment"; courseId?: string; id?: string };
@@ -402,6 +419,16 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
   const [hydrated, setHydrated] = useState(false);
   const [cloudUserId, setCloudUserId] = useState("");
   const [cloudSyncReady, setCloudSyncReady] = useState(false);
+  const [cloudSyncStatus, setCloudSyncStatus] =
+    useState<CloudSyncStatus>("local");
+  const [cloudSyncedAt, setCloudSyncedAt] = useState("");
+  const [account, setAccount] = useState<AccountState>({
+    status: "loading",
+    user: null,
+    session: null,
+    wechatAvailable: false,
+  });
+  const [accountDevices, setAccountDevices] = useState<AccountDevice[]>([]);
   const [onboarding, setOnboarding] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -500,9 +527,23 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
         if (!response.ok) return;
         const session = (await response.json()) as {
           authenticated: boolean;
-          user: { id: string } | null;
+          user: {
+            id: string;
+            displayName: string | null;
+            avatarUrl: string | null;
+          } | null;
+          session?: { expiresAt: string; deviceId: string | null };
+          login?: { wechatAvailable: boolean };
         };
-        if (!session.authenticated || !session.user?.id) return;
+        if (!session.authenticated || !session.user?.id) {
+          setAccount({
+            status: "anonymous",
+            user: null,
+            session: null,
+            wechatAvailable: session.login?.wechatAvailable ?? false,
+          });
+          return;
+        }
 
         const userId = session.user.id;
         const localAtStart = toPersonalSyncState(
@@ -510,6 +551,24 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           termRef.current,
         );
         setCloudUserId(userId);
+        setCloudSyncStatus("syncing");
+        setAccount({
+          status: "authenticated",
+          user: session.user,
+          session: session.session ?? null,
+          wechatAvailable: session.login?.wechatAvailable ?? false,
+        });
+        const devicesResponse = await fetch("/api/auth/devices", {
+          credentials: "same-origin",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (devicesResponse.ok) {
+          const devicePayload = (await devicesResponse.json()) as {
+            devices: AccountDevice[];
+          };
+          setAccountDevices(devicePayload.devices);
+        }
         const result = await synchronizePersonalState({
           userId,
           localState: localAtStart,
@@ -518,6 +577,10 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
         });
         if (!result) return;
         savePersonalSyncMetadata(result.metadata);
+        setCloudSyncedAt(result.metadata.syncedAt);
+        setCloudSyncStatus(
+          result.status === "conflict" ? "conflict" : "synced",
+        );
         if (
           result.status !== "conflict" &&
           JSON.stringify(
@@ -530,6 +593,12 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
         setCloudSyncReady(true);
       } catch (error) {
         if ((error as { name?: string }).name !== "AbortError") {
+          setCloudSyncStatus("offline");
+          setAccount((current) =>
+            current.status === "loading"
+              ? { ...current, status: "anonymous" }
+              : current,
+          );
           console.warn("个人数据暂未同步，将保留本机数据。");
         }
       }
@@ -551,6 +620,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
       syncQueueRef.current = syncQueueRef.current
         .catch(() => undefined)
         .then(async () => {
+          setCloudSyncStatus("syncing");
           const result = await synchronizePersonalState({
             userId: cloudUserId,
             localState: localAtStart,
@@ -558,6 +628,10 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           });
           if (!result) return;
           savePersonalSyncMetadata(result.metadata);
+          setCloudSyncedAt(result.metadata.syncedAt);
+          setCloudSyncStatus(
+            result.status === "conflict" ? "conflict" : "synced",
+          );
           if (
             result.status !== "conflict" &&
             JSON.stringify(
@@ -569,6 +643,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           }
         })
         .catch(() => {
+          setCloudSyncStatus("offline");
           console.warn("个人数据暂未同步，将在下次修改后重试。");
         });
     }, 1_500);
@@ -903,6 +978,96 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           saved={saved}
           setSaved={setSaved}
           onSetup={() => setOnboarding(true)}
+          account={account}
+          devices={accountDevices}
+          syncStatus={cloudSyncStatus}
+          syncedAt={cloudSyncedAt}
+          onLogin={() => {
+            if (!account.wechatAvailable) return;
+            window.location.assign(
+              "/api/auth/wechat/start?returnTo=%2F%3Fview%3Dme",
+            );
+          }}
+          onLogout={async () => {
+            const response = await fetch("/api/auth/logout", {
+              method: "POST",
+              credentials: "same-origin",
+            });
+            if (!response.ok) return;
+            clearPersonalSyncMetadata();
+            setCloudUserId("");
+            setCloudSyncReady(false);
+            setCloudSyncStatus("local");
+            setCloudSyncedAt("");
+            setAccountDevices([]);
+            setAccount({
+              status: "anonymous",
+              user: null,
+              session: null,
+              wechatAvailable: account.wechatAvailable,
+            });
+          }}
+          onRevokeDevice={async (deviceId) => {
+            const response = await fetch("/api/auth/devices", {
+              method: "DELETE",
+              credentials: "same-origin",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ deviceId }),
+            });
+            if (!response.ok) return;
+            const result = (await response.json()) as {
+              currentSessionRevoked: boolean;
+            };
+            if (result.currentSessionRevoked) {
+              clearPersonalSyncMetadata();
+              window.location.reload();
+              return;
+            }
+            setAccountDevices((current) =>
+              current.filter((device) => device.id !== deviceId),
+            );
+          }}
+          onDeleteAccount={async () => {
+            const response = await fetch("/api/auth/account/delete", {
+              method: "POST",
+              credentials: "same-origin",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                confirmation: "DELETE_MY_ACCOUNT",
+              }),
+            });
+            if (!response.ok) return false;
+            clearPersonalSyncMetadata();
+            setSaved(emptySavedState);
+            setCloudUserId("");
+            setCloudSyncReady(false);
+            setCloudSyncStatus("local");
+            setCloudSyncedAt("");
+            setAccountDevices([]);
+            setAccount({
+              status: "anonymous",
+              user: null,
+              session: null,
+              wechatAvailable: account.wechatAvailable,
+            });
+            return true;
+          }}
+          onResolveSyncConflict={(choice) => {
+            const metadata = loadPersonalSyncMetadata();
+            if (!metadata?.pendingConflicts.length) return;
+            savePersonalSyncMetadata({
+              ...metadata,
+              pendingConflicts: [],
+            });
+            if (choice === "cloud") {
+              setSaved(fromPersonalSyncState(metadata.baseState));
+              setTerm(metadata.baseState.preferredTerm);
+              setCloudSyncStatus("synced");
+              return;
+            }
+            setCloudSyncStatus("syncing");
+            setSaved((current) => ({ ...current }));
+          }}
         />
       )}
 
@@ -3431,19 +3596,62 @@ function MePage({
   saved,
   setSaved,
   onSetup,
+  account,
+  devices,
+  syncStatus,
+  syncedAt,
+  onLogin,
+  onLogout,
+  onRevokeDevice,
+  onDeleteAccount,
+  onResolveSyncConflict,
 }: {
   data: SiteData;
   saved: SavedState;
   setSaved: React.Dispatch<React.SetStateAction<SavedState>>;
   onSetup: () => void;
+  account: AccountState;
+  devices: AccountDevice[];
+  syncStatus: CloudSyncStatus;
+  syncedAt: string;
+  onLogin: () => void;
+  onLogout: () => Promise<void>;
+  onRevokeDevice: (deviceId: string) => Promise<void>;
+  onDeleteAccount: () => Promise<boolean>;
+  onResolveSyncConflict: (choice: "local" | "cloud") => void;
 }) {
   const major = data.majors.find((item) => item.id === saved.profile?.majorId);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePhrase, setDeletePhrase] = useState("");
+  const [accountBusy, setAccountBusy] = useState("");
+  const syncCopy = {
+    local: ["只在本机", "登录后可在不同设备继续使用"],
+    syncing: ["正在同步", "刚才的修改正在保存"],
+    synced: [
+      "云端已同步",
+      syncedAt
+        ? `最近同步 ${new Date(syncedAt).toLocaleString("zh-CN", {
+            month: "numeric",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}`
+        : "课表、日程和作业已保存",
+    ],
+    conflict: ["需要确认", "同一项内容在两台设备都被修改"],
+    offline: ["暂时离线", "本机修改仍会保留，联网后再同步"],
+  }[syncStatus];
+
   return (
     <div className="page-wrap me-page">
       <header className="workspace-heading">
         <div>
           <h1>我的</h1>
-          <p>专业、班级与课表保存在当前设备。</p>
+          <p>
+            {account.status === "authenticated"
+              ? "课表、日程和作业跟着账号走。"
+              : "不登录也能正常使用，登录后可以多设备同步。"}
+          </p>
         </div>
         <button onClick={onSetup}>
           {saved.profile ? "修改专业班级" : "设置专业班级"}
@@ -3468,8 +3676,8 @@ function MePage({
         </article>
         <article>
           <span>保存状态</span>
-          <strong>已保存</strong>
-          <p>目前保存在这台设备，清理浏览器前记得先留个备份。</p>
+          <strong>{syncCopy[0]}</strong>
+          <p>{syncCopy[1]}。</p>
         </article>
         <article>
           <span>隐私</span>
@@ -3477,6 +3685,148 @@ function MePage({
           <p>不使用 GPS，不采集与课程服务无关的信息。</p>
         </article>
       </div>
+      <section
+        className={`account-center account-${account.status}`}
+        aria-labelledby="account-center-title"
+      >
+        <header>
+          <div>
+            <span>账号与同步</span>
+            <h2 id="account-center-title">
+              {account.status === "authenticated"
+                ? account.user?.displayName || "微信用户"
+                : account.status === "loading"
+                  ? "正在查看登录状态"
+                  : "让课表跟着你走"}
+            </h2>
+            <p>
+              {account.status === "authenticated"
+                ? "这里管理同步、登录设备和账号。"
+                : "登录后会先合并本机内容，不会直接覆盖已有课表。"}
+            </p>
+          </div>
+          {account.status === "authenticated" ? (
+            account.user?.avatarUrl ? (
+              <span
+                className="account-avatar"
+                aria-hidden="true"
+                style={{
+                  backgroundImage: `url("${account.user.avatarUrl.replaceAll('"', "%22")}")`,
+                }}
+              />
+            ) : (
+              <i>{courseMark(account.user?.displayName || "我")}</i>
+            )
+          ) : (
+            <i>云</i>
+          )}
+        </header>
+
+        {account.status === "loading" && (
+          <div className="account-loading" aria-live="polite">
+            <span />
+            <p>稍等一下，正在确认这台设备。</p>
+          </div>
+        )}
+
+        {account.status === "anonymous" && (
+          <div className="account-login">
+            <div>
+              <b>现在的数据只保存在这台设备</b>
+              <p>清理微信或浏览器缓存前，请先导出课表图片留存。</p>
+            </div>
+            <button
+              onClick={onLogin}
+              disabled={!account.wechatAvailable}
+              title={
+                account.wechatAvailable
+                  ? "使用微信账号登录"
+                  : "微信网站应用正在审核"
+              }
+            >
+              {account.wechatAvailable ? "微信登录并同步" : "微信登录审核中"}
+            </button>
+          </div>
+        )}
+
+        {account.status === "authenticated" && (
+          <>
+            <div className={`sync-state sync-${syncStatus}`}>
+              <span>{syncStatus === "synced" ? "✓" : syncStatus === "conflict" ? "!" : "↻"}</span>
+              <div>
+                <b>{syncCopy[0]}</b>
+                <p>{syncCopy[1]}</p>
+              </div>
+              {syncStatus === "conflict" && (
+                <div className="sync-conflict-actions">
+                  <button onClick={() => onResolveSyncConflict("local")}>
+                    保留本机修改
+                  </button>
+                  <button onClick={() => onResolveSyncConflict("cloud")}>
+                    使用云端版本
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="device-center">
+              <header>
+                <div>
+                  <span>登录设备</span>
+                  <h3>{devices.length || 1} 台设备</h3>
+                </div>
+                <small>不认识的设备可以立即退出</small>
+              </header>
+              <div>
+                {devices.map((device) => (
+                  <article key={device.id}>
+                    <i>{device.current ? "本" : "端"}</i>
+                    <div>
+                      <b>
+                        {device.current ? "当前设备" : device.label}
+                        {device.active && <em>在线</em>}
+                      </b>
+                      <small>
+                        最近使用{" "}
+                        {new Date(device.lastSeenAt).toLocaleString("zh-CN", {
+                          month: "numeric",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </small>
+                    </div>
+                    <button
+                      disabled={accountBusy === device.id}
+                      onClick={async () => {
+                        setAccountBusy(device.id);
+                        await onRevokeDevice(device.id);
+                        setAccountBusy("");
+                      }}
+                    >
+                      {device.current ? "退出此设备" : "移除"}
+                    </button>
+                  </article>
+                ))}
+              </div>
+            </div>
+
+            <footer className="account-actions">
+              <button
+                disabled={Boolean(accountBusy)}
+                onClick={async () => {
+                  setAccountBusy("logout");
+                  await onLogout();
+                  setAccountBusy("");
+                }}
+              >
+                退出登录
+              </button>
+              <button onClick={() => setDeleteOpen(true)}>注销账号</button>
+            </footer>
+          </>
+        )}
+      </section>
       <section className="campus-gateway" aria-labelledby="campus-gateway-title">
         <header>
           <span>东财常用</span>
@@ -3522,10 +3872,10 @@ function MePage({
       </section>
       <section className="trust-panel">
         <div>
-          <h2>以后换手机也能接着用</h2>
+          <h2>本机数据由你控制</h2>
         </div>
         <p>
-          微信登录开通后，课表和日程就能跟着账号走；不登录也照常查课和找教室。
+          清除后，这台设备上的专业、课表、日程和作业会被移除；已登录账号的云端内容不受影响。
         </p>
         <button
           onClick={() => {
@@ -3536,6 +3886,53 @@ function MePage({
           清除本机数据
         </button>
       </section>
+      {deleteOpen && (
+        <div
+          className="modal-backdrop account-delete-backdrop"
+          onMouseDown={() => setDeleteOpen(false)}
+        >
+          <section
+            className="account-delete-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-account-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <span>不可撤销</span>
+            <h2 id="delete-account-title">注销东财之影账号</h2>
+            <p>
+              所有设备都会退出，云端课表、日程、作业和偏好将永久删除。
+            </p>
+            <label>
+              <span>输入“注销账号”继续</span>
+              <input
+                value={deletePhrase}
+                onChange={(event) => setDeletePhrase(event.target.value)}
+                placeholder="注销账号"
+              />
+            </label>
+            <div>
+              <button onClick={() => setDeleteOpen(false)}>取消</button>
+              <button
+                disabled={
+                  deletePhrase !== "注销账号" || accountBusy === "delete"
+                }
+                onClick={async () => {
+                  setAccountBusy("delete");
+                  const deleted = await onDeleteAccount();
+                  setAccountBusy("");
+                  if (deleted) {
+                    setDeleteOpen(false);
+                    setDeletePhrase("");
+                  }
+                }}
+              >
+                确认注销
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

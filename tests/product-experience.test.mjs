@@ -33,6 +33,20 @@ test("campus services jump from the personal page without crowding today", () =>
   assert.match(component, /ginkgostu\.dufe\.edu\.cn\/notice\/system/);
 });
 
+test("personal page explains local data, cloud sync, devices, and account control", () => {
+  const meStart = component.indexOf("function MePage");
+  const searchStart = component.indexOf("function SearchCommand");
+  const meSource = component.slice(meStart, searchStart);
+
+  assert.match(meSource, /账号与同步/);
+  assert.match(meSource, /微信登录审核中/);
+  assert.match(meSource, /保留本机修改/);
+  assert.match(meSource, /使用云端版本/);
+  assert.match(meSource, /登录设备/);
+  assert.match(meSource, /退出登录/);
+  assert.match(meSource, /确认注销/);
+});
+
 test("course drawer filters and compares teaching sections", () => {
   assert.match(component, /sectionQuery/);
   assert.match(component, /teacherFilter/);
