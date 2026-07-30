@@ -145,6 +145,7 @@ const campusLinks = {
     "https://sso.dufe.edu.cn/app.php/open_apps/person_card/index?sessionid=",
   ginkgo: "https://ginkgostu.dufe.edu.cn/notice/system",
 } as const;
+const xiaoyingServiceUrl = process.env.NEXT_PUBLIC_XIAOYING_URL?.trim() ?? "";
 const weekdayLabels = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 const weekdayShort = ["一", "二", "三", "四", "五", "六", "日"];
 const courseAliases: Record<string, string[]> = {
@@ -782,6 +783,9 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           <p>课程、教室与通知请以东北财经大学官方系统为准。</p>
         </div>
         <div className="footer-links">
+          <a href="/privacy">隐私政策</a>
+          <a href="/terms">用户协议</a>
+          <a href="/account/delete">账号注销</a>
           <a
             href="https://ginkgostu.dufe.edu.cn/"
             target="_blank"
@@ -792,7 +796,13 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           <a href="https://jwc.dufe.edu.cn/" target="_blank" rel="noreferrer">
             教务处 ↗
           </a>
-          <span>dufesh.cn</span>
+          <a
+            href="https://beian.miit.gov.cn/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            辽ICP备2026016653号-1
+          </a>
         </div>
       </footer>
 
@@ -3368,6 +3378,16 @@ function MePage({
             </span>
             <em>↗</em>
           </a>
+          {xiaoyingServiceUrl && (
+            <a href={xiaoyingServiceUrl}>
+              <i>影</i>
+              <span>
+                <b>小影校园服务</b>
+                <small>预约、提醒与白果云同步</small>
+              </span>
+              <em>→</em>
+            </a>
+          )}
         </nav>
       </section>
       <section className="trust-panel">

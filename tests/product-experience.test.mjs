@@ -72,3 +72,26 @@ test("customer-facing copy does not expose planning notes", () => {
   assert.doesNotMatch(component, /常用入口留在学习流的下方/);
   assert.doesNotMatch(component, /课程、教室与资料关系正在抵达/);
 });
+
+test("public compliance pages expose filing, privacy, terms, and deletion paths", async () => {
+  assert.match(component, /辽ICP备2026016653号-1/);
+  assert.match(component, /href="\/privacy"/);
+  assert.match(component, /href="\/terms"/);
+  assert.match(component, /href="\/account\/delete"/);
+
+  const privacy = await readFile(
+    new URL("../app/privacy/page.tsx", import.meta.url),
+    "utf8",
+  );
+  const terms = await readFile(
+    new URL("../app/terms/page.tsx", import.meta.url),
+    "utf8",
+  );
+  const deletion = await readFile(
+    new URL("../app/account/delete/page.tsx", import.meta.url),
+    "utf8",
+  );
+  for (const page of [privacy, terms, deletion]) {
+    assert.match(page, /2450256851@qq\.com/);
+  }
+});
