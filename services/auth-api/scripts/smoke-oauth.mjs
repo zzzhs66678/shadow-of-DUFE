@@ -135,6 +135,111 @@ async function completeLogin() {
   };
 }
 
+async function verifyPersonalSync(login) {
+  const cookie = `${deviceCookie}; ${login.sessionCookie}`;
+  const initial = await fetch(`${baseUrl}/api/auth/sync`, {
+    headers: { Cookie: cookie },
+  });
+  const initialSnapshot = await initial.json();
+  if (!initial.ok || initialSnapshot.revision !== 0) {
+    throw new Error("Initial personal snapshot was not empty");
+  }
+
+  const mutationId = `sync-${randomBytes(12).toString("hex")}`;
+  const write = {
+    mutationId,
+    baseRevision: 0,
+    clientUpdatedAt: new Date().toISOString(),
+    state: {
+      profile: {
+        entranceYear: 2025,
+        college: "会计学院",
+        majorId: "accounting",
+        className: "审计2501",
+      },
+      skipped: false,
+      plans: [
+        {
+          id: "default",
+          name: "默认课表",
+          scheduleIds: [
+            "fall-section-a-meeting-1",
+            "fall-section-a-meeting-2",
+          ],
+        },
+      ],
+      activePlanId: "default",
+      activities: [
+        {
+          id: "activity-smoke-1234",
+          title: "小组讨论",
+          weekday: 3,
+          block: 2,
+          location: "之远楼",
+          notes: "",
+          color: "blue",
+        },
+      ],
+      assignments: [
+        {
+          id: "assignment-smoke-1234",
+          courseId: "course-smoke",
+          title: "第三章作业",
+          dueDate: "2026-08-06",
+          notes: "",
+          completed: false,
+        },
+      ],
+      favoriteRooms: ["之远楼401"],
+      recentRooms: ["笃行楼302"],
+      preferredTerm: "fall",
+      theme: "system",
+    },
+  };
+  const headers = {
+    "Content-Type": "application/json",
+    Origin: publicOrigin,
+    Cookie: cookie,
+  };
+
+  const accepted = await fetch(`${baseUrl}/api/auth/sync`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify(write),
+  });
+  const acceptedSnapshot = await accepted.json();
+  if (
+    !accepted.ok ||
+    acceptedSnapshot.revision !== 1 ||
+    acceptedSnapshot.state.plans[0]?.scheduleIds.length !== 2
+  ) {
+    throw new Error("Personal snapshot write failed");
+  }
+
+  const retry = await fetch(`${baseUrl}/api/auth/sync`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify(write),
+  });
+  const retrySnapshot = await retry.json();
+  if (!retry.ok || retrySnapshot.deduplicated !== true) {
+    throw new Error("Personal snapshot retry was not deduplicated");
+  }
+
+  const conflict = await fetch(`${baseUrl}/api/auth/sync`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({
+      ...write,
+      mutationId: `sync-${randomBytes(12).toString("hex")}`,
+    }),
+  });
+  const conflictSnapshot = await conflict.json();
+  if (conflict.status !== 409 || conflictSnapshot.revision !== 1) {
+    throw new Error("Stale personal snapshot was not rejected");
+  }
+}
+
 try {
   const forbidden = await fetch(`${baseUrl}/api/auth/wechat/start`, {
     headers: {
@@ -150,6 +255,7 @@ try {
   const first = await completeLogin();
   testUserId = first.userId;
   anonymousDeviceId = first.deviceId;
+  await verifyPersonalSync(first);
 
   const logout = await fetch(`${baseUrl}/api/auth/logout`, {
     method: "POST",
@@ -173,6 +279,9 @@ try {
       callbackReplayRejected: true,
       repeatedIdentityReused: true,
       sessionIssuedAndRevoked: true,
+      personalSyncVersioned: true,
+      personalSyncDeduplicated: true,
+      staleWriteRejected: true,
     }),
   );
 } finally {
