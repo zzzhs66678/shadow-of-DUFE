@@ -29,21 +29,55 @@ export function createAuthStore(pool) {
     },
 
     async getOrCreateAnonymousDevice(tokenHash) {
-      const result = await pool.query(
+      const existing = await pool.query(
+        `SELECT public_id, last_seen_at
+         FROM anonymous_devices
+         WHERE token_hash = $1
+           AND revoked_at IS NULL
+         LIMIT 1`,
+        [tokenHash],
+      );
+
+      if (existing.rowCount > 0) {
+        const row = existing.rows[0];
+        if (Date.now() - new Date(row.last_seen_at).getTime() >= 300_000) {
+          await pool.query(
+            `UPDATE anonymous_devices
+             SET last_seen_at = now()
+             WHERE token_hash = $1
+               AND last_seen_at < now() - interval '5 minutes'`,
+            [tokenHash],
+          );
+        }
+        return String(row.public_id);
+      }
+
+      const inserted = await pool.query(
         `INSERT INTO anonymous_devices (token_hash)
          VALUES ($1)
-         ON CONFLICT (token_hash)
-         DO UPDATE SET
-           last_seen_at = CASE
-             WHEN anonymous_devices.last_seen_at < now() - interval '5 minutes'
-             THEN now()
-             ELSE anonymous_devices.last_seen_at
-           END
+         ON CONFLICT (token_hash) DO NOTHING
          RETURNING public_id`,
         [tokenHash],
       );
 
-      return String(result.rows[0].public_id);
+      if (inserted.rowCount > 0) {
+        return String(inserted.rows[0].public_id);
+      }
+
+      const raced = await pool.query(
+        `SELECT public_id
+         FROM anonymous_devices
+         WHERE token_hash = $1
+           AND revoked_at IS NULL
+         LIMIT 1`,
+        [tokenHash],
+      );
+
+      if (raced.rowCount === 0) {
+        throw new Error("anonymous device could not be resolved");
+      }
+
+      return String(raced.rows[0].public_id);
     },
 
     async getActiveSession(tokenHash) {
