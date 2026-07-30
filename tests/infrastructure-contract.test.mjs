@@ -43,6 +43,7 @@ test("auth API is private, pooled, health-checked, and routed on the same origin
   const compose = await read("docker-compose.yml");
   const caddy = await read("deploy/Caddyfile");
   const database = await read("services/auth-api/src/db.mjs");
+  const dockerfile = await read("services/auth-api/Dockerfile");
 
   assert.match(compose, /auth-api:/);
   assert.match(compose, /expose:\s*\n\s*- "3100"/);
@@ -53,6 +54,7 @@ test("auth API is private, pooled, health-checked, and routed on the same origin
   assert.match(caddy, /reverse_proxy auth-api:3100/);
   assert.match(database, /max: config\.poolMax/);
   assert.match(database, /connectionTimeoutMillis: 3_000/);
+  assert.match(dockerfile, /COPY --chown=node:node src \.\/src/);
 });
 
 test("OAuth transactions are one-time, browser-bound, and store only digests", async () => {

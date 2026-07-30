@@ -5,8 +5,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
 
-COPY src ./src
-COPY scripts ./scripts
+COPY --chown=node:node src ./src
+COPY --chown=node:node scripts ./scripts
 
 ENV NODE_ENV=production
 EXPOSE 3100
