@@ -41,8 +41,11 @@ for migration in "$MIGRATIONS_DIR"/*.sql; do
       --tuples-only \
       --no-align \
       --set ON_ERROR_STOP=1 \
-      --variable "version=$version" \
-      --command "SELECT checksum FROM schema_migrations WHERE version = :'version';"
+      --variable "version=$version" <<'SQL'
+SELECT checksum
+FROM schema_migrations
+WHERE version = :'version';
+SQL
   )"
 
   if [ -n "$stored_checksum" ]; then
