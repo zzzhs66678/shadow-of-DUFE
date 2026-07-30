@@ -54,3 +54,22 @@ test("auth API is private, pooled, health-checked, and routed on the same origin
   assert.match(database, /max: config\.poolMax/);
   assert.match(database, /connectionTimeoutMillis: 3_000/);
 });
+
+test("OAuth transactions are one-time, browser-bound, and store only digests", async () => {
+  const migration = await read(
+    "ops/postgres/migrations/0003_oauth_transactions.sql",
+  );
+  const server = await read("services/auth-api/src/server.mjs");
+  const provider = await read(
+    "services/auth-api/src/providers/mock-wechat.mjs",
+  );
+
+  assert.match(migration, /state_hash text NOT NULL/);
+  assert.match(migration, /browser_token_hash text NOT NULL/);
+  assert.match(migration, /consumed_at timestamptz/);
+  assert.doesNotMatch(migration, /\bstate_token\b|\bbrowser_token\b/);
+  assert.match(server, /AUTH_OAUTH_TRANSACTION_INVALID/);
+  assert.match(server, /x-dufesh-mock-secret/);
+  assert.match(provider, /timingSafeEqual/);
+  assert.match(provider, /createHmac\("sha256"/);
+});
