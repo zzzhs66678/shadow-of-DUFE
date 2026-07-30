@@ -34,6 +34,22 @@ function createFakeStore() {
   const transactions = new Map();
   const identities = new Map();
   const revoked = [];
+  let personalSnapshot = {
+    revision: 0,
+    state: {
+      profile: null,
+      skipped: false,
+      plans: [],
+      activePlanId: "",
+      activities: [],
+      assignments: [],
+      favoriteRooms: [],
+      recentRooms: [],
+      preferredTerm: "fall",
+      theme: "system",
+    },
+  };
+  const syncMutations = new Map();
 
   return {
     sessions,
@@ -101,6 +117,43 @@ function createFakeStore() {
     async revokeSession(hash) {
       revoked.push(hash);
       sessions.delete(hash);
+    },
+    async getPersonalState() {
+      return structuredClone(personalSnapshot);
+    },
+    async replacePersonalState(userId, payload) {
+      const mutationKey = `${userId}:${payload.mutationId}`;
+      const payloadJson = JSON.stringify(payload);
+      const prior = syncMutations.get(mutationKey);
+      if (prior) {
+        if (prior !== payloadJson) {
+          const error = new Error("mutation ID was reused");
+          error.code = "SYNC_MUTATION_REUSED";
+          throw error;
+        }
+        return {
+          ...structuredClone(personalSnapshot),
+          conflict: false,
+          deduplicated: true,
+        };
+      }
+      if (payload.baseRevision !== personalSnapshot.revision) {
+        return {
+          ...structuredClone(personalSnapshot),
+          conflict: true,
+          deduplicated: false,
+        };
+      }
+      syncMutations.set(mutationKey, payloadJson);
+      personalSnapshot = {
+        revision: personalSnapshot.revision + 1,
+        state: structuredClone(payload.state),
+      };
+      return {
+        ...structuredClone(personalSnapshot),
+        conflict: false,
+        deduplicated: false,
+      };
     },
   };
 }
@@ -236,6 +289,145 @@ test("active sessions authenticate and trusted logout revokes them", async () =>
     });
     assert.equal(logout.status, 200);
     assert.deepEqual(store.revoked, [sessionHash]);
+  });
+});
+
+test("personal sync requires a session, validates input, deduplicates, and detects conflicts", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    const sessionToken = createOpaqueToken();
+    const sessionHash = tokenDigest(sessionToken, config.tokenPepper);
+    const cookie = `${config.sessionCookie}=${sessionToken}`;
+    store.sessions.set(sessionHash, {
+      id: "session-sync",
+      userId: "user-sync",
+      displayName: "同步测试",
+      avatarUrl: null,
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    });
+
+    const anonymous = await fetch(`${baseUrl}/api/auth/sync`);
+    assert.equal(anonymous.status, 401);
+
+    const initial = await fetch(`${baseUrl}/api/auth/sync`, {
+      headers: { Cookie: cookie },
+    });
+    assert.equal(initial.status, 200);
+    assert.equal((await initial.json()).revision, 0);
+
+    const state = {
+      profile: {
+        entranceYear: 2025,
+        college: "会计学院",
+        majorId: "accounting",
+        className: "审计2501",
+      },
+      skipped: false,
+      plans: [
+        {
+          id: "default",
+          name: "默认课表",
+          scheduleIds: [
+            "fall-section-a-meeting-1",
+            "fall-section-a-meeting-2",
+          ],
+        },
+      ],
+      activePlanId: "default",
+      activities: [
+        {
+          id: "activity-123456789",
+          title: "小组讨论",
+          weekday: 3,
+          block: 2,
+          location: "之远楼",
+          notes: "",
+          color: "blue",
+        },
+      ],
+      assignments: [
+        {
+          id: "assignment-123456789",
+          courseId: "course-a",
+          title: "第三章作业",
+          dueDate: "2026-08-06",
+          notes: "",
+          completed: false,
+        },
+      ],
+      favoriteRooms: ["之远楼401"],
+      recentRooms: ["笃行楼302"],
+      preferredTerm: "fall",
+      theme: "system",
+    };
+    const write = {
+      mutationId: "mutation-123456789",
+      baseRevision: 0,
+      clientUpdatedAt: new Date().toISOString(),
+      state,
+    };
+
+    const untrusted = await fetch(`${baseUrl}/api/auth/sync`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "https://attacker.invalid",
+        Cookie: cookie,
+      },
+      body: JSON.stringify(write),
+    });
+    assert.equal(untrusted.status, 403);
+
+    const invalid = await fetch(`${baseUrl}/api/auth/sync`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "https://dufesh.cn",
+        Cookie: cookie,
+      },
+      body: JSON.stringify({ ...write, state: { ...state, plans: [] } }),
+    });
+    assert.equal(invalid.status, 400);
+
+    const accepted = await fetch(`${baseUrl}/api/auth/sync`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "https://dufesh.cn",
+        Cookie: cookie,
+      },
+      body: JSON.stringify(write),
+    });
+    const acceptedBody = await accepted.json();
+    assert.equal(accepted.status, 200);
+    assert.equal(acceptedBody.revision, 1);
+    assert.equal(acceptedBody.state.plans[0].scheduleIds.length, 2);
+
+    const retry = await fetch(`${baseUrl}/api/auth/sync`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "https://dufesh.cn",
+        Cookie: cookie,
+      },
+      body: JSON.stringify(write),
+    });
+    assert.equal(retry.status, 200);
+    assert.equal((await retry.json()).deduplicated, true);
+
+    const conflict = await fetch(`${baseUrl}/api/auth/sync`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "https://dufesh.cn",
+        Cookie: cookie,
+      },
+      body: JSON.stringify({
+        ...write,
+        mutationId: "mutation-987654321",
+      }),
+    });
+    assert.equal(conflict.status, 409);
+    assert.equal((await conflict.json()).revision, 1);
   });
 });
 

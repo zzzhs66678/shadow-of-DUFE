@@ -9,6 +9,7 @@ import {
   isOpaqueToken,
   tokenDigest,
 } from "./tokens.mjs";
+import { validateSyncWrite } from "./sync-contract.mjs";
 
 function sendJson(response, statusCode, body, setCookies = []) {
   const payload = JSON.stringify(body);
@@ -62,6 +63,47 @@ function forwardedOrigin(request) {
     request.headers["x-forwarded-host"] || request.headers.host || "",
   ).split(",", 1)[0].trim();
   return host ? `${protocol}://${host}` : "";
+}
+
+async function readJsonBody(request, maxBytes = 524_288) {
+  const contentType = String(request.headers["content-type"] ?? "")
+    .split(";", 1)[0]
+    .trim()
+    .toLowerCase();
+  if (contentType !== "application/json") {
+    const error = new Error("JSON content type is required");
+    error.code = "JSON_CONTENT_TYPE_REQUIRED";
+    throw error;
+  }
+
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of request) {
+    size += chunk.length;
+    if (size > maxBytes) {
+      const error = new Error("request body is too large");
+      error.code = "REQUEST_BODY_TOO_LARGE";
+      throw error;
+    }
+    chunks.push(chunk);
+  }
+
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  } catch {
+    const error = new Error("request body is not valid JSON");
+    error.code = "JSON_BODY_INVALID";
+    throw error;
+  }
+}
+
+async function resolveSession(request, store, config) {
+  const cookies = parseCookies(request.headers.cookie);
+  const sessionToken = cookies.get(config.sessionCookie);
+  if (!isOpaqueToken(sessionToken)) return null;
+  return store.getActiveSession(
+    tokenDigest(sessionToken, config.tokenPepper),
+  );
 }
 
 async function resolveDevice(request, store, config) {
@@ -161,6 +203,69 @@ export function createAuthServer({ store, config, wechatProvider }) {
           },
           setCookies,
         );
+        return;
+      }
+
+      if (url.pathname === "/api/auth/sync") {
+        if (request.method !== "GET" && request.method !== "PUT") {
+          methodNotAllowed(response, "GET, PUT");
+          return;
+        }
+
+        if (
+          request.method === "PUT" &&
+          !trustedOrigin(request, config.allowedOrigins)
+        ) {
+          sendJson(response, 403, { error: "untrusted_origin" });
+          return;
+        }
+
+        const session = await resolveSession(request, store, config);
+        if (!session) {
+          sendJson(response, 401, { error: "authentication_required" });
+          return;
+        }
+
+        if (request.method === "GET") {
+          const snapshot = await store.getPersonalState(session.userId);
+          sendJson(response, 200, snapshot);
+          return;
+        }
+
+        let payload;
+        try {
+          payload = validateSyncWrite(await readJsonBody(request));
+        } catch (error) {
+          if (
+            error?.code === "SYNC_PAYLOAD_INVALID" ||
+            error?.code === "JSON_CONTENT_TYPE_REQUIRED" ||
+            error?.code === "JSON_BODY_INVALID"
+          ) {
+            sendJson(response, 400, { error: "invalid_sync_payload" });
+            return;
+          }
+          if (error?.code === "REQUEST_BODY_TOO_LARGE") {
+            sendJson(response, 413, { error: "sync_payload_too_large" });
+            return;
+          }
+          throw error;
+        }
+
+        let result;
+        try {
+          result = await store.replacePersonalState(
+            session.userId,
+            payload,
+          );
+        } catch (error) {
+          if (error?.code === "SYNC_MUTATION_REUSED") {
+            sendJson(response, 409, { error: "sync_mutation_reused" });
+            return;
+          }
+          throw error;
+        }
+
+        sendJson(response, result.conflict ? 409 : 200, result);
         return;
       }
 

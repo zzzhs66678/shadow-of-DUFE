@@ -103,3 +103,21 @@ test("personal cloud data keeps stable client IDs, revisions, and tombstones", a
   assert.match(smoke, /cross-user plan relationship was accepted/);
   assert.match(smoke, /personal data did not cascade on account deletion/);
 });
+
+test("sync writes use bounded, payload-bound idempotency keys", async () => {
+  const migration = await read(
+    "ops/postgres/migrations/0005_sync_mutations.sql",
+  );
+  const server = await read("services/auth-api/src/server.mjs");
+  const store = await read("services/auth-api/src/personal-store.mjs");
+
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS user_sync_mutations/);
+  assert.match(migration, /payload_hash text NOT NULL/);
+  assert.match(migration, /PRIMARY KEY \(user_id, mutation_id\)/);
+  assert.match(server, /REQUEST_BODY_TOO_LARGE/);
+  assert.match(server, /trustedOrigin/);
+  assert.match(store, /FOR UPDATE/);
+  assert.match(store, /SYNC_MUTATION_REUSED/);
+  assert.match(store, /payload\.baseRevision !== currentRevision/);
+  assert.match(store, /interval '30 days'/);
+});
