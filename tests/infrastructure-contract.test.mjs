@@ -150,3 +150,31 @@ test("auth traffic has bounded in-memory burst protection", async () => {
   assert.match(server, /Retry-After/);
   assert.match(server, /clientAddress/);
 });
+
+test("expired sessions and sync tombstones have bounded retention", async () => {
+  const cleanup = await read("ops/postgres/cleanup.sh");
+  const timer = await read("deploy/systemd/dufesh-db-cleanup.timer");
+
+  assert.match(cleanup, /pg_advisory_xact_lock/);
+  assert.match(cleanup, /user_sync_mutations/);
+  assert.match(cleanup, /user_sessions/);
+  assert.match(cleanup, /timetable_plan_schedules/);
+  assert.match(cleanup, /personal_activities/);
+  assert.match(cleanup, /user_assignments/);
+  assert.match(cleanup, /interval '180 days'/);
+  assert.match(cleanup, /claimed_device_id IS NULL/);
+  assert.match(timer, /04:15:00 Asia\/Shanghai/);
+  assert.match(timer, /Persistent=true/);
+});
+
+test("edge headers constrain embedding, browser capabilities, and active content", async () => {
+  const caddy = await read("deploy/Caddyfile");
+
+  assert.match(caddy, /Strict-Transport-Security/);
+  assert.match(caddy, /Permissions-Policy/);
+  assert.match(caddy, /Content-Security-Policy/);
+  assert.match(caddy, /default-src 'self'/);
+  assert.match(caddy, /object-src 'none'/);
+  assert.match(caddy, /frame-ancestors 'self'/);
+  assert.match(caddy, /connect-src 'self'/);
+});

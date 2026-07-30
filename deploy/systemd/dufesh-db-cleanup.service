@@ -1,0 +1,13 @@
+[Unit]
+Description=Clean expired Dufesh account and sync records
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/srv/apps/dufesh/current/ops/postgres/cleanup.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+PrivateTmp=true
+NoNewPrivileges=true
