@@ -2,13 +2,17 @@
 	encode zstd gzip
 
 	header {
+		-Server
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
-		X-Frame-Options "SAMEORIGIN"
+		X-Frame-Options "DENY"
 		X-XSS-Protection "0"
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
-		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
-		Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data:; media-src 'self'; connect-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; upgrade-insecure-requests"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), accelerometer=(), gyroscope=(), magnetometer=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Resource-Policy "same-origin"
+		X-Permitted-Cross-Domain-Policies "none"
+		Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data:; media-src 'self'; connect-src 'self'; frame-src 'self'; worker-src 'self' blob:; manifest-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; upgrade-insecure-requests"
 	}
 
 	@course_data path /data/*
@@ -17,8 +21,23 @@
 	@site_images path /images/*
 	header @site_images Cache-Control "public, max-age=604800, immutable"
 
+	@compiled_assets path /assets/* /_next/static/*
+	header @compiled_assets Cache-Control "public, max-age=31536000, immutable"
+
 	handle /api/auth/* {
 		reverse_proxy auth-api:3100
+	}
+
+	redir /campus-lab /campus-lab/ 308
+
+	handle_path /campus-lab/* {
+		header {
+			Cache-Control "no-store"
+			X-Frame-Options "DENY"
+			X-Robots-Tag "noindex, nofollow, noarchive"
+			Referrer-Policy "no-referrer"
+		}
+		reverse_proxy xiaoying:43120
 	}
 
 	handle_path /resources/files/* {
@@ -33,8 +52,12 @@
 	}
 }
 
-dufesh.cn, www.dufesh.cn {
+dufesh.cn {
 	import dufesh_proxy
+}
+
+www.dufesh.cn {
+	redir https://dufesh.cn{uri} 308
 }
 
 http://112.126.75.74 {

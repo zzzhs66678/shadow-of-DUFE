@@ -1119,3 +1119,756 @@
     gap: 16px;
   }
 }
+
+/* V14 · 大连校园导视系统
+   冷色纸张、海港蓝与校园红替代旧版米白编辑模板。 */
+:root {
+  --paper: #edf3f4;
+  --paper-deep: #dbe6e8;
+  --ink: #102d39;
+  --muted: #637982;
+  --line: #c7d5d9;
+  --accent: #bf4038;
+  --accent-deep: #8f2a2a;
+  --accent-soft: #f1dcd8;
+  --green: #2d705e;
+  --panel: rgba(250, 253, 253, 0.82);
+  --shadow: 0 18px 55px rgba(17, 56, 70, 0.1);
+  --serif: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --sans: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --ds-bg: var(--paper);
+  --ds-surface: #fbfdfd;
+  --ds-surface-soft: #e2ebed;
+  --ds-ink: var(--ink);
+  --ds-muted: var(--muted);
+  --ds-line: var(--line);
+  --ds-accent: var(--accent);
+  --ds-green: var(--green);
+  --ds-amber: #b17a13;
+  --ds-radius-sm: 12px;
+  --ds-radius-md: 18px;
+  --ds-radius-lg: 26px;
+  --ds-shadow: var(--shadow);
+}
+
+:root[data-term="spring"] {
+  --paper: #071d27;
+  --paper-deep: #04141c;
+  --ink: #edf6f7;
+  --muted: #94abb2;
+  --line: #294550;
+  --accent: #ef7468;
+  --accent-deep: #ff9286;
+  --accent-soft: #422d30;
+  --green: #75b59f;
+  --panel: rgba(13, 38, 48, 0.84);
+  --shadow: 0 22px 70px rgba(0, 0, 0, 0.3);
+  --ds-surface: #0e2a35;
+  --ds-surface-soft: #153541;
+  --ds-amber: #e5b85d;
+}
+
+body {
+  background:
+    radial-gradient(circle at 84% 7%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 29rem),
+    linear-gradient(180deg, color-mix(in srgb, var(--paper) 94%, white) 0, var(--paper) 36rem);
+  font-variant-numeric: tabular-nums;
+}
+
+button,
+a,
+input,
+select {
+  transition:
+    color 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+button:not(:disabled):active,
+a:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.skip-link {
+  background: var(--ink);
+  border-radius: 0 0 10px 10px;
+  color: var(--paper);
+  left: 18px;
+  padding: 10px 14px;
+  position: fixed;
+  top: -60px;
+  z-index: 200;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+.preload-intro {
+  align-items: end;
+  background:
+    linear-gradient(90deg, rgba(8, 45, 61, 0.94), rgba(15, 78, 94, 0.82)),
+    url("/images/dufe-campus-commons.webp") center 58% / cover;
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  min-height: 100vh;
+  padding: clamp(28px, 7vw, 96px);
+}
+
+body:has(.hub-v2) .preload-intro {
+  display: none;
+}
+
+.preload-intro span {
+  color: #f1c363;
+  font: 700 11px/1 var(--mono);
+  letter-spacing: 0.16em;
+}
+
+.preload-intro h1 {
+  font-size: clamp(54px, 10vw, 132px);
+  letter-spacing: -0.075em;
+  line-height: 0.92;
+  margin: 16px 0 20px;
+}
+
+.preload-intro p {
+  color: rgba(255, 255, 255, 0.75);
+  margin: 0;
+}
+
+.preload-intro nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.preload-intro nav a {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  color: white;
+  padding: 11px 16px;
+  text-decoration: none;
+}
+
+.hub-v2 {
+  --content: min(1480px, calc(100vw - 64px));
+  background:
+    linear-gradient(90deg, transparent 49.94%, color-mix(in srgb, var(--line) 25%, transparent) 50%, transparent 50.06%),
+    transparent;
+}
+
+.hub-topbar {
+  background: color-mix(in srgb, var(--paper) 82%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--line) 84%, transparent);
+  box-shadow: 0 8px 30px rgba(12, 52, 66, 0.06);
+  height: 74px;
+}
+
+.brand-button span {
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 20px;
+  letter-spacing: -0.04em;
+}
+
+.brand-button small {
+  letter-spacing: 0;
+}
+
+.topbar nav {
+  background: color-mix(in srgb, var(--panel) 78%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px;
+}
+
+.topbar nav button {
+  border-radius: 999px;
+  padding: 9px 15px;
+}
+
+.topbar nav button.active {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.command-trigger:hover,
+.term-switch:hover {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--line));
+}
+
+.profile-dot {
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.page-wrap {
+  padding-top: clamp(30px, 4vw, 62px);
+}
+
+.workspace-heading,
+.page-title {
+  align-items: center;
+}
+
+.workspace-heading h1,
+.page-title h1 {
+  color: var(--ink);
+  font-family: var(--sans);
+  font-weight: 720;
+  letter-spacing: -0.055em;
+}
+
+.workspace-heading > button,
+.page-title > button {
+  border-radius: 999px;
+}
+
+.catalog-workspace,
+.lineup-workspace,
+.timetable-panel,
+.course-pool,
+.room-intents,
+.room-stack,
+.me-grid article,
+.trust-panel {
+  border-radius: 22px;
+}
+
+.catalog-workspace,
+.timetable-panel,
+.course-pool,
+.me-grid article {
+  background: color-mix(in srgb, var(--panel) 90%, transparent);
+}
+
+.course-card-grid > button,
+.course-pool article,
+.room-recommendations article,
+.floor-rooms-v5 button {
+  border-radius: 16px;
+}
+
+.course-card-grid > button:hover,
+.course-pool article:hover,
+.room-recommendations article:hover {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--line));
+  box-shadow: 0 14px 34px rgba(10, 49, 63, 0.09);
+  transform: translateY(-2px);
+}
+
+.page-wrap.today-page.focus-page {
+  --focus-bg: var(--paper);
+  --focus-ink: var(--ink);
+  --focus-muted: var(--muted);
+  --focus-line: var(--line);
+  --focus-red: var(--accent);
+  background:
+    radial-gradient(circle at 9% 0%, color-mix(in srgb, #58a6be 14%, transparent), transparent 32rem),
+    linear-gradient(90deg, transparent 49.95%, color-mix(in srgb, var(--line) 30%, transparent) 50%, transparent 50.05%),
+    var(--focus-bg);
+  padding-top: 30px;
+}
+
+.focus-head {
+  border-bottom: 0;
+  margin-bottom: 10px;
+  padding-bottom: 0;
+}
+
+.focus-head h1 {
+  color: var(--ink);
+  font-size: clamp(40px, 5vw, 68px);
+  font-weight: 760;
+}
+
+.focus-head > button {
+  background: color-mix(in srgb, var(--panel) 90%, transparent);
+  border-color: var(--line);
+  box-shadow: 0 9px 24px rgba(11, 48, 61, 0.08);
+}
+
+.focus-head > button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.campus-pins {
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+  overflow-x: auto;
+  padding: 12px 0 16px;
+  scrollbar-width: none;
+}
+
+.campus-pins::-webkit-scrollbar {
+  display: none;
+}
+
+.campus-pins > span {
+  color: var(--muted);
+  flex: 0 0 auto;
+  font: 700 10px/1 var(--mono);
+  letter-spacing: 0.12em;
+  margin-right: 4px;
+}
+
+.campus-pins a {
+  align-items: center;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  display: flex;
+  flex: 0 0 auto;
+  font-size: 11px;
+  gap: 7px;
+  min-height: 34px;
+  padding: 4px 11px 4px 5px;
+  text-decoration: none;
+}
+
+.campus-pins a:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.campus-pins i {
+  align-items: center;
+  background: color-mix(in srgb, var(--accent) 12%, var(--paper));
+  border-radius: 50%;
+  color: var(--accent);
+  display: flex;
+  font-style: normal;
+  height: 24px;
+  justify-content: center;
+  width: 24px;
+}
+
+.campus-pins em {
+  color: var(--accent);
+  font-style: normal;
+}
+
+.focus-setup {
+  background: color-mix(in srgb, #e9b94d 16%, var(--panel));
+  border-color: color-mix(in srgb, #b78313 42%, var(--line));
+  border-radius: 14px;
+}
+
+.now-card {
+  background:
+    radial-gradient(circle at 86% 11%, rgba(114, 195, 215, 0.2), transparent 27%),
+    linear-gradient(135deg, #082b3b, #104e61 72%, #176b78);
+  border: 0;
+  box-shadow: 0 24px 58px rgba(5, 39, 52, 0.24);
+  isolation: isolate;
+  position: relative;
+}
+
+.now-card::before {
+  background:
+    linear-gradient(90deg, transparent 0 8%, rgba(255, 255, 255, 0.14) 8% 8.25%, transparent 8.25% 44%, rgba(255, 255, 255, 0.14) 44% 44.25%, transparent 44.25%),
+    linear-gradient(90deg, #f1c45e, #f1c45e);
+  background-position: 0 50%, 0 50%;
+  background-repeat: no-repeat;
+  background-size: 100% 1px, 44% 2px;
+  content: "";
+  inset: auto 26px 71px;
+  opacity: 0.64;
+  pointer-events: none;
+  position: absolute;
+  z-index: -1;
+}
+
+.now-card::after {
+  animation: campus-route 6s ease-in-out infinite;
+  background: #f1c45e;
+  border: 3px solid rgba(8, 43, 59, 0.86);
+  border-radius: 50%;
+  bottom: 66px;
+  box-shadow: 0 0 0 4px rgba(241, 196, 94, 0.18);
+  content: "";
+  height: 11px;
+  left: 26px;
+  position: absolute;
+  width: 11px;
+}
+
+@keyframes campus-route {
+  0%,
+  12% {
+    transform: translateX(0);
+  }
+  48%,
+  62% {
+    transform: translateX(min(34vw, 260px));
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.now-card > header span {
+  color: #f1c45e;
+}
+
+.now-card > div > i {
+  border-color: rgba(241, 196, 94, 0.42);
+  border-radius: 17px;
+  color: #f1c45e;
+  font-family: var(--sans);
+}
+
+.now-card > footer {
+  margin-top: 17px;
+  position: relative;
+  z-index: 1;
+}
+
+.now-card > footer button::after {
+  color: #f1c45e;
+}
+
+.today-side-stack > button,
+.agenda-glance {
+  background: color-mix(in srgb, var(--ds-surface) 92%, transparent);
+  border-color: var(--line);
+}
+
+.today-side-stack > button:hover,
+.agenda-glance > div > button:hover {
+  background: color-mix(in srgb, var(--accent) 6%, var(--ds-surface));
+  transform: translateY(-2px);
+}
+
+.campus-suggestion {
+  background: color-mix(in srgb, var(--green) 13%, var(--ds-surface)) !important;
+  border-color: color-mix(in srgb, var(--green) 31%, var(--line)) !important;
+}
+
+.unified-agenda,
+.week-ahead {
+  border-color: var(--line);
+}
+
+.agenda-row,
+.week-ahead > div > article {
+  border-color: var(--line);
+}
+
+.agenda-row:hover {
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+}
+
+.week-ahead article button {
+  background: color-mix(in srgb, var(--panel) 84%, transparent);
+  border-radius: 10px;
+}
+
+.week-ahead article button:hover {
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel));
+}
+
+.study-management {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--green) 14%, var(--panel)), color-mix(in srgb, #d3a63f 10%, var(--panel)));
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  box-shadow: 0 16px 45px rgba(11, 49, 63, 0.08);
+}
+
+.study-management h2 {
+  font-family: var(--sans);
+  font-weight: 680;
+}
+
+.study-management > div button {
+  border-color: var(--line);
+  border-radius: 14px;
+}
+
+.study-management > div button:hover {
+  background: color-mix(in srgb, var(--panel) 82%, transparent);
+}
+
+.study-management button i {
+  align-items: center;
+  background: var(--ink);
+  border-radius: 50%;
+  color: var(--paper);
+  display: flex;
+  font: 650 11px/1 var(--sans);
+  height: 30px;
+  justify-content: center;
+  width: 30px;
+}
+
+.campus-window {
+  background: #082b3b;
+  border-radius: 26px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(270px, 0.65fr);
+  margin: 62px 0 0;
+  min-height: 300px;
+  overflow: hidden;
+  position: relative;
+}
+
+.campus-window img {
+  display: block;
+  height: 100%;
+  min-height: 300px;
+  object-fit: cover;
+  width: 100%;
+}
+
+.campus-window figcaption {
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+  padding: clamp(24px, 4vw, 48px);
+}
+
+.campus-window figcaption span {
+  color: #f1c45e;
+  font: 700 10px/1 var(--mono);
+  letter-spacing: 0.13em;
+}
+
+.campus-window figcaption b {
+  font-size: clamp(22px, 2.5vw, 36px);
+  letter-spacing: -0.045em;
+  line-height: 1.25;
+  margin: 18px 0 34px;
+}
+
+.campus-window figcaption a {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 10px;
+  text-decoration: none;
+}
+
+.knowledge-tribute {
+  border-top: 0;
+}
+
+.tribute-copy h2 {
+  font-family: var(--sans);
+  font-weight: 690;
+}
+
+.knowledge-tribute > nav .scihub-link {
+  background: var(--ink);
+  border-radius: 10px;
+}
+
+.campus-gateway {
+  background:
+    radial-gradient(circle at 95% 0%, rgba(75, 165, 187, 0.2), transparent 24rem),
+    #082b3b;
+  border-radius: 26px;
+  box-shadow: 0 24px 62px rgba(5, 39, 52, 0.2);
+}
+
+.campus-gateway > nav > a:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.campus-lab-entry {
+  color: rgba(255, 255, 255, 0.46);
+  display: inline-flex;
+  font: 10px/1 var(--mono);
+  gap: 8px;
+  margin: 16px 0 0;
+  text-decoration: none;
+}
+
+.campus-lab-entry span {
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.campus-lab-entry:hover {
+  color: #f1c45e;
+}
+
+@media (max-width: 980px) {
+  .hub-topbar {
+    grid-template-columns: 1fr auto;
+  }
+
+  .hub-topbar > nav {
+    display: none;
+  }
+
+  .brand-button small,
+  .command-trigger span,
+  .command-trigger kbd {
+    display: none;
+  }
+
+  .command-trigger {
+    height: 38px;
+    justify-content: center;
+    padding: 0;
+    width: 38px;
+  }
+
+  .command-trigger::before {
+    content: "⌕";
+  }
+}
+
+@media (max-width: 760px) {
+  .preload-intro {
+    align-items: start;
+    flex-direction: column;
+    justify-content: end;
+    padding: 28px 22px calc(28px + env(safe-area-inset-bottom));
+  }
+
+  .preload-intro nav {
+    margin-top: 28px;
+  }
+
+  .hub-topbar {
+    height: 64px;
+    padding: 0 14px;
+  }
+
+  .page-wrap.today-page.focus-page {
+    background:
+      radial-gradient(circle at 12% 0%, color-mix(in srgb, #58a6be 13%, transparent), transparent 18rem),
+      var(--paper);
+    overflow-x: clip;
+    padding: 16px 14px calc(106px + env(safe-area-inset-bottom));
+  }
+
+  .focus-head.focus-head-v5 {
+    margin-bottom: 4px;
+  }
+
+  .focus-head.focus-head-v5 > button {
+    display: none;
+  }
+
+  .focus-head.focus-head-v5 h1 {
+    font-size: 33px;
+  }
+
+  .campus-pins {
+    margin-left: -14px;
+    margin-right: -14px;
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .campus-pins > span {
+    display: none;
+  }
+
+  .room-intent-group > div,
+  .catalog-workspace > aside {
+    scrollbar-width: none;
+  }
+
+  .room-intent-group > div::-webkit-scrollbar,
+  .catalog-workspace > aside::-webkit-scrollbar {
+    display: none;
+  }
+
+  .now-card {
+    border-radius: 22px;
+    min-height: 260px;
+  }
+
+  .now-card::before {
+    inset: auto 21px 63px;
+  }
+
+  .now-card::after {
+    bottom: 58px;
+    left: 21px;
+  }
+
+  @keyframes campus-route {
+    0%,
+    12% {
+      transform: translateX(0);
+    }
+    48%,
+    62% {
+      transform: translateX(min(52vw, 190px));
+    }
+    100% {
+      transform: translateX(0);
+    }
+  }
+
+  .study-management {
+    border-left: 0;
+    border-radius: 0;
+    border-right: 0;
+  }
+
+  .study-management > div button {
+    border-radius: 0;
+  }
+
+  .campus-window {
+    border-radius: 20px;
+    display: block;
+    margin-top: 40px;
+  }
+
+  .campus-window img {
+    aspect-ratio: 16 / 7;
+    min-height: 0;
+  }
+
+  .campus-window figcaption {
+    padding: 24px;
+  }
+
+  .campus-window figcaption b {
+    font-size: 24px;
+    margin: 13px 0 24px;
+  }
+
+  .knowledge-tribute {
+    grid-template-columns: 86px minmax(0, 1fr);
+  }
+
+  .knowledge-tribute > nav {
+    grid-column: 1 / -1;
+  }
+
+  .tribute-photo,
+  .tribute-photo img {
+    width: 80px;
+  }
+
+  .tribute-photo img {
+    height: 106px;
+  }
+
+  .campus-gateway {
+    border-radius: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .now-card::after {
+    animation: none;
+  }
+}

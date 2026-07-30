@@ -351,6 +351,14 @@ function aliasesForCourse(course: Course) {
     .flatMap(([, aliases]) => aliases);
 }
 
+function viewFromLocation(): View {
+  if (typeof window === "undefined") return "home";
+  const value = new URL(window.location.href).searchParams.get("view");
+  return ["home", "catalog", "schedule", "rooms", "me"].includes(value ?? "")
+    ? (value as View)
+    : "home";
+}
+
 function Wordmark() {
   return (
     <div className="wordmark" aria-label="东财之影">
@@ -656,6 +664,13 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
   }, [term]);
 
   useEffect(() => {
+    const syncView = () => setView(viewFromLocation());
+    syncView();
+    window.addEventListener("popstate", syncView);
+    return () => window.removeEventListener("popstate", syncView);
+  }, []);
+
+  useEffect(() => {
     function handleShortcut(event: KeyboardEvent) {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -768,7 +783,16 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
 
   function go(next: View) {
     setView(next);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    const url = new URL(window.location.href);
+    if (next === "home") url.searchParams.delete("view");
+    else url.searchParams.set("view", next);
+    window.history.pushState({ view: next }, "", `${url.pathname}${url.search}${url.hash}`);
+    window.scrollTo({
+      top: 0,
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+    });
   }
 
   function updateActivePlan(transform: (ids: string[]) => string[]) {
@@ -835,7 +859,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
   ];
 
   return (
-    <main className="site-shell hub-v2">
+    <main className="site-shell hub-v2" id="main-content">
       <header className="topbar hub-topbar">
         <button className="brand-button" onClick={() => go("home")}>
           <span>东财之影</span>
@@ -1373,7 +1397,7 @@ function HomePage({
   const campusSuggestion =
     assignmentDays !== null && assignmentDays <= 2
       ? {
-          label: "优先级提醒",
+          label: "作业提醒",
           title:
             assignmentDays < 0
               ? `${nextAssignment?.title}已经逾期`
@@ -1387,10 +1411,10 @@ function HomePage({
             onEditCalendar({ kind: "assignment", id: nextAssignment.id }),
         }
       : {
-          label: "顺路看看",
+          label: "去自习",
           title: primaryClass
             ? `下一站 ${primaryClass.building}${primaryClass.room}`
-            : `${bestBuilding?.name || "教学楼"}此刻更容易找到座位`,
+            : `${bestBuilding?.name || "教学楼"}当前有 ${bestBuilding?.free ?? 0} 间可用教室`,
           detail: primaryClass
             ? `${data.periods[primaryClass.block - 1]?.time} · 提前查看同楼空教室`
             : `${bestBuilding?.free ?? 0} 间教室在当前节次可用`,
@@ -1419,10 +1443,29 @@ function HomePage({
         </p>
       </header>
 
+      <nav className="campus-pins" aria-label="东财常用服务">
+        <span>校园直达</span>
+        <a href={campusLinks.library} target="_blank" rel="noreferrer">
+          <i>座</i>
+          我去图书馆
+          <em>↗</em>
+        </a>
+        <a href={campusLinks.campusCard} target="_blank" rel="noreferrer">
+          <i>码</i>
+          校园码
+          <em>↗</em>
+        </a>
+        <a href={campusLinks.ginkgo} target="_blank" rel="noreferrer">
+          <i>果</i>
+          白果云
+          <em>↗</em>
+        </a>
+      </nav>
+
       {!saved.profile && (
         <button className="focus-setup" onClick={onSetup}>
-          <span>选好专业和班级，先把自己的课表认领回来</span>
-          <b>去选择 →</b>
+          <span>选择专业和班级后，可直接生成本学期课表</span>
+          <b>开始设置 →</b>
         </button>
       )}
 
@@ -1602,7 +1645,7 @@ function HomePage({
         <header>
           <div>
             <span>接下来七天</span>
-            <b>先看看接下来几天</b>
+            <b>已有安排</b>
           </div>
           <button onClick={() => onGo("schedule")}>管理全部 →</button>
         </header>
@@ -1642,27 +1685,50 @@ function HomePage({
 
       <section className="study-management">
         <header>
-          <span>加点新安排</span>
-          <h2>课表、日程和作业都在这里改。</h2>
+          <span>编辑</span>
+          <h2>管理学习安排</h2>
         </header>
         <div>
           <button onClick={() => onGo("schedule")}>
-            <i>01</i>
+            <i>表</i>
             <b>编辑我的课表</b>
             <span>添加、移除课程或导出图片</span>
           </button>
           <button onClick={() => onEditCalendar({ kind: "activity" })}>
-            <i>02</i>
+            <i>程</i>
             <b>添加个人日程</b>
             <span>自习、社团、考试或生活安排</span>
           </button>
           <button onClick={() => onEditCalendar({ kind: "assignment" })}>
-            <i>03</i>
+            <i>交</i>
             <b>添加课程作业</b>
             <span>记录截止日期并自动倒计时</span>
           </button>
         </div>
       </section>
+
+      <figure className="campus-window">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/dufe-campus-commons.webp"
+          alt="东北财经大学校园正门与主楼"
+          width="1280"
+          height="805"
+          loading="lazy"
+          decoding="async"
+        />
+        <figcaption>
+          <span>东北财经大学 · 大连</span>
+          <b>下一节课、空教室和资料，都从今天继续。</b>
+          <a
+            href="https://commons.wikimedia.org/wiki/File:Dongbei_University_of_Finance_%26_Economy.jpg"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Yoshi Canopus · CC BY-SA 3.0 ↗
+          </a>
+        </figcaption>
+      </figure>
 
       <section className="knowledge-tribute">
         <figure className="tribute-photo">
@@ -1686,8 +1752,7 @@ function HomePage({
           <span>致敬 · Alexandra Elbakyan</span>
           <h2>愿知识更容易抵达每一个人。</h2>
           <p>
-            她在 2011 年创建
-            Sci-Hub，让学术知识的获取方式进入全球公共讨论。东财之影致敬的是这份让知识抵达普通人的愿望；本站只收录可合法分享或已获授权的资料。
+            她在 2011 年创建 Sci-Hub，让学术获取问题进入全球公共讨论。本站致敬她推动知识可及的愿望，只收录可合法分享或已获授权的资料。
           </p>
         </div>
         <nav aria-label="了解 Alexandra Elbakyan">
@@ -3650,7 +3715,7 @@ function MePage({
           <p>
             {account.status === "authenticated"
               ? "课表、日程和作业跟着账号走。"
-              : "不登录也能正常使用，登录后可以多设备同步。"}
+              : "当前设备可直接使用；微信登录开放后支持多设备同步。"}
           </p>
         </div>
         <button onClick={onSetup}>
@@ -3858,17 +3923,12 @@ function MePage({
             </span>
             <em>↗</em>
           </a>
-          {xiaoyingServiceUrl && (
-            <a href={xiaoyingServiceUrl}>
-              <i>影</i>
-              <span>
-                <b>小影校园服务</b>
-                <small>预约、提醒与白果云同步</small>
-              </span>
-              <em>→</em>
-            </a>
-          )}
         </nav>
+        {xiaoyingServiceUrl && (
+          <a className="campus-lab-entry" href={xiaoyingServiceUrl}>
+            小影内测通道 <span>需邀请码</span> →
+          </a>
+        )}
       </section>
       <section className="trust-panel">
         <div>
@@ -4548,9 +4608,9 @@ function Onboarding({
           <span className={step >= 3 ? "active" : ""}>03 班级</span>
         </div>
         <div className="onboarding-copy">
-          <p>个性化设置</p>
-          <h2>先选你的基本信息</h2>
-              <span>选完就能看到本学期课表，之后也可以随时调整。</span>
+          <p>课表设置</p>
+          <h2>选择年级、专业和班级</h2>
+          <span>选完即可生成本学期课表，之后仍可修改。</span>
         </div>
         {step === 1 && (
           <div className="choice-grid years">
@@ -4619,11 +4679,11 @@ function Onboarding({
                 </button>
               ))}
               {!classes.length && (
-                <p>没找到对应班级，可以先跳过，之后自己选课。</p>
+                <p>没有匹配班级。跳过后可自行选择教学班。</p>
               )}
             </div>
             <button className="finish-button" onClick={finish}>
-              {className ? `使用 ${className} 开始` : "先完成，稍后选课"}
+              {className ? `使用 ${className} 开始` : "完成设置"}
             </button>
           </div>
         )}
@@ -4634,7 +4694,7 @@ function Onboarding({
           >
             ← 上一步
           </button>
-          <span>现在先存在这台设备里，不用注册。</span>
+          <span>设置会保存在当前设备，可随时清除。</span>
         </footer>
       </section>
     </div>

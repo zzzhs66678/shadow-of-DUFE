@@ -19,18 +19,27 @@ test("today page keeps the one-glance command deck", () => {
   assert.match(productStyles, /\.agenda-glance/);
 });
 
-test("campus services jump from the personal page without crowding today", () => {
+test("campus services keep a compact today dock and a full personal-page gateway", () => {
   const homeStart = component.indexOf("function HomePage");
   const meStart = component.indexOf("function MePage");
   const searchStart = component.indexOf("function SearchCommand");
   const homeSource = component.slice(homeStart, meStart);
   const meSource = component.slice(meStart, searchStart);
 
+  assert.match(homeSource, /campus-pins/);
   assert.doesNotMatch(homeSource, /campus-gateway/);
   assert.match(meSource, /campus-gateway/);
+  assert.match(meSource, /campus-lab-entry/);
   assert.match(component, /web\.traceint\.com\/web\/index\.html/);
   assert.match(component, /person_card\/index\?sessionid=/);
   assert.match(component, /ginkgostu\.dufe\.edu\.cn\/notice\/system/);
+});
+
+test("the visual system uses a campus route and licensed campus image", () => {
+  assert.match(component, /dufe-campus-commons\.webp/);
+  assert.match(productStyles, /@keyframes campus-route/);
+  assert.match(productStyles, /\.campus-window/);
+  assert.doesNotMatch(component, /<i>0[123]<\/i>/);
 });
 
 test("personal page explains local data, cloud sync, devices, and account control", () => {

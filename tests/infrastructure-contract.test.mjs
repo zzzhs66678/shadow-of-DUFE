@@ -175,6 +175,41 @@ test("edge headers constrain embedding, browser capabilities, and active content
   assert.match(caddy, /Content-Security-Policy/);
   assert.match(caddy, /default-src 'self'/);
   assert.match(caddy, /object-src 'none'/);
-  assert.match(caddy, /frame-ancestors 'self'/);
+  assert.match(caddy, /frame-ancestors 'none'/);
   assert.match(caddy, /connect-src 'self'/);
+});
+
+test("Xiaoying is isolated behind a private, resource-bounded service", async () => {
+  const compose = await read("docker-compose.yml");
+  const caddy = await read("deploy/Caddyfile");
+  const server = await read("xiaoying-executor/bin/server.mjs");
+  const dockerfile = await read("xiaoying-executor/Dockerfile");
+
+  assert.match(compose, /xiaoying:/);
+  assert.match(compose, /expose:\s*\n\s*- "43120"/);
+  assert.doesNotMatch(compose, /ports:\s*\n\s*-\s*"43120:43120"/);
+  assert.match(compose, /xiaoying_data:\/data/);
+  assert.match(compose, /read_only: true/);
+  assert.match(compose, /mem_limit: 192m/);
+  assert.match(caddy, /handle_path \/campus-lab\/\*/);
+  assert.match(caddy, /X-Robots-Tag "noindex, nofollow, noarchive"/);
+  assert.match(server, /XIAOYING_MASTER_KEY/);
+  assert.match(server, /sameOriginRequest/);
+  assert.match(server, /withinRateLimit/);
+  assert.match(server, /__Secure-dufesh_xiaoying_session/);
+  assert.match(dockerfile, /USER node/);
+});
+
+test("static assets and route discovery have explicit cache and SEO policy", async () => {
+  const caddy = await read("deploy/Caddyfile");
+  const robots = await read("app/robots.ts");
+  const sitemap = await read("app/sitemap.ts");
+  const layout = await read("app/layout.tsx");
+
+  assert.match(caddy, /max-age=31536000, immutable/);
+  assert.match(caddy, /www\.dufesh\.cn[\s\S]*redir https:\/\/dufesh\.cn\{uri\} 308/);
+  assert.match(robots, /\/campus-lab\//);
+  assert.match(sitemap, /https:\/\/dufesh\.cn\/privacy/);
+  assert.match(layout, /application\/ld\+json/);
+  assert.match(layout, /dufesh-social\.png/);
 });

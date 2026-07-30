@@ -29,7 +29,10 @@ test("server-renders the branded data-loading shell", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>东财之影｜课表、空教室与学习资料｜东财之影<\/title>/i);
+  assert.match(html, /<title>东财之影｜课表、空教室与学习资料<\/title>/i);
+  assert.match(html, /DUFE · STUDENT DESK/);
+  assert.match(html, /课表、空教室、课程资料和今天的安排/);
+  assert.match(html, /href="\/\?view=schedule"/);
   assert.match(html, /正在加载课程数据/);
   assert.match(html, /稍等一下，马上就好/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/i);

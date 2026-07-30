@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_XIAOYING_URL: ${NEXT_PUBLIC_XIAOYING_URL:-/campus-lab/}
     image: dufesh-app:latest
     restart: unless-stopped
     environment:
@@ -22,6 +24,48 @@ services:
       driver: json-file
       options:
         max-size: "20m"
+        max-file: "3"
+
+  xiaoying:
+    build:
+      context: ./xiaoying-executor
+      dockerfile: Dockerfile
+    image: dufesh-xiaoying:latest
+    restart: unless-stopped
+    env_file:
+      - ${DUFESH_XIAOYING_ENV_FILE:-/srv/apps/dufesh/shared/config/xiaoying.env}
+    environment:
+      NODE_ENV: production
+      XIAOYING_EXECUTOR_HOST: 0.0.0.0
+      XIAOYING_EXECUTOR_PORT: "43120"
+      XIAOYING_BASE_PATH: /campus-lab
+      XIAOYING_PUBLIC_BASE_URL: https://dufesh.cn/campus-lab
+      XIAOYING_DATABASE_PATH: /data/xiaoying.sqlite
+      XIAOYING_MASTER_KEY_PATH: /data/master-key
+      XIAOYING_TRACEINT_PROTOCOL_PATH: /data/traceint-protocol.json
+    expose:
+      - "43120"
+    volumes:
+      - xiaoying_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:43120/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+    mem_limit: 192m
+    mem_reservation: 48m
+    cpus: 0.50
+    pids_limit: 128
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
         max-file: "3"
 
   postgres:
@@ -121,6 +165,8 @@ services:
     depends_on:
       app:
         condition: service_healthy
+      xiaoying:
+        condition: service_healthy
     ports:
       - "80:80"
       - "443:443"
@@ -142,3 +188,4 @@ volumes:
   caddy_data:
   caddy_config:
   postgres_data:
+  xiaoying_data:

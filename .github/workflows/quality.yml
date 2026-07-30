@@ -1,0 +1,52 @@
+name: quality
+
+on:
+  push:
+    branches: [main, "codex/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install main app
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install Xiaoying service
+        run: npm ci --prefix xiaoying-executor --ignore-scripts --no-audit --no-fund
+      - name: Check production dependencies
+        run: |
+          npm audit --omit=dev --omit=optional --audit-level=high
+          npm audit --prefix xiaoying-executor --omit=dev --audit-level=high
+      - name: Run regression tests
+        run: |
+          node --test tests/course-schedule-logic.test.mjs
+          node --test tests/product-experience.test.mjs
+          node --test tests/infrastructure-contract.test.mjs
+          npm run test:xiaoying
+      - name: Build production app
+        run: npm run build
+      - name: Check rendered HTML
+        run: node --test tests/rendered-html.test.mjs
+
+  codeql:
+    name: codeql
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      security-events: write
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+      - uses: github/codeql-action/analyze@v3

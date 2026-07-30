@@ -8,6 +8,8 @@ RUN npm ci --ignore-scripts --no-audit --no-fund
 FROM dependencies AS build
 
 ENV WRANGLER_LOG_PATH=/tmp/wrangler.log
+ARG NEXT_PUBLIC_XIAOYING_URL=""
+ENV NEXT_PUBLIC_XIAOYING_URL=$NEXT_PUBLIC_XIAOYING_URL
 
 COPY . .
 RUN npx vinext build

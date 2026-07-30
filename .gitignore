@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+/xiaoying-executor/node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -22,6 +23,7 @@
 .DS_Store
 *.pem
 /.secrets/
+/.local-data/
 
 # debug
 npm-debug.log*
@@ -44,3 +46,4 @@ next-env.d.ts
 /.codex-runtime/
 /.codex_tmp/
 *.tsbuildinfo
+/xiaoying-executor/.local-data/

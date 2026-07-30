@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light" />
+    <title>连接我去图书馆｜东财之影</title>
+    <style>
+      :root {
+        font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+        color: #102d39;
+        background: #eaf1f2;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100vh;
+        background: radial-gradient(circle at 100% 0%, rgba(77,158,178,.2), transparent 28rem);
+      }
+      main { width: min(100%, 480px); margin: 0 auto; padding: 28px 20px 48px; }
+      .brand { font-weight: 700; letter-spacing: .04em; margin: 6px 0 54px; }
+      .eyebrow { color: #bd4139; font-size: 13px; font-weight: 700; letter-spacing: .12em; }
+      h1 { margin: 12px 0; font-size: clamp(34px, 10vw, 48px); line-height: 1.08; letter-spacing: -.04em; }
+      .lead { color: #667d85; font-size: 16px; line-height: 1.7; margin: 0 0 30px; }
+      .step { display: grid; grid-template-columns: 30px 1fr; gap: 10px; margin: 17px 0; line-height: 1.6; }
+      .step span { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; background: #d5e7ea; color: #0c4b5d; font-size: 13px; font-weight: 700; }
+      label { display: block; margin: 32px 0 9px; font-size: 14px; font-weight: 700; }
+      input { width: 100%; min-height: 52px; padding: 0 14px; border: 1px solid #bed0d4; border-radius: 13px; background: #fff; font: inherit; }
+      button { width: 100%; min-height: 54px; margin-top: 12px; border: 0; border-radius: 13px; background: #0c4b5d; color: #fff; font: inherit; font-weight: 700; }
+      input:focus-visible, button:focus-visible { outline: 3px solid rgba(189,65,57,.28); outline-offset: 2px; }
+      button:disabled { opacity: .5; }
+      .message { display: none; padding: 14px; margin-top: 16px; border-radius: 12px; line-height: 1.55; }
+      .message.show { display: block; }
+      .message.ok { background: #dfece4; color: #124833; }
+      .message.error { background: #f6dfdc; color: #8c2c27; }
+      .small { color: #74878d; font-size: 13px; line-height: 1.55; margin-top: 20px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="brand">东财之影</div>
+      <div class="eyebrow">连接校园服务</div>
+      <h1>在手机上完成授权</h1>
+      <p class="lead">授权用于读取座位和提交你确认的预约。页面会把链接换成加密凭据，原链接不会写入普通日志。</p>
+
+      <div class="step"><span>1</span><div>在微信中打开“我去图书馆”，进入后复制当前页面链接。</div></div>
+      <div class="step"><span>2</span><div>把链接粘贴到下面，确认后即可关闭本页。</div></div>
+
+      <form id="pairForm">
+        <label for="authorization">微信授权链接</label>
+        <input id="authorization" type="url" inputmode="url" autocomplete="off" placeholder="粘贴链接" required />
+        <button id="submitButton" type="submit">确认连接</button>
+      </form>
+      <div class="message" id="message"></div>
+      <p class="small">二维码十分钟内有效。连接完成后，链接和二维码会立即失效。</p>
+    </main>
+    <script>
+      const token = new URLSearchParams(location.search).get("token") || "";
+      const form = document.getElementById("pairForm");
+      const input = document.getElementById("authorization");
+      const button = document.getElementById("submitButton");
+      const message = document.getElementById("message");
+      function show(text, tone) {
+        message.textContent = text;
+        message.className = `message show ${tone}`;
+      }
+      if (!token) {
+        form.hidden = true;
+        show("这个二维码不完整，请回到电脑端重新生成。", "error");
+      }
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        button.disabled = true;
+        button.textContent = "正在连接…";
+        try {
+          const response = await fetch("/v1/public/pairing", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ token, authorization: input.value }),
+          });
+          const body = await response.json();
+          if (!response.ok) throw new Error(body.error || "连接失败");
+          form.hidden = true;
+          show("连接好了。回到东财之影就能看到座位信息。", "ok");
+        } catch (error) {
+          show(error.message, "error");
+          button.disabled = false;
+          button.textContent = "重新确认";
+        }
+      });
+    </script>
+  </body>
+</html>
