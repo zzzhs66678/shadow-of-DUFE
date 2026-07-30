@@ -78,6 +78,7 @@ test("personal cloud data keeps stable client IDs, revisions, and tombstones", a
   const migration = await read(
     "ops/postgres/migrations/0004_personal_cloud_data.sql",
   );
+  const smoke = await read("ops/postgres/smoke-personal-data.sql");
 
   for (const table of [
     "user_sync_states",
@@ -98,4 +99,7 @@ test("personal cloud data keeps stable client IDs, revisions, and tombstones", a
   assert.match(migration, /source IN \('manual', 'class_import'\)/);
   assert.match(migration, /preferred_term IN \('fall', 'spring'\)/);
   assert.match(migration, /color IN \('red', 'blue', 'green', 'amber'\)/);
+  assert.match(smoke, /distinct teaching meetings were collapsed/);
+  assert.match(smoke, /cross-user plan relationship was accepted/);
+  assert.match(smoke, /personal data did not cascade on account deletion/);
 });
