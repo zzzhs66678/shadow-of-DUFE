@@ -73,3 +73,29 @@ test("OAuth transactions are one-time, browser-bound, and store only digests", a
   assert.match(provider, /timingSafeEqual/);
   assert.match(provider, /createHmac\("sha256"/);
 });
+
+test("personal cloud data keeps stable client IDs, revisions, and tombstones", async () => {
+  const migration = await read(
+    "ops/postgres/migrations/0004_personal_cloud_data.sql",
+  );
+
+  for (const table of [
+    "user_sync_states",
+    "user_profiles",
+    "timetable_plans",
+    "timetable_plan_schedules",
+    "personal_activities",
+    "user_assignments",
+    "user_settings",
+  ]) {
+    assert.match(migration, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`));
+  }
+
+  assert.match(migration, /CREATE OR REPLACE FUNCTION next_user_revision/);
+  assert.match(migration, /UNIQUE \(user_id, client_id\)/);
+  assert.match(migration, /UNIQUE \(plan_id, schedule_id\)/);
+  assert.match(migration, /deleted_at timestamptz/);
+  assert.match(migration, /source IN \('manual', 'class_import'\)/);
+  assert.match(migration, /preferred_term IN \('fall', 'spring'\)/);
+  assert.match(migration, /color IN \('red', 'blue', 'green', 'amber'\)/);
+});
