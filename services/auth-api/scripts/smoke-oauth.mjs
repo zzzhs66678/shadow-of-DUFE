@@ -238,6 +238,48 @@ async function verifyPersonalSync(login) {
   if (conflict.status !== 409 || conflictSnapshot.revision !== 1) {
     throw new Error("Stale personal snapshot was not rejected");
   }
+
+  const concurrentWrites = await Promise.all(
+    Array.from({ length: 50 }, (_, index) =>
+      fetch(`${baseUrl}/api/auth/sync`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({
+          ...write,
+          mutationId: `burst-${index}-${randomBytes(12).toString("hex")}`,
+          baseRevision: 1,
+          state: {
+            ...write.state,
+            activities: [
+              ...write.state.activities,
+              {
+                id: `activity-burst-${index}`,
+                title: `并发日程 ${index}`,
+                weekday: 4,
+                block: 3,
+                location: "",
+                notes: "",
+                color: "green",
+              },
+            ],
+          },
+        }),
+      }),
+    ),
+  );
+  const acceptedWrites = concurrentWrites.filter(
+    (response) => response.status === 200,
+  ).length;
+  const rejectedWrites = concurrentWrites.filter(
+    (response) => response.status === 409,
+  ).length;
+  if (acceptedWrites !== 1 || rejectedWrites !== 49) {
+    throw new Error(
+      `Concurrent writes were not serialized (${acceptedWrites}/${
+        rejectedWrites
+      })`,
+    );
+  }
 }
 
 try {
@@ -318,6 +360,7 @@ try {
       personalSyncVersioned: true,
       personalSyncDeduplicated: true,
       staleWriteRejected: true,
+      concurrentWritesSerialized: true,
       accountDevicesListed: true,
       accountDeletedWithCascade: true,
     }),

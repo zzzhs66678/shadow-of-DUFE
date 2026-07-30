@@ -137,3 +137,16 @@ test("account devices and self-service deletion remain session- and origin-bound
   assert.match(database, /async deleteAccount/);
   assert.match(database, /DELETE FROM app_users/);
 });
+
+test("auth traffic has bounded in-memory burst protection", async () => {
+  const limiter = await read("services/auth-api/src/rate-limit.mjs");
+  const server = await read("services/auth-api/src/server.mjs");
+
+  assert.match(limiter, /capacity: 2_400/);
+  assert.match(limiter, /capacity: 300/);
+  assert.match(limiter, /maxKeys = 10_000/);
+  assert.match(limiter, /idleTtlMs/);
+  assert.match(server, /rate_limit_exceeded/);
+  assert.match(server, /Retry-After/);
+  assert.match(server, /clientAddress/);
+});

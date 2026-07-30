@@ -7,6 +7,7 @@ import {
 } from "../src/cookies.mjs";
 import { loadConfig } from "../src/config.mjs";
 import { createMockWechatProvider } from "../src/providers/mock-wechat.mjs";
+import { createTokenBucket } from "../src/rate-limit.mjs";
 import { createAuthServer } from "../src/server.mjs";
 import {
   createOpaqueToken,
@@ -245,6 +246,25 @@ test("opaque tokens are random-looking and stored as peppered digests", () => {
   assert.equal(token.length, 43);
   assert.notEqual(tokenDigest(token, config.tokenPepper), token);
   assert.equal(tokenDigest(token, config.tokenPepper).length, 64);
+});
+
+test("token buckets refill, reject bursts, and keep their key set bounded", () => {
+  const limiter = createTokenBucket({
+    capacity: 2,
+    refillPerSecond: 1,
+    maxKeys: 2,
+    idleTtlMs: 1_000,
+  });
+
+  assert.equal(limiter.consume("device-a", 0), true);
+  assert.equal(limiter.consume("device-a", 0), true);
+  assert.equal(limiter.consume("device-a", 0), false);
+  assert.equal(limiter.consume("device-a", 1_000), true);
+
+  for (let index = 0; index < 500; index += 1) {
+    limiter.consume(`rotating-${index}`, 2_000);
+  }
+  assert.ok(limiter.size() <= 2);
 });
 
 test("production configuration requires database and token secrets", () => {

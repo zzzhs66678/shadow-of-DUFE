@@ -10,6 +10,7 @@ import {
   tokenDigest,
 } from "./tokens.mjs";
 import { validateSyncWrite } from "./sync-contract.mjs";
+import { createApiRateLimiters } from "./rate-limit.mjs";
 
 function sendJson(response, statusCode, body, setCookies = []) {
   const payload = JSON.stringify(body);
@@ -72,6 +73,14 @@ function forwardedOrigin(request) {
     request.headers["x-forwarded-host"] || request.headers.host || "",
   ).split(",", 1)[0].trim();
   return host ? `${protocol}://${host}` : "";
+}
+
+function clientAddress(request) {
+  const forwarded = String(request.headers["x-forwarded-for"] ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return forwarded.at(-1) || request.socket.remoteAddress || "unknown";
 }
 
 async function readJsonBody(request, maxBytes = 524_288) {
@@ -139,7 +148,12 @@ async function resolveDevice(request, store, config) {
   };
 }
 
-export function createAuthServer({ store, config, wechatProvider }) {
+export function createAuthServer({
+  store,
+  config,
+  wechatProvider,
+  rateLimiters = createApiRateLimiters(),
+}) {
   return createServer(async (request, response) => {
     try {
       const url = new URL(request.url ?? "/", "http://auth-api.local");
@@ -156,6 +170,22 @@ export function createAuthServer({ store, config, wechatProvider }) {
         } else {
           sendJson(response, 200, { ok: true });
         }
+        return;
+      }
+
+      const limiter =
+        request.method === "GET" &&
+        !url.pathname.startsWith("/api/auth/wechat/") &&
+        url.pathname !== "/api/auth/mock/authorize"
+          ? rateLimiters.read
+          : rateLimiters.write;
+      const rateKey = tokenDigest(
+        `rate:${clientAddress(request)}`,
+        config.tokenPepper,
+      );
+      if (!limiter.consume(rateKey)) {
+        response.setHeader("Retry-After", "15");
+        sendJson(response, 429, { error: "rate_limit_exceeded" });
         return;
       }
 
