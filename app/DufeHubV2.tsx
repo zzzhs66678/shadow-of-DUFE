@@ -20,6 +20,12 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import {
+  loadPersonalSyncMetadata,
+  savePersonalSyncMetadata,
+  synchronizePersonalState,
+  type PersonalSyncState,
+} from "./personal-sync";
 
 type Term = "fall" | "spring";
 type View = "home" | "catalog" | "schedule" | "rooms" | "me";
@@ -166,6 +172,30 @@ const emptySavedState: SavedState = {
   favoriteRooms: [],
   recentRooms: [],
 };
+
+function toPersonalSyncState(
+  saved: SavedState,
+  preferredTerm: Term,
+): PersonalSyncState {
+  return {
+    ...saved,
+    preferredTerm,
+    theme: "system",
+  };
+}
+
+function fromPersonalSyncState(state: PersonalSyncState): SavedState {
+  return {
+    profile: state.profile,
+    skipped: state.skipped,
+    plans: state.plans,
+    activePlanId: state.activePlanId,
+    activities: state.activities,
+    assignments: state.assignments,
+    favoriteRooms: state.favoriteRooms,
+    recentRooms: state.recentRooms,
+  };
+}
 
 function todayISO() {
   const now = new Date();
@@ -370,6 +400,8 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
   const [term, setTerm] = useState<Term>("fall");
   const [saved, setSaved] = useState<SavedState>(emptySavedState);
   const [hydrated, setHydrated] = useState(false);
+  const [cloudUserId, setCloudUserId] = useState("");
+  const [cloudSyncReady, setCloudSyncReady] = useState(false);
   const [onboarding, setOnboarding] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -385,6 +417,9 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
   const [coursePoolQuery, setCoursePoolQuery] = useState("");
   const [calendarEditor, setCalendarEditor] =
     useState<CalendarEditorRequest | null>(null);
+  const savedRef = useRef(saved);
+  const termRef = useRef(term);
+  const syncQueueRef = useRef<Promise<void>>(Promise.resolve());
   const [addFeedback, setAddFeedback] = useState("");
 
   const courses = useMemo(
@@ -445,6 +480,101 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
     if (!hydrated) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
   }, [hydrated, saved]);
+
+  useEffect(() => {
+    savedRef.current = saved;
+    termRef.current = term;
+  }, [saved, term]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const controller = new AbortController();
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/auth/session", {
+          credentials: "same-origin",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (!response.ok) return;
+        const session = (await response.json()) as {
+          authenticated: boolean;
+          user: { id: string } | null;
+        };
+        if (!session.authenticated || !session.user?.id) return;
+
+        const userId = session.user.id;
+        const localAtStart = toPersonalSyncState(
+          savedRef.current,
+          termRef.current,
+        );
+        setCloudUserId(userId);
+        const result = await synchronizePersonalState({
+          userId,
+          localState: localAtStart,
+          priorMetadata: loadPersonalSyncMetadata(),
+          signal: controller.signal,
+        });
+        if (!result) return;
+        savePersonalSyncMetadata(result.metadata);
+        if (
+          result.status !== "conflict" &&
+          JSON.stringify(
+            toPersonalSyncState(savedRef.current, termRef.current),
+          ) === JSON.stringify(localAtStart)
+        ) {
+          setSaved(fromPersonalSyncState(result.state));
+          setTerm(result.state.preferredTerm);
+        }
+        setCloudSyncReady(true);
+      } catch (error) {
+        if ((error as { name?: string }).name !== "AbortError") {
+          console.warn("个人数据暂未同步，将保留本机数据。");
+        }
+      }
+    })();
+
+    return () => controller.abort();
+  }, [hydrated]);
+
+  useEffect(() => {
+    if (!hydrated || !cloudSyncReady || !cloudUserId) return;
+    const metadata = loadPersonalSyncMetadata();
+    if (metadata?.pendingConflicts.length) return;
+
+    const timer = window.setTimeout(() => {
+      const localAtStart = toPersonalSyncState(
+        savedRef.current,
+        termRef.current,
+      );
+      syncQueueRef.current = syncQueueRef.current
+        .catch(() => undefined)
+        .then(async () => {
+          const result = await synchronizePersonalState({
+            userId: cloudUserId,
+            localState: localAtStart,
+            priorMetadata: loadPersonalSyncMetadata(),
+          });
+          if (!result) return;
+          savePersonalSyncMetadata(result.metadata);
+          if (
+            result.status !== "conflict" &&
+            JSON.stringify(
+              toPersonalSyncState(savedRef.current, termRef.current),
+            ) === JSON.stringify(localAtStart)
+          ) {
+            setSaved(fromPersonalSyncState(result.state));
+            setTerm(result.state.preferredTerm);
+          }
+        })
+        .catch(() => {
+          console.warn("个人数据暂未同步，将在下次修改后重试。");
+        });
+    }, 1_500);
+
+    return () => window.clearTimeout(timer);
+  }, [cloudSyncReady, cloudUserId, hydrated, saved, term]);
 
   useEffect(() => {
     document.documentElement.dataset.term = term;
