@@ -271,6 +271,42 @@ try {
     throw new Error("Repeated OAuth login created a duplicate user");
   }
 
+  const signedInCookies = `${deviceCookie}; ${second.sessionCookie}`;
+  const devices = await fetch(`${baseUrl}/api/auth/devices`, {
+    headers: { Cookie: signedInCookies },
+  });
+  const devicePayload = await devices.json();
+  if (
+    !devices.ok ||
+    !Array.isArray(devicePayload.devices) ||
+    !devicePayload.devices.some((device) => device.current)
+  ) {
+    throw new Error("Current account device was not listed");
+  }
+
+  const deleteAccount = await fetch(
+    `${baseUrl}/api/auth/account/delete`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: publicOrigin,
+        Cookie: signedInCookies,
+      },
+      body: JSON.stringify({ confirmation: "DELETE_MY_ACCOUNT" }),
+    },
+  );
+  if (!deleteAccount.ok) throw new Error("Account deletion failed");
+  testUserId = null;
+
+  const deletedSession = await fetch(`${baseUrl}/api/auth/session`, {
+    headers: { Cookie: signedInCookies },
+  });
+  const deletedSessionPayload = await deletedSession.json();
+  if (deletedSessionPayload.authenticated) {
+    throw new Error("Deleted account session remained active");
+  }
+
   console.log(
     JSON.stringify({
       ok: true,
@@ -282,6 +318,8 @@ try {
       personalSyncVersioned: true,
       personalSyncDeduplicated: true,
       staleWriteRejected: true,
+      accountDevicesListed: true,
+      accountDeletedWithCascade: true,
     }),
   );
 } finally {

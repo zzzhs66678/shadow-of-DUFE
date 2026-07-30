@@ -123,3 +123,17 @@ test("sync writes use bounded, payload-bound idempotency keys", async () => {
   assert.match(store, /payload\.baseRevision !== currentRevision/);
   assert.match(store, /interval '30 days'/);
 });
+
+test("account devices and self-service deletion remain session- and origin-bound", async () => {
+  const server = await read("services/auth-api/src/server.mjs");
+  const database = await read("services/auth-api/src/db.mjs");
+
+  assert.match(server, /url\.pathname === "\/api\/auth\/devices"/);
+  assert.match(server, /url\.pathname === "\/api\/auth\/account\/delete"/);
+  assert.match(server, /confirmation !== "DELETE_MY_ACCOUNT"/);
+  assert.match(server, /trustedOrigin/);
+  assert.match(database, /async listUserDevices/);
+  assert.match(database, /async revokeUserDevice/);
+  assert.match(database, /async deleteAccount/);
+  assert.match(database, /DELETE FROM app_users/);
+});

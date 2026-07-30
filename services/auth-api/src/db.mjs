@@ -318,9 +318,11 @@ export function createAuthStore(pool) {
            users.id AS user_id,
            users.display_name,
            users.avatar_url,
-           sessions.expires_at
+           sessions.expires_at,
+           devices.public_id AS device_public_id
          FROM user_sessions AS sessions
          INNER JOIN app_users AS users ON users.id = sessions.user_id
+         LEFT JOIN user_devices AS devices ON devices.id = sessions.device_id
          WHERE sessions.token_hash = $1
            AND sessions.revoked_at IS NULL
            AND sessions.expires_at > now()
@@ -345,7 +347,110 @@ export function createAuthStore(pool) {
         displayName: result.rows[0].display_name,
         avatarUrl: result.rows[0].avatar_url,
         expiresAt: new Date(result.rows[0].expires_at).toISOString(),
+        deviceId: result.rows[0].device_public_id
+          ? String(result.rows[0].device_public_id)
+          : null,
       };
+    },
+
+    async listUserDevices(userId, currentSessionId) {
+      const result = await pool.query(
+        `SELECT
+           devices.public_id,
+           devices.label,
+           devices.platform,
+           devices.first_seen_at,
+           devices.last_seen_at,
+           EXISTS (
+             SELECT 1
+             FROM user_sessions AS active_sessions
+             WHERE active_sessions.device_id = devices.id
+               AND active_sessions.revoked_at IS NULL
+               AND active_sessions.expires_at > now()
+           ) AS active,
+           EXISTS (
+             SELECT 1
+             FROM user_sessions AS current_session
+             WHERE current_session.id = $2
+               AND current_session.device_id = devices.id
+           ) AS current
+         FROM user_devices AS devices
+         WHERE devices.user_id = $1
+           AND devices.revoked_at IS NULL
+         ORDER BY current DESC, devices.last_seen_at DESC`,
+        [userId, currentSessionId],
+      );
+
+      return result.rows.map((row) => ({
+        id: String(row.public_id),
+        label: row.label || "网页设备",
+        platform: row.platform || "web",
+        firstSeenAt: new Date(row.first_seen_at).toISOString(),
+        lastSeenAt: new Date(row.last_seen_at).toISOString(),
+        active: row.active,
+        current: row.current,
+      }));
+    },
+
+    async revokeUserDevice(userId, currentSessionId, publicDeviceId) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const target = await client.query(
+          `SELECT
+             devices.id,
+             EXISTS (
+               SELECT 1
+               FROM user_sessions AS current_session
+               WHERE current_session.id = $2
+                 AND current_session.device_id = devices.id
+             ) AS current
+           FROM user_devices AS devices
+           WHERE devices.user_id = $1
+             AND devices.public_id = $3
+             AND devices.revoked_at IS NULL
+           FOR UPDATE`,
+          [userId, currentSessionId, publicDeviceId],
+        );
+        if (target.rowCount === 0) {
+          await client.query("ROLLBACK");
+          return null;
+        }
+
+        const deviceId = target.rows[0].id;
+        await client.query(
+          `UPDATE user_sessions
+           SET revoked_at = COALESCE(revoked_at, now())
+           WHERE user_id = $1
+             AND device_id = $2`,
+          [userId, deviceId],
+        );
+        await client.query(
+          `UPDATE user_devices
+           SET revoked_at = now()
+           WHERE user_id = $1
+             AND id = $2`,
+          [userId, deviceId],
+        );
+        await client.query("COMMIT");
+        return { current: target.rows[0].current };
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+
+    async deleteAccount(userId) {
+      const result = await pool.query(
+        `DELETE FROM app_users
+         WHERE id = $1
+           AND status = 'active'
+         RETURNING id`,
+        [userId],
+      );
+      return result.rowCount > 0;
     },
 
     async revokeSession(tokenHash) {

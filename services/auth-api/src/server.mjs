@@ -55,6 +55,15 @@ function safeReturnTo(value) {
   return value;
 }
 
+function isUuid(value) {
+  return (
+    typeof value === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value,
+    )
+  );
+}
+
 function forwardedOrigin(request) {
   const protocol = String(
     request.headers["x-forwarded-proto"] || "http",
@@ -167,7 +176,12 @@ export function createAuthServer({ store, config, wechatProvider }) {
           sendJson(
             response,
             200,
-            { authenticated: false, deviceId: device.deviceId, user: null },
+            {
+              authenticated: false,
+              deviceId: device.deviceId,
+              user: null,
+              login: { wechatAvailable: config.wechatMode === "wechat" },
+            },
             setCookies,
           );
           return;
@@ -182,7 +196,12 @@ export function createAuthServer({ store, config, wechatProvider }) {
           sendJson(
             response,
             200,
-            { authenticated: false, deviceId: device.deviceId, user: null },
+            {
+              authenticated: false,
+              deviceId: device.deviceId,
+              user: null,
+              login: { wechatAvailable: config.wechatMode === "wechat" },
+            },
             setCookies,
           );
           return;
@@ -199,7 +218,11 @@ export function createAuthServer({ store, config, wechatProvider }) {
               displayName: session.displayName,
               avatarUrl: session.avatarUrl,
             },
-            session: { expiresAt: session.expiresAt },
+            session: {
+              expiresAt: session.expiresAt,
+              deviceId: session.deviceId,
+            },
+            login: { wechatAvailable: config.wechatMode === "wechat" },
           },
           setCookies,
         );
@@ -266,6 +289,122 @@ export function createAuthServer({ store, config, wechatProvider }) {
         }
 
         sendJson(response, result.conflict ? 409 : 200, result);
+        return;
+      }
+
+      if (url.pathname === "/api/auth/devices") {
+        if (request.method !== "GET" && request.method !== "DELETE") {
+          methodNotAllowed(response, "GET, DELETE");
+          return;
+        }
+        if (
+          request.method === "DELETE" &&
+          !trustedOrigin(request, config.allowedOrigins)
+        ) {
+          sendJson(response, 403, { error: "untrusted_origin" });
+          return;
+        }
+
+        const session = await resolveSession(request, store, config);
+        if (!session) {
+          sendJson(response, 401, { error: "authentication_required" });
+          return;
+        }
+
+        if (request.method === "GET") {
+          const devices = await store.listUserDevices(
+            session.userId,
+            session.id,
+          );
+          sendJson(response, 200, { devices });
+          return;
+        }
+
+        let body;
+        try {
+          body = await readJsonBody(request, 16_384);
+        } catch (error) {
+          if (
+            error?.code === "JSON_CONTENT_TYPE_REQUIRED" ||
+            error?.code === "JSON_BODY_INVALID"
+          ) {
+            sendJson(response, 400, { error: "invalid_device_request" });
+            return;
+          }
+          if (error?.code === "REQUEST_BODY_TOO_LARGE") {
+            sendJson(response, 413, { error: "request_too_large" });
+            return;
+          }
+          throw error;
+        }
+        if (!isUuid(body?.deviceId)) {
+          sendJson(response, 400, { error: "invalid_device_request" });
+          return;
+        }
+        const revoked = await store.revokeUserDevice(
+          session.userId,
+          session.id,
+          body.deviceId,
+        );
+        if (!revoked) {
+          sendJson(response, 404, { error: "device_not_found" });
+          return;
+        }
+        sendJson(
+          response,
+          200,
+          { ok: true, currentSessionRevoked: revoked.current },
+          revoked.current
+            ? [clearSecureCookie(config.sessionCookie)]
+            : [],
+        );
+        return;
+      }
+
+      if (url.pathname === "/api/auth/account/delete") {
+        if (request.method !== "POST") {
+          methodNotAllowed(response, "POST");
+          return;
+        }
+        if (!trustedOrigin(request, config.allowedOrigins)) {
+          sendJson(response, 403, { error: "untrusted_origin" });
+          return;
+        }
+        const session = await resolveSession(request, store, config);
+        if (!session) {
+          sendJson(response, 401, { error: "authentication_required" });
+          return;
+        }
+
+        let body;
+        try {
+          body = await readJsonBody(request, 16_384);
+        } catch (error) {
+          if (
+            error?.code === "JSON_CONTENT_TYPE_REQUIRED" ||
+            error?.code === "JSON_BODY_INVALID"
+          ) {
+            sendJson(response, 400, { error: "invalid_delete_request" });
+            return;
+          }
+          if (error?.code === "REQUEST_BODY_TOO_LARGE") {
+            sendJson(response, 413, { error: "request_too_large" });
+            return;
+          }
+          throw error;
+        }
+        if (body?.confirmation !== "DELETE_MY_ACCOUNT") {
+          sendJson(response, 400, { error: "delete_confirmation_required" });
+          return;
+        }
+
+        const deleted = await store.deleteAccount(session.userId);
+        sendJson(
+          response,
+          deleted ? 200 : 404,
+          deleted ? { ok: true, deleted: true } : { error: "account_not_found" },
+          [clearSecureCookie(config.sessionCookie)],
+        );
         return;
       }
 

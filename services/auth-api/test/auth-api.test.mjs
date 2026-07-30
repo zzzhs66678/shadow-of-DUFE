@@ -34,6 +34,7 @@ function createFakeStore() {
   const transactions = new Map();
   const identities = new Map();
   const revoked = [];
+  const deletedAccounts = [];
   let personalSnapshot = {
     revision: 0,
     state: {
@@ -54,6 +55,7 @@ function createFakeStore() {
   return {
     sessions,
     revoked,
+    deletedAccounts,
     async health() {},
     async getOrCreateAnonymousDevice(hash) {
       if (!devices.has(hash)) {
@@ -117,6 +119,51 @@ function createFakeStore() {
     async revokeSession(hash) {
       revoked.push(hash);
       sessions.delete(hash);
+    },
+    async listUserDevices() {
+      return [
+        {
+          id: "11111111-1111-4111-8111-111111111111",
+          label: "当前手机",
+          platform: "web",
+          firstSeenAt: new Date(0).toISOString(),
+          lastSeenAt: new Date().toISOString(),
+          active: true,
+          current: true,
+        },
+        {
+          id: "22222222-2222-4222-8222-222222222222",
+          label: "另一台设备",
+          platform: "web",
+          firstSeenAt: new Date(0).toISOString(),
+          lastSeenAt: new Date().toISOString(),
+          active: true,
+          current: false,
+        },
+      ];
+    },
+    async revokeUserDevice(_userId, currentSessionId, publicDeviceId) {
+      const current =
+        publicDeviceId === "11111111-1111-4111-8111-111111111111";
+      if (
+        !current &&
+        publicDeviceId !== "22222222-2222-4222-8222-222222222222"
+      ) {
+        return null;
+      }
+      if (current) {
+        for (const [hash, session] of sessions) {
+          if (session.id === currentSessionId) sessions.delete(hash);
+        }
+      }
+      return { current };
+    },
+    async deleteAccount(userId) {
+      deletedAccounts.push(userId);
+      for (const [hash, session] of sessions) {
+        if (session.userId === userId) sessions.delete(hash);
+      }
+      return true;
     },
     async getPersonalState() {
       return structuredClone(personalSnapshot);
@@ -428,6 +475,103 @@ test("personal sync requires a session, validates input, deduplicates, and detec
     });
     assert.equal(conflict.status, 409);
     assert.equal((await conflict.json()).revision, 1);
+  });
+});
+
+test("device management is account-scoped and revoking the current device clears its session", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    const sessionToken = createOpaqueToken();
+    const sessionHash = tokenDigest(sessionToken, config.tokenPepper);
+    const cookie = `${config.sessionCookie}=${sessionToken}`;
+    store.sessions.set(sessionHash, {
+      id: "session-devices",
+      userId: "user-devices",
+      displayName: "设备测试",
+      avatarUrl: null,
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    });
+
+    const listed = await fetch(`${baseUrl}/api/auth/devices`, {
+      headers: { Cookie: cookie },
+    });
+    const listedBody = await listed.json();
+    assert.equal(listed.status, 200);
+    assert.equal(listedBody.devices.length, 2);
+    assert.equal(listedBody.devices[0].current, true);
+
+    const untrusted = await fetch(`${baseUrl}/api/auth/devices`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "https://attacker.invalid",
+        Cookie: cookie,
+      },
+      body: JSON.stringify({
+        deviceId: "22222222-2222-4222-8222-222222222222",
+      }),
+    });
+    assert.equal(untrusted.status, 403);
+
+    const revoked = await fetch(`${baseUrl}/api/auth/devices`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "https://dufesh.cn",
+        Cookie: cookie,
+      },
+      body: JSON.stringify({
+        deviceId: "11111111-1111-4111-8111-111111111111",
+      }),
+    });
+    const revokedBody = await revoked.json();
+    assert.equal(revoked.status, 200);
+    assert.equal(revokedBody.currentSessionRevoked, true);
+    assert.equal(store.sessions.has(sessionHash), false);
+    assert.ok(
+      revoked.headers
+        .getSetCookie()
+        .some((value) => value.startsWith(`${config.sessionCookie}=;`)),
+    );
+  });
+});
+
+test("account deletion requires an exact confirmation and removes the signed-in account", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    const sessionToken = createOpaqueToken();
+    const sessionHash = tokenDigest(sessionToken, config.tokenPepper);
+    const cookie = `${config.sessionCookie}=${sessionToken}`;
+    store.sessions.set(sessionHash, {
+      id: "session-delete",
+      userId: "user-delete",
+      displayName: "注销测试",
+      avatarUrl: null,
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    });
+
+    const rejected = await fetch(`${baseUrl}/api/auth/account/delete`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "https://dufesh.cn",
+        Cookie: cookie,
+      },
+      body: JSON.stringify({ confirmation: "delete" }),
+    });
+    assert.equal(rejected.status, 400);
+    assert.equal(store.deletedAccounts.length, 0);
+
+    const deleted = await fetch(`${baseUrl}/api/auth/account/delete`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "https://dufesh.cn",
+        Cookie: cookie,
+      },
+      body: JSON.stringify({ confirmation: "DELETE_MY_ACCOUNT" }),
+    });
+    assert.equal(deleted.status, 200);
+    assert.deepEqual(store.deletedAccounts, ["user-delete"]);
+    assert.equal(store.sessions.has(sessionHash), false);
   });
 });
 
