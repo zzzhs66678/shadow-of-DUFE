@@ -7,6 +7,7 @@ ENV_FILE="${DUFESH_POSTGRES_ENV_FILE:-$APP_ROOT/shared/config/postgres.env}"
 BACKUP_ENV_FILE="${DUFESH_BACKUP_ENV_FILE:-$APP_ROOT/shared/config/backup.env}"
 BACKUP_DIR="${BACKUP_DIR:-$APP_ROOT/shared/backups/postgres}"
 COMPOSE_DIR="${COMPOSE_DIR:-$APP_ROOT/current}"
+COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-dufesh}"
 MAX_DISK_PERCENT="${MAX_DISK_PERCENT:-85}"
 LOCAL_KEEP="${LOCAL_KEEP:-1}"
 
@@ -43,7 +44,7 @@ cleanup_tmp() {
 trap cleanup_tmp EXIT INT TERM
 
 cd "$COMPOSE_DIR"
-docker compose exec -T postgres \
+docker compose -p "$COMPOSE_PROJECT_NAME" exec -T postgres \
   pg_dump \
     --username "$POSTGRES_USER" \
     --dbname "$POSTGRES_DB" \
@@ -52,7 +53,7 @@ docker compose exec -T postgres \
     --no-owner \
     --no-privileges > "$tmp_file"
 
-docker compose exec -T postgres pg_restore --list < "$tmp_file" >/dev/null
+docker compose -p "$COMPOSE_PROJECT_NAME" exec -T postgres pg_restore --list < "$tmp_file" >/dev/null
 mv "$tmp_file" "$backup_file"
 sha256sum "$backup_file" > "$checksum_file"
 

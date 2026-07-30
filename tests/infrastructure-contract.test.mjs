@@ -33,6 +33,7 @@ test("backup and disk protection have bounded local retention", async () => {
 
   assert.match(backup, /LOCAL_KEEP="\$\{LOCAL_KEEP:-1\}"/);
   assert.match(backup, /MAX_DISK_PERCENT="\$\{MAX_DISK_PERCENT:-85\}"/);
+  assert.match(backup, /COMPOSE_PROJECT_NAME="\$\{COMPOSE_PROJECT_NAME:-dufesh\}"/);
   assert.match(backup, /ossutil stat/);
   assert.match(guard, /docker builder prune/);
   assert.match(guard, /disk-critical/);
