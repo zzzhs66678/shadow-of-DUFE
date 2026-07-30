@@ -13,6 +13,10 @@
 	@site_images path /images/*
 	header @site_images Cache-Control "public, max-age=604800, immutable"
 
+	handle /api/auth/* {
+		reverse_proxy auth-api:3100
+	}
+
 	handle_path /resources/files/* {
 		root * /srv/resources
 		header Cache-Control "public, max-age=3600"

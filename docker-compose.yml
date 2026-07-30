@@ -75,6 +75,46 @@ services:
         max-size: "5m"
         max-file: "2"
 
+  auth-api:
+    build:
+      context: ./services/auth-api
+      dockerfile: Dockerfile
+    image: dufesh-auth-api:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ${DUFESH_POSTGRES_ENV_FILE:-/srv/apps/dufesh/shared/config/postgres.env}
+      - ${DUFESH_AUTH_ENV_FILE:-/srv/apps/dufesh/shared/config/auth.env}
+    environment:
+      NODE_ENV: production
+      PGHOST: postgres
+      PGPORT: "5432"
+      AUTH_API_PORT: "3100"
+    expose:
+      - "3100"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3100/api/auth/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+    mem_limit: 128m
+    mem_reservation: 32m
+    cpus: 0.50
+    pids_limit: 128
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   web:
     image: docker.m.daocloud.io/library/caddy:2.10-alpine
     restart: unless-stopped

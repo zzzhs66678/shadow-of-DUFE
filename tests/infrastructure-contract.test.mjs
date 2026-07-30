@@ -38,3 +38,19 @@ test("backup and disk protection have bounded local retention", async () => {
   assert.match(guard, /docker builder prune/);
   assert.match(guard, /disk-critical/);
 });
+
+test("auth API is private, pooled, health-checked, and routed on the same origin", async () => {
+  const compose = await read("docker-compose.yml");
+  const caddy = await read("deploy/Caddyfile");
+  const database = await read("services/auth-api/src/db.mjs");
+
+  assert.match(compose, /auth-api:/);
+  assert.match(compose, /expose:\s*\n\s*- "3100"/);
+  assert.doesNotMatch(compose, /ports:\s*\n\s*-\s*"3100:3100"/);
+  assert.match(compose, /mem_limit: 128m/);
+  assert.match(compose, /read_only: true/);
+  assert.match(caddy, /handle \/api\/auth\/\*/);
+  assert.match(caddy, /reverse_proxy auth-api:3100/);
+  assert.match(database, /max: config\.poolMax/);
+  assert.match(database, /connectionTimeoutMillis: 3_000/);
+});
