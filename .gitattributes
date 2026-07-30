@@ -1,0 +1,10 @@
+# Linux 容器和 systemd 直接执行这些文件，必须固定为 LF。
+*.sh text eol=lf
+*.service text eol=lf
+*.timer text eol=lf
+
+# 基础设施配置保持跨平台一致，避免校验和因换行变化。
+docker-compose.yml text eol=lf
+ops/postgres/*.conf text eol=lf
+ops/postgres/*.example text eol=lf
+ops/postgres/migrations/*.sql text eol=lf
