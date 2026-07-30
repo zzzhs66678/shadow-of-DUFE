@@ -24,6 +24,7 @@ function cookiePair(setCookie) {
 }
 
 let testUserId;
+let testAnonymousDeviceId;
 
 try {
   const anonymousResponse = await fetch(`${baseUrl}/api/auth/session`);
@@ -37,6 +38,7 @@ try {
   if (anonymous.authenticated || !anonymous.deviceId || !deviceCookie) {
     throw new Error("anonymous device contract failed");
   }
+  testAnonymousDeviceId = anonymous.deviceId;
 
   const repeatResponse = await fetch(`${baseUrl}/api/auth/session`, {
     headers: { Cookie: deviceCookie },
@@ -110,6 +112,14 @@ try {
 } finally {
   if (testUserId) {
     await pool.query("DELETE FROM app_users WHERE id = $1", [testUserId]);
+  }
+  if (testAnonymousDeviceId) {
+    await pool.query(
+      `DELETE FROM anonymous_devices
+       WHERE public_id = $1
+         AND claimed_device_id IS NULL`,
+      [testAnonymousDeviceId],
+    );
   }
   await pool.end();
 }
