@@ -1,0 +1,12 @@
+[Unit]
+Description=Protect the Dufesh system disk from unbounded growth
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/srv/apps/dufesh/current/ops/maintenance/disk-guard.sh
+Nice=15
+IOSchedulingClass=idle
+PrivateTmp=true
+NoNewPrivileges=true

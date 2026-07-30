@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Dufesh PostgreSQL backup
+
+[Timer]
+OnCalendar=*-*-* 03:25:00 Asia/Shanghai
+Persistent=true
+RandomizedDelaySec=10m
+Unit=dufesh-db-backup.service
+
+[Install]
+WantedBy=timers.target

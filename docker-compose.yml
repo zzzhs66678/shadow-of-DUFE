@@ -17,6 +17,63 @@ services:
       retries: 8
       start_period: 30s
     mem_limit: 768m
+    pids_limit: 256
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  postgres:
+    image: docker.m.daocloud.io/library/postgres:17-alpine
+    restart: unless-stopped
+    env_file:
+      - ${DUFESH_POSTGRES_ENV_FILE:-/srv/apps/dufesh/shared/config/postgres.env}
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    expose:
+      - "5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./ops/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    shm_size: 128m
+    mem_limit: 384m
+    mem_reservation: 128m
+    cpus: 0.75
+    pids_limit: 128
+    stop_grace_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  migrate:
+    image: docker.m.daocloud.io/library/postgres:17-alpine
+    profiles: ["tools"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ${DUFESH_POSTGRES_ENV_FILE:-/srv/apps/dufesh/shared/config/postgres.env}
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+    volumes:
+      - ./ops/postgres:/opt/dufesh-postgres:ro
+    entrypoint: ["/bin/sh", "/opt/dufesh-postgres/run-migrations.sh"]
+    mem_limit: 128m
+    pids_limit: 64
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
 
   web:
     image: docker.m.daocloud.io/library/caddy:2.10-alpine
@@ -34,7 +91,14 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     mem_limit: 128m
+    pids_limit: 128
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
 
 volumes:
   caddy_data:
   caddy_config:
+  postgres_data:
