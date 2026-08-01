@@ -207,6 +207,7 @@ test("static assets and route discovery have explicit cache and SEO policy", asy
   const layout = await read("app/layout.tsx");
 
   assert.match(caddy, /max-age=31536000, immutable/);
+  assert.match(caddy, /\.well-known\/security\.txt[\s\S]*text\/plain/);
   assert.match(caddy, /www\.dufesh\.cn[\s\S]*redir https:\/\/dufesh\.cn\{uri\} 308/);
   assert.match(robots, /\/campus-lab\//);
   assert.match(sitemap, /https:\/\/dufesh\.cn\/privacy/);

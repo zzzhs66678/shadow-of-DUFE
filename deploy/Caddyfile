@@ -24,6 +24,9 @@
 	@compiled_assets path /assets/* /_next/static/*
 	header @compiled_assets Cache-Control "public, max-age=31536000, immutable"
 
+	@security_text path /.well-known/security.txt
+	header @security_text Content-Type "text/plain; charset=utf-8"
+
 	handle /api/auth/* {
 		reverse_proxy auth-api:3100
 	}
