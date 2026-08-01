@@ -499,7 +499,7 @@
   margin-top: 9px;
 }
 
-/* Timetable: desktop keeps the full grid; phones choose daily or week view. */
+/* Timetable: desktop and phones open on the complete five-day grid. */
 .mobile-schedule-switch,
 .mobile-schedule-agenda {
   display: none;
@@ -531,7 +531,85 @@
   min-width: 0 !important;
 }
 
-/* Rooms: answer the study-time question before opening the building map. */
+/* Rooms: the building map is primary; extra time logic stays optional. */
+.room-current-context {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+  text-align: right;
+}
+
+.room-current-context span,
+.room-current-context small {
+  color: var(--ds-muted);
+  font-size: 10px;
+}
+
+.room-current-context strong {
+  font-size: 18px;
+  margin: 7px 0 3px;
+}
+
+.room-tools {
+  border: 1px solid var(--ds-line);
+  border-radius: 18px;
+  margin: 18px 0;
+  overflow: hidden;
+}
+
+.room-tools > summary {
+  align-items: center;
+  background: var(--ds-surface);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  list-style: none;
+  min-height: 68px;
+  padding: 14px 18px;
+}
+
+.room-tools > summary::-webkit-details-marker {
+  display: none;
+}
+
+.room-tools > summary > span {
+  display: grid;
+  gap: 4px;
+}
+
+.room-tools > summary b {
+  font-size: 13px;
+}
+
+.room-tools > summary small {
+  color: var(--ds-muted);
+  font-size: 10px;
+}
+
+.room-tools > summary i {
+  color: var(--ds-accent);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.room-tools > summary i::after {
+  content: " ＋";
+}
+
+.room-tools[open] > summary {
+  border-bottom: 1px solid var(--ds-line);
+}
+
+.room-tools[open] > summary i::after {
+  content: " －";
+}
+
+.room-tools-body {
+  background: color-mix(in srgb, var(--ds-paper) 72%, white);
+  padding: 18px;
+}
+
 .room-intents {
   background: #183d31;
   border-radius: var(--ds-radius-lg);
@@ -1010,7 +1088,8 @@
 
   .week-overview-scroll.mobile-active .week-grid {
     display: grid;
-    min-width: 780px;
+    min-width: 0;
+    width: 100%;
   }
 
   .course-drawer {
@@ -1103,6 +1182,24 @@
 
   .room-recommendations article {
     flex: 0 0 250px;
+  }
+
+  .room-current-context {
+    align-items: flex-start;
+    margin-top: 10px;
+    text-align: left;
+  }
+
+  .room-tools {
+    border-radius: 15px;
+  }
+
+  .room-tools-body {
+    padding: 12px;
+  }
+
+  .room-tools .map-time {
+    grid-template-columns: 1fr;
   }
 }
 

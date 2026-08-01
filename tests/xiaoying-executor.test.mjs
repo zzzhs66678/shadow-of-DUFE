@@ -507,7 +507,7 @@ test("TraceInt authorization accepts only a code or a link containing a code", (
   );
   assert.throws(
     () => extractAuthorizationCode("https://example.com/callback?state=1"),
-    /没有有效 code/,
+    /没有 code= 授权码/,
   );
 });
 

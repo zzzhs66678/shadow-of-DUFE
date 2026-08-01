@@ -2042,7 +2042,7 @@ function SchedulePage({
   const [finderOpen, setFinderOpen] = useState(false);
   const [mobileScheduleView, setMobileScheduleView] = useState<
     "agenda" | "week"
-  >("agenda");
+  >("week");
   const [draggingScheduleId, setDraggingScheduleId] = useState("");
   const [lastRemovedId, setLastRemovedId] = useState("");
   const timetableRef = useRef<HTMLElement>(null);
@@ -2487,16 +2487,16 @@ function SchedulePage({
             aria-label="切换课表视图"
           >
             <button
+              className={mobileScheduleView === "week" ? "active" : ""}
+              onClick={() => setMobileScheduleView("week")}
+            >
+              五天
+            </button>
+            <button
               className={mobileScheduleView === "agenda" ? "active" : ""}
               onClick={() => setMobileScheduleView("agenda")}
             >
               近日
-            </button>
-            <button
-              className={mobileScheduleView === "week" ? "active" : ""}
-              onClick={() => setMobileScheduleView("week")}
-            >
-              整周
             </button>
           </div>
           <div
@@ -3340,143 +3340,12 @@ function RoomsPage({
               : "看看哪间教室正好适合你。"}
           </p>
         </div>
-        <label>
-          <span>日期</span>
-          <input
-            type="date"
-            value={date}
-            onChange={(event) => {
-              setDate(event.target.value);
-              setStartMode("manual");
-            }}
-          />
-        </label>
+        <div className="room-current-context" aria-label="当前查询时间">
+          <span>{weekdayLabels[weekday % 7]} · {date.replaceAll("-", "/")}</span>
+          <strong>{selectedPeriod?.short}</strong>
+          <small>{selectedPeriod?.time}</small>
+        </div>
       </header>
-
-      <section className="room-intents" aria-label="选择空教室查询方式">
-        <header>
-          <span>先选时间，再选时长</span>
-          <small>{querySummary}</small>
-        </header>
-        <div className="room-intent-groups">
-          <div className="room-intent-group">
-            <p><b>1</b><span>什么时候去</span></p>
-            <div>
-              {startOptions.map((item) => (
-                <button
-                  key={item.id}
-                  className={startMode === item.id ? "active" : ""}
-                  onClick={() => chooseStart(item.id)}
-                >
-                  <b>{item.label}</b>
-                  <span>{item.detail}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="room-intent-group">
-            <p><b>2</b><span>准备待多久</span></p>
-            <div>
-              {durationOptions.map((item) => (
-                <button
-                  key={item.id}
-                  className={duration === item.id ? "active" : ""}
-                  disabled={item.id === "two" && block >= 4}
-                  onClick={() => setDuration(item.id)}
-                >
-                  <b>{item.label}</b>
-                  <span>{item.detail}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="map-time">
-        <div className="manual-periods">
-          <span>自选起始节次</span>
-          <div>
-            {data.periods.map((item) => (
-              <button
-                key={item.block}
-                className={block === item.block ? "active" : ""}
-                onClick={() => {
-                  setBlock(item.block);
-                  setStartMode("manual");
-                }}
-              >
-                <b>{item.short}</b>
-                <span>{item.time}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-        <label>
-          <span>教室号</span>
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="例如 301"
-          />
-        </label>
-      </section>
-
-      <section className="room-recommendations">
-        <header>
-          <div>
-            <span>先看这几间</span>
-            <h2>{recommendations.length ? "离你更近，也空得更久" : "这段时间没有合适的教室"}</h2>
-          </div>
-          <small>{weekdayLabels[weekday % 7]} · {querySummary}</small>
-        </header>
-        <div>
-          {recommendations.map((item, index) => (
-            <article key={item.key}>
-              <button
-                className="recommendation-main"
-                onClick={() => selectRoom(item.building, item.room)}
-              >
-                <span>0{index + 1} · {item.reason}</span>
-                <strong>{item.building}{item.room}</strong>
-                <small>{item.until}</small>
-              </button>
-              <button
-                className={item.favorite ? "favorite active" : "favorite"}
-                onClick={() => toggleFavorite(item.key)}
-                aria-label={item.favorite ? "取消收藏" : "收藏教室"}
-              >
-                {item.favorite ? "★" : "☆"}
-              </button>
-            </article>
-          ))}
-          {!recommendations.length && (
-            <p>换一个起始节次，或者只查一大节试试。</p>
-          )}
-        </div>
-      </section>
-
-      {(saved.favoriteRooms.length > 0 || saved.recentRooms.length > 0) && (
-        <nav className="room-memory" aria-label="常用和最近查看的教室">
-          <span>{saved.favoriteRooms.length ? "常用" : "最近看过"}</span>
-          {(saved.favoriteRooms.length
-            ? saved.favoriteRooms
-            : saved.recentRooms
-          )
-            .slice(0, 6)
-            .map((key) => {
-              const [buildingName, room] = key.split("|");
-              return (
-                <button
-                  key={key}
-                  onClick={() => selectRoom(buildingName, room)}
-                >
-                  {buildingName}{room}
-                </button>
-              );
-            })}
-        </nav>
-      )}
 
       <nav className="building-tabs" aria-label="选择教学楼">
         {data.buildings.map((item) => {
@@ -3621,6 +3490,149 @@ function RoomsPage({
           <p>{data.disclaimer}</p>
         </aside>
       </section>
+
+      {(saved.favoriteRooms.length > 0 || saved.recentRooms.length > 0) && (
+        <nav className="room-memory" aria-label="常用和最近查看的教室">
+          <span>{saved.favoriteRooms.length ? "常用" : "最近看过"}</span>
+          {(saved.favoriteRooms.length
+            ? saved.favoriteRooms
+            : saved.recentRooms
+          )
+            .slice(0, 6)
+            .map((key) => {
+              const [buildingName, room] = key.split("|");
+              return (
+                <button
+                  key={key}
+                  onClick={() => selectRoom(buildingName, room)}
+                >
+                  {buildingName}{room}
+                </button>
+              );
+            })}
+        </nav>
+      )}
+
+      <details className="room-tools">
+        <summary>
+          <span>
+            <b>换时间或按时长找</b>
+            <small>{querySummary}</small>
+          </span>
+          <i aria-hidden="true">展开</i>
+        </summary>
+        <div className="room-tools-body">
+          <section className="room-intents" aria-label="空教室高级筛选">
+            <div className="room-intent-groups">
+              <div className="room-intent-group">
+                <p><span>时间快捷选择</span></p>
+                <div>
+                  {startOptions.map((item) => (
+                    <button
+                      key={item.id}
+                      className={startMode === item.id ? "active" : ""}
+                      onClick={() => chooseStart(item.id)}
+                    >
+                      <b>{item.label}</b>
+                      <span>{item.detail}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="room-intent-group">
+                <p><span>连续空闲</span></p>
+                <div>
+                  {durationOptions.map((item) => (
+                    <button
+                      key={item.id}
+                      className={duration === item.id ? "active" : ""}
+                      disabled={item.id === "two" && block >= 4}
+                      onClick={() => setDuration(item.id)}
+                    >
+                      <b>{item.label}</b>
+                      <span>{item.detail}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="map-time">
+            <label>
+              <span>日期</span>
+              <input
+                type="date"
+                value={date}
+                onChange={(event) => {
+                  setDate(event.target.value);
+                  setStartMode("manual");
+                }}
+              />
+            </label>
+            <div className="manual-periods">
+              <span>起始节次</span>
+              <div>
+                {data.periods.map((item) => (
+                  <button
+                    key={item.block}
+                    className={block === item.block ? "active" : ""}
+                    onClick={() => {
+                      setBlock(item.block);
+                      setStartMode("manual");
+                    }}
+                  >
+                    <b>{item.short}</b>
+                    <span>{item.time}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <label>
+              <span>教室号</span>
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="例如 301"
+              />
+            </label>
+          </section>
+
+          <section className="room-recommendations">
+            <header>
+              <div>
+                <span>可选建议</span>
+                <h2>{recommendations.length ? "可以先看这三间" : "这段时间没有合适的教室"}</h2>
+              </div>
+              <small>{weekdayLabels[weekday % 7]} · {querySummary}</small>
+            </header>
+            <div>
+              {recommendations.map((item) => (
+                <article key={item.key}>
+                  <button
+                    className="recommendation-main"
+                    onClick={() => selectRoom(item.building, item.room)}
+                  >
+                    <span>{item.reason}</span>
+                    <strong>{item.building}{item.room}</strong>
+                    <small>{item.until}</small>
+                  </button>
+                  <button
+                    className={item.favorite ? "favorite active" : "favorite"}
+                    onClick={() => toggleFavorite(item.key)}
+                    aria-label={item.favorite ? "取消收藏" : "收藏教室"}
+                  >
+                    {item.favorite ? "★" : "☆"}
+                  </button>
+                </article>
+              ))}
+              {!recommendations.length && (
+                <p>换一个起始节次，或者只查一大节试试。</p>
+              )}
+            </div>
+          </section>
+        </div>
+      </details>
 
       <section className="floor-overview">
         <header>

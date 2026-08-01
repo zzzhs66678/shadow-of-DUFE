@@ -67,19 +67,24 @@ test("course drawer filters and compares teaching sections", () => {
   assert.match(component, /scheduleWeeksLabel/);
 });
 
-test("mobile timetable offers daily and week views without changing export", () => {
+test("mobile timetable defaults to the complete five-day view without changing export", () => {
   assert.match(component, /mobileScheduleView/);
+  assert.match(component, /useState<\s*"agenda" \| "week"\s*>\("week"\)/);
+  assert.match(component, />\s*五天\s*<\/button>/);
   assert.match(component, /mobile-schedule-agenda/);
   assert.match(component, /week-overview-scroll/);
   assert.match(component, /export-canvas/);
+  assert.match(productStyles, /week-overview-scroll\.mobile-active \.week-grid[\s\S]*?min-width: 0/);
   assert.match(productStyles, /\.timetable-panel\.export-canvas \.week-grid/);
 });
 
-test("room finder supports intent-based recommendations and device memory", () => {
+test("room finder opens on the building map and keeps recommendations optional", () => {
   assert.match(component, /RoomStartMode/);
   assert.match(component, /RoomDuration/);
-  assert.match(component, /什么时候去/);
-  assert.match(component, /准备待多久/);
+  assert.match(component, /<details className="room-tools">/);
+  assert.ok(component.indexOf("building-tabs") < component.indexOf("room-tools"));
+  assert.match(component, /换时间或按时长找/);
+  assert.doesNotMatch(component, /离你更近，也空得更久/);
   assert.match(component, /targetBlocks/);
   assert.match(component, /roomIsAvailable/);
   assert.match(component, /availableUntil/);
@@ -87,6 +92,7 @@ test("room finder supports intent-based recommendations and device memory", () =
   assert.match(component, /recentRooms/);
   assert.match(productStyles, /\.room-recommendations/);
   assert.match(productStyles, /\.room-intents/);
+  assert.match(productStyles, /\.room-tools/);
 });
 
 test("customer-facing copy does not expose planning notes", () => {

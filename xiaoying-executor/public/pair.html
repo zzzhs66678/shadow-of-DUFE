@@ -33,6 +33,7 @@
       .message.ok { background: #dfece4; color: #124833; }
       .message.error { background: #f6dfdc; color: #8c2c27; }
       .small { color: #74878d; font-size: 13px; line-height: 1.55; margin-top: 20px; }
+      .link-check { color: #0c4b5d; font-size: 13px; line-height: 1.55; margin: 8px 0 0 40px; }
     </style>
   </head>
   <body>
@@ -42,12 +43,13 @@
       <h1>在手机上完成授权</h1>
       <p class="lead">授权用于读取座位和提交你确认的预约。页面会把链接换成加密凭据，原链接不会写入普通日志。</p>
 
-      <div class="step"><span>1</span><div>在微信中打开“我去图书馆”，进入后复制当前页面链接。</div></div>
+      <div class="step"><span>1</span><div>在微信中打开“我去图书馆”，从授权跳转页复制地址。</div></div>
+      <p class="link-check">地址里必须能看到 <b>code=</b>；普通首页链接不能用于授权。</p>
       <div class="step"><span>2</span><div>把链接粘贴到下面，确认后即可关闭本页。</div></div>
 
       <form id="pairForm">
         <label for="authorization">微信授权链接</label>
-        <input id="authorization" type="url" inputmode="url" autocomplete="off" placeholder="粘贴链接" required />
+        <input id="authorization" type="text" inputmode="url" autocomplete="off" placeholder="粘贴带 code= 的链接" required />
         <button id="submitButton" type="submit">确认连接</button>
       </form>
       <div class="message" id="message"></div>
@@ -63,12 +65,27 @@
         message.textContent = text;
         message.className = `message show ${tone}`;
       }
+      function hasAuthorizationCode(value) {
+        const text = String(value || "").trim();
+        if (/^[A-Za-z0-9_-]{8,512}$/.test(text)) return true;
+        try {
+          const url = new URL(text);
+          return /^[A-Za-z0-9_-]{8,512}$/.test(url.searchParams.get("code") || "");
+        } catch {
+          return false;
+        }
+      }
       if (!token) {
         form.hidden = true;
         show("这个二维码不完整，请回到电脑端重新生成。", "error");
       }
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
+        if (!hasAuthorizationCode(input.value)) {
+          show("这只是图书馆首页或普通页面链接，里面没有授权码。请复制地址中带有 code= 的授权跳转链接。", "error");
+          input.focus();
+          return;
+        }
         button.disabled = true;
         button.textContent = "正在连接…";
         try {

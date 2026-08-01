@@ -98,7 +98,7 @@ export function extractAuthorizationCode(value) {
   }
   const code = url.searchParams.get("code");
   if (!code || !/^[A-Za-z0-9_-]{8,512}$/.test(code)) {
-    throw new Error("授权链接中没有有效 code");
+    throw new Error("这不是授权链接：地址中没有 code= 授权码");
   }
   return code;
 }
