@@ -411,6 +411,14 @@ const server = createServer(async (request, response) => {
       });
     }
 
+    if (request.method === "DELETE" && requestUrl.pathname === "/v1/me") {
+      if (!user) return sendJson(response, 401, { error: "vip_required" });
+      clearUserExecutor(user.id);
+      store.deleteUser(user.id);
+      clearSessionCookie(response);
+      return sendJson(response, 200, { deleted: true });
+    }
+
     if (!user && !legacyBearerAuthorized(request)) {
       return sendJson(response, 401, { error: "vip_required" });
     }

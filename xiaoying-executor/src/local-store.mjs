@@ -137,6 +137,11 @@ export class XiaoyingLocalStore {
       .run(nowIso(this.clock), hashToken(token));
   }
 
+  deleteUser(userId) {
+    const result = this.db.prepare("DELETE FROM users WHERE id = ?").run(userId);
+    return result.changes > 0;
+  }
+
   getUser(userId) {
     const row = this.db
       .prepare(

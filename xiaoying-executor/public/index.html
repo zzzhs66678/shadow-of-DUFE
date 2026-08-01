@@ -391,6 +391,7 @@
                   <div class="quick-row"><div><b>协议配置</b><small id="protocolVersionText">使用内置兼容配置</small></div></div>
                 </div>
               </details>
+              <div class="setting-row"><div><b>删除小影数据</b><small>删除连接信息、提醒、常用座位和设置</small></div><button class="button danger" id="deleteAccountButton">删除</button></div>
             </article>
           </div>
         </section>
@@ -829,6 +830,15 @@
         if (!confirm("退出当前内测账号？")) return;
         await api("/v1/auth/logout", { method: "POST", body: {} });
         location.reload();
+      });
+      $("deleteAccountButton").addEventListener("click", async () => {
+        if (!confirm("确定删除小影中的全部数据吗？此操作无法撤销。")) return;
+        try {
+          await api("/v1/me", { method: "DELETE" });
+          location.reload();
+        } catch (error) {
+          showToast(error.message);
+        }
       });
       $("overviewLibraryAction").addEventListener("click", () => state.connection.status === "connected" ? go("library") : openConnect());
       $("connectLibraryButton").addEventListener("click", openConnect);

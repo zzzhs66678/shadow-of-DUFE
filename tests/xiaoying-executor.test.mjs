@@ -116,6 +116,28 @@ test("production HTTP surface isolates cookies, paths, origins, and invite burst
       valid.headers.get("set-cookie") ?? "",
       /__Secure-dufesh_xiaoying_session=.*Path=\/campus-lab.*HttpOnly.*SameSite=Strict.*Secure/,
     );
+    const sessionCookie = (valid.headers.get("set-cookie") ?? "").split(";")[0];
+    const currentUser = await fetch(`http://127.0.0.1:${port}/v1/me`, {
+      headers: { cookie: sessionCookie },
+    });
+    assert.equal(currentUser.status, 200);
+
+    const missingDeleteOrigin = await fetch(
+      `http://127.0.0.1:${port}/v1/me`,
+      { method: "DELETE", headers: { cookie: sessionCookie } },
+    );
+    assert.equal(missingDeleteOrigin.status, 403);
+
+    const deleted = await fetch(`http://127.0.0.1:${port}/v1/me`, {
+      method: "DELETE",
+      headers: { cookie: sessionCookie, origin: "https://dufesh.cn" },
+    });
+    assert.equal(deleted.status, 200);
+    assert.match(deleted.headers.get("set-cookie") ?? "", /Max-Age=0/);
+    const removedUser = await fetch(`http://127.0.0.1:${port}/v1/me`, {
+      headers: { cookie: sessionCookie },
+    });
+    assert.equal(removedUser.status, 401);
 
     for (let attempt = 0; attempt < 4; attempt += 1) {
       const rejected = await fetch(
