@@ -377,20 +377,307 @@ function Wordmark() {
           <br />
           之影
         </strong>
-        <span>学生学习与空间入口</span>
+        <span>课表 · 教室 · 资料</span>
       </div>
+    </div>
+  );
+}
+
+type UiIconName = "home" | "schedule" | "rooms" | "catalog" | "search" | "user";
+
+function UiIcon({ name }: { name: UiIconName }) {
+  const paths: Record<UiIconName, React.ReactNode> = {
+    home: (
+      <>
+        <path d="M3.5 9.5 10 4l6.5 5.5" />
+        <path d="M5.5 8.5v7.5h9V8.5" />
+        <path d="M8.5 16v-4h3v4" />
+      </>
+    ),
+    schedule: (
+      <>
+        <rect x="3.5" y="4.5" width="13" height="12" rx="2" />
+        <path d="M6.5 3v3M13.5 3v3M3.5 8h13M7.5 11h1M11.5 11h1M7.5 14h1M11.5 14h1" />
+      </>
+    ),
+    rooms: (
+      <>
+        <path d="M4 17V5.5L10 3l6 2.5V17" />
+        <path d="M2.5 17h15M7 7h1M12 7h1M7 10h1M12 10h1M8.5 17v-4h3v4" />
+      </>
+    ),
+    catalog: (
+      <>
+        <path d="M4 4.5h5a2 2 0 0 1 2 2V17H6a2 2 0 0 1-2-2Z" />
+        <path d="M16 4.5h-3a2 2 0 0 0-2 2V17h3a2 2 0 0 0 2-2Z" />
+      </>
+    ),
+    search: (
+      <>
+        <circle cx="9" cy="9" r="5" />
+        <path d="m13 13 4 4" />
+      </>
+    ),
+    user: (
+      <>
+        <circle cx="10" cy="7" r="3" />
+        <path d="M4.5 17c.6-3 2.4-4.5 5.5-4.5s4.9 1.5 5.5 4.5" />
+      </>
+    ),
+  };
+
+  return (
+    <svg
+      className="ui-icon"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {paths[name]}
+    </svg>
+  );
+}
+
+function CampusTimeMark({
+  nextLabel,
+  nextMeta,
+}: {
+  nextLabel: string;
+  nextMeta: string;
+}) {
+  const now = new Date();
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  const dayProgress = Math.max(0, Math.min(1, (minutes - 360) / 960));
+  const displayTime = new Intl.DateTimeFormat("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(now);
+
+  return (
+    <aside
+      className="campus-time-mark"
+      style={
+        {
+          "--day-progress": dayProgress,
+          "--sun-x": `${4 + dayProgress * 92}%`,
+        } as CSSProperties
+      }
+      aria-label={`校园时间 ${displayTime}，${nextLabel}，${nextMeta}`}
+    >
+      <div className="time-mark-head">
+        <span>DUFE · CAMPUS TIME</span>
+        <time dateTime={now.toISOString()}>{displayTime}</time>
+      </div>
+      <div className="time-mark-track" aria-hidden="true">
+        <i />
+      </div>
+      <div className="time-mark-copy">
+        <span>下一项</span>
+        <b>{nextLabel}</b>
+        <small>{nextMeta}</small>
+      </div>
+    </aside>
+  );
+}
+
+function CampusAlmanac() {
+  return (
+    <section className="campus-almanac" aria-labelledby="campus-almanac-title">
+      <header>
+        <span>我的东财 · 校园影集</span>
+        <h2 id="campus-almanac-title">我们每天走过的<span>东财</span></h2>
+        <p>从入校到夜归，方向、灯光和雪把校园写成另一张课表。</p>
+      </header>
+      <div className="campus-almanac-grid">
+        <figure className="campus-scene scene-arrival">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/dufe-welcome-arch.webp"
+            alt="东北财经大学 2024 级新生欢迎拱门和校园主楼"
+            width="1200"
+            height="900"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption><span>抵达</span><b>2024 新生季，从这里进场</b></figcaption>
+        </figure>
+        <figure className="campus-scene scene-wayfinding">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/dufe-winter-wayfinding.webp"
+            alt="雪夜里指向笃行楼、之远楼和梅园西路的校园路牌"
+            width="900"
+            height="1200"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption><span>方向</span><b>雪夜里的路牌</b></figcaption>
+        </figure>
+        <figure className="campus-scene scene-avenue-day">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/dufe-tree-avenue-day.webp"
+            alt="白天的东财林荫路，彩色花带悬在树间"
+            width="900"
+            height="1200"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption><span>去上课</span><b>同一条路，白天</b></figcaption>
+        </figure>
+        <figure className="campus-scene scene-avenue-night">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/dufe-tree-avenue-night.webp"
+            alt="夜晚的东财林荫路，路灯照亮树木和花带"
+            width="900"
+            height="1200"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption><span>往回走</span><b>同一条路，夜里</b></figcaption>
+        </figure>
+        <figure className="campus-scene scene-pavilion">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/dufe-winter-pavilion.webp"
+            alt="雪夜中的东财红亭"
+            width="900"
+            height="1200"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption><span>停一会儿</span><b>红亭，雪夜</b></figcaption>
+        </figure>
+        <figure className="campus-scene scene-stadium">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/dufe-winter-stadium.webp"
+            alt="雪夜中的东北财经大学体育馆"
+            width="900"
+            height="1200"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption><span>夜课以后</span><b>雪还在下</b></figcaption>
+        </figure>
+      </div>
+      <figure className="campus-signature">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/dufe-winter-stone-sign.webp"
+          alt="雪夜里亮起的东北财经大学校名石"
+          width="1200"
+          height="900"
+          loading="lazy"
+          decoding="async"
+        />
+        <figcaption>
+          <span>东财日月志 · 大连</span>
+          <b>一场雪把校名擦亮。</b>
+        </figcaption>
+      </figure>
+    </section>
+  );
+}
+
+function CreatorsCorner({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+      if (event.key === "Tab") {
+        event.preventDefault();
+        closeRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+      previous?.focus();
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="creators-backdrop"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section
+        className="creators-darkroom"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="creators-title"
+      >
+        <button
+          ref={closeRef}
+          className="creators-close"
+          onClick={onClose}
+          aria-label="关闭创作者合影"
+        >
+          回到校园 ×
+        </button>
+        <figure>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/dufesh-creators.webp"
+            alt="东财之影的三位创作者在船上合影"
+            width="900"
+            height="1200"
+            decoding="async"
+          />
+          <figcaption>网站之外，我们偶尔也出门。</figcaption>
+        </figure>
+        <div>
+          <span>东财之影 · 幕后</span>
+          <h2 id="creators-title">三个学生，想把每天上课这件事做得顺手一点。</h2>
+          <p>
+            我们在东财上课、赶作业、找自习室，也在空闲时继续修这个网站。它还不完美，但会一直有人管。
+          </p>
+          <small>2024—∞ · 三个做东西的人</small>
+        </div>
+      </section>
     </div>
   );
 }
 
 export function DufeHubV2() {
   const [data, setData] = useState<SiteData | null>(null);
+  const [dataError, setDataError] = useState(false);
   const [materials, setMaterials] = useState<Material[]>([]);
   useEffect(() => {
     let live = true;
     fetch("/data/course-data.json")
+      .then((response) => {
+        if (!response.ok) throw new Error("course data unavailable");
+        return response;
+      })
       .then((response) => response.json() as Promise<SiteData>)
-      .then((payload) => live && setData(payload));
+      .then((payload) => live && setData(payload))
+      .catch(() => live && setDataError(true));
     fetch("/data/resource-manifest.json")
       .then((response) =>
         response.ok
@@ -405,6 +692,18 @@ export function DufeHubV2() {
       live = false;
     };
   }, []);
+  if (dataError) {
+    return (
+      <main className="data-loading data-error" role="alert">
+        <Wordmark />
+        <div>
+          <strong>课程数据没有加载成功</strong>
+          <p>检查网络连接后重新加载页面。</p>
+          <button onClick={() => window.location.reload()}>重新加载</button>
+        </div>
+      </main>
+    );
+  }
   if (!data) {
     return (
       <main className="data-loading" aria-live="polite">
@@ -439,6 +738,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
   const [accountDevices, setAccountDevices] = useState<AccountDevice[]>([]);
   const [onboarding, setOnboarding] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [creatorsOpen, setCreatorsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [searchKind, setSearchKind] = useState<SearchKind>("all");
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
@@ -850,12 +1150,12 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
     }
   }
 
-  const nav: Array<{ id: View; label: string; icon: string }> = [
-    { id: "schedule", label: "我的课表", icon: "▦" },
-    { id: "rooms", label: "空教室", icon: "◇" },
-    { id: "home", label: "今日学习台", icon: "⌂" },
-    { id: "catalog", label: "课程与资料", icon: "⌕" },
-    { id: "me", label: "我的", icon: "○" },
+  const nav: Array<{ id: View; label: string; icon: UiIconName }> = [
+    { id: "schedule", label: "我的课表", icon: "schedule" },
+    { id: "rooms", label: "空教室", icon: "rooms" },
+    { id: "home", label: "今日学习台", icon: "home" },
+    { id: "catalog", label: "课程与资料", icon: "catalog" },
+    { id: "me", label: "我的", icon: "user" },
   ];
 
   return (
@@ -863,7 +1163,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
       <header className="topbar hub-topbar">
         <button className="brand-button" onClick={() => go("home")}>
           <span>东财之影</span>
-          <small>今天学什么，去哪里学</small>
+          <small>今天学什么，去哪儿学</small>
         </button>
         <nav aria-label="主导航">
           {nav.map((item) => (
@@ -871,13 +1171,16 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
               key={item.id}
               className={view === item.id ? "active" : ""}
               onClick={() => go(item.id)}
+              aria-current={view === item.id ? "page" : undefined}
             >
-              {item.label}
+              <UiIcon name={item.icon} />
+              <span>{item.label}</span>
             </button>
           ))}
         </nav>
         <div className="hub-top-actions">
           <button className="command-trigger" onClick={() => openSearch()}>
+            <UiIcon name="search" />
             <span>搜索全站</span>
             <kbd>⌘ K</kbd>
           </button>
@@ -886,13 +1189,13 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
               className={term === "fall" ? "active" : ""}
               onClick={() => setTerm("fall")}
             >
-              <span>☀</span>上学期
+              上学期
             </button>
             <button
               className={term === "spring" ? "active" : ""}
               onClick={() => setTerm("spring")}
             >
-              <span>☾</span>下学期
+              下学期
             </button>
           </div>
           <button
@@ -1099,7 +1402,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
         <Wordmark />
         <div>
           <strong>非官方学生工具</strong>
-          <p>课程、教室与通知请以东北财经大学官方系统为准。</p>
+          <p>课程、教室和通知如有变动，以学校官方系统为准。</p>
         </div>
         <div className="footer-links">
           <a href="/privacy">隐私政策</a>
@@ -1123,6 +1426,15 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
             辽ICP备2026016653号-1
           </a>
         </div>
+        <button
+          className="backstage-ticket"
+          onClick={() => setCreatorsOpen(true)}
+          aria-haspopup="dialog"
+          aria-label="打开创作者合影"
+        >
+          <span>幕后 / 03</span>
+          <b>谁在捣鼓这个网站？</b>
+        </button>
       </footer>
 
       <nav className="mobile-nav" aria-label="手机主导航">
@@ -1131,8 +1443,9 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
             key={item.id}
             className={view === item.id ? "active" : ""}
             onClick={() => go(item.id)}
+            aria-current={view === item.id ? "page" : undefined}
           >
-            <b>{item.icon}</b>
+            <b><UiIcon name={item.icon} /></b>
             <span>
               {item.label.replace("与资料", "").replace("今日学习台", "今日")}
             </span>
@@ -1210,6 +1523,10 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           }}
         />
       )}
+      <CreatorsCorner
+        open={creatorsOpen}
+        onClose={() => setCreatorsOpen(false)}
+      />
     </main>
   );
 }
@@ -1426,11 +1743,11 @@ function HomePage({
     <div className="page-wrap today-page focus-page focus-page-v5">
       <header className="focus-head focus-head-v5">
         <div>
-          <span>{dateText}</span>
+          <span>东财日月志 · {dateText}</span>
           <h1>今日学习台</h1>
         </div>
         <button onClick={() => onSearch()} aria-label="全站搜索">
-          ⌕
+          <UiIcon name="search" />
         </button>
         <p>
           {term === "fall" ? "上学期" : "下学期"} · {weekText}
@@ -1441,6 +1758,20 @@ function HomePage({
             </small>
           )}
         </p>
+        <CampusTimeMark
+          nextLabel={
+            primaryClass
+              ? primaryClass.title
+              : saved.profile
+                ? "今天没有后续课程"
+                : "先选班级，我来排出今天"
+          }
+          nextMeta={
+            primaryClass
+              ? `${data.periods[primaryClass.block - 1]?.short || `第 ${primaryClass.block} 大节`} · ${primaryClass.building}${primaryClass.room}`
+              : "课表、日程和空教室都会排到这里"
+          }
+        />
       </header>
 
       <nav className="campus-pins" aria-label="东财常用服务">
@@ -1464,8 +1795,8 @@ function HomePage({
 
       {!saved.profile && (
         <button className="focus-setup" onClick={onSetup}>
-          <span>选择专业和班级后，可直接生成本学期课表</span>
-          <b>开始设置 →</b>
+          <span>选好专业和班级，就能带入本学期课程</span>
+          <b>设置我的课表 →</b>
         </button>
       )}
 
@@ -1487,12 +1818,12 @@ function HomePage({
                   ? primaryClass.title
                   : saved.profile
                     ? "把今天留给自己的安排"
-                    : "先告诉我你在哪个班"}
+                    : "先选专业和班级"}
               </h2>
               <p>
                 {primaryClass
                   ? `${data.periods[primaryClass.block - 1]?.time} · ${primaryClass.building}${primaryClass.room}`
-                  : "选好班级后，下一节课会出现在这里。"}
+                  : "选好班级后，这里会显示下一节课。"}
               </p>
               {primaryClass && (
                 <small>
@@ -1504,7 +1835,7 @@ function HomePage({
           </div>
           <footer>
             <button onClick={() => onGo("schedule")}>打开课表</button>
-            <button onClick={() => onGo("rooms")}>附近空教室</button>
+            <button onClick={() => onGo("rooms")}>找空教室</button>
           </footer>
         </article>
 
@@ -1567,8 +1898,8 @@ function HomePage({
               ))
             ) : (
               <div className="agenda-glance-empty">
-                <b>没有必须处理的事项</b>
-                <small>可以去看看当前可用的自习空间。</small>
+                <b>眼下没有要紧的事</b>
+                <small>要不要找间空教室坐会儿？</small>
               </div>
             )}
           </div>
@@ -1702,33 +2033,10 @@ function HomePage({
           <button onClick={() => onEditCalendar({ kind: "assignment" })}>
             <i>交</i>
             <b>添加课程作业</b>
-            <span>记录截止日期并自动倒计时</span>
+            <span>记下截止日，首页会提醒</span>
           </button>
         </div>
       </section>
-
-      <figure className="campus-window">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/images/dufe-campus-commons.webp"
-          alt="东北财经大学校园正门与主楼"
-          width="1280"
-          height="805"
-          loading="lazy"
-          decoding="async"
-        />
-        <figcaption>
-          <span>东北财经大学 · 大连</span>
-          <b>下一节课、空教室和资料，都从今天继续。</b>
-          <a
-            href="https://commons.wikimedia.org/wiki/File:Dongbei_University_of_Finance_%26_Economy.jpg"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Yoshi Canopus · CC BY-SA 3.0 ↗
-          </a>
-        </figcaption>
-      </figure>
 
       <section className="knowledge-tribute">
         <figure className="tribute-photo">
@@ -1736,6 +2044,10 @@ function HomePage({
           <img
             src="/images/alexandra-elbakyan.jpg"
             alt="Alexandra Elbakyan 在 2010 年 Humanity+ 峰会上"
+            width="500"
+            height="669"
+            loading="lazy"
+            decoding="async"
           />
           <figcaption>
             Apneet Jolly ·{" "}
@@ -1750,9 +2062,9 @@ function HomePage({
         </figure>
         <div className="tribute-copy">
           <span>致敬 · Alexandra Elbakyan</span>
-          <h2>愿知识更容易抵达每一个人。</h2>
+          <h2>希望每个人都能更容易地接近知识。</h2>
           <p>
-            她在 2011 年创建 Sci-Hub，让学术获取问题进入全球公共讨论。本站致敬她推动知识可及的愿望，只收录可合法分享或已获授权的资料。
+            她在 2011 年创建 Sci-Hub，也让论文获取的门槛被更多人看见。东财之影认同知识应更容易抵达读者；站内资料只收录可合法分享或已获授权的内容。
           </p>
         </div>
         <nav aria-label="了解 Alexandra Elbakyan">
@@ -1837,7 +2149,10 @@ function CatalogPage({
           <h1>课程与资料</h1>
           <p>按专业浏览四年课程，或直接搜索课程资料。</p>
         </div>
-        <button onClick={() => onSearch("material")}>⌕ 搜索资料</button>
+        <button onClick={() => onSearch("material")}>
+          <UiIcon name="search" />
+          搜索资料
+        </button>
       </header>
       <div className="catalog-workspace">
         <aside>
@@ -1861,6 +2176,7 @@ function CatalogPage({
             <label>
               <span>专业</span>
               <select
+                name="catalog-major"
                 value={majorId}
                 onChange={(event) => setMajorId(event.target.value)}
               >
@@ -1908,8 +2224,8 @@ function CatalogPage({
           </div>
           {!items.length && (
             <div className="quiet-empty">
-              <b>没找到这门课</b>
-              <p>切换年级或学期继续查看。</p>
+              <b>这里暂时没有课程</b>
+              <p>换个年级或学期看看。</p>
             </div>
           )}
         </section>
@@ -2223,7 +2539,7 @@ function SchedulePage({
         <div>
           <h1>我的课表</h1>
           <p>
-            {saved.profile?.className || "按自己的节奏排一张课表。"}
+            {saved.profile?.className || "还没导入班级课程，也可以手动选课。"}
           </p>
         </div>
         <div className="schedule-heading-actions">
@@ -2297,14 +2613,19 @@ function SchedulePage({
             </div>
             {finderMode === "search" && (
               <input
+                aria-label="搜索全校课程"
+                name="course-search"
+                autoComplete="off"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="课程、简称或教师"
+                placeholder="课程、简称或教师…"
               />
             )}
             {finderMode === "major" && (
               <div className="major-finder">
                 <select
+                  aria-label="选择学院"
+                  name="finder-college"
                   value={finderCollege}
                   onChange={(event) => {
                     const value = event.target.value;
@@ -2320,6 +2641,8 @@ function SchedulePage({
                   ))}
                 </select>
                 <select
+                  aria-label="选择专业"
+                  name="finder-major"
                   value={finderMajor}
                   onChange={(event) => setFinderMajor(event.target.value)}
                 >
@@ -2408,7 +2731,7 @@ function SchedulePage({
                         <strong>{course.title}</strong>
                         <small>
                           {first
-                            ? `${sectionIds.length} 个班次 · ${teacherCount || 1} 位教师`
+                            ? `${sectionIds.length} 个教学班 · ${teacherCount || 1} 位教师`
                             : course.teachers.slice(0, 2).join(" / ") ||
                               course.id}
                         </small>
@@ -2426,7 +2749,7 @@ function SchedulePage({
                         }}
                         aria-label={
                           sectionIds.length > 1
-                            ? `选择${course.title}的教师和班次`
+                            ? `选择${course.title}的教师和教学班`
                             : `添加${course.title}`
                         }
                       >
@@ -2437,7 +2760,7 @@ function SchedulePage({
                 );
               })
             ) : (
-              <p className="pool-empty">这个条件下没有找到课程。</p>
+              <p className="pool-empty">没找到课程，换个关键词或条件试试。</p>
             )}
             {pool.length < poolAll.length && (
               <button
@@ -2533,7 +2856,7 @@ function SchedulePage({
                       </button>
                     ))
                   ) : (
-                    <p>没有课程或日程</p>
+                    <p>这几天没有课或日程</p>
                   )}
                 </div>
               </article>
@@ -2620,7 +2943,7 @@ function SchedulePage({
           </div>
           {!activeSchedules.length && (
             <div className="timetable-empty">
-              <b>课表还是空的</b>
+              <b>这张课表还是空的</b>
               <p>点“添加课程”开始选课。</p>
             </div>
           )}
@@ -2741,7 +3064,7 @@ function SchedulePage({
               {!saved.activities.length && !saved.assignments.length && (
                 <div className="planner-empty">
                   <b>还没有个人安排</b>
-                  <p>活动和作业会按时间排在一起。</p>
+                  <p>把自习、社团或作业截止日记在这里。</p>
                 </div>
               )}
             </div>
@@ -2833,6 +3156,14 @@ function CalendarEditor({
     activity?.notes ?? assignment?.notes ?? "",
   );
 
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [onClose]);
+
   function remove() {
     setSaved((state) => ({
       ...state,
@@ -2895,11 +3226,14 @@ function CalendarEditor({
         className="calendar-editor"
         onSubmit={save}
         onMouseDown={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="calendar-editor-title"
       >
         <header>
           <div>
             <span>{request.kind === "activity" ? "个人日程" : "课程任务"}</span>
-            <h2>
+            <h2 id="calendar-editor-title">
               {request.id
                 ? request.kind === "activity"
                   ? "编辑活动"
@@ -2917,7 +3251,8 @@ function CalendarEditor({
         <label className="editor-title">
           <span>标题</span>
           <input
-            autoFocus
+            name="calendar-title"
+            autoComplete="off"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             placeholder={
@@ -2933,6 +3268,7 @@ function CalendarEditor({
               <label>
                 <span>星期</span>
                 <select
+                  name="calendar-weekday"
                   value={weekday}
                   onChange={(event) => setWeekday(Number(event.target.value))}
                 >
@@ -2946,6 +3282,7 @@ function CalendarEditor({
               <label>
                 <span>时间段</span>
                 <select
+                  name="calendar-block"
                   value={block}
                   onChange={(event) => setBlock(Number(event.target.value))}
                 >
@@ -2960,6 +3297,8 @@ function CalendarEditor({
             <label>
               <span>地点</span>
               <input
+                name="calendar-location"
+                autoComplete="off"
                 value={location}
                 onChange={(event) => setLocation(event.target.value)}
                 placeholder="例如：图书馆三楼"
@@ -2983,6 +3322,7 @@ function CalendarEditor({
             <label>
               <span>关联课程</span>
               <select
+                name="assignment-course"
                 value={courseId}
                 onChange={(event) => setCourseId(event.target.value)}
               >
@@ -2998,6 +3338,7 @@ function CalendarEditor({
               <span>截止日期</span>
               <input
                 type="date"
+                name="assignment-due-date"
                 value={dueDate}
                 onChange={(event) => setDueDate(event.target.value)}
                 required
@@ -3009,6 +3350,8 @@ function CalendarEditor({
         <label>
           <span>备注</span>
           <textarea
+            name="calendar-notes"
+            autoComplete="off"
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
             placeholder="选填"
@@ -3248,7 +3591,7 @@ function RoomsPage({
     label: string;
     detail: string;
   }> = [
-    { id: "one", label: "一大节", detail: "够上一轮自习" },
+    { id: "one", label: "一大节", detail: "适合短时自习" },
     { id: "two", label: "连续两大节", detail: "中途不用换教室" },
     {
       id: "until-class",
@@ -3445,7 +3788,7 @@ function RoomsPage({
                   );
                 })
               ) : (
-                <p>这一层没有匹配的教室。</p>
+                <p>这一层暂时没有符合条件的空教室。</p>
               )}
             </div>
           </div>
@@ -3467,7 +3810,7 @@ function RoomsPage({
             <p>
               {nextClass
                 ? `下一节在${nextClass.building}，同楼的教室已经排在前面。`
-                : "绿色教室符合你刚刚选择的时间。"}
+                : "空闲教室已按所选时段筛好。"}
             </p>
           </div>
           {selectedRoomInfo && (
@@ -3516,7 +3859,7 @@ function RoomsPage({
       <details className="room-tools">
         <summary>
           <span>
-            <b>换时间或按时长找</b>
+            <b>换时间 · 找连续空闲</b>
             <small>{querySummary}</small>
           </span>
           <i aria-hidden="true">展开</i>
@@ -3563,6 +3906,7 @@ function RoomsPage({
               <span>日期</span>
               <input
                 type="date"
+                name="room-date"
                 value={date}
                 onChange={(event) => {
                   setDate(event.target.value);
@@ -3591,9 +3935,11 @@ function RoomsPage({
             <label>
               <span>教室号</span>
               <input
+                name="room-number"
+                autoComplete="off"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="例如 301"
+                placeholder="例如：301…"
               />
             </label>
           </section>
@@ -3602,7 +3948,7 @@ function RoomsPage({
             <header>
               <div>
                 <span>可选建议</span>
-                <h2>{recommendations.length ? "可以先看这三间" : "这段时间没有合适的教室"}</h2>
+                <h2>{recommendations.length ? "优先看看这三间" : "这段时间没有合适的教室"}</h2>
               </div>
               <small>{weekdayLabels[weekday % 7]} · {querySummary}</small>
             </header>
@@ -3701,6 +4047,14 @@ function MePage({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletePhrase, setDeletePhrase] = useState("");
   const [accountBusy, setAccountBusy] = useState("");
+  useEffect(() => {
+    if (!deleteOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setDeleteOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [deleteOpen]);
   const syncCopy = {
     local: ["只在本机", "登录后可在不同设备继续使用"],
     syncing: ["正在同步", "刚才的修改正在保存"],
@@ -3727,7 +4081,7 @@ function MePage({
           <p>
             {account.status === "authenticated"
               ? "课表、日程和作业跟着账号走。"
-              : "当前设备可直接使用；微信登录开放后支持多设备同步。"}
+              : "现在可以直接用，数据只存在这台设备。微信登录开放后可跨设备同步。"}
           </p>
         </div>
         <button onClick={onSetup}>
@@ -3758,7 +4112,7 @@ function MePage({
         </article>
         <article>
           <span>隐私</span>
-          <strong>最少采集</strong>
+          <strong>只留必要数据</strong>
           <p>不使用 GPS，不采集与课程服务无关的信息。</p>
         </article>
       </div>
@@ -3774,7 +4128,7 @@ function MePage({
                 ? account.user?.displayName || "微信用户"
                 : account.status === "loading"
                   ? "正在查看登录状态"
-                  : "让课表跟着你走"}
+                  : "在别的设备继续用"}
             </h2>
             <p>
               {account.status === "authenticated"
@@ -3802,7 +4156,7 @@ function MePage({
         {account.status === "loading" && (
           <div className="account-loading" aria-live="polite">
             <span />
-            <p>稍等一下，正在确认这台设备。</p>
+            <p>正在确认这台设备的登录状态…</p>
           </div>
         )}
 
@@ -3907,7 +4261,7 @@ function MePage({
       <section className="campus-gateway" aria-labelledby="campus-gateway-title">
         <header>
           <span>东财常用</span>
-          <h2 id="campus-gateway-title">从这里直接打开</h2>
+          <h2 id="campus-gateway-title">学校服务直达</h2>
           <p>在当前手机打开学校服务，不经过本站中转。</p>
         </header>
         <nav aria-label="东财常用服务">
@@ -3938,10 +4292,11 @@ function MePage({
         </nav>
         {xiaoyingServiceUrl && (
           <a className="campus-lab-entry" href={xiaoyingServiceUrl}>
-            小影内测通道 <span>需邀请码</span> →
+            小影内测 · <span>需邀请码</span> →
           </a>
         )}
       </section>
+      <CampusAlmanac />
       <section className="trust-panel">
         <div>
           <h2>本机数据由你控制</h2>
@@ -3951,7 +4306,7 @@ function MePage({
         </p>
         <button
           onClick={() => {
-            if (confirm("确认清除当前浏览器里的个人档案和课表吗？"))
+            if (confirm("确认清除这台设备上的专业、课表、日程和作业吗？"))
               setSaved(emptySavedState);
           }}
         >
@@ -3978,6 +4333,8 @@ function MePage({
             <label>
               <span>输入“注销账号”继续</span>
               <input
+                name="delete-account-confirmation"
+                autoComplete="off"
                 value={deletePhrase}
                 onChange={(event) => setDeletePhrase(event.target.value)}
                 placeholder="注销账号"
@@ -4033,6 +4390,13 @@ function SearchCommand({
     ["teacher", "教师"],
     ["room", "教室"],
   ];
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [onClose]);
   return (
     <div className="modal-backdrop" onMouseDown={onClose}>
       <section
@@ -4043,14 +4407,17 @@ function SearchCommand({
         aria-label="全站搜索"
       >
         <header>
-          <span>⌕</span>
+          <span><UiIcon name="search" /></span>
           <input
             autoFocus
+            aria-label="搜索课程、资料、教师或教室"
+            name="global-search"
+            autoComplete="off"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="搜索课程、资料、教师或教室…"
           />
-          <button onClick={onClose}>ESC</button>
+          <button onClick={onClose} aria-label="关闭全站搜索">ESC</button>
         </header>
         <nav>
           {kinds.map(([id, label]) => (
@@ -4086,15 +4453,15 @@ function SearchCommand({
               ))
             ) : (
               <div className="search-zero">
-                <strong>没有直接结果</strong>
+                <strong>没搜到</strong>
                 <p>
-                  试试课程简称、课程号或教师姓名。
+                  试试课程简称、课程号、教师姓名或教室。
                 </p>
               </div>
             )
           ) : (
             <div className="search-hints">
-              <span>快速开始</span>
+              <span>试着搜</span>
               <button onClick={() => setQuery("中财")}>中财</button>
               <button onClick={() => setQuery("高数")}>高数</button>
               <button onClick={() => setQuery("笃行楼")}>笃行楼</button>
@@ -4138,6 +4505,13 @@ function CourseDrawer({
     "all" | "available" | "conflict"
   >("all");
   const [compareIds, setCompareIds] = useState<string[]>([]);
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [onClose]);
   const sectionMap = new Map<string, Schedule[]>();
   for (const offering of offerings) {
     const sectionKey =
@@ -4245,16 +4619,19 @@ function CourseDrawer({
       <aside
         className="course-drawer"
         onMouseDown={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="course-drawer-title"
       >
         <header>
           <span>课程号 {course.id}</span>
-          <button onClick={onClose}>×</button>
+          <button onClick={onClose} aria-label="关闭课程详情">×</button>
         </header>
         <div className="course-drawer-title">
           <i>{courseMark(course.title)}</i>
           <div>
             <p>{course.college}</p>
-            <h2>{course.title}</h2>
+            <h2 id="course-drawer-title">{course.title}</h2>
             <span>
               {course.credits
                 ? `${Number(course.credits)} 学分`
@@ -4267,18 +4644,21 @@ function CourseDrawer({
             <div>
               <span className="drawer-label">选择教学班</span>
               <small>
-                {sections.length} 个班次 ·{" "}
+                {sections.length} 个教学班 ·{" "}
                 {new Set(offerings.map((item) => item.teacher).filter(Boolean)).size}{" "}
                 位教师
               </small>
             </div>
-            <em>最多保留 4 个候选比较</em>
+            <em>最多同时比较 4 个教学班</em>
           </div>
           <div className="section-filter-bar">
             <input
+              aria-label="搜索教学班"
+              name="section-search"
+              autoComplete="off"
               value={sectionQuery}
               onChange={(event) => setSectionQuery(event.target.value)}
-              placeholder="搜教师、班级或教室"
+              placeholder="搜教师、班级或教室…"
             />
             <select
               value={teacherFilter}
@@ -4357,7 +4737,7 @@ function CourseDrawer({
             </select>
           </div>
           <div className="section-filter-summary">
-            <span>找到 {filteredSections.length} 个班次</span>
+            <span>找到 {filteredSections.length} 个教学班</span>
             {(sectionQuery ||
               teacherFilter !== "all" ||
               weekdayFilter ||
@@ -4397,7 +4777,7 @@ function CourseDrawer({
                       <header>
                         <strong>{first.teacher || "教师未标注"}</strong>
                         <span className={section.conflict ? "conflict" : "available"}>
-                          {section.conflict ? "与当前课表冲突" : "时间可用"}
+                          {section.conflict ? "与当前课表冲突" : "与课表不冲突"}
                         </span>
                       </header>
                       <small>
@@ -4437,7 +4817,7 @@ function CourseDrawer({
                 );
               })
             ) : (
-              <p className="quiet-empty">没找到合适的班次，少选一个条件试试。</p>
+              <p className="quiet-empty">没找到合适的教学班，少选一个条件试试。</p>
             )}
           </div>
         </section>
@@ -4496,7 +4876,7 @@ function CourseDrawer({
           <section className="section-compare-tray" aria-label="教学班比较">
             <header>
               <div>
-                <span>班次比较</span>
+                <span>教学班比较</span>
                 <b>{comparedSections.length} / 4</b>
               </div>
               <button onClick={() => setCompareIds([])}>清空</button>
@@ -4622,7 +5002,7 @@ function Onboarding({
         <div className="onboarding-copy">
           <p>课表设置</p>
           <h2>选择年级、专业和班级</h2>
-          <span>选完即可生成本学期课表，之后仍可修改。</span>
+          <span>选到具体班级后可带入本学期课程；跳过班级也能稍后手动选课。</span>
         </div>
         {step === 1 && (
           <div className="choice-grid years">
@@ -4679,7 +5059,7 @@ function Onboarding({
         )}
         {step === 3 && (
           <div className="class-choice">
-            <label>选择班级（可跳过班级）</label>
+            <label>班级（可跳过）</label>
             <div>
               {classes.map((item) => (
                 <button
@@ -4695,7 +5075,7 @@ function Onboarding({
               )}
             </div>
             <button className="finish-button" onClick={finish}>
-              {className ? `使用 ${className} 开始` : "完成设置"}
+              {className ? `导入 ${className} 的课程` : "保存设置"}
             </button>
           </div>
         )}

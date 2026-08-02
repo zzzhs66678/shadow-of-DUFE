@@ -10,6 +10,10 @@ const productStyles = await readFile(
   new URL("../app/product-system.css", import.meta.url),
   "utf8",
 );
+const redAccessStyles = await readFile(
+  new URL("../app/red-access-system.css", import.meta.url),
+  "utf8",
+);
 
 test("today page keeps the one-glance command deck", () => {
   assert.match(component, /today-command-deck/);
@@ -35,10 +39,26 @@ test("campus services keep a compact today dock and a full personal-page gateway
   assert.match(component, /ginkgostu\.dufe\.edu\.cn\/notice\/system/);
 });
 
-test("the visual system uses a campus route and licensed campus image", () => {
-  assert.match(component, /dufe-campus-commons\.webp/);
-  assert.match(productStyles, /@keyframes campus-route/);
-  assert.match(productStyles, /\.campus-window/);
+test("the daily workspace stays functional while campus photographs live in My", () => {
+  const homeStart = component.indexOf("function HomePage");
+  const catalogStart = component.indexOf("function CatalogPage");
+  const meStart = component.indexOf("function MePage");
+  const searchStart = component.indexOf("function SearchCommand");
+  const homeSource = component.slice(homeStart, catalogStart);
+  const meSource = component.slice(meStart, searchStart);
+
+  assert.match(component, /dufe-tree-avenue-day\.webp/);
+  assert.match(component, /dufe-tree-avenue-night\.webp/);
+  assert.match(component, /dufe-winter-pavilion\.webp/);
+  assert.match(component, /dufesh-creators\.webp/);
+  assert.match(component, /function CampusAlmanac/);
+  assert.match(component, /function CreatorsCorner/);
+  assert.match(homeSource, /CampusTimeMark/);
+  assert.doesNotMatch(homeSource, /CampusAlmanac/);
+  assert.match(meSource, /CampusAlmanac/);
+  assert.match(redAccessStyles, /\.campus-time-mark/);
+  assert.match(redAccessStyles, /@keyframes photo-reveal/);
+  assert.match(redAccessStyles, /\.campus-almanac/);
   assert.doesNotMatch(component, /<i>0[123]<\/i>/);
 });
 
@@ -83,7 +103,7 @@ test("room finder opens on the building map and keeps recommendations optional",
   assert.match(component, /RoomDuration/);
   assert.match(component, /<details className="room-tools">/);
   assert.ok(component.indexOf("building-tabs") < component.indexOf("room-tools"));
-  assert.match(component, /换时间或按时长找/);
+  assert.match(component, /换时间 · 找连续空闲/);
   assert.doesNotMatch(component, /离你更近，也空得更久/);
   assert.match(component, /targetBlocks/);
   assert.match(component, /roomIsAvailable/);
