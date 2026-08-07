@@ -25,6 +25,9 @@ const config = {
   deviceMaxAgeSeconds: 31_536_000,
   oauthTtlSeconds: 600,
   publicOrigin: "https://dufesh.cn",
+  credentialsEnabled: true,
+  passwordResetMode: "response",
+  passwordResetTtlSeconds: 1_800,
   wechatMode: "mock",
   mockLoginSecret: "mock-secret-that-is-longer-than-thirty-two-characters",
 };
@@ -34,6 +37,8 @@ function createFakeStore() {
   const sessions = new Map();
   const transactions = new Map();
   const identities = new Map();
+  const credentialPrincipals = new Map();
+  const passwordResets = new Map();
   const revoked = [];
   const deletedAccounts = [];
   let personalSnapshot = {
@@ -57,6 +62,7 @@ function createFakeStore() {
     sessions,
     revoked,
     deletedAccounts,
+    credentialPrincipals,
     async health() {},
     async getOrCreateAnonymousDevice(hash) {
       if (!devices.has(hash)) {
@@ -116,6 +122,113 @@ function createFakeStore() {
     },
     async getActiveSession(hash) {
       return sessions.get(hash) ?? null;
+    },
+    async registerCredentialUser(input) {
+      if (credentialPrincipals.has(input.normalizedUsername)) {
+        const error = new Error("username taken");
+        error.code = "AUTH_USERNAME_TAKEN";
+        throw error;
+      }
+      if (credentialPrincipals.has(input.normalizedEmail)) {
+        const error = new Error("email taken");
+        error.code = "AUTH_EMAIL_TAKEN";
+        throw error;
+      }
+      const id = `credential-user-${credentialPrincipals.size / 2 + 1}`;
+      const principal = {
+        id,
+        username: input.username,
+        displayName: input.username,
+        email: input.email,
+        schoolAccount: input.schoolAccount,
+        status: "active",
+        passwordHash: input.passwordHash,
+        failedAttempts: 0,
+        lockedUntil: null,
+      };
+      credentialPrincipals.set(input.normalizedUsername, principal);
+      credentialPrincipals.set(input.normalizedEmail, principal);
+      sessions.set(input.sessionTokenHash, {
+        id: `credential-session-${sessions.size + 1}`,
+        userId: id,
+        username: input.username,
+        displayName: input.username,
+        avatarUrl: null,
+        expiresAt: input.sessionExpiresAt.toISOString(),
+      });
+      return {
+        user: {
+          id,
+          username: input.username,
+          displayName: input.username,
+          email: input.email,
+          schoolAccount: input.schoolAccount,
+          status: "active",
+          createdAt: new Date().toISOString(),
+          lastLoginAt: new Date().toISOString(),
+        },
+        expiresAt: input.sessionExpiresAt.toISOString(),
+      };
+    },
+    async getCredentialPrincipal(identifier) {
+      return credentialPrincipals.get(identifier) ?? null;
+    },
+    async recordCredentialFailure(userId) {
+      const principal = [...credentialPrincipals.values()].find(
+        (candidate) => candidate.id === userId,
+      );
+      if (!principal) return;
+      principal.failedAttempts += 1;
+      if (principal.failedAttempts >= 5) {
+        principal.lockedUntil = new Date(Date.now() + 30_000).toISOString();
+      }
+    },
+    async createCredentialSession(input) {
+      const principal = [...credentialPrincipals.values()].find(
+        (candidate) => candidate.id === input.userId,
+      );
+      if (!principal || principal.status !== "active") {
+        const error = new Error("login rejected");
+        error.code = "AUTH_CREDENTIAL_LOGIN_REJECTED";
+        throw error;
+      }
+      principal.failedAttempts = 0;
+      principal.lockedUntil = null;
+      sessions.set(input.sessionTokenHash, {
+        id: `credential-session-${sessions.size + 1}`,
+        userId: principal.id,
+        username: principal.username,
+        displayName: principal.displayName,
+        avatarUrl: null,
+        expiresAt: input.sessionExpiresAt.toISOString(),
+      });
+      return { expiresAt: input.sessionExpiresAt.toISOString() };
+    },
+    async createPasswordReset(input) {
+      passwordResets.set(input.tokenHash, input.userId);
+    },
+    async getPasswordResetPrincipal(tokenHash) {
+      const userId = passwordResets.get(tokenHash);
+      if (!userId) return null;
+      const principal = [...credentialPrincipals.values()].find(
+        (candidate) => candidate.id === userId,
+      );
+      return principal
+        ? { username: principal.username, email: principal.email }
+        : null;
+    },
+    async consumePasswordReset({ tokenHash, passwordHash }) {
+      const userId = passwordResets.get(tokenHash);
+      if (!userId) return false;
+      const principal = [...credentialPrincipals.values()].find(
+        (candidate) => candidate.id === userId,
+      );
+      principal.passwordHash = passwordHash;
+      passwordResets.delete(tokenHash);
+      for (const [hash, session] of sessions) {
+        if (session.userId === userId) sessions.delete(hash);
+      }
+      return true;
     },
     async revokeSession(hash) {
       revoked.push(hash);
@@ -209,7 +322,20 @@ function createFakeStore() {
 async function withServer(callback) {
   const store = createFakeStore();
   const wechatProvider = createMockWechatProvider(config);
-  const server = createAuthServer({ store, config, wechatProvider });
+  const passwordService = {
+    async hash(password) {
+      return `test-hash:${password}`;
+    },
+    async verify(passwordHash, password) {
+      return passwordHash === `test-hash:${password}`;
+    },
+  };
+  const server = createAuthServer({
+    store,
+    config,
+    wechatProvider,
+    passwordService,
+  });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
 
@@ -283,6 +409,17 @@ test("production configuration requires database and token secrets", () => {
     AUTH_DB_POOL_MAX: "999",
   });
   assert.equal(loaded.poolMax, 20);
+  assert.equal(loaded.credentialsEnabled, true);
+  assert.throws(
+    () =>
+      loadConfig({
+        NODE_ENV: "production",
+        AUTH_TOKEN_PEPPER: config.tokenPepper,
+        POSTGRES_PASSWORD: "database-secret",
+        AUTH_PASSWORD_RESET_MODE: "response",
+      }),
+    /forbidden in production/,
+  );
 });
 
 test("anonymous device cookie is stable and an invalid session is cleared", async () => {
@@ -592,6 +729,175 @@ test("account deletion requires an exact confirmation and removes the signed-in 
     assert.equal(deleted.status, 200);
     assert.deepEqual(store.deletedAccounts, ["user-delete"]);
     assert.equal(store.sessions.has(sessionHash), false);
+  });
+});
+
+test("credential registration, login, and one-time password reset are real server flows", async () => {
+  await withServer(async ({ baseUrl }) => {
+    const headers = {
+      "Content-Type": "application/json",
+      Origin: "https://dufesh.cn",
+    };
+    const registration = {
+      username: "海边自习室",
+      email: "student@example.com",
+      password: "Moonlight!2026",
+      schoolAccount: "2026123456",
+    };
+
+    const registered = await fetch(`${baseUrl}/api/auth/register`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(registration),
+    });
+    const registeredBody = await registered.json();
+    assert.equal(registered.status, 201);
+    assert.equal(registeredBody.authenticated, true);
+    assert.equal(registeredBody.user.username, registration.username);
+    assert.ok(
+      registered.headers
+        .getSetCookie()
+        .some((value) => value.startsWith(`${config.sessionCookie}=`)),
+    );
+
+    const duplicate = await fetch(`${baseUrl}/api/auth/register`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(registration),
+    });
+    assert.equal(duplicate.status, 409);
+    assert.equal((await duplicate.json()).error, "registration_conflict");
+
+    const wrongKnown = await fetch(`${baseUrl}/api/auth/login`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        identifier: registration.email,
+        password: "wrong-password",
+      }),
+    });
+    const wrongUnknown = await fetch(`${baseUrl}/api/auth/login`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        identifier: "unknown@example.com",
+        password: "wrong-password",
+      }),
+    });
+    assert.equal(wrongKnown.status, 401);
+    assert.equal(wrongUnknown.status, 401);
+    assert.deepEqual(await wrongKnown.json(), await wrongUnknown.json());
+
+    const login = await fetch(`${baseUrl}/api/auth/login`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        identifier: registration.username,
+        password: registration.password,
+      }),
+    });
+    assert.equal(login.status, 200);
+    assert.equal((await login.json()).user.username, registration.username);
+
+    const resetRequested = await fetch(
+      `${baseUrl}/api/auth/password/reset/request`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ identifier: registration.email }),
+      },
+    );
+    const resetRequestBody = await resetRequested.json();
+    assert.equal(resetRequested.status, 202);
+    assert.equal(isOpaqueToken(resetRequestBody.debugToken), true);
+
+    const newPassword = "HarborLight!2027";
+    const reset = await fetch(
+      `${baseUrl}/api/auth/password/reset/confirm`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          token: resetRequestBody.debugToken,
+          password: newPassword,
+        }),
+      },
+    );
+    assert.equal(reset.status, 200);
+
+    const replay = await fetch(
+      `${baseUrl}/api/auth/password/reset/confirm`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          token: resetRequestBody.debugToken,
+          password: "AnotherSafe!2028",
+        }),
+      },
+    );
+    assert.equal(replay.status, 400);
+
+    const oldPassword = await fetch(`${baseUrl}/api/auth/login`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        identifier: registration.email,
+        password: registration.password,
+      }),
+    });
+    assert.equal(oldPassword.status, 401);
+
+    const newLogin = await fetch(`${baseUrl}/api/auth/login`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        identifier: registration.email,
+        password: newPassword,
+      }),
+    });
+    assert.equal(newLogin.status, 200);
+  });
+});
+
+test("repeated credential failures lock the account even when the password later matches", async () => {
+  await withServer(async ({ baseUrl }) => {
+    const headers = {
+      "Content-Type": "application/json",
+      Origin: "https://dufesh.cn",
+    };
+    await fetch(`${baseUrl}/api/auth/register`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        username: "locked-student",
+        email: "locked@example.com",
+        password: "Moonlight!2026",
+      }),
+    });
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const rejected = await fetch(`${baseUrl}/api/auth/login`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          identifier: "locked-student",
+          password: `wrong-password-${attempt}`,
+        }),
+      });
+      assert.equal(rejected.status, 401);
+    }
+
+    const locked = await fetch(`${baseUrl}/api/auth/login`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        identifier: "locked-student",
+        password: "Moonlight!2026",
+      }),
+    });
+    assert.equal(locked.status, 401);
+    assert.deepEqual(await locked.json(), { error: "invalid_credentials" });
   });
 });
 

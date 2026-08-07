@@ -3,6 +3,66 @@ import { createPersonalStore } from "./personal-store.mjs";
 
 const { Pool } = pg;
 
+async function claimAnonymousDevice(client, anonymousDeviceId, userId) {
+  const anonymousDevice = await client.query(
+    `SELECT claimed_device_id
+     FROM anonymous_devices
+     WHERE id = $1
+       AND revoked_at IS NULL
+     FOR UPDATE`,
+    [anonymousDeviceId],
+  );
+  if (anonymousDevice.rowCount === 0) {
+    const error = new Error("Anonymous device is unavailable");
+    error.code = "AUTH_ANONYMOUS_DEVICE_INVALID";
+    throw error;
+  }
+
+  let deviceId = anonymousDevice.rows[0].claimed_device_id;
+  if (deviceId) {
+    const claimed = await client.query(
+      `SELECT user_id
+       FROM user_devices
+       WHERE id = $1
+         AND revoked_at IS NULL`,
+      [deviceId],
+    );
+    if (
+      claimed.rowCount === 0 ||
+      String(claimed.rows[0].user_id) !== String(userId)
+    ) {
+      deviceId = null;
+    }
+  }
+
+  if (!deviceId) {
+    const device = await client.query(
+      `INSERT INTO user_devices (user_id, label, platform)
+       VALUES ($1, $2, $3)
+       RETURNING id`,
+      [userId, "网页设备", "web"],
+    );
+    deviceId = device.rows[0].id;
+  }
+
+  await client.query(
+    `UPDATE anonymous_devices
+     SET
+       claimed_device_id = $2,
+       claimed_at = COALESCE(claimed_at, now()),
+       last_seen_at = now()
+     WHERE id = $1`,
+    [anonymousDeviceId, deviceId],
+  );
+  await client.query(
+    `UPDATE user_devices
+     SET last_seen_at = now()
+     WHERE id = $1`,
+    [deviceId],
+  );
+  return deviceId;
+}
+
 export function createDatabasePool(config) {
   const pool = new Pool({
     ...config.database,
@@ -183,6 +243,7 @@ export function createAuthStore(pool) {
              SET
                display_name = COALESCE($2, display_name),
                avatar_url = COALESCE($3, avatar_url),
+               last_login_at = now(),
                updated_at = now()
              WHERE id = $1`,
             [userId, identity.displayName, identity.avatarUrl],
@@ -316,6 +377,7 @@ export function createAuthStore(pool) {
         `SELECT
            sessions.id AS session_id,
            users.id AS user_id,
+           users.username,
            users.display_name,
            users.avatar_url,
            sessions.expires_at,
@@ -344,6 +406,7 @@ export function createAuthStore(pool) {
       return {
         id: String(result.rows[0].session_id),
         userId: String(result.rows[0].user_id),
+        username: result.rows[0].username,
         displayName: result.rows[0].display_name,
         avatarUrl: result.rows[0].avatar_url,
         expiresAt: new Date(result.rows[0].expires_at).toISOString(),
@@ -351,6 +414,318 @@ export function createAuthStore(pool) {
           ? String(result.rows[0].device_public_id)
           : null,
       };
+    },
+
+    async registerCredentialUser({
+      username,
+      normalizedUsername,
+      email,
+      normalizedEmail,
+      schoolAccount,
+      passwordHash,
+      anonymousDeviceId,
+      sessionTokenHash,
+      sessionExpiresAt,
+    }) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const user = await client.query(
+          `INSERT INTO app_users (
+             username,
+             normalized_username,
+             email,
+             normalized_email,
+             school_account,
+             display_name,
+             registered_via,
+             last_login_at
+           )
+           VALUES ($1, $2, $3, $4, $5, $1, 'password', now())
+           RETURNING id, username, display_name, email, school_account,
+                     created_at, last_login_at, status`,
+          [
+            username,
+            normalizedUsername,
+            email,
+            normalizedEmail,
+            schoolAccount,
+          ],
+        );
+        const userId = user.rows[0].id;
+        await client.query(
+          `INSERT INTO password_credentials (user_id, password_hash)
+           VALUES ($1, $2)`,
+          [userId, passwordHash],
+        );
+        const deviceId = await claimAnonymousDevice(
+          client,
+          anonymousDeviceId,
+          userId,
+        );
+        const session = await client.query(
+          `INSERT INTO user_sessions (
+             user_id,
+             device_id,
+             token_hash,
+             expires_at
+           )
+           VALUES ($1, $2, $3, $4)
+           RETURNING id, expires_at`,
+          [userId, deviceId, sessionTokenHash, sessionExpiresAt],
+        );
+        await client.query("COMMIT");
+        return {
+          user: {
+            id: String(userId),
+            username: user.rows[0].username,
+            displayName: user.rows[0].display_name,
+            email: user.rows[0].email,
+            schoolAccount: user.rows[0].school_account,
+            status: user.rows[0].status,
+            createdAt: new Date(user.rows[0].created_at).toISOString(),
+            lastLoginAt: new Date(user.rows[0].last_login_at).toISOString(),
+          },
+          sessionId: String(session.rows[0].id),
+          expiresAt: new Date(session.rows[0].expires_at).toISOString(),
+        };
+      } catch (error) {
+        await client.query("ROLLBACK");
+        if (
+          error?.code === "23505" &&
+          error?.constraint === "app_users_normalized_username_uidx"
+        ) {
+          error.code = "AUTH_USERNAME_TAKEN";
+        } else if (
+          error?.code === "23505" &&
+          error?.constraint === "app_users_normalized_email_uidx"
+        ) {
+          error.code = "AUTH_EMAIL_TAKEN";
+        }
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+
+    async getCredentialPrincipal(identifier) {
+      const result = await pool.query(
+        `SELECT
+           users.id,
+           users.username,
+           users.display_name,
+           users.email,
+           users.school_account,
+           users.status,
+           credentials.password_hash,
+           credentials.failed_attempts,
+           credentials.locked_until
+         FROM app_users AS users
+         INNER JOIN password_credentials AS credentials
+           ON credentials.user_id = users.id
+         WHERE users.normalized_username = $1
+            OR users.normalized_email = $1
+         LIMIT 1`,
+        [identifier],
+      );
+      if (result.rowCount === 0) return null;
+      const row = result.rows[0];
+      return {
+        id: String(row.id),
+        username: row.username,
+        displayName: row.display_name,
+        email: row.email,
+        schoolAccount: row.school_account,
+        status: row.status,
+        passwordHash: row.password_hash,
+        failedAttempts: row.failed_attempts,
+        lockedUntil: row.locked_until
+          ? new Date(row.locked_until).toISOString()
+          : null,
+      };
+    },
+
+    async recordCredentialFailure(userId) {
+      await pool.query(
+        `UPDATE password_credentials
+         SET
+           failed_attempts = failed_attempts + 1,
+           locked_until = CASE
+             WHEN failed_attempts + 1 >= 7 THEN now() + interval '15 minutes'
+             WHEN failed_attempts + 1 = 6 THEN now() + interval '2 minutes'
+             WHEN failed_attempts + 1 = 5 THEN now() + interval '30 seconds'
+             ELSE locked_until
+           END,
+           updated_at = now()
+         WHERE user_id = $1`,
+        [userId],
+      );
+    },
+
+    async createCredentialSession({
+      userId,
+      anonymousDeviceId,
+      sessionTokenHash,
+      sessionExpiresAt,
+    }) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const principal = await client.query(
+          `SELECT users.status, credentials.locked_until
+           FROM app_users AS users
+           INNER JOIN password_credentials AS credentials
+             ON credentials.user_id = users.id
+           WHERE users.id = $1
+           FOR UPDATE OF users, credentials`,
+          [userId],
+        );
+        if (
+          principal.rowCount === 0 ||
+          principal.rows[0].status !== "active" ||
+          (principal.rows[0].locked_until &&
+            new Date(principal.rows[0].locked_until).getTime() > Date.now())
+        ) {
+          const error = new Error("Credential login is unavailable");
+          error.code = "AUTH_CREDENTIAL_LOGIN_REJECTED";
+          throw error;
+        }
+
+        const deviceId = await claimAnonymousDevice(
+          client,
+          anonymousDeviceId,
+          userId,
+        );
+        const session = await client.query(
+          `INSERT INTO user_sessions (
+             user_id,
+             device_id,
+             token_hash,
+             expires_at
+           )
+           VALUES ($1, $2, $3, $4)
+           RETURNING id, expires_at`,
+          [userId, deviceId, sessionTokenHash, sessionExpiresAt],
+        );
+        await client.query(
+          `UPDATE password_credentials
+           SET failed_attempts = 0, locked_until = NULL, updated_at = now()
+           WHERE user_id = $1`,
+          [userId],
+        );
+        await client.query(
+          `UPDATE app_users
+           SET last_login_at = now(), updated_at = now()
+           WHERE id = $1`,
+          [userId],
+        );
+        await client.query("COMMIT");
+        return {
+          sessionId: String(session.rows[0].id),
+          expiresAt: new Date(session.rows[0].expires_at).toISOString(),
+        };
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+
+    async createPasswordReset({ userId, tokenHash, expiresAt }) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        await client.query(
+          `UPDATE password_reset_tokens
+           SET consumed_at = COALESCE(consumed_at, now())
+           WHERE user_id = $1
+             AND consumed_at IS NULL`,
+          [userId],
+        );
+        await client.query(
+          `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+           VALUES ($1, $2, $3)`,
+          [userId, tokenHash, expiresAt],
+        );
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+
+    async getPasswordResetPrincipal(tokenHash) {
+      const result = await pool.query(
+        `SELECT users.username, users.email
+         FROM password_reset_tokens AS tokens
+         INNER JOIN app_users AS users ON users.id = tokens.user_id
+         WHERE tokens.token_hash = $1
+           AND tokens.consumed_at IS NULL
+           AND tokens.expires_at > now()
+           AND users.status = 'active'
+         LIMIT 1`,
+        [tokenHash],
+      );
+      return result.rowCount > 0
+        ? {
+            username: result.rows[0].username,
+            email: result.rows[0].email,
+          }
+        : null;
+    },
+
+    async consumePasswordReset({ tokenHash, passwordHash }) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const token = await client.query(
+          `UPDATE password_reset_tokens
+           SET consumed_at = now()
+           WHERE token_hash = $1
+             AND consumed_at IS NULL
+             AND expires_at > now()
+             AND EXISTS (
+               SELECT 1
+               FROM app_users AS users
+               WHERE users.id = password_reset_tokens.user_id
+                 AND users.status = 'active'
+             )
+           RETURNING user_id`,
+          [tokenHash],
+        );
+        if (token.rowCount === 0) {
+          await client.query("ROLLBACK");
+          return false;
+        }
+        const userId = token.rows[0].user_id;
+        await client.query(
+          `UPDATE password_credentials
+           SET
+             password_hash = $2,
+             failed_attempts = 0,
+             locked_until = NULL,
+             password_changed_at = now(),
+             updated_at = now()
+           WHERE user_id = $1`,
+          [userId, passwordHash],
+        );
+        await client.query(
+          `UPDATE user_sessions
+           SET revoked_at = COALESCE(revoked_at, now())
+           WHERE user_id = $1`,
+          [userId],
+        );
+        await client.query("COMMIT");
+        return true;
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
     },
 
     async listUserDevices(userId, currentSessionId) {

@@ -7,7 +7,15 @@ function positiveInteger(value, fallback, name) {
   return resolved;
 }
 
+function booleanValue(value, fallback, name) {
+  if (value === undefined || value === "") return fallback;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  throw new Error(`${name} must be true or false`);
+}
+
 export function loadConfig(env = process.env) {
+  const nodeEnv = env.NODE_ENV || "development";
   const tokenPepper = env.AUTH_TOKEN_PEPPER ?? "";
   if (tokenPepper.length < 32) {
     throw new Error("AUTH_TOKEN_PEPPER must contain at least 32 characters");
@@ -44,6 +52,18 @@ export function loadConfig(env = process.env) {
 
   if (allowedOrigins.size === 0) {
     throw new Error("AUTH_ALLOWED_ORIGINS must not be empty");
+  }
+
+  const passwordResetMode =
+    env.AUTH_PASSWORD_RESET_MODE ||
+    (nodeEnv === "production" ? "disabled" : "response");
+  if (!["disabled", "response"].includes(passwordResetMode)) {
+    throw new Error("AUTH_PASSWORD_RESET_MODE must be disabled or response");
+  }
+  if (nodeEnv === "production" && passwordResetMode === "response") {
+    throw new Error(
+      "AUTH_PASSWORD_RESET_MODE=response is forbidden in production",
+    );
   }
 
   return {
@@ -83,6 +103,20 @@ export function loadConfig(env = process.env) {
       password: env.POSTGRES_PASSWORD,
     },
     publicOrigin: publicOrigin.origin,
+    credentialsEnabled: booleanValue(
+      env.AUTH_CREDENTIALS_ENABLED,
+      true,
+      "AUTH_CREDENTIALS_ENABLED",
+    ),
+    passwordResetMode,
+    passwordResetTtlSeconds: Math.min(
+      positiveInteger(
+        env.AUTH_PASSWORD_RESET_TTL_SECONDS,
+        1_800,
+        "AUTH_PASSWORD_RESET_TTL_SECONDS",
+      ),
+      3_600,
+    ),
     wechatMode,
     mockLoginSecret,
   };

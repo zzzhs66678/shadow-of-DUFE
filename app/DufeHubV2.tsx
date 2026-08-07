@@ -135,8 +135,15 @@ type AccountDevice = {
 };
 type AccountState = {
   status: "loading" | "anonymous" | "authenticated";
-  user: { id: string; displayName: string | null; avatarUrl: string | null } | null;
+  user: {
+    id: string;
+    username?: string | null;
+    displayName: string | null;
+    avatarUrl: string | null;
+  } | null;
   session: { expiresAt: string; deviceId: string | null } | null;
+  credentialsAvailable: boolean;
+  passwordResetAvailable: boolean;
   wechatAvailable: boolean;
 };
 type CloudSyncStatus = "local" | "syncing" | "synced" | "conflict" | "offline";
@@ -789,8 +796,11 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
     status: "loading",
     user: null,
     session: null,
+    credentialsAvailable: true,
+    passwordResetAvailable: false,
     wechatAvailable: false,
   });
+  const [authRevision, setAuthRevision] = useState(0);
   const [accountDevices, setAccountDevices] = useState<AccountDevice[]>([]);
   const [onboarding, setOnboarding] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -876,11 +886,16 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           authenticated: boolean;
           user: {
             id: string;
+            username?: string | null;
             displayName: string | null;
             avatarUrl: string | null;
           } | null;
           session?: { expiresAt: string; deviceId: string | null };
-          login?: { wechatAvailable: boolean };
+          login?: {
+            credentialsAvailable?: boolean;
+            passwordResetAvailable?: boolean;
+            wechatAvailable?: boolean;
+          };
         };
         if (!session.authenticated || !session.user?.id) {
           setCloudUserId("");
@@ -893,6 +908,10 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
             status: "anonymous",
             user: null,
             session: null,
+            credentialsAvailable:
+              session.login?.credentialsAvailable ?? false,
+            passwordResetAvailable:
+              session.login?.passwordResetAvailable ?? false,
             wechatAvailable: session.login?.wechatAvailable ?? false,
           });
           return;
@@ -926,6 +945,10 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           status: "authenticated",
           user: session.user,
           session: session.session ?? null,
+          credentialsAvailable:
+            session.login?.credentialsAvailable ?? false,
+          passwordResetAvailable:
+            session.login?.passwordResetAvailable ?? false,
           wechatAvailable: session.login?.wechatAvailable ?? false,
         });
         const devicesResponse = await fetch("/api/auth/devices", {
@@ -973,6 +996,8 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
                   status: "anonymous",
                   user: null,
                   session: null,
+                  credentialsAvailable: true,
+                  passwordResetAvailable: false,
                   wechatAvailable: false,
                 }
               : current,
@@ -983,7 +1008,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
     })();
 
     return () => controller.abort();
-  }, [hydrated]);
+  }, [authRevision, hydrated]);
 
   useEffect(() => {
     if (!hydrated || !cloudSyncReady || !cloudUserId) return;
@@ -1386,6 +1411,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
               "/api/auth/wechat/start?returnTo=%2F%3Fview%3Dme",
             );
           }}
+          onAuthChanged={() => setAuthRevision((current) => current + 1)}
           onLogout={async () => {
             const response = await fetch("/api/auth/logout", {
               method: "POST",
@@ -1417,6 +1443,8 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
               status: "anonymous",
               user: null,
               session: null,
+              credentialsAvailable: account.credentialsAvailable,
+              passwordResetAvailable: account.passwordResetAvailable,
               wechatAvailable: account.wechatAvailable,
             });
           }}
@@ -1482,6 +1510,8 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
               status: "anonymous",
               user: null,
               session: null,
+              credentialsAvailable: account.credentialsAvailable,
+              passwordResetAvailable: account.passwordResetAvailable,
               wechatAvailable: account.wechatAvailable,
             });
             return true;
@@ -4153,6 +4183,7 @@ function MePage({
   syncedAt,
   anonymousImportAvailable,
   onLogin,
+  onAuthChanged,
   onLogout,
   onRevokeDevice,
   onDeleteAccount,
@@ -4170,6 +4201,7 @@ function MePage({
   syncedAt: string;
   anonymousImportAvailable: boolean;
   onLogin: () => void;
+  onAuthChanged: () => void;
   onLogout: () => Promise<void>;
   onRevokeDevice: (deviceId: string) => Promise<void>;
   onDeleteAccount: () => Promise<boolean>;
@@ -4181,6 +4213,18 @@ function MePage({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletePhrase, setDeletePhrase] = useState("");
   const [accountBusy, setAccountBusy] = useState("");
+  const [credentialMode, setCredentialMode] = useState<
+    "login" | "register" | "reset"
+  >("login");
+  const [credentialForm, setCredentialForm] = useState({
+    username: "",
+    email: "",
+    identifier: "",
+    password: "",
+    schoolAccount: "",
+    resetToken: "",
+  });
+  const [credentialFeedback, setCredentialFeedback] = useState("");
   useEffect(() => {
     if (!deleteOpen) return;
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -4207,6 +4251,110 @@ function MePage({
     offline: ["暂时离线", "本机修改仍会保留，联网后再同步"],
   }[syncStatus];
 
+  const submitCredentials = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setAccountBusy(`credential-${credentialMode}`);
+    setCredentialFeedback("");
+    try {
+      const isResetConfirmation =
+        credentialMode === "reset" && Boolean(credentialForm.resetToken);
+      const endpoint =
+        credentialMode === "register"
+          ? "/api/auth/register"
+          : credentialMode === "login"
+            ? "/api/auth/login"
+            : isResetConfirmation
+              ? "/api/auth/password/reset/confirm"
+              : "/api/auth/password/reset/request";
+      const body =
+        credentialMode === "register"
+          ? {
+              username: credentialForm.username,
+              email: credentialForm.email,
+              password: credentialForm.password,
+              schoolAccount: credentialForm.schoolAccount,
+            }
+          : credentialMode === "login"
+            ? {
+                identifier: credentialForm.identifier,
+                password: credentialForm.password,
+              }
+            : isResetConfirmation
+              ? {
+                  token: credentialForm.resetToken,
+                  password: credentialForm.password,
+                }
+              : { identifier: credentialForm.identifier };
+      const response = await fetch(endpoint, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        debugToken?: string;
+        fields?: Record<string, string>;
+      };
+
+      if (!response.ok) {
+        const fieldMessage = payload.fields
+          ? Object.values(payload.fields)[0]
+          : "";
+        const messages: Record<string, string> = {
+          invalid_credentials: "用户名、邮箱或密码不正确。",
+          invalid_registration: fieldMessage || "请检查注册信息。",
+          registration_conflict: fieldMessage || "用户名或邮箱已被使用。",
+          credential_rate_limit_exceeded: "尝试次数过多，请稍后再试。",
+          password_reset_rate_limit_exceeded: "请求太频繁，请稍后再试。",
+          password_reset_delivery_unavailable:
+            "重置邮件服务尚未开通；你的原密码不会被更改。",
+          invalid_password_reset: "重置链接已失效，或新密码不符合要求。",
+        };
+        setCredentialFeedback(
+          messages[payload.error ?? ""] || "暂时无法连接账号服务，请稍后再试。",
+        );
+        return;
+      }
+
+      if (credentialMode === "reset" && !isResetConfirmation) {
+        if (payload.debugToken) {
+          setCredentialForm((current) => ({
+            ...current,
+            resetToken: payload.debugToken ?? "",
+            password: "",
+          }));
+          setCredentialFeedback(
+            "本地开发模式已生成一次性重置码，请设置新密码。",
+          );
+        } else {
+          setCredentialFeedback(
+            "如果账号存在，重置邮件会在几分钟内到达。",
+          );
+        }
+        return;
+      }
+
+      if (credentialMode === "reset") {
+        setCredentialMode("login");
+        setCredentialForm((current) => ({
+          ...current,
+          password: "",
+          resetToken: "",
+        }));
+        setCredentialFeedback("密码已更新，请重新登录。所有旧设备已退出。");
+        return;
+      }
+
+      setCredentialForm((current) => ({ ...current, password: "" }));
+      onAuthChanged();
+    } catch {
+      setCredentialFeedback("账号服务暂时离线，本机课表仍可继续使用。");
+    } finally {
+      setAccountBusy("");
+    }
+  };
+
   return (
     <div className="page-wrap me-page">
       <header className="workspace-heading">
@@ -4215,7 +4363,7 @@ function MePage({
           <p>
             {account.status === "authenticated"
               ? "课表、日程和作业跟着账号走。"
-              : "现在可以直接用，数据只存在这台设备。微信登录开放后可跨设备同步。"}
+              : "现在可以直接用；注册账号后，课表也能跟你去另一台设备。"}
           </p>
         </div>
         <button onClick={onSetup}>
@@ -4259,7 +4407,7 @@ function MePage({
             <span>账号与同步</span>
             <h2 id="account-center-title">
               {account.status === "authenticated"
-                ? account.user?.displayName || "微信用户"
+                ? account.user?.displayName || account.user?.username || "同学"
                 : account.status === "loading"
                   ? "正在查看登录状态"
                   : "在别的设备继续用"}
@@ -4295,22 +4443,210 @@ function MePage({
         )}
 
         {account.status === "anonymous" && (
-          <div className="account-login">
-            <div>
+          <div className="account-login account-login-v2">
+            <div className="account-local-note">
               <b>现在的数据只保存在这台设备</b>
               <p>清理微信或浏览器缓存前，请先导出课表图片留存。</p>
             </div>
-            <button
-              onClick={onLogin}
-              disabled={!account.wechatAvailable}
-              title={
-                account.wechatAvailable
-                  ? "使用微信账号登录"
-                  : "微信网站应用正在审核"
-              }
-            >
-              {account.wechatAvailable ? "微信登录并同步" : "微信登录审核中"}
-            </button>
+            {account.credentialsAvailable ? (
+              <div className="credential-gateway">
+                <nav aria-label="账号操作">
+                  <button
+                    type="button"
+                    aria-pressed={credentialMode === "login"}
+                    onClick={() => {
+                      setCredentialMode("login");
+                      setCredentialFeedback("");
+                    }}
+                  >
+                    登录
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={credentialMode === "register"}
+                    onClick={() => {
+                      setCredentialMode("register");
+                      setCredentialFeedback("");
+                    }}
+                  >
+                    创建账号
+                  </button>
+                </nav>
+                <form onSubmit={submitCredentials}>
+                  {credentialMode === "register" && (
+                    <label>
+                      <span>用户名</span>
+                      <input
+                        required
+                        minLength={3}
+                        maxLength={24}
+                        autoComplete="username"
+                        value={credentialForm.username}
+                        onChange={(event) =>
+                          setCredentialForm((current) => ({
+                            ...current,
+                            username: event.target.value,
+                          }))
+                        }
+                        placeholder="以后也可以用它登录"
+                      />
+                    </label>
+                  )}
+                  {credentialMode === "register" ? (
+                    <label>
+                      <span>邮箱</span>
+                      <input
+                        required
+                        type="email"
+                        maxLength={254}
+                        autoComplete="email"
+                        value={credentialForm.email}
+                        onChange={(event) =>
+                          setCredentialForm((current) => ({
+                            ...current,
+                            email: event.target.value,
+                          }))
+                        }
+                        placeholder="用于登录和找回密码"
+                      />
+                    </label>
+                  ) : (
+                    !credentialForm.resetToken && (
+                      <label>
+                        <span>
+                          {credentialMode === "login"
+                            ? "用户名或邮箱"
+                            : "账号邮箱"}
+                        </span>
+                        <input
+                          required
+                          maxLength={254}
+                          autoComplete={
+                            credentialMode === "login" ? "username" : "email"
+                          }
+                          value={credentialForm.identifier}
+                          onChange={(event) =>
+                            setCredentialForm((current) => ({
+                              ...current,
+                              identifier: event.target.value,
+                            }))
+                          }
+                          placeholder={
+                            credentialMode === "login"
+                              ? "海边自习室 / you@example.com"
+                              : "you@example.com"
+                          }
+                        />
+                      </label>
+                    )
+                  )}
+                  {(credentialMode !== "reset" || credentialForm.resetToken) && (
+                    <label>
+                      <span>
+                        {credentialMode === "reset" ? "新密码" : "密码"}
+                      </span>
+                      <input
+                        required
+                        type="password"
+                        minLength={10}
+                        maxLength={128}
+                        autoComplete={
+                          credentialMode === "login"
+                            ? "current-password"
+                            : "new-password"
+                        }
+                        value={credentialForm.password}
+                        onChange={(event) =>
+                          setCredentialForm((current) => ({
+                            ...current,
+                            password: event.target.value,
+                          }))
+                        }
+                        placeholder={
+                          credentialMode === "login"
+                            ? "输入密码"
+                            : "至少 10 位，包含文字与数字或符号"
+                        }
+                      />
+                    </label>
+                  )}
+                  {credentialMode === "register" && (
+                    <label>
+                      <span>校园账号 <small>选填，不会自动认证身份</small></span>
+                      <input
+                        maxLength={32}
+                        autoComplete="off"
+                        value={credentialForm.schoolAccount}
+                        onChange={(event) =>
+                          setCredentialForm((current) => ({
+                            ...current,
+                            schoolAccount: event.target.value,
+                          }))
+                        }
+                        placeholder="学号或校园账号"
+                      />
+                    </label>
+                  )}
+                  {credentialFeedback && (
+                    <p className="credential-feedback" aria-live="polite">
+                      {credentialFeedback}
+                    </p>
+                  )}
+                  <button
+                    className="credential-submit"
+                    disabled={accountBusy.startsWith("credential-")}
+                  >
+                    {credentialMode === "login"
+                      ? "登录并同步"
+                      : credentialMode === "register"
+                        ? "创建账号"
+                        : credentialForm.resetToken
+                          ? "保存新密码"
+                          : "发送重置邮件"}
+                  </button>
+                </form>
+                <footer>
+                  {credentialMode === "login" && (
+                    <button
+                      type="button"
+                      disabled={!account.passwordResetAvailable}
+                      title={
+                        account.passwordResetAvailable
+                          ? "找回密码"
+                          : "生产邮件服务尚未配置"
+                      }
+                      onClick={() => {
+                        setCredentialMode("reset");
+                        setCredentialFeedback("");
+                      }}
+                    >
+                      {account.passwordResetAvailable
+                        ? "忘记密码？"
+                        : "找回密码服务待开通"}
+                    </button>
+                  )}
+                  <span>密码只以 Argon2id 安全哈希保存</span>
+                </footer>
+              </div>
+            ) : (
+              <p className="credential-unavailable">
+                账号服务正在维护，本机功能不受影响。
+              </p>
+            )}
+            <div className="wechat-login-row">
+              <span>微信入口</span>
+              <button
+                onClick={onLogin}
+                disabled={!account.wechatAvailable}
+                title={
+                  account.wechatAvailable
+                    ? "使用微信账号登录"
+                    : "微信网站应用正在审核"
+                }
+              >
+                {account.wechatAvailable ? "微信登录" : "资质审核中"}
+              </button>
+            </div>
           </div>
         )}
 

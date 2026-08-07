@@ -68,7 +68,9 @@ test("personal page explains local data, cloud sync, devices, and account contro
   const meSource = component.slice(meStart, searchStart);
 
   assert.match(meSource, /账号与同步/);
-  assert.match(meSource, /微信登录审核中/);
+  assert.match(meSource, /创建账号/);
+  assert.match(meSource, /用户名或邮箱/);
+  assert.match(meSource, /资质审核中/);
   assert.match(meSource, /保留本机修改/);
   assert.match(meSource, /使用云端版本/);
   assert.match(meSource, /登录设备/);

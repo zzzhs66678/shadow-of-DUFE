@@ -80,5 +80,17 @@ export function createApiRateLimiters() {
       capacity: 300,
       refillPerSecond: 5,
     }),
+    credential: createTokenBucket({
+      capacity: 10,
+      refillPerSecond: 1 / 12,
+      maxKeys: 20_000,
+      idleTtlMs: 30 * 60_000,
+    }),
+    passwordReset: createTokenBucket({
+      capacity: 4,
+      refillPerSecond: 1 / 60,
+      maxKeys: 20_000,
+      idleTtlMs: 60 * 60_000,
+    }),
   };
 }

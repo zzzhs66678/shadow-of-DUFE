@@ -1368,6 +1368,211 @@ textarea {
   color: #fff;
 }
 
+.account-login-v2 {
+  align-items: start;
+  display: grid;
+  gap: 18px clamp(24px, 5vw, 72px);
+  grid-template-columns: minmax(180px, 0.72fr) minmax(320px, 1.28fr);
+  padding-top: 28px;
+}
+
+.account-local-note {
+  border-left: 3px solid var(--journal-red);
+  padding: 4px 0 4px 16px;
+}
+
+.account-local-note b {
+  font: 750 17px/1.35 var(--journal-display);
+}
+
+.credential-gateway {
+  border-bottom: 1px solid var(--journal-ink);
+  border-top: 1px solid var(--journal-ink);
+  grid-row: span 2;
+  padding: 0 0 14px;
+  position: relative;
+}
+
+.credential-gateway::before {
+  color: var(--journal-red);
+  content: "账户 / ACCOUNT";
+  font: 700 9px/1 var(--journal-mono);
+  letter-spacing: .12em;
+  position: absolute;
+  right: 0;
+  top: 17px;
+}
+
+.credential-gateway > nav {
+  display: flex;
+  gap: 22px;
+  min-height: 48px;
+}
+
+.credential-gateway > nav button {
+  background: transparent;
+  border: 0;
+  color: var(--journal-muted);
+  font: 750 14px/1 var(--journal-display);
+  min-height: 44px;
+  padding: 0;
+  position: relative;
+}
+
+.credential-gateway > nav button[aria-pressed="true"] {
+  color: var(--journal-ink);
+}
+
+.credential-gateway > nav button[aria-pressed="true"]::after {
+  background: var(--journal-red);
+  bottom: 5px;
+  content: "";
+  height: 3px;
+  left: 0;
+  position: absolute;
+  transform: skewX(-24deg);
+  width: 100%;
+}
+
+.credential-gateway form {
+  display: grid;
+  gap: 15px 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding-top: 14px;
+}
+
+.credential-gateway label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.credential-gateway label > span {
+  color: var(--journal-muted);
+  font: 700 10px/1.3 var(--journal-mono);
+  letter-spacing: .08em;
+}
+
+.credential-gateway label small {
+  color: var(--journal-muted);
+  font: 500 9px/1.3 var(--journal-sans);
+  letter-spacing: 0;
+}
+
+.credential-gateway input {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--journal-ink) 42%, transparent);
+  border-radius: 0;
+  color: var(--journal-ink);
+  font: 600 14px/1.35 var(--journal-sans);
+  min-height: 44px;
+  min-width: 0;
+  outline: 0;
+  padding: 8px 2px;
+  width: 100%;
+}
+
+.credential-gateway input:focus {
+  border-bottom-color: var(--journal-red);
+  box-shadow: 0 2px 0 var(--journal-red-soft);
+}
+
+.credential-gateway input::placeholder {
+  color: color-mix(in srgb, var(--journal-muted) 70%, transparent);
+  font-weight: 450;
+}
+
+.credential-feedback {
+  color: var(--journal-red);
+  font-size: 11px;
+  grid-column: 1 / -1;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.credential-submit {
+  align-self: end;
+  background: var(--journal-ink);
+  border: 0;
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  color: var(--journal-paper);
+  font: 750 12px/1 var(--journal-display);
+  justify-self: end;
+  min-height: 44px;
+  min-width: 148px;
+  padding: 0 22px;
+}
+
+.credential-submit:disabled {
+  cursor: wait;
+  opacity: .55;
+}
+
+.credential-gateway > footer {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--journal-muted);
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-top: 14px;
+  min-height: 44px;
+  padding: 0;
+}
+
+.credential-gateway > footer button {
+  background: transparent;
+  border: 0;
+  color: var(--journal-red);
+  font-size: 11px;
+  min-height: 44px;
+  padding: 0;
+  text-align: left;
+}
+
+.credential-gateway > footer button:disabled {
+  color: var(--journal-muted);
+  cursor: not-allowed;
+}
+
+.credential-gateway > footer span,
+.wechat-login-row > span {
+  color: var(--journal-muted);
+  font: 600 9px/1.5 var(--journal-mono);
+  letter-spacing: .05em;
+}
+
+.wechat-login-row {
+  align-items: center;
+  align-self: end;
+  border-top: 1px dashed color-mix(in srgb, var(--journal-ink) 28%, transparent);
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding-top: 12px;
+}
+
+.wechat-login-row button {
+  background: transparent;
+  border: 0;
+  color: var(--journal-red);
+  font-size: 11px;
+  min-height: 44px;
+  padding: 0;
+}
+
+.wechat-login-row button:disabled {
+  color: var(--journal-muted);
+  cursor: not-allowed;
+}
+
+.credential-unavailable {
+  color: var(--journal-muted);
+  line-height: 1.7;
+}
+
 @media (max-width: 760px) {
   .focus-head.focus-head-v5 {
     display: block;
@@ -1412,6 +1617,38 @@ textarea {
 
   .today-command-deck {
     margin-top: 20px;
+  }
+
+  .account-login-v2 {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .credential-gateway {
+    grid-row: auto;
+  }
+
+  .credential-gateway form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .credential-feedback {
+    grid-column: 1;
+  }
+
+  .credential-submit {
+    justify-self: stretch;
+    width: 100%;
+  }
+
+  .credential-gateway::before {
+    display: none;
+  }
+
+  .credential-gateway > footer {
+    align-items: start;
+    flex-direction: column;
+    gap: 0;
   }
 
   .time-mark-head,

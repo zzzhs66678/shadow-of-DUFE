@@ -11,6 +11,12 @@ import {
 } from "./tokens.mjs";
 import { validateSyncWrite } from "./sync-contract.mjs";
 import { createApiRateLimiters } from "./rate-limit.mjs";
+import {
+  normalizeLoginIdentifier,
+  validateLogin,
+  validateNewPassword,
+  validateRegistration,
+} from "./credentials.mjs";
 
 function sendJson(response, statusCode, body, setCookies = []) {
   const payload = JSON.stringify(body);
@@ -152,8 +158,13 @@ export function createAuthServer({
   store,
   config,
   wechatProvider,
+  passwordService,
   rateLimiters = createApiRateLimiters(),
 }) {
+  const dummyPasswordHash = passwordService
+    ? passwordService.hash("not-a-real-user-password-9f24")
+    : Promise.resolve("");
+
   return createServer(async (request, response) => {
     try {
       const url = new URL(request.url ?? "/", "http://auth-api.local");
@@ -210,7 +221,12 @@ export function createAuthServer({
               authenticated: false,
               deviceId: device.deviceId,
               user: null,
-              login: { wechatAvailable: config.wechatMode === "wechat" },
+              login: {
+                credentialsAvailable: config.credentialsEnabled !== false,
+                passwordResetAvailable:
+                  config.passwordResetMode !== "disabled",
+                wechatAvailable: config.wechatMode === "wechat",
+              },
             },
             setCookies,
           );
@@ -230,7 +246,12 @@ export function createAuthServer({
               authenticated: false,
               deviceId: device.deviceId,
               user: null,
-              login: { wechatAvailable: config.wechatMode === "wechat" },
+              login: {
+                credentialsAvailable: config.credentialsEnabled !== false,
+                passwordResetAvailable:
+                  config.passwordResetMode !== "disabled",
+                wechatAvailable: config.wechatMode === "wechat",
+              },
             },
             setCookies,
           );
@@ -245,6 +266,7 @@ export function createAuthServer({
             deviceId: device.deviceId,
             user: {
               id: session.userId,
+              username: session.username,
               displayName: session.displayName,
               avatarUrl: session.avatarUrl,
             },
@@ -252,9 +274,373 @@ export function createAuthServer({
               expiresAt: session.expiresAt,
               deviceId: session.deviceId,
             },
-            login: { wechatAvailable: config.wechatMode === "wechat" },
+            login: {
+              credentialsAvailable: config.credentialsEnabled !== false,
+              passwordResetAvailable:
+                config.passwordResetMode !== "disabled",
+              wechatAvailable: config.wechatMode === "wechat",
+            },
           },
           setCookies,
+        );
+        return;
+      }
+
+      if (url.pathname === "/api/auth/register") {
+        if (request.method !== "POST") {
+          methodNotAllowed(response, "POST");
+          return;
+        }
+        if (config.credentialsEnabled === false || !passwordService) {
+          sendJson(response, 503, { error: "credential_login_not_ready" });
+          return;
+        }
+        if (!trustedOrigin(request, config.allowedOrigins)) {
+          sendJson(response, 403, { error: "untrusted_origin" });
+          return;
+        }
+
+        let body;
+        try {
+          body = await readJsonBody(request, 16_384);
+        } catch (error) {
+          if (
+            error?.code === "JSON_CONTENT_TYPE_REQUIRED" ||
+            error?.code === "JSON_BODY_INVALID"
+          ) {
+            sendJson(response, 400, { error: "invalid_registration" });
+            return;
+          }
+          if (error?.code === "REQUEST_BODY_TOO_LARGE") {
+            sendJson(response, 413, { error: "request_too_large" });
+            return;
+          }
+          throw error;
+        }
+
+        const registration = validateRegistration(body);
+        if (!registration.ok) {
+          sendJson(response, 400, {
+            error: "invalid_registration",
+            fields: registration.fields,
+          });
+          return;
+        }
+        const credentialRateKey = tokenDigest(
+          `register:${clientAddress(request)}:${registration.value.normalizedUsername}`,
+          config.tokenPepper,
+        );
+        if (!(rateLimiters.credential ?? rateLimiters.write).consume(credentialRateKey)) {
+          response.setHeader("Retry-After", "60");
+          sendJson(response, 429, { error: "credential_rate_limit_exceeded" });
+          return;
+        }
+
+        const device = await resolveDevice(request, store, config);
+        const sessionToken = createOpaqueToken();
+        const sessionExpiresAt = new Date(
+          Date.now() + config.sessionMaxAgeSeconds * 1000,
+        );
+        const passwordHash = await passwordService.hash(
+          registration.value.password,
+        );
+
+        let registered;
+        try {
+          registered = await store.registerCredentialUser({
+            ...registration.value,
+            passwordHash,
+            anonymousDeviceId: device.id,
+            sessionTokenHash: tokenDigest(
+              sessionToken,
+              config.tokenPepper,
+            ),
+            sessionExpiresAt,
+          });
+        } catch (error) {
+          if (error?.code === "AUTH_USERNAME_TAKEN") {
+            sendJson(response, 409, {
+              error: "registration_conflict",
+              fields: { username: "这个用户名已被使用" },
+            });
+            return;
+          }
+          if (error?.code === "AUTH_EMAIL_TAKEN") {
+            sendJson(response, 409, {
+              error: "registration_conflict",
+              fields: { email: "这个邮箱已注册" },
+            });
+            return;
+          }
+          throw error;
+        }
+
+        const setCookies = [
+          serializeSecureCookie(
+            config.sessionCookie,
+            sessionToken,
+            config.sessionMaxAgeSeconds,
+          ),
+        ];
+        if (device.setCookie) setCookies.unshift(device.setCookie);
+        sendJson(
+          response,
+          201,
+          {
+            authenticated: true,
+            user: registered.user,
+            session: { expiresAt: registered.expiresAt },
+          },
+          setCookies,
+        );
+        return;
+      }
+
+      if (url.pathname === "/api/auth/login") {
+        if (request.method !== "POST") {
+          methodNotAllowed(response, "POST");
+          return;
+        }
+        if (config.credentialsEnabled === false || !passwordService) {
+          sendJson(response, 503, { error: "credential_login_not_ready" });
+          return;
+        }
+        if (!trustedOrigin(request, config.allowedOrigins)) {
+          sendJson(response, 403, { error: "untrusted_origin" });
+          return;
+        }
+
+        let body;
+        try {
+          body = await readJsonBody(request, 16_384);
+        } catch (error) {
+          if (
+            error?.code === "JSON_CONTENT_TYPE_REQUIRED" ||
+            error?.code === "JSON_BODY_INVALID"
+          ) {
+            sendJson(response, 401, { error: "invalid_credentials" });
+            return;
+          }
+          if (error?.code === "REQUEST_BODY_TOO_LARGE") {
+            sendJson(response, 413, { error: "request_too_large" });
+            return;
+          }
+          throw error;
+        }
+
+        const login = validateLogin(body);
+        const identifier = login?.identifier ?? "invalid";
+        const credentialRateKey = tokenDigest(
+          `login:${clientAddress(request)}:${identifier}`,
+          config.tokenPepper,
+        );
+        if (!(rateLimiters.credential ?? rateLimiters.write).consume(credentialRateKey)) {
+          response.setHeader("Retry-After", "60");
+          sendJson(response, 429, { error: "credential_rate_limit_exceeded" });
+          return;
+        }
+
+        const principal = login
+          ? await store.getCredentialPrincipal(login.identifier)
+          : null;
+        const passwordMatches = principal
+          ? await passwordService.verify(principal.passwordHash, login.password)
+          : await passwordService.verify(await dummyPasswordHash, login?.password ?? "");
+        const locked = principal?.lockedUntil
+          ? new Date(principal.lockedUntil).getTime() > Date.now()
+          : false;
+        if (
+          !principal ||
+          !passwordMatches ||
+          locked ||
+          principal.status !== "active"
+        ) {
+          if (principal && !locked && principal.status === "active") {
+            await store.recordCredentialFailure(principal.id);
+          }
+          sendJson(response, 401, { error: "invalid_credentials" });
+          return;
+        }
+
+        const device = await resolveDevice(request, store, config);
+        const sessionToken = createOpaqueToken();
+        const sessionExpiresAt = new Date(
+          Date.now() + config.sessionMaxAgeSeconds * 1000,
+        );
+        try {
+          await store.createCredentialSession({
+            userId: principal.id,
+            anonymousDeviceId: device.id,
+            sessionTokenHash: tokenDigest(
+              sessionToken,
+              config.tokenPepper,
+            ),
+            sessionExpiresAt,
+          });
+        } catch (error) {
+          if (error?.code === "AUTH_CREDENTIAL_LOGIN_REJECTED") {
+            sendJson(response, 401, { error: "invalid_credentials" });
+            return;
+          }
+          throw error;
+        }
+
+        const setCookies = [
+          serializeSecureCookie(
+            config.sessionCookie,
+            sessionToken,
+            config.sessionMaxAgeSeconds,
+          ),
+        ];
+        if (device.setCookie) setCookies.unshift(device.setCookie);
+        sendJson(
+          response,
+          200,
+          {
+            authenticated: true,
+            user: {
+              id: principal.id,
+              username: principal.username,
+              displayName: principal.displayName,
+            },
+            session: { expiresAt: sessionExpiresAt.toISOString() },
+          },
+          setCookies,
+        );
+        return;
+      }
+
+      if (url.pathname === "/api/auth/password/reset/request") {
+        if (request.method !== "POST") {
+          methodNotAllowed(response, "POST");
+          return;
+        }
+        if (config.credentialsEnabled === false || !passwordService) {
+          sendJson(response, 503, { error: "credential_login_not_ready" });
+          return;
+        }
+        if (!trustedOrigin(request, config.allowedOrigins)) {
+          sendJson(response, 403, { error: "untrusted_origin" });
+          return;
+        }
+        if (config.passwordResetMode === "disabled") {
+          sendJson(response, 503, {
+            error: "password_reset_delivery_unavailable",
+          });
+          return;
+        }
+
+        let body;
+        try {
+          body = await readJsonBody(request, 8_192);
+        } catch (error) {
+          if (
+            error?.code === "JSON_CONTENT_TYPE_REQUIRED" ||
+            error?.code === "JSON_BODY_INVALID"
+          ) {
+            sendJson(response, 202, { ok: true });
+            return;
+          }
+          if (error?.code === "REQUEST_BODY_TOO_LARGE") {
+            sendJson(response, 413, { error: "request_too_large" });
+            return;
+          }
+          throw error;
+        }
+        const identifier = normalizeLoginIdentifier(body?.identifier);
+        const resetRateKey = tokenDigest(
+          `reset:${clientAddress(request)}:${identifier || "invalid"}`,
+          config.tokenPepper,
+        );
+        if (!(rateLimiters.passwordReset ?? rateLimiters.write).consume(resetRateKey)) {
+          response.setHeader("Retry-After", "60");
+          sendJson(response, 429, { error: "password_reset_rate_limit_exceeded" });
+          return;
+        }
+
+        const principal = identifier
+          ? await store.getCredentialPrincipal(identifier)
+          : null;
+        let debugToken;
+        if (principal?.status === "active") {
+          const resetToken = createOpaqueToken();
+          await store.createPasswordReset({
+            userId: principal.id,
+            tokenHash: tokenDigest(resetToken, config.tokenPepper),
+            expiresAt: new Date(
+              Date.now() + config.passwordResetTtlSeconds * 1000,
+            ),
+          });
+          if (config.passwordResetMode === "response") {
+            debugToken = resetToken;
+          }
+        }
+        sendJson(response, 202, {
+          ok: true,
+          ...(debugToken ? { debugToken } : {}),
+        });
+        return;
+      }
+
+      if (url.pathname === "/api/auth/password/reset/confirm") {
+        if (request.method !== "POST") {
+          methodNotAllowed(response, "POST");
+          return;
+        }
+        if (config.credentialsEnabled === false || !passwordService) {
+          sendJson(response, 503, { error: "credential_login_not_ready" });
+          return;
+        }
+        if (!trustedOrigin(request, config.allowedOrigins)) {
+          sendJson(response, 403, { error: "untrusted_origin" });
+          return;
+        }
+
+        let body;
+        try {
+          body = await readJsonBody(request, 16_384);
+        } catch (error) {
+          if (
+            error?.code === "JSON_CONTENT_TYPE_REQUIRED" ||
+            error?.code === "JSON_BODY_INVALID"
+          ) {
+            sendJson(response, 400, { error: "invalid_password_reset" });
+            return;
+          }
+          if (error?.code === "REQUEST_BODY_TOO_LARGE") {
+            sendJson(response, 413, { error: "request_too_large" });
+            return;
+          }
+          throw error;
+        }
+        if (!isOpaqueToken(body?.token)) {
+          sendJson(response, 400, { error: "invalid_password_reset" });
+          return;
+        }
+        const resetTokenHash = tokenDigest(body.token, config.tokenPepper);
+        const resetPrincipal = await store.getPasswordResetPrincipal(
+          resetTokenHash,
+        );
+        if (
+          !resetPrincipal ||
+          !validateNewPassword(body?.password, [
+            resetPrincipal.username,
+            resetPrincipal.email,
+          ])
+        ) {
+          sendJson(response, 400, { error: "invalid_password_reset" });
+          return;
+        }
+        const passwordHash = await passwordService.hash(body.password);
+        const consumed = await store.consumePasswordReset({
+          tokenHash: resetTokenHash,
+          passwordHash,
+        });
+        sendJson(
+          response,
+          consumed ? 200 : 400,
+          consumed ? { ok: true } : { error: "invalid_password_reset" },
+          [clearSecureCookie(config.sessionCookie)],
         );
         return;
       }

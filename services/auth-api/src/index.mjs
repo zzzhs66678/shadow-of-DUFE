@@ -1,13 +1,20 @@
 import { loadConfig } from "./config.mjs";
 import { createAuthStore, createDatabasePool } from "./db.mjs";
 import { createWechatProvider } from "./providers/mock-wechat.mjs";
+import { createPasswordService } from "./passwords.mjs";
 import { createAuthServer } from "./server.mjs";
 
 const config = loadConfig();
 const pool = createDatabasePool(config);
 const store = createAuthStore(pool);
 const wechatProvider = createWechatProvider(config);
-const server = createAuthServer({ store, config, wechatProvider });
+const passwordService = createPasswordService();
+const server = createAuthServer({
+  store,
+  config,
+  wechatProvider,
+  passwordService,
+});
 
 server.listen(config.port, "0.0.0.0", () => {
   console.log(`Dufesh auth API listening on port ${config.port}`);
