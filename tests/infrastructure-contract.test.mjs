@@ -161,6 +161,25 @@ test("account avatars are normalized, bounded, metadata-free, and account-scoped
   assert.match(database, /u\.status = 'active'/);
 });
 
+test("admin security requires encrypted MFA, short elevation, and append-only audit", async () => {
+  const migration = await read("ops/postgres/migrations/0008_admin_security.sql");
+  const config = await read("services/auth-api/src/config.mjs");
+  const security = await read("services/auth-api/src/admin-security.mjs");
+
+  assert.match(migration, /role IN \('user', 'moderator', 'admin'\)/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS admin_elevated_sessions/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS admin_mfa_credentials/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS admin_recovery_codes/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS admin_audit_events/);
+  assert.match(migration, /BEFORE UPDATE OR DELETE OR TRUNCATE ON admin_audit_events/);
+  assert.match(config, /AUTH_ADMIN_MFA_KEYS/);
+  assert.match(config, /AUTH_ADMIN_RECOVERY_PEPPER/);
+  assert.match(config, /900/);
+  assert.match(security, /aes-256-gcm/);
+  assert.match(security, /timingSafeEqual/);
+  assert.doesNotMatch(security, /console\.(?:log|error)/);
+});
+
 test("auth traffic has bounded in-memory burst protection", async () => {
   const limiter = await read("services/auth-api/src/rate-limit.mjs");
   const server = await read("services/auth-api/src/server.mjs");

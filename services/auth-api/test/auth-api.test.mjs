@@ -488,6 +488,18 @@ test("production configuration requires database and token secrets", () => {
   assert.throws(
     () =>
       loadConfig({
+        AUTH_TOKEN_PEPPER: config.tokenPepper,
+        POSTGRES_PASSWORD: "database-secret",
+        AUTH_ADMIN_ENABLED: "true",
+        AUTH_ADMIN_MFA_ACTIVE_KEY_ID: "v1",
+        AUTH_ADMIN_MFA_KEYS: '{"v1":"not-a-valid-key"}',
+        AUTH_ADMIN_RECOVERY_PEPPER: `${config.tokenPepper}-admin`,
+      }),
+    /AUTH_ADMIN_MFA_KEYS/u,
+  );
+  assert.throws(
+    () =>
+      loadConfig({
         NODE_ENV: "production",
         AUTH_TOKEN_PEPPER: config.tokenPepper,
         POSTGRES_PASSWORD: "database-secret",

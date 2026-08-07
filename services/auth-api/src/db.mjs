@@ -621,6 +621,151 @@ export function createAuthStore(pool) {
       }
     },
 
+    async getAdminBootstrapTarget(normalizedIdentifier) {
+      const result = await pool.query(
+        `SELECT
+           users.id,
+           users.username,
+           users.email,
+           users.status,
+           users.role,
+           EXISTS (
+             SELECT 1
+             FROM admin_mfa_credentials AS mfa
+             WHERE mfa.user_id = users.id
+           ) AS mfa_configured
+         FROM app_users AS users
+         WHERE users.normalized_username = $1
+            OR users.normalized_email = $1
+         LIMIT 1`,
+        [normalizedIdentifier],
+      );
+      if (result.rowCount === 0) return null;
+      const row = result.rows[0];
+      return {
+        id: String(row.id),
+        username: row.username,
+        email: row.email,
+        status: row.status,
+        role: row.role,
+        mfaConfigured: Boolean(row.mfa_configured),
+      };
+    },
+
+    async bootstrapAdmin({ userId, enrollment, rotate = false }) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const target = await client.query(
+          `SELECT id, role, status
+           FROM app_users
+           WHERE id = $1
+           FOR UPDATE`,
+          [userId],
+        );
+        if (target.rowCount === 0 || target.rows[0].status !== "active") {
+          const error = new Error("admin bootstrap target is unavailable");
+          error.code = "AUTH_ADMIN_BOOTSTRAP_TARGET_INVALID";
+          throw error;
+        }
+        const existing = await client.query(
+          `SELECT id
+           FROM admin_mfa_credentials
+           WHERE user_id = $1
+           FOR UPDATE`,
+          [userId],
+        );
+        if (existing.rowCount > 0 && !rotate) {
+          const error = new Error("admin MFA already exists");
+          error.code = "AUTH_ADMIN_MFA_ALREADY_CONFIGURED";
+          throw error;
+        }
+        await client.query(
+          `INSERT INTO admin_mfa_credentials (
+             id,
+             user_id,
+             key_id,
+             encrypted_secret,
+             secret_iv,
+             secret_auth_tag,
+             last_totp_step,
+             rotated_at
+           )
+           VALUES ($1, $2, $3, $4, $5, $6, NULL, CASE WHEN $7 THEN now() ELSE NULL END)
+           ON CONFLICT (user_id) DO UPDATE SET
+             id = EXCLUDED.id,
+             key_id = EXCLUDED.key_id,
+             encrypted_secret = EXCLUDED.encrypted_secret,
+             secret_iv = EXCLUDED.secret_iv,
+             secret_auth_tag = EXCLUDED.secret_auth_tag,
+             last_totp_step = NULL,
+             rotated_at = now(),
+             updated_at = now()`,
+          [
+            enrollment.factorId,
+            userId,
+            enrollment.encrypted.keyId,
+            enrollment.encrypted.encryptedSecret,
+            enrollment.encrypted.secretIv,
+            enrollment.encrypted.secretAuthTag,
+            rotate,
+          ],
+        );
+        await client.query(
+          `DELETE FROM admin_recovery_codes
+           WHERE user_id = $1`,
+          [userId],
+        );
+        await client.query(
+          `INSERT INTO admin_recovery_codes (user_id, code_hash)
+           SELECT $1, code_hash
+           FROM unnest($2::text[]) AS code_hash`,
+          [userId, enrollment.recoveryCodeHashes],
+        );
+        await client.query(
+          `UPDATE app_users
+           SET role = 'admin', updated_at = now()
+           WHERE id = $1`,
+          [userId],
+        );
+        await client.query(
+          `UPDATE user_sessions
+           SET revoked_at = COALESCE(revoked_at, now())
+           WHERE user_id = $1`,
+          [userId],
+        );
+        await client.query(
+          `UPDATE admin_elevated_sessions
+           SET revoked_at = COALESCE(revoked_at, now())
+           WHERE user_id = $1`,
+          [userId],
+        );
+        await client.query(
+          `INSERT INTO admin_audit_events (
+             action,
+             target_type,
+             target_id,
+             metadata
+           )
+           VALUES ('admin.bootstrap', 'user', $1, $2::jsonb)`,
+          [
+            userId,
+            JSON.stringify({
+              rotated: existing.rowCount > 0,
+              previousRole: target.rows[0].role,
+            }),
+          ],
+        );
+        await client.query("COMMIT");
+        return { userId, sessionsRevoked: true };
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+
     async registerCredentialUser({
       username,
       normalizedUsername,

@@ -7,7 +7,7 @@
 ## 1. 环境与凭据
 
 - [ ] 明确 staging 域名、数据库、文件存储和回调地址，与生产完全隔离。
-- [ ] `POSTGRES_PASSWORD`、`AUTH_TOKEN_PEPPER`、邮件凭据、微信 AppSecret、TOTP 加密密钥、上传存储密钥和小影主密钥只存在于受限环境文件或密钥管理服务。
+- [ ] `POSTGRES_PASSWORD`、`AUTH_TOKEN_PEPPER`、`AUTH_ADMIN_MFA_KEYS`、`AUTH_ADMIN_RECOVERY_PEPPER`、邮件凭据、微信 AppSecret、上传存储密钥和小影主密钥只存在于受限环境文件或密钥管理服务。
 - [ ] `.env.example` 列全变量但不含真实值；服务器环境文件权限为 600。
 - [ ] 微信 AppID/AppSecret 与审核状态真实可用；若缺失，正式 UI 只提供已验证的降级登录。
 - [ ] 对象存储/头像存储凭据真实可用；若未开通，使用经过验证的本地受限存储适配器并记录容量边界。
@@ -78,5 +78,5 @@
 - 微信开放平台正式 AppID/AppSecret 与最终审核状态：未提供，本地不需要等待；生产微信入口受此阻塞。
 - 独立 staging 环境与凭据：尚未确认，未擅自创建付费资源。
 - 邮件发送服务凭据：尚未提供；密码注册可先本地验证，生产验证/重置邮件受此阻塞。
-- 当前开发机未安装 Docker/PostgreSQL；`0006_credential_auth.sql`、`0007_user_avatars.sql` 的空库、升级库、重复执行，以及 Linux musl 原生 Argon2id/Sharp 镜像验证必须在 staging 或具备 Docker 的 CI 完成。
+- 当前开发机未安装 Docker/PostgreSQL；`0006_credential_auth.sql`、`0007_user_avatars.sql`、`0008_admin_security.sql` 的空库、升级库、重复执行，以及 Linux musl 原生 Argon2id/Sharp 镜像验证必须在 staging 或具备 Docker 的 CI 完成。管理员 TOTP 防重放、恢复码单次消费、审计事务和数据库运行角色权限仍需真实 PostgreSQL 集成测试。
 - 异地对象存储/备份凭据：尚未提供；本地适配器和恢复流程继续开发，生产异地副本受此阻塞。

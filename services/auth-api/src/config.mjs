@@ -14,6 +14,35 @@ function booleanValue(value, fallback, name) {
   throw new Error(`${name} must be true or false`);
 }
 
+function adminKeyring(value, activeKeyId) {
+  let parsed;
+  try {
+    parsed = JSON.parse(value || "{}");
+  } catch {
+    throw new Error("AUTH_ADMIN_MFA_KEYS must be a JSON object");
+  }
+  if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
+    throw new Error("AUTH_ADMIN_MFA_KEYS must be a JSON object");
+  }
+  const entries = Object.entries(parsed);
+  for (const [keyId, encoded] of entries) {
+    const decoded = Buffer.from(String(encoded), "base64");
+    if (
+      !/^[A-Za-z0-9._-]{1,48}$/u.test(keyId) ||
+      decoded.length !== 32 ||
+      decoded.toString("base64") !== encoded
+    ) {
+      throw new Error(
+        "AUTH_ADMIN_MFA_KEYS must map safe key IDs to exactly 32 base64-encoded bytes",
+      );
+    }
+  }
+  if (!activeKeyId || !Object.hasOwn(parsed, activeKeyId)) {
+    throw new Error("AUTH_ADMIN_MFA_ACTIVE_KEY_ID must select a configured key");
+  }
+  return parsed;
+}
+
 export function loadConfig(env = process.env) {
   const nodeEnv = env.NODE_ENV || "development";
   const tokenPepper = env.AUTH_TOKEN_PEPPER ?? "";
@@ -66,6 +95,30 @@ export function loadConfig(env = process.env) {
     );
   }
 
+  const adminEnabled = booleanValue(
+    env.AUTH_ADMIN_ENABLED,
+    false,
+    "AUTH_ADMIN_ENABLED",
+  );
+  const adminMfaActiveKeyId = String(
+    env.AUTH_ADMIN_MFA_ACTIVE_KEY_ID ?? "",
+  ).trim();
+  const adminRecoveryPepper = String(
+    env.AUTH_ADMIN_RECOVERY_PEPPER ?? "",
+  );
+  let adminMfaKeys = {};
+  if (adminEnabled) {
+    adminMfaKeys = adminKeyring(
+      env.AUTH_ADMIN_MFA_KEYS,
+      adminMfaActiveKeyId,
+    );
+    if (adminRecoveryPepper.length < 32) {
+      throw new Error(
+        "AUTH_ADMIN_RECOVERY_PEPPER must contain at least 32 characters when admin access is enabled",
+      );
+    }
+  }
+
   return {
     port: positiveInteger(env.AUTH_API_PORT, 3100, "AUTH_API_PORT"),
     tokenPepper,
@@ -116,6 +169,20 @@ export function loadConfig(env = process.env) {
         "AUTH_PASSWORD_RESET_TTL_SECONDS",
       ),
       3_600,
+    ),
+    adminEnabled,
+    adminCookie:
+      env.AUTH_ADMIN_COOKIE || "__Host-dufesh_admin_elevation",
+    adminMfaActiveKeyId,
+    adminMfaKeys,
+    adminRecoveryPepper,
+    adminElevationTtlSeconds: Math.min(
+      positiveInteger(
+        env.AUTH_ADMIN_ELEVATION_TTL_SECONDS,
+        600,
+        "AUTH_ADMIN_ELEVATION_TTL_SECONDS",
+      ),
+      900,
     ),
     wechatMode,
     mockLoginSecret,
