@@ -5,7 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/api/", "/campus-lab/"],
+      disallow: ["/api/", "/admin/", "/campus-lab/"],
     },
     sitemap: "https://dufesh.cn/sitemap.xml",
     host: "https://dufesh.cn",

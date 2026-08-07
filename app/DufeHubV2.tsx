@@ -904,6 +904,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
             createdAt?: string;
             lastLoginAt?: string | null;
             status?: string;
+            role?: "user" | "moderator" | "admin";
           } | null;
           session?: { expiresAt: string; deviceId: string | null };
           login?: {
@@ -4993,6 +4994,9 @@ function MePage({
             </div>
 
             <footer className="account-actions">
+              {account.user?.role === "admin" && (
+                <a href="/admin">进入值守台</a>
+              )}
               <button
                 disabled={Boolean(accountBusy)}
                 onClick={async () => {

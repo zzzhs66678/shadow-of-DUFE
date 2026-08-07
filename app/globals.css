@@ -3693,6 +3693,12 @@ kbd {
   font-size: 10px;
 }
 
+.account-actions a {
+  color: var(--accent);
+  font-size: 10px;
+  text-decoration: none;
+}
+
 .account-actions {
   border-top: 1px solid var(--line);
   display: flex;

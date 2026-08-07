@@ -44,6 +44,7 @@ test("auth API is private, pooled, health-checked, and routed on the same origin
   const caddy = await read("deploy/Caddyfile");
   const database = await read("services/auth-api/src/db.mjs");
   const dockerfile = await read("services/auth-api/Dockerfile");
+  const vite = await read("vite.config.ts");
 
   assert.match(compose, /auth-api:/);
   assert.match(compose, /expose:\s*\n\s*- "3100"/);
@@ -52,6 +53,9 @@ test("auth API is private, pooled, health-checked, and routed on the same origin
   assert.match(compose, /read_only: true/);
   assert.match(caddy, /handle \/api\/auth\/\*/);
   assert.match(caddy, /reverse_proxy auth-api:3100/);
+  assert.match(vite, /AUTH_API_DEV_TARGET/);
+  assert.match(vite, /"\/api\/auth"/);
+  assert.match(vite, /"\/api\/admin"/);
   assert.match(database, /max: config\.poolMax/);
   assert.match(database, /connectionTimeoutMillis: 3_000/);
   assert.match(dockerfile, /COPY --chown=node:node src \.\/src/);
@@ -193,6 +197,25 @@ test("admin security requires encrypted MFA, short elevation, and append-only au
     /REVOKE UPDATE, DELETE, TRUNCATE ON admin_audit_events/,
   );
   assert.match(migrations, /REVOKE ALL PRIVILEGES ON schema_migrations/);
+});
+
+test("administrator console is private, elevated, and auditable by design", async () => {
+  const page = await read("app/admin/page.tsx");
+  const console = await read("app/admin/AdminConsole.tsx");
+  const styles = await read("app/admin/admin.module.css");
+  const robots = await read("app/robots.ts");
+
+  assert.match(page, /index: false/);
+  assert.match(page, /noimageindex: true/);
+  assert.match(robots, /\/admin\//);
+  assert.match(console, /\/api\/admin\/session/);
+  assert.match(console, /\/api\/admin\/elevation/);
+  assert.match(console, /expectedStatus: target\.status/);
+  assert.match(console, /reason\.trim\(\)\.length < 8/);
+  assert.match(console, /验证码不会写入日志/);
+  assert.match(console, /既有会话已撤销/);
+  assert.match(styles, /prefers-reduced-motion: reduce/);
+  assert.doesNotMatch(console, /dangerouslySetInnerHTML/);
 });
 
 test("auth traffic has bounded in-memory burst protection", async () => {
