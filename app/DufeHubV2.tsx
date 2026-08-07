@@ -23,10 +23,20 @@ import {
 import {
   clearPersonalSyncMetadata,
   loadPersonalSyncMetadata,
+  mergeInitialPersonalState,
   savePersonalSyncMetadata,
   synchronizePersonalState,
   type PersonalSyncState,
 } from "./personal-sync";
+import {
+  anonymousPersonalScope,
+  migrateLegacyPersonalStorage,
+  readPersonalStorage,
+  removePersonalStorage,
+  userPersonalScope,
+  writePersonalStorage,
+  type PersonalStorageScope,
+} from "./personal-storage";
 
 type Term = "fall" | "spring";
 type View = "home" | "catalog" | "schedule" | "rooms" | "me";
@@ -160,7 +170,6 @@ type MaterialManifest = {
   materials: Material[];
 };
 
-const STORAGE_KEY = "dufesh:student-profile:v2";
 const campusLinks = {
   library:
     "https://web.traceint.com/web/index.html#/pages/index/index?r=1785318814",
@@ -189,6 +198,49 @@ const emptySavedState: SavedState = {
   favoriteRooms: [],
   recentRooms: [],
 };
+
+function normalizeSavedState(value: unknown): SavedState {
+  const parsed =
+    value && typeof value === "object"
+      ? (value as Partial<SavedState>)
+      : {};
+  const plans =
+    Array.isArray(parsed.plans) && parsed.plans.length > 0
+      ? parsed.plans
+      : emptySavedState.plans;
+  const activePlanId = plans.some((plan) => plan.id === parsed.activePlanId)
+    ? parsed.activePlanId!
+    : plans[0].id;
+
+  return {
+    profile: parsed.profile ?? null,
+    skipped: Boolean(parsed.skipped),
+    plans: plans.map((plan) => ({
+      ...plan,
+      scheduleIds: Array.isArray(plan.scheduleIds) ? plan.scheduleIds : [],
+    })),
+    activePlanId,
+    activities: Array.isArray(parsed.activities) ? parsed.activities : [],
+    assignments: Array.isArray(parsed.assignments) ? parsed.assignments : [],
+    favoriteRooms: Array.isArray(parsed.favoriteRooms)
+      ? parsed.favoriteRooms
+      : [],
+    recentRooms: Array.isArray(parsed.recentRooms) ? parsed.recentRooms : [],
+  };
+}
+
+function hasMeaningfulSavedState(value: SavedState) {
+  return Boolean(
+    value.profile ||
+      value.skipped ||
+      value.plans.length > 1 ||
+      value.plans.some((plan) => plan.scheduleIds.length > 0) ||
+      value.activities.length > 0 ||
+      value.assignments.length > 0 ||
+      value.favoriteRooms.length > 0 ||
+      value.recentRooms.length > 0,
+  );
+}
 
 function toPersonalSyncState(
   saved: SavedState,
@@ -724,6 +776,10 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
   const [term, setTerm] = useState<Term>("fall");
   const [saved, setSaved] = useState<SavedState>(emptySavedState);
   const [hydrated, setHydrated] = useState(false);
+  const [personalScope, setPersonalScope] =
+    useState<PersonalStorageScope>(anonymousPersonalScope);
+  const [anonymousImportAvailable, setAnonymousImportAvailable] =
+    useState(false);
   const [cloudUserId, setCloudUserId] = useState("");
   const [cloudSyncReady, setCloudSyncReady] = useState(false);
   const [cloudSyncStatus, setCloudSyncStatus] =
@@ -781,31 +837,14 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
   );
 
   useEffect(() => {
-    let restored = emptySavedState;
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        restored = {
-          ...emptySavedState,
-          ...parsed,
-          activities: Array.isArray(parsed.activities) ? parsed.activities : [],
-          assignments: Array.isArray(parsed.assignments)
-            ? parsed.assignments
-            : [],
-          favoriteRooms: Array.isArray(parsed.favoriteRooms)
-            ? parsed.favoriteRooms
-            : [],
-          recentRooms: Array.isArray(parsed.recentRooms)
-            ? parsed.recentRooms
-            : [],
-        };
-      }
-    } catch {
-      /* damaged local data falls back safely */
-    }
+    migrateLegacyPersonalStorage(localStorage);
+    const restored = normalizeSavedState(
+      readPersonalStorage(localStorage, anonymousPersonalScope),
+    );
     queueMicrotask(() => {
+      setPersonalScope(anonymousPersonalScope);
       setSaved(restored);
+      savedRef.current = restored;
       setHydrated(true);
       if (!restored.profile && !restored.skipped) setOnboarding(true);
     });
@@ -813,8 +852,8 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
 
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
-  }, [hydrated, saved]);
+    writePersonalStorage(localStorage, personalScope, saved);
+  }, [hydrated, personalScope, saved]);
 
   useEffect(() => {
     savedRef.current = saved;
@@ -832,7 +871,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           cache: "no-store",
           signal: controller.signal,
         });
-        if (!response.ok) return;
+        if (!response.ok) throw new Error("session_status_unavailable");
         const session = (await response.json()) as {
           authenticated: boolean;
           user: {
@@ -844,6 +883,12 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           login?: { wechatAvailable: boolean };
         };
         if (!session.authenticated || !session.user?.id) {
+          setCloudUserId("");
+          setCloudSyncReady(false);
+          setCloudSyncStatus("local");
+          setCloudSyncedAt("");
+          setAccountDevices([]);
+          setAnonymousImportAvailable(false);
           setAccount({
             status: "anonymous",
             user: null,
@@ -854,10 +899,27 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
         }
 
         const userId = session.user.id;
+        const userScope = userPersonalScope(userId);
+        const localAccountState = normalizeSavedState(
+          readPersonalStorage(localStorage, userScope),
+        );
+        const anonymousState = normalizeSavedState(
+          readPersonalStorage(localStorage, anonymousPersonalScope),
+        );
+        const canImportAnonymous = hasMeaningfulSavedState(anonymousState);
         const localAtStart = toPersonalSyncState(
-          savedRef.current,
+          localAccountState,
           termRef.current,
         );
+        setPersonalScope(userScope);
+        setSaved(localAccountState);
+        savedRef.current = localAccountState;
+        setOnboarding(
+          !localAccountState.profile &&
+            !localAccountState.skipped &&
+            !canImportAnonymous,
+        );
+        setAnonymousImportAvailable(canImportAnonymous);
         setCloudUserId(userId);
         setCloudSyncStatus("syncing");
         setAccount({
@@ -880,10 +942,13 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
         const result = await synchronizePersonalState({
           userId,
           localState: localAtStart,
-          priorMetadata: loadPersonalSyncMetadata(),
+          priorMetadata: loadPersonalSyncMetadata(userId),
           signal: controller.signal,
         });
-        if (!result) return;
+        if (!result) {
+          setCloudSyncStatus("offline");
+          return;
+        }
         savePersonalSyncMetadata(result.metadata);
         setCloudSyncedAt(result.metadata.syncedAt);
         setCloudSyncStatus(
@@ -904,7 +969,12 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           setCloudSyncStatus("offline");
           setAccount((current) =>
             current.status === "loading"
-              ? { ...current, status: "anonymous" }
+              ? {
+                  status: "anonymous",
+                  user: null,
+                  session: null,
+                  wechatAvailable: false,
+                }
               : current,
           );
           console.warn("个人数据暂未同步，将保留本机数据。");
@@ -917,7 +987,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
 
   useEffect(() => {
     if (!hydrated || !cloudSyncReady || !cloudUserId) return;
-    const metadata = loadPersonalSyncMetadata();
+    const metadata = loadPersonalSyncMetadata(cloudUserId);
     if (metadata?.pendingConflicts.length) return;
 
     const timer = window.setTimeout(() => {
@@ -932,7 +1002,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           const result = await synchronizePersonalState({
             userId: cloudUserId,
             localState: localAtStart,
-            priorMetadata: loadPersonalSyncMetadata(),
+            priorMetadata: loadPersonalSyncMetadata(cloudUserId),
           });
           if (!result) return;
           savePersonalSyncMetadata(result.metadata);
@@ -1309,6 +1379,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           devices={accountDevices}
           syncStatus={cloudSyncStatus}
           syncedAt={cloudSyncedAt}
+          anonymousImportAvailable={anonymousImportAvailable}
           onLogin={() => {
             if (!account.wechatAvailable) return;
             window.location.assign(
@@ -1321,7 +1392,22 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
               credentials: "same-origin",
             });
             if (!response.ok) return;
-            clearPersonalSyncMetadata();
+            const signedOutUserId = cloudUserId || account.user?.id || "";
+            if (signedOutUserId) {
+              clearPersonalSyncMetadata(signedOutUserId);
+              removePersonalStorage(
+                localStorage,
+                userPersonalScope(signedOutUserId),
+              );
+            }
+            const anonymousState = normalizeSavedState(
+              readPersonalStorage(localStorage, anonymousPersonalScope),
+            );
+            setPersonalScope(anonymousPersonalScope);
+            setSaved(anonymousState);
+            savedRef.current = anonymousState;
+            setOnboarding(!anonymousState.profile && !anonymousState.skipped);
+            setAnonymousImportAvailable(false);
             setCloudUserId("");
             setCloudSyncReady(false);
             setCloudSyncStatus("local");
@@ -1346,7 +1432,14 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
               currentSessionRevoked: boolean;
             };
             if (result.currentSessionRevoked) {
-              clearPersonalSyncMetadata();
+              const revokedUserId = cloudUserId || account.user?.id || "";
+              if (revokedUserId) {
+                clearPersonalSyncMetadata(revokedUserId);
+                removePersonalStorage(
+                  localStorage,
+                  userPersonalScope(revokedUserId),
+                );
+              }
               window.location.reload();
               return;
             }
@@ -1364,8 +1457,22 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
               }),
             });
             if (!response.ok) return false;
-            clearPersonalSyncMetadata();
-            setSaved(emptySavedState);
+            const deletedUserId = cloudUserId || account.user?.id || "";
+            if (deletedUserId) {
+              clearPersonalSyncMetadata(deletedUserId);
+              removePersonalStorage(
+                localStorage,
+                userPersonalScope(deletedUserId),
+              );
+            }
+            const anonymousState = normalizeSavedState(
+              readPersonalStorage(localStorage, anonymousPersonalScope),
+            );
+            setPersonalScope(anonymousPersonalScope);
+            setSaved(anonymousState);
+            savedRef.current = anonymousState;
+            setOnboarding(!anonymousState.profile && !anonymousState.skipped);
+            setAnonymousImportAvailable(false);
             setCloudUserId("");
             setCloudSyncReady(false);
             setCloudSyncStatus("local");
@@ -1379,8 +1486,29 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
             });
             return true;
           }}
+          onImportAnonymousData={() => {
+            if (!cloudUserId) return;
+            const anonymousState = normalizeSavedState(
+              readPersonalStorage(localStorage, anonymousPersonalScope),
+            );
+            const merged = mergeInitialPersonalState(
+              toPersonalSyncState(anonymousState, term),
+              toPersonalSyncState(savedRef.current, term),
+            );
+            const mergedSaved = fromPersonalSyncState(merged);
+            setSaved(mergedSaved);
+            savedRef.current = mergedSaved;
+            setOnboarding(!mergedSaved.profile && !mergedSaved.skipped);
+            removePersonalStorage(localStorage, anonymousPersonalScope);
+            setAnonymousImportAvailable(false);
+          }}
+          onKeepAnonymousDataSeparate={() => {
+            setAnonymousImportAvailable(false);
+            setOnboarding(!savedRef.current.profile && !savedRef.current.skipped);
+          }}
           onResolveSyncConflict={(choice) => {
-            const metadata = loadPersonalSyncMetadata();
+            if (!cloudUserId) return;
+            const metadata = loadPersonalSyncMetadata(cloudUserId);
             if (!metadata?.pendingConflicts.length) return;
             savePersonalSyncMetadata({
               ...metadata,
@@ -4023,10 +4151,13 @@ function MePage({
   devices,
   syncStatus,
   syncedAt,
+  anonymousImportAvailable,
   onLogin,
   onLogout,
   onRevokeDevice,
   onDeleteAccount,
+  onImportAnonymousData,
+  onKeepAnonymousDataSeparate,
   onResolveSyncConflict,
 }: {
   data: SiteData;
@@ -4037,10 +4168,13 @@ function MePage({
   devices: AccountDevice[];
   syncStatus: CloudSyncStatus;
   syncedAt: string;
+  anonymousImportAvailable: boolean;
   onLogin: () => void;
   onLogout: () => Promise<void>;
   onRevokeDevice: (deviceId: string) => Promise<void>;
   onDeleteAccount: () => Promise<boolean>;
+  onImportAnonymousData: () => void;
+  onKeepAnonymousDataSeparate: () => void;
   onResolveSyncConflict: (choice: "local" | "cloud") => void;
 }) {
   const major = data.majors.find((item) => item.id === saved.profile?.majorId);
@@ -4133,7 +4267,7 @@ function MePage({
             <p>
               {account.status === "authenticated"
                 ? "这里管理同步、登录设备和账号。"
-                : "登录后会先合并本机内容，不会直接覆盖已有课表。"}
+                : "登录后由你决定是否导入本机内容，云端课表不会被直接覆盖。"}
             </p>
           </div>
           {account.status === "authenticated" ? (
@@ -4182,6 +4316,24 @@ function MePage({
 
         {account.status === "authenticated" && (
           <>
+            {anonymousImportAvailable && (
+              <div className="account-import-notice" role="status">
+                <div>
+                  <b>这台设备还有未登录时保存的内容</b>
+                  <p>
+                    只有你确认后，才会把那份课表、日程和任务并入当前账号。
+                  </p>
+                </div>
+                <div>
+                  <button onClick={onImportAnonymousData}>
+                    导入当前账号
+                  </button>
+                  <button onClick={onKeepAnonymousDataSeparate}>
+                    暂不导入
+                  </button>
+                </div>
+              </div>
+            )}
             <div className={`sync-state sync-${syncStatus}`}>
               <span>{syncStatus === "synced" ? "✓" : syncStatus === "conflict" ? "!" : "↻"}</span>
               <div>

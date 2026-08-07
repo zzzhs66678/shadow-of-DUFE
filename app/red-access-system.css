@@ -1327,6 +1327,47 @@ textarea {
   margin-top: clamp(70px, 9vw, 112px);
 }
 
+.account-import-notice {
+  align-items: center;
+  background: var(--journal-red-soft);
+  border-bottom: 1px solid var(--journal-ink);
+  border-top: 1px solid var(--journal-ink);
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  padding: 18px 22px;
+}
+
+.account-import-notice b {
+  color: var(--journal-ink);
+  font-size: 15px;
+}
+
+.account-import-notice p {
+  color: var(--journal-muted);
+  margin: 5px 0 0;
+}
+
+.account-import-notice > div:last-child {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.account-import-notice button {
+  background: var(--journal-paper-raised);
+  border: 1px solid var(--journal-ink);
+  color: var(--journal-ink);
+  min-height: 44px;
+  padding: 0 14px;
+}
+
+.account-import-notice button:first-child {
+  background: var(--journal-red);
+  border-color: var(--journal-red);
+  color: #fff;
+}
+
 @media (max-width: 760px) {
   .focus-head.focus-head-v5 {
     display: block;
@@ -2307,5 +2348,16 @@ body {
 
   .today-command-deck {
     margin-top: 20px;
+  }
+
+  .account-import-notice {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 18px;
+  }
+
+  .account-import-notice > div:last-child {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 }

@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  clearPersonalSyncMetadata,
+  loadPersonalSyncMetadata,
   mergeInitialPersonalState,
   mergePersonalStateThreeWay,
+  savePersonalSyncMetadata,
+  type PersonalSyncMetadata,
   type PersonalSyncState,
 } from "../app/personal-sync.ts";
 
@@ -131,4 +135,57 @@ test("same-record concurrent edits are reported and keep the cloud copy visible"
     (result.conflicts[0].local as { title: string }).title,
     "本地修改",
   );
+});
+
+function memoryStorage() {
+  const values = new Map<string, string>();
+  return {
+    values,
+    getItem(key: string) {
+      return values.get(key) ?? null;
+    },
+    setItem(key: string, value: string) {
+      values.set(key, value);
+    },
+    removeItem(key: string) {
+      values.delete(key);
+    },
+  };
+}
+
+function syncMetadata(userId: string): PersonalSyncMetadata {
+  return {
+    schemaVersion: 1,
+    userId,
+    revision: 3,
+    baseState: state(),
+    pendingConflicts: [],
+    syncedAt: "2026-08-07T00:00:00.000Z",
+  };
+}
+
+test("sync metadata is isolated by user and account cleanup is scoped", () => {
+  const storage = memoryStorage();
+  savePersonalSyncMetadata(syncMetadata("user-a"), storage);
+  savePersonalSyncMetadata(syncMetadata("user-b"), storage);
+
+  assert.equal(loadPersonalSyncMetadata("user-a", storage)?.userId, "user-a");
+  assert.equal(loadPersonalSyncMetadata("user-b", storage)?.userId, "user-b");
+
+  clearPersonalSyncMetadata("user-a", storage);
+  assert.equal(loadPersonalSyncMetadata("user-a", storage), null);
+  assert.equal(loadPersonalSyncMetadata("user-b", storage)?.userId, "user-b");
+});
+
+test("legacy metadata migrates only when it belongs to the active user", () => {
+  const storage = memoryStorage();
+  storage.setItem(
+    "dufesh:personal-sync:v1",
+    JSON.stringify(syncMetadata("user-a")),
+  );
+
+  assert.equal(loadPersonalSyncMetadata("user-b", storage), null);
+  assert.equal(storage.getItem("dufesh:personal-sync:v1") !== null, true);
+  assert.equal(loadPersonalSyncMetadata("user-a", storage)?.userId, "user-a");
+  assert.equal(storage.getItem("dufesh:personal-sync:v1"), null);
 });

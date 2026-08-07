@@ -22,15 +22,20 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Install Xiaoying service
         run: npm ci --prefix xiaoying-executor --ignore-scripts --no-audit --no-fund
+      - name: Install auth API
+        run: npm ci --prefix services/auth-api --ignore-scripts --no-audit --no-fund
       - name: Check production dependencies
         run: |
           npm audit --omit=dev --omit=optional --audit-level=high
+          npm audit --prefix services/auth-api --omit=dev --audit-level=high
           npm audit --prefix xiaoying-executor --omit=dev --audit-level=high
       - name: Run regression tests
         run: |
           node --test tests/course-schedule-logic.test.mjs
           node --test tests/product-experience.test.mjs
           node --test tests/infrastructure-contract.test.mjs
+          node --test tests/personal-storage.test.ts tests/personal-sync.test.ts
+          npm test --prefix services/auth-api
           npm run test:xiaoying
       - name: Build production app
         run: npm run build

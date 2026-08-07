@@ -74,6 +74,9 @@ test("personal page explains local data, cloud sync, devices, and account contro
   assert.match(meSource, /登录设备/);
   assert.match(meSource, /退出登录/);
   assert.match(meSource, /确认注销/);
+  assert.match(meSource, /只有你确认后，才会把那份课表、日程和任务并入当前账号/);
+  assert.match(meSource, /导入当前账号/);
+  assert.match(component, /userPersonalScope/);
 });
 
 test("course drawer filters and compares teaching sections", () => {
