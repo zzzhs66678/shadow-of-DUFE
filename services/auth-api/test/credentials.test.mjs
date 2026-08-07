@@ -6,6 +6,7 @@ import {
   normalizeUsername,
   validateLogin,
   validateNewPassword,
+  validateProfileUpdate,
   validateRegistration,
 } from "../src/credentials.mjs";
 import { createPasswordService } from "../src/passwords.mjs";
@@ -65,4 +66,29 @@ test("password service creates Argon2id hashes and verifies without exposing pla
   assert.equal(passwordHash.includes("Moonlight!2026"), false);
   assert.equal(await passwords.verify(passwordHash, "Moonlight!2026"), true);
   assert.equal(await passwords.verify(passwordHash, "wrong-password"), false);
+});
+
+test("profile updates allow only editable fields and normalize identity values", () => {
+  const valid = validateProfileUpdate({
+    username: "  新名字-26 ",
+    displayName: " 海风 ",
+    schoolAccount: " 2026123456 ",
+  });
+  assert.equal(valid.ok, true);
+  assert.deepEqual(valid.value, {
+    username: "新名字-26",
+    normalizedUsername: "新名字-26",
+    displayName: "海风",
+    schoolAccount: "2026123456",
+  });
+
+  const massAssignment = validateProfileUpdate({
+    displayName: "普通用户",
+    status: "admin",
+  });
+  assert.equal(massAssignment.ok, false);
+  assert.ok(massAssignment.fields.profile);
+
+  const empty = validateProfileUpdate({});
+  assert.equal(empty.ok, false);
 });

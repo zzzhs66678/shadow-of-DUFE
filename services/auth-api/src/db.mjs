@@ -380,6 +380,13 @@ export function createAuthStore(pool) {
            users.username,
            users.display_name,
            users.avatar_url,
+           users.email,
+           users.email_verified_at,
+           users.school_account,
+           users.school_account_verified_at,
+           users.created_at,
+           users.last_login_at,
+           users.status,
            sessions.expires_at,
            devices.public_id AS device_public_id
          FROM user_sessions AS sessions
@@ -409,11 +416,102 @@ export function createAuthStore(pool) {
         username: result.rows[0].username,
         displayName: result.rows[0].display_name,
         avatarUrl: result.rows[0].avatar_url,
+        email: result.rows[0].email,
+        emailVerified: Boolean(result.rows[0].email_verified_at),
+        schoolAccount: result.rows[0].school_account,
+        schoolAccountVerified: Boolean(
+          result.rows[0].school_account_verified_at,
+        ),
+        createdAt: new Date(result.rows[0].created_at).toISOString(),
+        lastLoginAt: result.rows[0].last_login_at
+          ? new Date(result.rows[0].last_login_at).toISOString()
+          : null,
+        status: result.rows[0].status,
         expiresAt: new Date(result.rows[0].expires_at).toISOString(),
         deviceId: result.rows[0].device_public_id
           ? String(result.rows[0].device_public_id)
           : null,
       };
+    },
+
+    async getUserProfile(userId) {
+      const result = await pool.query(
+        `SELECT
+           id,
+           username,
+           display_name,
+           avatar_url,
+           email,
+           email_verified_at,
+           school_account,
+           school_account_verified_at,
+           created_at,
+           last_login_at,
+           status
+         FROM app_users
+         WHERE id = $1
+           AND status <> 'deleted'
+         LIMIT 1`,
+        [userId],
+      );
+      if (result.rowCount === 0) return null;
+      const row = result.rows[0];
+      return {
+        id: String(row.id),
+        username: row.username,
+        displayName: row.display_name,
+        avatarUrl: row.avatar_url,
+        email: row.email,
+        emailVerified: Boolean(row.email_verified_at),
+        schoolAccount: row.school_account,
+        schoolAccountVerified: Boolean(row.school_account_verified_at),
+        createdAt: new Date(row.created_at).toISOString(),
+        lastLoginAt: row.last_login_at
+          ? new Date(row.last_login_at).toISOString()
+          : null,
+        status: row.status,
+      };
+    },
+
+    async updateUserProfile(userId, update) {
+      try {
+        const result = await pool.query(
+          `UPDATE app_users
+           SET
+             username = CASE WHEN $2 THEN $3 ELSE username END,
+             normalized_username = CASE WHEN $2 THEN $4 ELSE normalized_username END,
+             display_name = CASE WHEN $5 THEN $6 ELSE display_name END,
+             school_account = CASE WHEN $7 THEN $8 ELSE school_account END,
+             school_account_verified_at = CASE
+               WHEN $7 AND school_account IS DISTINCT FROM $8 THEN NULL
+               ELSE school_account_verified_at
+             END,
+             updated_at = now()
+           WHERE id = $1
+             AND status = 'active'
+           RETURNING id`,
+          [
+            userId,
+            Object.hasOwn(update, "username"),
+            update.username ?? null,
+            update.normalizedUsername ?? null,
+            Object.hasOwn(update, "displayName"),
+            update.displayName ?? null,
+            Object.hasOwn(update, "schoolAccount"),
+            update.schoolAccount ?? null,
+          ],
+        );
+        if (result.rowCount === 0) return null;
+        return this.getUserProfile(userId);
+      } catch (error) {
+        if (
+          error?.code === "23505" &&
+          error?.constraint === "app_users_normalized_username_uidx"
+        ) {
+          error.code = "AUTH_USERNAME_TAKEN";
+        }
+        throw error;
+      }
     },
 
     async registerCredentialUser({

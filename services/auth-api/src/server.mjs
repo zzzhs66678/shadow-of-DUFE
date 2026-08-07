@@ -15,6 +15,7 @@ import {
   normalizeLoginIdentifier,
   validateLogin,
   validateNewPassword,
+  validateProfileUpdate,
   validateRegistration,
 } from "./credentials.mjs";
 
@@ -269,6 +270,13 @@ export function createAuthServer({
               username: session.username,
               displayName: session.displayName,
               avatarUrl: session.avatarUrl,
+              email: session.email,
+              emailVerified: session.emailVerified,
+              schoolAccount: session.schoolAccount,
+              schoolAccountVerified: session.schoolAccountVerified,
+              createdAt: session.createdAt,
+              lastLoginAt: session.lastLoginAt,
+              status: session.status,
             },
             session: {
               expiresAt: session.expiresAt,
@@ -283,6 +291,81 @@ export function createAuthServer({
           },
           setCookies,
         );
+        return;
+      }
+
+      if (url.pathname === "/api/auth/profile") {
+        if (request.method !== "GET" && request.method !== "PUT") {
+          methodNotAllowed(response, "GET, PUT");
+          return;
+        }
+        if (
+          request.method === "PUT" &&
+          !trustedOrigin(request, config.allowedOrigins)
+        ) {
+          sendJson(response, 403, { error: "untrusted_origin" });
+          return;
+        }
+        const session = await resolveSession(request, store, config);
+        if (!session) {
+          sendJson(response, 401, { error: "authentication_required" });
+          return;
+        }
+        if (request.method === "GET") {
+          const profile = await store.getUserProfile(session.userId);
+          sendJson(
+            response,
+            profile ? 200 : 404,
+            profile ? { profile } : { error: "profile_not_found" },
+          );
+          return;
+        }
+
+        let body;
+        try {
+          body = await readJsonBody(request, 16_384);
+        } catch (error) {
+          if (
+            error?.code === "JSON_CONTENT_TYPE_REQUIRED" ||
+            error?.code === "JSON_BODY_INVALID"
+          ) {
+            sendJson(response, 400, { error: "invalid_profile" });
+            return;
+          }
+          if (error?.code === "REQUEST_BODY_TOO_LARGE") {
+            sendJson(response, 413, { error: "request_too_large" });
+            return;
+          }
+          throw error;
+        }
+        const update = validateProfileUpdate(body);
+        if (!update.ok) {
+          sendJson(response, 400, {
+            error: "invalid_profile",
+            fields: update.fields,
+          });
+          return;
+        }
+        try {
+          const profile = await store.updateUserProfile(
+            session.userId,
+            update.value,
+          );
+          sendJson(
+            response,
+            profile ? 200 : 404,
+            profile ? { profile } : { error: "profile_not_found" },
+          );
+        } catch (error) {
+          if (error?.code === "AUTH_USERNAME_TAKEN") {
+            sendJson(response, 409, {
+              error: "profile_conflict",
+              fields: { username: "这个用户名已被使用" },
+            });
+            return;
+          }
+          throw error;
+        }
         return;
       }
 

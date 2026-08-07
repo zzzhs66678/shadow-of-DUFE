@@ -118,3 +118,62 @@ export function validateNewPassword(password, identityHints = []) {
     .filter((hint) => hint.length >= 3)
     .some((hint) => lower.includes(hint.split("@", 1)[0]));
 }
+
+export function validateProfileUpdate(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return { ok: false, fields: { profile: "资料格式不正确" } };
+  }
+  const allowedKeys = new Set(["username", "displayName", "schoolAccount"]);
+  if (Object.keys(input).some((key) => !allowedKeys.has(key))) {
+    return { ok: false, fields: { profile: "资料中包含不可修改的字段" } };
+  }
+
+  const value = {};
+  const fields = {};
+  if (Object.hasOwn(input, "username")) {
+    const username = stringValue(input.username).normalize("NFKC").trim();
+    const length = Array.from(username).length;
+    if (
+      length < 3 ||
+      length > 24 ||
+      !/^[\p{L}\p{N}_-]+$/u.test(username)
+    ) {
+      fields.username = "用户名需为 3—24 个汉字、字母、数字、下划线或短横线";
+    } else {
+      value.username = username;
+      value.normalizedUsername = normalizeUsername(username);
+    }
+  }
+
+  if (Object.hasOwn(input, "displayName")) {
+    const displayName = stringValue(input.displayName).normalize("NFKC").trim();
+    const length = Array.from(displayName).length;
+    if (length < 1 || length > 40 || /[\p{Cc}\p{Cf}]/u.test(displayName)) {
+      fields.displayName = "显示名需为 1—40 个可见字符";
+    } else {
+      value.displayName = displayName;
+    }
+  }
+
+  if (Object.hasOwn(input, "schoolAccount")) {
+    const schoolAccount = stringValue(input.schoolAccount)
+      .normalize("NFKC")
+      .trim();
+    if (
+      schoolAccount &&
+      (schoolAccount.length < 4 ||
+        schoolAccount.length > 32 ||
+        !/^[\p{L}\p{N}_-]+$/u.test(schoolAccount))
+    ) {
+      fields.schoolAccount = "校园账号需为 4—32 个字母、数字、下划线或短横线";
+    } else {
+      value.schoolAccount = schoolAccount || null;
+    }
+  }
+
+  if (Object.keys(fields).length > 0) return { ok: false, fields };
+  if (Object.keys(value).length === 0) {
+    return { ok: false, fields: { profile: "没有可保存的资料" } };
+  }
+  return { ok: true, value };
+}

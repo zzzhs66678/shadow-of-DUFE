@@ -71,6 +71,8 @@ test("personal page explains local data, cloud sync, devices, and account contro
   assert.match(meSource, /创建账号/);
   assert.match(meSource, /用户名或邮箱/);
   assert.match(meSource, /资质审核中/);
+  assert.match(meSource, /账号资料/);
+  assert.match(meSource, /未验证，不作为学生身份凭据/);
   assert.match(meSource, /保留本机修改/);
   assert.match(meSource, /使用云端版本/);
   assert.match(meSource, /登录设备/);

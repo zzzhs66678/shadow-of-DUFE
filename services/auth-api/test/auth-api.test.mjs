@@ -173,6 +173,55 @@ function createFakeStore() {
     async getCredentialPrincipal(identifier) {
       return credentialPrincipals.get(identifier) ?? null;
     },
+    async getUserProfile(userId) {
+      const principal = [...credentialPrincipals.values()].find(
+        (candidate) => candidate.id === userId,
+      );
+      return principal
+        ? {
+            id: principal.id,
+            username: principal.username,
+            displayName: principal.displayName,
+            avatarUrl: null,
+            email: principal.email,
+            emailVerified: false,
+            schoolAccount: principal.schoolAccount,
+            schoolAccountVerified: false,
+            createdAt: new Date(0).toISOString(),
+            lastLoginAt: new Date().toISOString(),
+            status: principal.status,
+          }
+        : null;
+    },
+    async updateUserProfile(userId, update) {
+      const principal = [...credentialPrincipals.values()].find(
+        (candidate) => candidate.id === userId,
+      );
+      if (!principal) return null;
+      if (
+        update.normalizedUsername &&
+        credentialPrincipals.has(update.normalizedUsername) &&
+        credentialPrincipals.get(update.normalizedUsername) !== principal
+      ) {
+        const error = new Error("username taken");
+        error.code = "AUTH_USERNAME_TAKEN";
+        throw error;
+      }
+      if (update.username) {
+        for (const [key, candidate] of credentialPrincipals) {
+          if (candidate === principal && !key.includes("@")) {
+            credentialPrincipals.delete(key);
+          }
+        }
+        principal.username = update.username;
+        credentialPrincipals.set(update.normalizedUsername, principal);
+      }
+      if (update.displayName) principal.displayName = update.displayName;
+      if (Object.hasOwn(update, "schoolAccount")) {
+        principal.schoolAccount = update.schoolAccount;
+      }
+      return this.getUserProfile(userId);
+    },
     async recordCredentialFailure(userId) {
       const principal = [...credentialPrincipals.values()].find(
         (candidate) => candidate.id === userId,
@@ -898,6 +947,70 @@ test("repeated credential failures lock the account even when the password later
     });
     assert.equal(locked.status, 401);
     assert.deepEqual(await locked.json(), { error: "invalid_credentials" });
+  });
+});
+
+test("authenticated profile updates are whitelisted, normalized, and account-scoped", async () => {
+  await withServer(async ({ baseUrl }) => {
+    const headers = {
+      "Content-Type": "application/json",
+      Origin: "https://dufesh.cn",
+    };
+    const registered = await fetch(`${baseUrl}/api/auth/register`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        username: "profile-student",
+        email: "profile@example.com",
+        password: "Moonlight!2026",
+      }),
+    });
+    const cookie = registered.headers
+      .getSetCookie()
+      .map((value) => value.split(";", 1)[0])
+      .join("; ");
+
+    const profile = await fetch(`${baseUrl}/api/auth/profile`, {
+      headers: { Cookie: cookie },
+    });
+    const profileBody = await profile.json();
+    assert.equal(profile.status, 200);
+    assert.equal(profileBody.profile.email, "profile@example.com");
+    assert.equal(profileBody.profile.schoolAccountVerified, false);
+
+    const untrusted = await fetch(`${baseUrl}/api/auth/profile`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "https://attacker.invalid",
+        Cookie: cookie,
+      },
+      body: JSON.stringify({ displayName: "攻击者" }),
+    });
+    assert.equal(untrusted.status, 403);
+
+    const massAssignment = await fetch(`${baseUrl}/api/auth/profile`, {
+      method: "PUT",
+      headers: { ...headers, Cookie: cookie },
+      body: JSON.stringify({ displayName: "海风", status: "admin" }),
+    });
+    assert.equal(massAssignment.status, 400);
+
+    const updated = await fetch(`${baseUrl}/api/auth/profile`, {
+      method: "PUT",
+      headers: { ...headers, Cookie: cookie },
+      body: JSON.stringify({
+        username: "海风-2026",
+        displayName: "海风",
+        schoolAccount: "2026123456",
+      }),
+    });
+    const updatedBody = await updated.json();
+    assert.equal(updated.status, 200);
+    assert.equal(updatedBody.profile.username, "海风-2026");
+    assert.equal(updatedBody.profile.displayName, "海风");
+    assert.equal(updatedBody.profile.schoolAccount, "2026123456");
+    assert.equal(updatedBody.profile.schoolAccountVerified, false);
   });
 });
 

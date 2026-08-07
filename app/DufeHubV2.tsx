@@ -140,6 +140,13 @@ type AccountState = {
     username?: string | null;
     displayName: string | null;
     avatarUrl: string | null;
+    email?: string | null;
+    emailVerified?: boolean;
+    schoolAccount?: string | null;
+    schoolAccountVerified?: boolean;
+    createdAt?: string;
+    lastLoginAt?: string | null;
+    status?: string;
   } | null;
   session: { expiresAt: string; deviceId: string | null } | null;
   credentialsAvailable: boolean;
@@ -889,6 +896,13 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
             username?: string | null;
             displayName: string | null;
             avatarUrl: string | null;
+            email?: string | null;
+            emailVerified?: boolean;
+            schoolAccount?: string | null;
+            schoolAccountVerified?: boolean;
+            createdAt?: string;
+            lastLoginAt?: string | null;
+            status?: string;
           } | null;
           session?: { expiresAt: string; deviceId: string | null };
           login?: {
@@ -4225,6 +4239,13 @@ function MePage({
     resetToken: "",
   });
   const [credentialFeedback, setCredentialFeedback] = useState("");
+  const [profileEditing, setProfileEditing] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    username: "",
+    displayName: "",
+    schoolAccount: "",
+  });
+  const [profileFeedback, setProfileFeedback] = useState("");
   useEffect(() => {
     if (!deleteOpen) return;
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -4350,6 +4371,43 @@ function MePage({
       onAuthChanged();
     } catch {
       setCredentialFeedback("账号服务暂时离线，本机课表仍可继续使用。");
+    } finally {
+      setAccountBusy("");
+    }
+  };
+
+  const saveAccountProfile = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setAccountBusy("profile");
+    setProfileFeedback("");
+    try {
+      const response = await fetch("/api/auth/profile", {
+        method: "PUT",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profileForm),
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        fields?: Record<string, string>;
+      };
+      if (!response.ok) {
+        const fieldMessage = payload.fields
+          ? Object.values(payload.fields)[0]
+          : "";
+        setProfileFeedback(
+          fieldMessage ||
+            (payload.error === "profile_conflict"
+              ? "这个用户名已被使用。"
+              : "资料暂时无法保存，请稍后再试。"),
+        );
+        return;
+      }
+      setProfileEditing(false);
+      setProfileFeedback("账号资料已保存。");
+      onAuthChanged();
+    } catch {
+      setProfileFeedback("账号服务暂时离线，资料没有更改。");
     } finally {
       setAccountBusy("");
     }
@@ -4652,6 +4710,124 @@ function MePage({
 
         {account.status === "authenticated" && (
           <>
+            <section className="account-profile" aria-labelledby="account-profile-title">
+              <header>
+                <div>
+                  <span>账号资料</span>
+                  <h3 id="account-profile-title">
+                    @{account.user?.username || "未设置用户名"}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!profileEditing) {
+                      setProfileForm({
+                        username: account.user?.username ?? "",
+                        displayName: account.user?.displayName ?? "",
+                        schoolAccount: account.user?.schoolAccount ?? "",
+                      });
+                    }
+                    setProfileEditing((current) => !current);
+                    setProfileFeedback("");
+                  }}
+                >
+                  {profileEditing ? "取消" : "编辑资料"}
+                </button>
+              </header>
+              {profileEditing ? (
+                <form onSubmit={saveAccountProfile}>
+                  <label>
+                    <span>用户名</span>
+                    <input
+                      required
+                      minLength={3}
+                      maxLength={24}
+                      autoComplete="username"
+                      value={profileForm.username}
+                      onChange={(event) =>
+                        setProfileForm((current) => ({
+                          ...current,
+                          username: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>显示名</span>
+                    <input
+                      required
+                      maxLength={40}
+                      autoComplete="nickname"
+                      value={profileForm.displayName}
+                      onChange={(event) =>
+                        setProfileForm((current) => ({
+                          ...current,
+                          displayName: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>校园账号 <small>选填，修改后需重新验证</small></span>
+                    <input
+                      maxLength={32}
+                      autoComplete="off"
+                      value={profileForm.schoolAccount}
+                      onChange={(event) =>
+                        setProfileForm((current) => ({
+                          ...current,
+                          schoolAccount: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  {profileFeedback && (
+                    <p aria-live="polite">{profileFeedback}</p>
+                  )}
+                  <button disabled={accountBusy === "profile"}>
+                    保存资料
+                  </button>
+                </form>
+              ) : (
+                <dl>
+                  <div>
+                    <dt>邮箱</dt>
+                    <dd>{account.user?.email || "未绑定"}</dd>
+                    <small>
+                      {account.user?.emailVerified ? "已验证" : "待验证"}
+                    </small>
+                  </div>
+                  <div>
+                    <dt>校园账号</dt>
+                    <dd>{account.user?.schoolAccount || "未填写"}</dd>
+                    <small>
+                      {account.user?.schoolAccountVerified
+                        ? "已验证"
+                        : account.user?.schoolAccount
+                          ? "未验证，不作为学生身份凭据"
+                          : "选填"}
+                    </small>
+                  </div>
+                  <div>
+                    <dt>加入时间</dt>
+                    <dd>
+                      {account.user?.createdAt
+                        ? new Date(account.user.createdAt).toLocaleDateString(
+                            "zh-CN",
+                          )
+                        : "—"}
+                    </dd>
+                    <small>账号状态：正常</small>
+                  </div>
+                </dl>
+              )}
+              {!profileEditing && profileFeedback && (
+                <p className="account-profile-feedback" aria-live="polite">
+                  {profileFeedback}
+                </p>
+              )}
+            </section>
             {anonymousImportAvailable && (
               <div className="account-import-notice" role="status">
                 <div>
