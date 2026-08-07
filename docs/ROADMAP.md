@@ -2,6 +2,10 @@
 
 最后更新：2026-07-29
 
+> 本文件保留 2026-07-29 时点的历史路线。当前正式发布升级已由根目录
+> `MASTER_RELEASE_BRIEF.md` 重新定界，实施顺序与验收以
+> `docs/IMPLEMENTATION_PLAN.md` 为准；本文件不得用于缩减本轮范围。
+
 本文件只记录计划中的功能、优先级和验收标准。已经上线的事实以
 `docs/CURRENT_STATE.md` 为准，设计原因以 `docs/DECISIONS.md` 为准。
 
