@@ -514,6 +514,113 @@ export function createAuthStore(pool) {
       }
     },
 
+    async getUserAvatar(userId) {
+      const result = await pool.query(
+        `SELECT a.content_type, a.image_bytes, a.sha256, a.byte_size
+         FROM user_avatars a
+         JOIN app_users u ON u.id = a.user_id
+         WHERE a.user_id = $1
+           AND u.status = 'active'
+         LIMIT 1`,
+        [userId],
+      );
+      if (result.rowCount === 0) return null;
+      return {
+        contentType: result.rows[0].content_type,
+        bytes: result.rows[0].image_bytes,
+        sha256: result.rows[0].sha256,
+        byteSize: result.rows[0].byte_size,
+      };
+    },
+
+    async saveUserAvatar(userId, avatar) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const active = await client.query(
+          `SELECT id
+           FROM app_users
+           WHERE id = $1
+             AND status = 'active'
+           FOR UPDATE`,
+          [userId],
+        );
+        if (active.rowCount === 0) {
+          await client.query("ROLLBACK");
+          return null;
+        }
+        await client.query(
+          `INSERT INTO user_avatars (
+             user_id,
+             content_type,
+             image_bytes,
+             sha256,
+             width,
+             height,
+             byte_size
+           )
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           ON CONFLICT (user_id) DO UPDATE SET
+             content_type = EXCLUDED.content_type,
+             image_bytes = EXCLUDED.image_bytes,
+             sha256 = EXCLUDED.sha256,
+             width = EXCLUDED.width,
+             height = EXCLUDED.height,
+             byte_size = EXCLUDED.byte_size,
+             updated_at = now()`,
+          [
+            userId,
+            avatar.contentType,
+            avatar.bytes,
+            avatar.sha256,
+            avatar.width,
+            avatar.height,
+            avatar.byteSize,
+          ],
+        );
+        const avatarUrl = `/api/auth/avatars/${userId}?v=${avatar.sha256.slice(0, 16)}`;
+        await client.query(
+          `UPDATE app_users
+           SET avatar_url = $2, updated_at = now()
+           WHERE id = $1`,
+          [userId, avatarUrl],
+        );
+        await client.query("COMMIT");
+        return { avatarUrl };
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+
+    async deleteUserAvatar(userId) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const deleted = await client.query(
+          `DELETE FROM user_avatars
+           WHERE user_id = $1
+           RETURNING user_id`,
+          [userId],
+        );
+        await client.query(
+          `UPDATE app_users
+           SET avatar_url = NULL, updated_at = now()
+           WHERE id = $1`,
+          [userId],
+        );
+        await client.query("COMMIT");
+        return deleted.rowCount > 0;
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+
     async registerCredentialUser({
       username,
       normalizedUsername,

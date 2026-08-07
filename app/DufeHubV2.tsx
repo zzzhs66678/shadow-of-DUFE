@@ -4413,6 +4413,65 @@ function MePage({
     }
   };
 
+  const uploadAccountAvatar = async (file: File) => {
+    if (file.size > 5 * 1024 * 1024) {
+      setProfileFeedback("头像原图不能超过 5MB。");
+      return;
+    }
+    setAccountBusy("avatar");
+    setProfileFeedback("");
+    try {
+      const response = await fetch("/api/auth/profile/avatar", {
+        method: "PUT",
+        credentials: "same-origin",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      if (!response.ok) {
+        const messages: Record<string, string> = {
+          avatar_too_large: "头像原图不能超过 5MB。",
+          avatar_type_unsupported: "请使用 JPEG、PNG 或 WebP 图片。",
+          avatar_invalid: "图片无法识别，或尺寸不符合要求。",
+          avatar_rate_limit_exceeded: "头像修改太频繁，请稍后再试。",
+        };
+        setProfileFeedback(
+          messages[payload.error ?? ""] || "头像暂时无法保存，请稍后再试。",
+        );
+        return;
+      }
+      setProfileFeedback("头像已更新；原图与定位信息没有保留。");
+      onAuthChanged();
+    } catch {
+      setProfileFeedback("账号服务暂时离线，头像没有更改。");
+    } finally {
+      setAccountBusy("");
+    }
+  };
+
+  const deleteAccountAvatar = async () => {
+    setAccountBusy("avatar-delete");
+    setProfileFeedback("");
+    try {
+      const response = await fetch("/api/auth/profile/avatar", {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
+      if (!response.ok) {
+        setProfileFeedback("头像暂时无法删除，请稍后再试。");
+        return;
+      }
+      setProfileFeedback("头像已删除。");
+      onAuthChanged();
+    } catch {
+      setProfileFeedback("账号服务暂时离线，头像没有更改。");
+    } finally {
+      setAccountBusy("");
+    }
+  };
+
   return (
     <div className="page-wrap me-page">
       <header className="workspace-heading">
@@ -4718,22 +4777,48 @@ function MePage({
                     @{account.user?.username || "未设置用户名"}
                   </h3>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!profileEditing) {
-                      setProfileForm({
-                        username: account.user?.username ?? "",
-                        displayName: account.user?.displayName ?? "",
-                        schoolAccount: account.user?.schoolAccount ?? "",
-                      });
-                    }
-                    setProfileEditing((current) => !current);
-                    setProfileFeedback("");
-                  }}
-                >
-                  {profileEditing ? "取消" : "编辑资料"}
-                </button>
+                <div className="account-profile-actions">
+                  <label>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      disabled={accountBusy === "avatar"}
+                      onChange={(event) => {
+                        const file = event.currentTarget.files?.[0];
+                        event.currentTarget.value = "";
+                        if (file) void uploadAccountAvatar(file);
+                      }}
+                    />
+                    <span>
+                      {accountBusy === "avatar" ? "正在处理" : "更换头像"}
+                    </span>
+                  </label>
+                  {account.user?.avatarUrl && (
+                    <button
+                      type="button"
+                      disabled={accountBusy === "avatar-delete"}
+                      onClick={() => void deleteAccountAvatar()}
+                    >
+                      删除头像
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!profileEditing) {
+                        setProfileForm({
+                          username: account.user?.username ?? "",
+                          displayName: account.user?.displayName ?? "",
+                          schoolAccount: account.user?.schoolAccount ?? "",
+                        });
+                      }
+                      setProfileEditing((current) => !current);
+                      setProfileFeedback("");
+                    }}
+                  >
+                    {profileEditing ? "取消" : "编辑资料"}
+                  </button>
+                </div>
               </header>
               {profileEditing ? (
                 <form onSubmit={saveAccountProfile}>

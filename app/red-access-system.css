@@ -1600,12 +1600,42 @@ textarea {
   margin: 6px 0 0;
 }
 
-.account-profile > header button {
+.account-profile > header button,
+.account-profile-actions > label {
   background: transparent;
   border: 0;
   color: var(--journal-red);
   min-height: 44px;
   padding: 0;
+}
+
+.account-profile-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: end;
+}
+
+.account-profile-actions > label {
+  align-items: center;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 11px;
+  position: relative;
+}
+
+.account-profile-actions > label:focus-within {
+  outline: 2px solid var(--journal-red);
+  outline-offset: 3px;
+}
+
+.account-profile-actions input[type="file"] {
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  position: absolute;
+  width: 1px;
 }
 
 .account-profile dl {
@@ -1767,6 +1797,11 @@ textarea {
 
   .account-profile > header {
     align-items: start;
+    flex-direction: column;
+  }
+
+  .account-profile-actions {
+    justify-content: start;
   }
 
   .account-profile dl,

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import sharp from "sharp";
 import {
   clearSecureCookie,
   parseCookies,
@@ -7,6 +8,7 @@ import {
 } from "../src/cookies.mjs";
 import { loadConfig } from "../src/config.mjs";
 import { createMockWechatProvider } from "../src/providers/mock-wechat.mjs";
+import { createAvatarProcessor } from "../src/avatars.mjs";
 import { createTokenBucket } from "../src/rate-limit.mjs";
 import { createAuthServer } from "../src/server.mjs";
 import {
@@ -39,6 +41,7 @@ function createFakeStore() {
   const identities = new Map();
   const credentialPrincipals = new Map();
   const passwordResets = new Map();
+  const avatars = new Map();
   const revoked = [];
   const deletedAccounts = [];
   let personalSnapshot = {
@@ -134,7 +137,8 @@ function createFakeStore() {
         error.code = "AUTH_EMAIL_TAKEN";
         throw error;
       }
-      const id = `credential-user-${credentialPrincipals.size / 2 + 1}`;
+      const accountNumber = credentialPrincipals.size / 2 + 1;
+      const id = `00000000-0000-4000-8000-${String(accountNumber).padStart(12, "0")}`;
       const principal = {
         id,
         username: input.username,
@@ -182,7 +186,7 @@ function createFakeStore() {
             id: principal.id,
             username: principal.username,
             displayName: principal.displayName,
-            avatarUrl: null,
+            avatarUrl: principal.avatarUrl ?? null,
             email: principal.email,
             emailVerified: false,
             schoolAccount: principal.schoolAccount,
@@ -221,6 +225,26 @@ function createFakeStore() {
         principal.schoolAccount = update.schoolAccount;
       }
       return this.getUserProfile(userId);
+    },
+    async getUserAvatar(userId) {
+      return avatars.get(userId) ?? null;
+    },
+    async saveUserAvatar(userId, avatar) {
+      const principal = [...credentialPrincipals.values()].find(
+        (candidate) => candidate.id === userId,
+      );
+      if (!principal) return null;
+      avatars.set(userId, avatar);
+      const avatarUrl = `/api/auth/avatars/${userId}?v=${avatar.sha256.slice(0, 16)}`;
+      principal.avatarUrl = avatarUrl;
+      return { avatarUrl };
+    },
+    async deleteUserAvatar(userId) {
+      const principal = [...credentialPrincipals.values()].find(
+        (candidate) => candidate.id === userId,
+      );
+      if (principal) principal.avatarUrl = null;
+      return avatars.delete(userId);
     },
     async recordCredentialFailure(userId) {
       const principal = [...credentialPrincipals.values()].find(
@@ -379,11 +403,13 @@ async function withServer(callback) {
       return passwordHash === `test-hash:${password}`;
     },
   };
+  const avatarProcessor = createAvatarProcessor();
   const server = createAuthServer({
     store,
     config,
     wechatProvider,
     passwordService,
+    avatarProcessor,
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
@@ -1011,6 +1037,87 @@ test("authenticated profile updates are whitelisted, normalized, and account-sco
     assert.equal(updatedBody.profile.displayName, "海风");
     assert.equal(updatedBody.profile.schoolAccount, "2026123456");
     assert.equal(updatedBody.profile.schoolAccountVerified, false);
+  });
+});
+
+test("avatar upload validates content, serves versioned WebP, and supports deletion", async () => {
+  await withServer(async ({ baseUrl }) => {
+    const registration = await fetch(`${baseUrl}/api/auth/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "https://dufesh.cn",
+      },
+      body: JSON.stringify({
+        username: "avatar-student",
+        email: "avatar@example.com",
+        password: "Moonlight!2026",
+      }),
+    });
+    const cookie = registration.headers
+      .getSetCookie()
+      .map((value) => value.split(";", 1)[0])
+      .join("; ");
+    const png = await sharp({
+      create: {
+        width: 32,
+        height: 48,
+        channels: 3,
+        background: { r: 181, g: 38, b: 38 },
+      },
+    })
+      .png()
+      .toBuffer();
+
+    const forged = await fetch(`${baseUrl}/api/auth/profile/avatar`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "image/jpeg",
+        Origin: "https://dufesh.cn",
+        Cookie: cookie,
+      },
+      body: png,
+    });
+    assert.equal(forged.status, 400);
+
+    const uploaded = await fetch(`${baseUrl}/api/auth/profile/avatar`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "image/png",
+        Origin: "https://dufesh.cn",
+        Cookie: cookie,
+      },
+      body: png,
+    });
+    const uploadBody = await uploaded.json();
+    assert.equal(uploaded.status, 200);
+    assert.match(uploadBody.avatarUrl, /^\/api\/auth\/avatars\/[0-9a-f-]{36}\?v=/);
+
+    const image = await fetch(`${baseUrl}${uploadBody.avatarUrl}`);
+    assert.equal(image.status, 200);
+    assert.equal(image.headers.get("content-type"), "image/webp");
+    assert.equal(
+      image.headers.get("cache-control"),
+      "public, max-age=300, must-revalidate",
+    );
+    const etag = image.headers.get("etag");
+    assert.ok(etag);
+    assert.ok((await image.arrayBuffer()).byteLength > 0);
+
+    const cached = await fetch(`${baseUrl}${uploadBody.avatarUrl}`, {
+      headers: { "If-None-Match": etag },
+    });
+    assert.equal(cached.status, 304);
+
+    const deleted = await fetch(`${baseUrl}/api/auth/profile/avatar`, {
+      method: "DELETE",
+      headers: { Origin: "https://dufesh.cn", Cookie: cookie },
+    });
+    assert.equal(deleted.status, 200);
+    assert.equal((await deleted.json()).avatarUrl, null);
+
+    const missing = await fetch(`${baseUrl}${uploadBody.avatarUrl}`);
+    assert.equal(missing.status, 404);
   });
 });
 

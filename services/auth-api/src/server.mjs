@@ -122,6 +122,27 @@ async function readJsonBody(request, maxBytes = 524_288) {
   }
 }
 
+async function readRawBody(request, maxBytes) {
+  const declaredLength = Number(request.headers["content-length"] ?? 0);
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+    const error = new Error("request body is too large");
+    error.code = "REQUEST_BODY_TOO_LARGE";
+    throw error;
+  }
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of request) {
+    size += chunk.length;
+    if (size > maxBytes) {
+      const error = new Error("request body is too large");
+      error.code = "REQUEST_BODY_TOO_LARGE";
+      throw error;
+    }
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
 async function resolveSession(request, store, config) {
   const cookies = parseCookies(request.headers.cookie);
   const sessionToken = cookies.get(config.sessionCookie);
@@ -160,6 +181,7 @@ export function createAuthServer({
   config,
   wechatProvider,
   passwordService,
+  avatarProcessor,
   rateLimiters = createApiRateLimiters(),
 }) {
   const dummyPasswordHash = passwordService
@@ -290,6 +312,128 @@ export function createAuthServer({
             },
           },
           setCookies,
+        );
+        return;
+      }
+
+      const avatarMatch = url.pathname.match(
+        /^\/api\/auth\/avatars\/([0-9a-f-]{36})$/i,
+      );
+      if (avatarMatch) {
+        if (request.method !== "GET" && request.method !== "HEAD") {
+          methodNotAllowed(response, "GET, HEAD");
+          return;
+        }
+        if (!isUuid(avatarMatch[1])) {
+          sendJson(response, 404, { error: "avatar_not_found" });
+          return;
+        }
+        const avatar = await store.getUserAvatar(avatarMatch[1]);
+        if (!avatar) {
+          sendJson(response, 404, { error: "avatar_not_found" });
+          return;
+        }
+        const etag = `"${avatar.sha256}"`;
+        const hasCurrentVersion =
+          url.searchParams.get("v") === avatar.sha256.slice(0, 16);
+        const cacheControl = hasCurrentVersion
+          ? "public, max-age=300, must-revalidate"
+          : "no-cache";
+        if (request.headers["if-none-match"] === etag) {
+          response.statusCode = 304;
+          response.setHeader("ETag", etag);
+          response.setHeader("Cache-Control", cacheControl);
+          response.end();
+          return;
+        }
+        response.statusCode = 200;
+        response.setHeader("Content-Type", avatar.contentType);
+        response.setHeader("Content-Length", String(avatar.byteSize));
+        response.setHeader("X-Content-Type-Options", "nosniff");
+        response.setHeader("ETag", etag);
+        response.setHeader("Cache-Control", cacheControl);
+        if (request.method === "HEAD") response.end();
+        else response.end(avatar.bytes);
+        return;
+      }
+
+      if (url.pathname === "/api/auth/profile/avatar") {
+        if (request.method !== "PUT" && request.method !== "DELETE") {
+          methodNotAllowed(response, "PUT, DELETE");
+          return;
+        }
+        if (!avatarProcessor) {
+          sendJson(response, 503, { error: "avatar_service_unavailable" });
+          return;
+        }
+        if (!trustedOrigin(request, config.allowedOrigins)) {
+          sendJson(response, 403, { error: "untrusted_origin" });
+          return;
+        }
+        const session = await resolveSession(request, store, config);
+        if (!session) {
+          sendJson(response, 401, { error: "authentication_required" });
+          return;
+        }
+        const uploadRateKey = tokenDigest(
+          `avatar:${clientAddress(request)}:${session.userId}`,
+          config.tokenPepper,
+        );
+        if (!(rateLimiters.upload ?? rateLimiters.write).consume(uploadRateKey)) {
+          response.setHeader("Retry-After", "300");
+          sendJson(response, 429, { error: "avatar_rate_limit_exceeded" });
+          return;
+        }
+        if (request.method === "DELETE") {
+          await store.deleteUserAvatar(session.userId);
+          sendJson(response, 200, { ok: true, avatarUrl: null });
+          return;
+        }
+
+        const contentType = String(request.headers["content-type"] ?? "")
+          .split(";", 1)[0]
+          .trim()
+          .toLowerCase();
+        if (!avatarProcessor.acceptedContentTypes.has(contentType)) {
+          sendJson(response, 415, { error: "avatar_type_unsupported" });
+          return;
+        }
+        let rawAvatar;
+        try {
+          rawAvatar = await readRawBody(
+            request,
+            avatarProcessor.maxInputBytes,
+          );
+        } catch (error) {
+          if (error?.code === "REQUEST_BODY_TOO_LARGE") {
+            sendJson(response, 413, { error: "avatar_too_large" });
+            return;
+          }
+          throw error;
+        }
+        let avatar;
+        try {
+          avatar = await avatarProcessor.process(rawAvatar, contentType);
+        } catch (error) {
+          const clientErrors = new Map([
+            ["AVATAR_TOO_LARGE", [413, "avatar_too_large"]],
+            ["AVATAR_TYPE_UNSUPPORTED", [415, "avatar_type_unsupported"]],
+            ["AVATAR_EMPTY", [400, "avatar_invalid"]],
+            ["AVATAR_INVALID_IMAGE", [400, "avatar_invalid"]],
+            ["AVATAR_OUTPUT_TOO_LARGE", [400, "avatar_invalid"]],
+          ]);
+          const mapped = clientErrors.get(error?.code);
+          if (mapped) {
+            sendJson(response, mapped[0], { error: mapped[1] });
+            return;
+          }
+          throw error;
+        }
+        const saved = await store.saveUserAvatar(session.userId, avatar);
+        sendJson(
+          response,
+          saved ? 200 : 404,
+          saved ?? { error: "profile_not_found" },
         );
         return;
       }

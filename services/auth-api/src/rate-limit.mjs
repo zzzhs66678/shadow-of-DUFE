@@ -92,5 +92,11 @@ export function createApiRateLimiters() {
       maxKeys: 20_000,
       idleTtlMs: 60 * 60_000,
     }),
+    upload: createTokenBucket({
+      capacity: 10,
+      refillPerSecond: 1 / 300,
+      maxKeys: 20_000,
+      idleTtlMs: 2 * 60 * 60_000,
+    }),
   };
 }

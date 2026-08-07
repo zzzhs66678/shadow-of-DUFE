@@ -138,6 +138,29 @@ test("account devices and self-service deletion remain session- and origin-bound
   assert.match(database, /DELETE FROM app_users/);
 });
 
+test("account avatars are normalized, bounded, metadata-free, and account-scoped", async () => {
+  const migration = await read("ops/postgres/migrations/0007_user_avatars.sql");
+  const processor = await read("services/auth-api/src/avatars.mjs");
+  const server = await read("services/auth-api/src/server.mjs");
+  const database = await read("services/auth-api/src/db.mjs");
+
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS user_avatars/);
+  assert.match(migration, /image\/webp/);
+  assert.match(migration, /byte_size BETWEEN 1 AND 524288/);
+  assert.match(migration, /byte_size = octet_length\(image_bytes\)/);
+  assert.match(migration, /ON DELETE CASCADE/);
+  assert.match(processor, /limitInputPixels: MAX_PIXELS/);
+  assert.match(processor, /resize\(OUTPUT_SIZE, OUTPUT_SIZE/);
+  assert.match(processor, /\.webp\(/);
+  assert.doesNotMatch(processor, /withMetadata/);
+  assert.match(server, /url\.pathname === "\/api\/auth\/profile\/avatar"/);
+  assert.match(server, /avatar_type_unsupported/);
+  assert.match(server, /avatar_rate_limit_exceeded/);
+  assert.match(server, /trustedOrigin/);
+  assert.match(database, /JOIN app_users u ON u\.id = a\.user_id/);
+  assert.match(database, /u\.status = 'active'/);
+});
+
 test("auth traffic has bounded in-memory burst protection", async () => {
   const limiter = await read("services/auth-api/src/rate-limit.mjs");
   const server = await read("services/auth-api/src/server.mjs");

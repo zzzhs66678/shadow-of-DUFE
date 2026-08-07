@@ -78,5 +78,5 @@
 - 微信开放平台正式 AppID/AppSecret 与最终审核状态：未提供，本地不需要等待；生产微信入口受此阻塞。
 - 独立 staging 环境与凭据：尚未确认，未擅自创建付费资源。
 - 邮件发送服务凭据：尚未提供；密码注册可先本地验证，生产验证/重置邮件受此阻塞。
-- 当前开发机未安装 Docker/PostgreSQL；`0006_credential_auth.sql` 的空库、升级库、重复执行和 Linux musl 原生 Argon2id 镜像验证必须在 staging 或具备 Docker 的 CI 完成。
+- 当前开发机未安装 Docker/PostgreSQL；`0006_credential_auth.sql`、`0007_user_avatars.sql` 的空库、升级库、重复执行，以及 Linux musl 原生 Argon2id/Sharp 镜像验证必须在 staging 或具备 Docker 的 CI 完成。
 - 异地对象存储/备份凭据：尚未提供；本地适配器和恢复流程继续开发，生产异地副本受此阻塞。

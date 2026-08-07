@@ -72,6 +72,8 @@ test("personal page explains local data, cloud sync, devices, and account contro
   assert.match(meSource, /用户名或邮箱/);
   assert.match(meSource, /资质审核中/);
   assert.match(meSource, /账号资料/);
+  assert.match(meSource, /更换头像/);
+  assert.match(meSource, /原图与定位信息没有保留/);
   assert.match(meSource, /未验证，不作为学生身份凭据/);
   assert.match(meSource, /保留本机修改/);
   assert.match(meSource, /使用云端版本/);
@@ -150,4 +152,6 @@ test("public compliance pages expose filing, privacy, terms, and deletion paths"
   for (const page of [privacy, terms, deletion]) {
     assert.match(page, /2450256851@qq\.com/);
   }
+  assert.match(privacy, /统一转换为 WebP/);
+  assert.match(privacy, /不会保存上传原图和 EXIF/);
 });
