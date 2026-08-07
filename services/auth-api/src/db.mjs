@@ -1488,6 +1488,93 @@ export function createAuthStore(pool) {
       }
     },
 
+    async createEmailVerification({ userId, tokenHash, expiresAt }) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        await client.query(
+          `UPDATE email_verification_tokens
+           SET consumed_at = COALESCE(consumed_at, now())
+           WHERE user_id = $1
+             AND consumed_at IS NULL`,
+          [userId],
+        );
+        const inserted = await client.query(
+          `INSERT INTO email_verification_tokens (
+             user_id,
+             normalized_email,
+             token_hash,
+             expires_at
+           )
+           SELECT id, normalized_email, $2, $3
+           FROM app_users
+           WHERE id = $1
+             AND status = 'active'
+             AND normalized_email IS NOT NULL
+             AND email_verified_at IS NULL
+           RETURNING id`,
+          [userId, tokenHash, expiresAt],
+        );
+        await client.query("COMMIT");
+        return inserted.rowCount > 0;
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+
+    async consumeEmailVerification({ userId, tokenHash }) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const token = await client.query(
+          `UPDATE email_verification_tokens AS tokens
+           SET consumed_at = now()
+           WHERE tokens.user_id = $1
+             AND tokens.token_hash = $2
+             AND tokens.consumed_at IS NULL
+             AND tokens.expires_at > now()
+             AND EXISTS (
+               SELECT 1
+               FROM app_users AS users
+               WHERE users.id = tokens.user_id
+                 AND users.status = 'active'
+                 AND users.email_verified_at IS NULL
+                 AND users.normalized_email = tokens.normalized_email
+             )
+           RETURNING tokens.user_id`,
+          [userId, tokenHash],
+        );
+        if (token.rowCount === 0) {
+          await client.query("ROLLBACK");
+          return false;
+        }
+        await client.query(
+          `UPDATE app_users
+           SET email_verified_at = now(), updated_at = now()
+           WHERE id = $1
+             AND email_verified_at IS NULL`,
+          [userId],
+        );
+        await client.query(
+          `UPDATE email_verification_tokens
+           SET consumed_at = COALESCE(consumed_at, now())
+           WHERE user_id = $1
+             AND consumed_at IS NULL`,
+          [userId],
+        );
+        await client.query("COMMIT");
+        return true;
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+
     async getPasswordResetPrincipal(tokenHash) {
       const result = await pool.query(
         `SELECT users.username, users.email

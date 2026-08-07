@@ -165,6 +165,26 @@ test("account avatars are normalized, bounded, metadata-free, and account-scoped
   assert.match(database, /u\.status = 'active'/);
 });
 
+test("email verification tokens are hashed, email-bound, and single-use", async () => {
+  const migration = await read("ops/postgres/migrations/0009_email_verification.sql");
+  const server = await read("services/auth-api/src/server.mjs");
+  const database = await read("services/auth-api/src/db.mjs");
+  const config = await read("services/auth-api/src/config.mjs");
+
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS email_verification_tokens/);
+  assert.match(migration, /normalized_email text NOT NULL/);
+  assert.match(migration, /token_hash text NOT NULL/);
+  assert.doesNotMatch(migration, /\btoken\s+text\b/);
+  assert.match(server, /\/api\/auth\/email\/verification\/request/);
+  assert.match(server, /\/api\/auth\/email\/verification\/confirm/);
+  assert.match(server, /trustedOrigin/);
+  assert.match(server, /tokenDigest\(verificationToken, config\.tokenPepper\)/);
+  assert.match(database, /async consumeEmailVerification/);
+  assert.match(database, /users\.normalized_email = tokens\.normalized_email/);
+  assert.match(database, /tokens\.consumed_at IS NULL/);
+  assert.match(config, /AUTH_EMAIL_VERIFICATION_MODE=response is forbidden in production/);
+});
+
 test("admin security requires encrypted MFA, short elevation, and append-only audit", async () => {
   const migration = await read("ops/postgres/migrations/0008_admin_security.sql");
   const config = await read("services/auth-api/src/config.mjs");
@@ -237,6 +257,8 @@ test("expired sessions and sync tombstones have bounded retention", async () => 
 
   assert.match(cleanup, /pg_advisory_xact_lock/);
   assert.match(cleanup, /user_sync_mutations/);
+  assert.match(cleanup, /password_reset_tokens/);
+  assert.match(cleanup, /email_verification_tokens/);
   assert.match(cleanup, /user_sessions/);
   assert.match(cleanup, /timetable_plan_schedules/);
   assert.match(cleanup, /personal_activities/);

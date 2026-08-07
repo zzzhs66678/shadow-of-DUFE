@@ -46,6 +46,26 @@ WITH removed AS (
 SELECT 'oauth_transactions' AS category, count(*) AS removed FROM removed;
 
 WITH removed AS (
+    DELETE FROM password_reset_tokens
+    WHERE (
+        consumed_at < now() - interval '30 days'
+        OR expires_at < now() - interval '30 days'
+    )
+    RETURNING 1
+)
+SELECT 'password_reset_tokens' AS category, count(*) AS removed FROM removed;
+
+WITH removed AS (
+    DELETE FROM email_verification_tokens
+    WHERE (
+        consumed_at < now() - interval '30 days'
+        OR expires_at < now() - interval '30 days'
+    )
+    RETURNING 1
+)
+SELECT 'email_verification_tokens' AS category, count(*) AS removed FROM removed;
+
+WITH removed AS (
     DELETE FROM user_sessions
     WHERE (
         expires_at < now() - interval '30 days'

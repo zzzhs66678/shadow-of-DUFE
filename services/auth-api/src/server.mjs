@@ -258,6 +258,8 @@ export function createAuthServer({
                 credentialsAvailable: config.credentialsEnabled !== false,
                 passwordResetAvailable:
                   config.passwordResetMode !== "disabled",
+                emailVerificationAvailable:
+                  config.emailVerificationMode === "response",
                 wechatAvailable: config.wechatMode === "wechat",
               },
             },
@@ -283,6 +285,8 @@ export function createAuthServer({
                 credentialsAvailable: config.credentialsEnabled !== false,
                 passwordResetAvailable:
                   config.passwordResetMode !== "disabled",
+                emailVerificationAvailable:
+                  config.emailVerificationMode === "response",
                 wechatAvailable: config.wechatMode === "wechat",
               },
             },
@@ -319,6 +323,8 @@ export function createAuthServer({
               credentialsAvailable: config.credentialsEnabled !== false,
               passwordResetAvailable:
                 config.passwordResetMode !== "disabled",
+              emailVerificationAvailable:
+                config.emailVerificationMode === "response",
               wechatAvailable: config.wechatMode === "wechat",
             },
           },
@@ -744,6 +750,118 @@ export function createAuthServer({
             session: { expiresAt: sessionExpiresAt.toISOString() },
           },
           setCookies,
+        );
+        return;
+      }
+
+      if (url.pathname === "/api/auth/email/verification/request") {
+        if (request.method !== "POST") {
+          methodNotAllowed(response, "POST");
+          return;
+        }
+        if (!trustedOrigin(request, config.allowedOrigins)) {
+          sendJson(response, 403, { error: "untrusted_origin" });
+          return;
+        }
+        if ((config.emailVerificationMode ?? "disabled") === "disabled") {
+          sendJson(response, 503, {
+            error: "email_verification_delivery_unavailable",
+          });
+          return;
+        }
+        const session = await resolveSession(request, store, config);
+        if (!session) {
+          sendJson(response, 401, { error: "authentication_required" });
+          return;
+        }
+        if (session.emailVerified) {
+          sendJson(response, 200, { ok: true, alreadyVerified: true });
+          return;
+        }
+        if (!session.email) {
+          sendJson(response, 409, { error: "email_verification_unavailable" });
+          return;
+        }
+        const verificationRateKey = tokenDigest(
+          `email-verification:${clientAddress(request)}:${session.userId}`,
+          config.tokenPepper,
+        );
+        if (
+          !(rateLimiters.emailVerification ?? rateLimiters.write).consume(
+            verificationRateKey,
+          )
+        ) {
+          response.setHeader("Retry-After", "120");
+          sendJson(response, 429, {
+            error: "email_verification_rate_limit_exceeded",
+          });
+          return;
+        }
+        const verificationToken = createOpaqueToken();
+        const created = await store.createEmailVerification({
+          userId: session.userId,
+          tokenHash: tokenDigest(verificationToken, config.tokenPepper),
+          expiresAt: new Date(
+            Date.now() +
+              (config.emailVerificationTtlSeconds ?? 86_400) * 1_000,
+          ),
+        });
+        if (!created) {
+          sendJson(response, 409, { error: "email_verification_unavailable" });
+          return;
+        }
+        sendJson(response, 202, {
+          ok: true,
+          ...(config.emailVerificationMode === "response"
+            ? { debugToken: verificationToken }
+            : {}),
+        });
+        return;
+      }
+
+      if (url.pathname === "/api/auth/email/verification/confirm") {
+        if (request.method !== "POST") {
+          methodNotAllowed(response, "POST");
+          return;
+        }
+        if (!trustedOrigin(request, config.allowedOrigins)) {
+          sendJson(response, 403, { error: "untrusted_origin" });
+          return;
+        }
+        const session = await resolveSession(request, store, config);
+        if (!session) {
+          sendJson(response, 401, { error: "authentication_required" });
+          return;
+        }
+        let body;
+        try {
+          body = await readJsonBody(request, 8_192);
+        } catch (error) {
+          if (
+            error?.code === "JSON_CONTENT_TYPE_REQUIRED" ||
+            error?.code === "JSON_BODY_INVALID"
+          ) {
+            sendJson(response, 400, { error: "invalid_email_verification" });
+            return;
+          }
+          if (error?.code === "REQUEST_BODY_TOO_LARGE") {
+            sendJson(response, 413, { error: "request_too_large" });
+            return;
+          }
+          throw error;
+        }
+        if (!isOpaqueToken(body?.token)) {
+          sendJson(response, 400, { error: "invalid_email_verification" });
+          return;
+        }
+        const consumed = await store.consumeEmailVerification({
+          userId: session.userId,
+          tokenHash: tokenDigest(body.token, config.tokenPepper),
+        });
+        sendJson(
+          response,
+          consumed ? 200 : 400,
+          consumed ? { ok: true } : { error: "invalid_email_verification" },
         );
         return;
       }

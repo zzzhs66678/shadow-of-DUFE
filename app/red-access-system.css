@@ -1717,6 +1717,50 @@ textarea {
   margin: 0;
 }
 
+.account-email-verification {
+  align-items: center;
+  border-top: 1px solid color-mix(in srgb, var(--journal-ink) 22%, transparent);
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-top: 18px;
+  padding-top: 16px;
+}
+
+.account-email-verification b {
+  font: 760 12px/1.4 var(--journal-sans);
+}
+
+.account-email-verification p,
+.account-email-verification > small {
+  color: var(--journal-muted);
+  font-size: 9px;
+  line-height: 1.55;
+  margin: 4px 0 0;
+}
+
+.account-email-verification > button,
+.account-email-verification form > button {
+  background: var(--journal-ink);
+  border: 0;
+  color: var(--journal-paper);
+  min-height: 38px;
+  padding: 0 16px;
+}
+
+.account-email-verification > button:disabled,
+.account-email-verification form > button:disabled {
+  opacity: .45;
+}
+
+.account-email-verification form {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  margin: 0;
+}
+
 @media (max-width: 760px) {
   .focus-head.focus-head-v5 {
     display: block;
@@ -1811,6 +1855,15 @@ textarea {
 
   .account-profile form > button {
     width: 100%;
+  }
+
+  .account-email-verification {
+    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .account-email-verification form {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .time-mark-head,

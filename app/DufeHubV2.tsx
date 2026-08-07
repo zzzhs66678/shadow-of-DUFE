@@ -152,6 +152,7 @@ type AccountState = {
   session: { expiresAt: string; deviceId: string | null } | null;
   credentialsAvailable: boolean;
   passwordResetAvailable: boolean;
+  emailVerificationAvailable: boolean;
   wechatAvailable: boolean;
 };
 type CloudSyncStatus = "local" | "syncing" | "synced" | "conflict" | "offline";
@@ -806,6 +807,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
     session: null,
     credentialsAvailable: true,
     passwordResetAvailable: false,
+    emailVerificationAvailable: false,
     wechatAvailable: false,
   });
   const [authRevision, setAuthRevision] = useState(0);
@@ -910,6 +912,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           login?: {
             credentialsAvailable?: boolean;
             passwordResetAvailable?: boolean;
+            emailVerificationAvailable?: boolean;
             wechatAvailable?: boolean;
           };
         };
@@ -928,6 +931,8 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
               session.login?.credentialsAvailable ?? false,
             passwordResetAvailable:
               session.login?.passwordResetAvailable ?? false,
+            emailVerificationAvailable:
+              session.login?.emailVerificationAvailable ?? false,
             wechatAvailable: session.login?.wechatAvailable ?? false,
           });
           return;
@@ -965,6 +970,8 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
             session.login?.credentialsAvailable ?? false,
           passwordResetAvailable:
             session.login?.passwordResetAvailable ?? false,
+          emailVerificationAvailable:
+            session.login?.emailVerificationAvailable ?? false,
           wechatAvailable: session.login?.wechatAvailable ?? false,
         });
         const devicesResponse = await fetch("/api/auth/devices", {
@@ -1014,6 +1021,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
                   session: null,
                   credentialsAvailable: true,
                   passwordResetAvailable: false,
+                  emailVerificationAvailable: false,
                   wechatAvailable: false,
                 }
               : current,
@@ -1461,6 +1469,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
               session: null,
               credentialsAvailable: account.credentialsAvailable,
               passwordResetAvailable: account.passwordResetAvailable,
+              emailVerificationAvailable: account.emailVerificationAvailable,
               wechatAvailable: account.wechatAvailable,
             });
           }}
@@ -1528,6 +1537,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
               session: null,
               credentialsAvailable: account.credentialsAvailable,
               passwordResetAvailable: account.passwordResetAvailable,
+              emailVerificationAvailable: account.emailVerificationAvailable,
               wechatAvailable: account.wechatAvailable,
             });
             return true;
@@ -4248,6 +4258,7 @@ function MePage({
     schoolAccount: "",
   });
   const [profileFeedback, setProfileFeedback] = useState("");
+  const [emailVerificationToken, setEmailVerificationToken] = useState("");
   useEffect(() => {
     if (!deleteOpen) return;
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -4469,6 +4480,83 @@ function MePage({
       onAuthChanged();
     } catch {
       setProfileFeedback("账号服务暂时离线，头像没有更改。");
+    } finally {
+      setAccountBusy("");
+    }
+  };
+
+  const requestEmailVerification = async () => {
+    setAccountBusy("email-verification-request");
+    setProfileFeedback("");
+    try {
+      const response = await fetch("/api/auth/email/verification/request", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        debugToken?: string;
+        alreadyVerified?: boolean;
+      };
+      if (!response.ok) {
+        const messages: Record<string, string> = {
+          email_verification_delivery_unavailable:
+            "邮箱验证通道尚未开通。",
+          email_verification_rate_limit_exceeded:
+            "验证邮件请求太频繁，请稍后再试。",
+          email_verification_unavailable:
+            "当前邮箱无法发起验证，请刷新账号资料后重试。",
+        };
+        setProfileFeedback(
+          messages[payload.error ?? ""] || "验证请求没有完成，请稍后再试。",
+        );
+        return;
+      }
+      if (payload.alreadyVerified) {
+        setProfileFeedback("邮箱已经验证。无需重复操作。");
+        onAuthChanged();
+      } else if (payload.debugToken) {
+        setEmailVerificationToken(payload.debugToken);
+        setProfileFeedback(
+          "本地开发模式已生成一次性验证令牌；生产环境不会在页面显示它。",
+        );
+      } else {
+        setProfileFeedback("验证邮件已发送，请在 24 小时内完成验证。");
+      }
+    } catch {
+      setProfileFeedback("账号服务暂时离线，没有发起验证。");
+    } finally {
+      setAccountBusy("");
+    }
+  };
+
+  const confirmEmailVerification = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setAccountBusy("email-verification-confirm");
+    setProfileFeedback("");
+    try {
+      const response = await fetch("/api/auth/email/verification/confirm", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: emailVerificationToken.trim() }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      if (!response.ok) {
+        setProfileFeedback(
+          payload.error === "invalid_email_verification"
+            ? "验证令牌无效、已使用或已过期。"
+            : "邮箱验证没有完成，请稍后再试。",
+        );
+        return;
+      }
+      setEmailVerificationToken("");
+      setProfileFeedback("邮箱验证完成。");
+      onAuthChanged();
+    } catch {
+      setProfileFeedback("账号服务暂时离线，邮箱状态没有更改。");
     } finally {
       setAccountBusy("");
     }
@@ -4909,6 +4997,57 @@ function MePage({
                   </div>
                 </dl>
               )}
+              {!profileEditing &&
+                account.user?.email &&
+                !account.user.emailVerified && (
+                  <div className="account-email-verification">
+                    <div>
+                      <b>验证邮箱</b>
+                      <p>
+                        验证后可用于找回账号；验证令牌仅能使用一次。
+                      </p>
+                    </div>
+                    {emailVerificationToken ? (
+                      <form onSubmit={confirmEmailVerification}>
+                        <label>
+                          <span>一次性验证令牌</span>
+                          <input
+                            required
+                            maxLength={64}
+                            autoComplete="one-time-code"
+                            value={emailVerificationToken}
+                            onChange={(event) =>
+                              setEmailVerificationToken(event.target.value)
+                            }
+                          />
+                        </label>
+                        <button
+                          disabled={
+                            accountBusy === "email-verification-confirm"
+                          }
+                        >
+                          {accountBusy === "email-verification-confirm"
+                            ? "正在验证"
+                            : "完成验证"}
+                        </button>
+                      </form>
+                    ) : account.emailVerificationAvailable ? (
+                      <button
+                        type="button"
+                        disabled={
+                          accountBusy === "email-verification-request"
+                        }
+                        onClick={() => void requestEmailVerification()}
+                      >
+                        {accountBusy === "email-verification-request"
+                          ? "正在生成"
+                          : "发送验证邮件"}
+                      </button>
+                    ) : (
+                      <small>验证邮件通道待开通</small>
+                    )}
+                  </div>
+                )}
               {!profileEditing && profileFeedback && (
                 <p className="account-profile-feedback" aria-live="polite">
                   {profileFeedback}

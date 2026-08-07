@@ -96,6 +96,20 @@ export function loadConfig(env = process.env) {
     );
   }
 
+  const emailVerificationMode =
+    env.AUTH_EMAIL_VERIFICATION_MODE ||
+    (nodeEnv === "production" ? "disabled" : "response");
+  if (!["disabled", "response"].includes(emailVerificationMode)) {
+    throw new Error(
+      "AUTH_EMAIL_VERIFICATION_MODE must be disabled or response",
+    );
+  }
+  if (nodeEnv === "production" && emailVerificationMode === "response") {
+    throw new Error(
+      "AUTH_EMAIL_VERIFICATION_MODE=response is forbidden in production",
+    );
+  }
+
   const adminEnabled = booleanValue(
     env.AUTH_ADMIN_ENABLED,
     false,
@@ -170,6 +184,15 @@ export function loadConfig(env = process.env) {
         "AUTH_PASSWORD_RESET_TTL_SECONDS",
       ),
       3_600,
+    ),
+    emailVerificationMode,
+    emailVerificationTtlSeconds: Math.min(
+      positiveInteger(
+        env.AUTH_EMAIL_VERIFICATION_TTL_SECONDS,
+        86_400,
+        "AUTH_EMAIL_VERIFICATION_TTL_SECONDS",
+      ),
+      86_400,
     ),
     adminEnabled,
     adminCookie:
