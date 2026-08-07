@@ -147,6 +147,7 @@ type AccountState = {
     createdAt?: string;
     lastLoginAt?: string | null;
     status?: string;
+    role?: "user" | "moderator" | "admin";
   } | null;
   session: { expiresAt: string; deviceId: string | null } | null;
   credentialsAvailable: boolean;

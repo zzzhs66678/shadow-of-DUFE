@@ -6,6 +6,8 @@ MIGRATIONS_DIR="${MIGRATIONS_DIR:-/opt/dufesh-postgres/migrations}"
 : "${POSTGRES_DB:?POSTGRES_DB is required}"
 : "${POSTGRES_USER:?POSTGRES_USER is required}"
 : "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}"
+: "${AUTH_DB_USER:?AUTH_DB_USER is required}"
+: "${AUTH_DB_PASSWORD:?AUTH_DB_PASSWORD is required}"
 
 export PGPASSWORD="$POSTGRES_PASSWORD"
 
@@ -70,5 +72,61 @@ SQL
     --dbname "$POSTGRES_DB" \
     --set ON_ERROR_STOP=1
 done
+
+psql \
+  --host "${PGHOST:-postgres}" \
+  --port "${PGPORT:-5432}" \
+  --username "$POSTGRES_USER" \
+  --dbname "$POSTGRES_DB" \
+  --set ON_ERROR_STOP=1 \
+  --variable "runtime_user=$AUTH_DB_USER" \
+  --variable "runtime_password=$AUTH_DB_PASSWORD" <<'SQL'
+SELECT format('CREATE ROLE %I LOGIN', :'runtime_user')
+WHERE NOT EXISTS (
+    SELECT 1 FROM pg_roles WHERE rolname = :'runtime_user'
+) \gexec
+
+SELECT format(
+    'ALTER ROLE %I PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS',
+    :'runtime_user',
+    :'runtime_password'
+) \gexec
+
+SELECT format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), :'runtime_user') \gexec
+SELECT format('GRANT USAGE ON SCHEMA public TO %I', :'runtime_user') \gexec
+SELECT format(
+    'GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO %I',
+    :'runtime_user'
+) \gexec
+SELECT format(
+    'GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO %I',
+    :'runtime_user'
+) \gexec
+SELECT format(
+    'GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO %I',
+    :'runtime_user'
+) \gexec
+SELECT format(
+    'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO %I',
+    :'runtime_user'
+) \gexec
+SELECT format(
+    'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO %I',
+    :'runtime_user'
+) \gexec
+SELECT format(
+    'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO %I',
+    :'runtime_user'
+) \gexec
+
+SELECT format(
+    'REVOKE UPDATE, DELETE, TRUNCATE ON admin_audit_events FROM %I',
+    :'runtime_user'
+) \gexec
+SELECT format(
+    'REVOKE ALL PRIVILEGES ON schema_migrations FROM %I',
+    :'runtime_user'
+) \gexec
+SQL
 
 echo "Database migrations are up to date."

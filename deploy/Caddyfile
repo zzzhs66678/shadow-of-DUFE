@@ -31,6 +31,14 @@
 		reverse_proxy auth-api:3100
 	}
 
+	handle /api/admin/* {
+		header {
+			Cache-Control "no-store"
+			X-Robots-Tag "noindex, nofollow, noarchive"
+		}
+		reverse_proxy auth-api:3100
+	}
+
 	redir /campus-lab /campus-lab/ 308
 
 	handle_path /campus-lab/* {

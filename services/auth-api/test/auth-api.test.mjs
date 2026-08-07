@@ -30,6 +30,9 @@ const config = {
   credentialsEnabled: true,
   passwordResetMode: "response",
   passwordResetTtlSeconds: 1_800,
+  adminEnabled: false,
+  adminCookie: "__Host-dufesh_admin_elevation",
+  adminElevationTtlSeconds: 600,
   wechatMode: "mock",
   mockLoginSecret: "mock-secret-that-is-longer-than-thirty-two-characters",
 };
@@ -471,7 +474,7 @@ test("token buckets refill, reject bursts, and keep their key set bounded", () =
 test("production configuration requires database and token secrets", () => {
   assert.throws(
     () => loadConfig({ AUTH_TOKEN_PEPPER: config.tokenPepper }),
-    /POSTGRES_PASSWORD is required/,
+    /AUTH_DB_PASSWORD or POSTGRES_PASSWORD is required/,
   );
   assert.throws(
     () => loadConfig({ POSTGRES_PASSWORD: "database-secret" }),

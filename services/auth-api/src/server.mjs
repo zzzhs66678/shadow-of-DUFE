@@ -11,6 +11,7 @@ import {
 } from "./tokens.mjs";
 import { validateSyncWrite } from "./sync-contract.mjs";
 import { createApiRateLimiters } from "./rate-limit.mjs";
+import { createAdminRequestHandler } from "./admin-routes.mjs";
 import {
   normalizeLoginIdentifier,
   validateLogin,
@@ -182,11 +183,18 @@ export function createAuthServer({
   wechatProvider,
   passwordService,
   avatarProcessor,
+  adminSecurity,
   rateLimiters = createApiRateLimiters(),
 }) {
   const dummyPasswordHash = passwordService
     ? passwordService.hash("not-a-real-user-password-9f24")
     : Promise.resolve("");
+  const handleAdminRequest = createAdminRequestHandler({
+    store,
+    config,
+    adminSecurity,
+    rateLimiters,
+  });
 
   return createServer(async (request, response) => {
     try {
@@ -222,6 +230,8 @@ export function createAuthServer({
         sendJson(response, 429, { error: "rate_limit_exceeded" });
         return;
       }
+
+      if (await handleAdminRequest(request, response, url)) return;
 
       if (url.pathname === "/api/auth/session") {
         if (request.method !== "GET") {
@@ -299,6 +309,7 @@ export function createAuthServer({
               createdAt: session.createdAt,
               lastLoginAt: session.lastLoginAt,
               status: session.status,
+              role: session.role ?? "user",
             },
             session: {
               expiresAt: session.expiresAt,
@@ -867,7 +878,10 @@ export function createAuthServer({
           response,
           consumed ? 200 : 400,
           consumed ? { ok: true } : { error: "invalid_password_reset" },
-          [clearSecureCookie(config.sessionCookie)],
+          [
+            clearSecureCookie(config.sessionCookie),
+            clearSecureCookie(config.adminCookie, { sameSite: "Strict" }),
+          ],
         );
         return;
       }
@@ -998,7 +1012,10 @@ export function createAuthServer({
           200,
           { ok: true, currentSessionRevoked: revoked.current },
           revoked.current
-            ? [clearSecureCookie(config.sessionCookie)]
+            ? [
+                clearSecureCookie(config.sessionCookie),
+                clearSecureCookie(config.adminCookie, { sameSite: "Strict" }),
+              ]
             : [],
         );
         return;
@@ -1046,7 +1063,10 @@ export function createAuthServer({
           response,
           deleted ? 200 : 404,
           deleted ? { ok: true, deleted: true } : { error: "account_not_found" },
-          [clearSecureCookie(config.sessionCookie)],
+          [
+            clearSecureCookie(config.sessionCookie),
+            clearSecureCookie(config.adminCookie, { sameSite: "Strict" }),
+          ],
         );
         return;
       }
@@ -1264,7 +1284,10 @@ export function createAuthServer({
           );
         }
 
-        const setCookies = [clearSecureCookie(config.sessionCookie)];
+        const setCookies = [
+          clearSecureCookie(config.sessionCookie),
+          clearSecureCookie(config.adminCookie, { sameSite: "Strict" }),
+        ];
         if (device.setCookie) setCookies.unshift(device.setCookie);
         sendJson(
           response,

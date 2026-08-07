@@ -3,6 +3,7 @@ import { createAuthStore, createDatabasePool } from "./db.mjs";
 import { createWechatProvider } from "./providers/mock-wechat.mjs";
 import { createPasswordService } from "./passwords.mjs";
 import { createAvatarProcessor } from "./avatars.mjs";
+import { createAdminSecurity } from "./admin-security.mjs";
 import { createAuthServer } from "./server.mjs";
 
 const config = loadConfig();
@@ -11,12 +12,20 @@ const store = createAuthStore(pool);
 const wechatProvider = createWechatProvider(config);
 const passwordService = createPasswordService();
 const avatarProcessor = createAvatarProcessor();
+const adminSecurity = config.adminEnabled
+  ? createAdminSecurity({
+      activeKeyId: config.adminMfaActiveKeyId,
+      keyring: config.adminMfaKeys,
+      recoveryPepper: config.adminRecoveryPepper,
+    })
+  : null;
 const server = createAuthServer({
   store,
   config,
   wechatProvider,
   passwordService,
   avatarProcessor,
+  adminSecurity,
 });
 
 server.listen(config.port, "0.0.0.0", () => {

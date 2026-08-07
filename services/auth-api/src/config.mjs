@@ -49,8 +49,9 @@ export function loadConfig(env = process.env) {
   if (tokenPepper.length < 32) {
     throw new Error("AUTH_TOKEN_PEPPER must contain at least 32 characters");
   }
-  if (!env.POSTGRES_PASSWORD) {
-    throw new Error("POSTGRES_PASSWORD is required");
+  const databasePassword = env.AUTH_DB_PASSWORD || env.POSTGRES_PASSWORD;
+  if (!databasePassword) {
+    throw new Error("AUTH_DB_PASSWORD or POSTGRES_PASSWORD is required");
   }
 
   const publicOrigin = new URL(
@@ -152,8 +153,8 @@ export function loadConfig(env = process.env) {
       host: env.PGHOST || "postgres",
       port: positiveInteger(env.PGPORT, 5432, "PGPORT"),
       database: env.POSTGRES_DB || "dufesh",
-      user: env.POSTGRES_USER || "dufesh_app",
-      password: env.POSTGRES_PASSWORD,
+      user: env.AUTH_DB_USER || env.POSTGRES_USER || "dufesh_runtime",
+      password: databasePassword,
     },
     publicOrigin: publicOrigin.origin,
     credentialsEnabled: booleanValue(

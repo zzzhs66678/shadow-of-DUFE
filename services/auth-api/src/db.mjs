@@ -387,6 +387,7 @@ export function createAuthStore(pool) {
            users.created_at,
            users.last_login_at,
            users.status,
+           users.role,
            sessions.expires_at,
            devices.public_id AS device_public_id
          FROM user_sessions AS sessions
@@ -427,6 +428,7 @@ export function createAuthStore(pool) {
           ? new Date(result.rows[0].last_login_at).toISOString()
           : null,
         status: result.rows[0].status,
+        role: result.rows[0].role,
         expiresAt: new Date(result.rows[0].expires_at).toISOString(),
         deviceId: result.rows[0].device_public_id
           ? String(result.rows[0].device_public_id)
@@ -766,6 +768,485 @@ export function createAuthStore(pool) {
       }
     },
 
+    async getAdminMfaCredential(userId) {
+      const result = await pool.query(
+        `SELECT
+           mfa.id,
+           mfa.key_id,
+           mfa.encrypted_secret,
+           mfa.secret_iv,
+           mfa.secret_auth_tag,
+           mfa.last_totp_step
+         FROM admin_mfa_credentials AS mfa
+         INNER JOIN app_users AS users ON users.id = mfa.user_id
+         WHERE mfa.user_id = $1
+           AND users.status = 'active'
+           AND users.role = 'admin'
+         LIMIT 1`,
+        [userId],
+      );
+      if (result.rowCount === 0) return null;
+      const row = result.rows[0];
+      return {
+        factorId: String(row.id),
+        encrypted: {
+          keyId: row.key_id,
+          encryptedSecret: row.encrypted_secret,
+          secretIv: row.secret_iv,
+          secretAuthTag: row.secret_auth_tag,
+        },
+        lastTotpStep:
+          row.last_totp_step === null ? null : Number(row.last_totp_step),
+      };
+    },
+
+    async getAdminAccessState({ userId, sessionId, elevationTokenHash }) {
+      const result = await pool.query(
+        `SELECT
+           EXISTS (
+             SELECT 1
+             FROM admin_mfa_credentials AS mfa
+             WHERE mfa.user_id = users.id
+           ) AS mfa_configured,
+           elevation.expires_at AS elevated_until
+         FROM app_users AS users
+         LEFT JOIN admin_elevated_sessions AS elevation
+           ON elevation.user_id = users.id
+          AND elevation.base_session_id = $2
+          AND elevation.token_hash = $3
+          AND elevation.revoked_at IS NULL
+          AND elevation.expires_at > now()
+         WHERE users.id = $1
+           AND users.status = 'active'
+           AND users.role = 'admin'
+         LIMIT 1`,
+        [userId, sessionId, elevationTokenHash],
+      );
+      if (result.rowCount === 0) return null;
+      return {
+        mfaConfigured: Boolean(result.rows[0].mfa_configured),
+        elevated: Boolean(result.rows[0].elevated_until),
+        elevatedUntil: result.rows[0].elevated_until
+          ? new Date(result.rows[0].elevated_until).toISOString()
+          : null,
+      };
+    },
+
+    async createAdminElevationFromTotp(input) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const consumed = await client.query(
+          `UPDATE admin_mfa_credentials AS mfa
+           SET last_totp_step = $3, updated_at = now()
+           WHERE mfa.user_id = $1
+             AND (mfa.last_totp_step IS NULL OR mfa.last_totp_step < $3)
+             AND EXISTS (
+               SELECT 1
+               FROM app_users AS users
+               WHERE users.id = mfa.user_id
+                 AND users.status = 'active'
+                 AND users.role = 'admin'
+             )
+             AND EXISTS (
+               SELECT 1
+               FROM user_sessions AS sessions
+               WHERE sessions.id = $2
+                 AND sessions.user_id = mfa.user_id
+                 AND sessions.revoked_at IS NULL
+                 AND sessions.expires_at > now()
+             )
+           RETURNING mfa.id`,
+          [input.userId, input.sessionId, input.matchedStep],
+        );
+        if (consumed.rowCount === 0) {
+          await client.query("ROLLBACK");
+          return false;
+        }
+        await client.query(
+          `UPDATE admin_elevated_sessions
+           SET revoked_at = COALESCE(revoked_at, now())
+           WHERE base_session_id = $1
+             AND revoked_at IS NULL`,
+          [input.sessionId],
+        );
+        await client.query(
+          `INSERT INTO admin_elevated_sessions (
+             user_id,
+             base_session_id,
+             token_hash,
+             method,
+             expires_at,
+             ip_hash,
+             user_agent_hash
+           )
+           VALUES ($1, $2, $3, 'totp', $4, $5, $6)`,
+          [
+            input.userId,
+            input.sessionId,
+            input.tokenHash,
+            input.expiresAt,
+            input.ipHash,
+            input.userAgentHash,
+          ],
+        );
+        await client.query(
+          `INSERT INTO admin_audit_events (
+             actor_user_id,
+             actor_role,
+             session_id,
+             action,
+             request_id,
+             ip_hash,
+             user_agent_hash,
+             metadata
+           )
+           VALUES ($1, 'admin', $2, 'admin.elevation.created', $3, $4, $5,
+                   '{"method":"totp"}'::jsonb)`,
+          [
+            input.userId,
+            input.sessionId,
+            input.requestId,
+            input.ipHash,
+            input.userAgentHash,
+          ],
+        );
+        await client.query("COMMIT");
+        return true;
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+
+    async createAdminElevationFromRecovery(input) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const consumed = await client.query(
+          `UPDATE admin_recovery_codes AS codes
+           SET consumed_at = now()
+           WHERE codes.user_id = $1
+             AND codes.code_hash = $3
+             AND codes.consumed_at IS NULL
+             AND EXISTS (
+               SELECT 1
+               FROM app_users AS users
+               WHERE users.id = codes.user_id
+                 AND users.status = 'active'
+                 AND users.role = 'admin'
+             )
+             AND EXISTS (
+               SELECT 1
+               FROM user_sessions AS sessions
+               WHERE sessions.id = $2
+                 AND sessions.user_id = codes.user_id
+                 AND sessions.revoked_at IS NULL
+                 AND sessions.expires_at > now()
+             )
+           RETURNING codes.id`,
+          [input.userId, input.sessionId, input.recoveryCodeHash],
+        );
+        if (consumed.rowCount === 0) {
+          await client.query("ROLLBACK");
+          return false;
+        }
+        await client.query(
+          `UPDATE admin_elevated_sessions
+           SET revoked_at = COALESCE(revoked_at, now())
+           WHERE base_session_id = $1
+             AND revoked_at IS NULL`,
+          [input.sessionId],
+        );
+        await client.query(
+          `INSERT INTO admin_elevated_sessions (
+             user_id,
+             base_session_id,
+             token_hash,
+             method,
+             expires_at,
+             ip_hash,
+             user_agent_hash
+           )
+           VALUES ($1, $2, $3, 'recovery_code', $4, $5, $6)`,
+          [
+            input.userId,
+            input.sessionId,
+            input.tokenHash,
+            input.expiresAt,
+            input.ipHash,
+            input.userAgentHash,
+          ],
+        );
+        await client.query(
+          `INSERT INTO admin_audit_events (
+             actor_user_id,
+             actor_role,
+             session_id,
+             action,
+             request_id,
+             ip_hash,
+             user_agent_hash,
+             metadata
+           )
+           VALUES ($1, 'admin', $2, 'admin.elevation.created', $3, $4, $5,
+                   '{"method":"recovery_code"}'::jsonb)`,
+          [
+            input.userId,
+            input.sessionId,
+            input.requestId,
+            input.ipHash,
+            input.userAgentHash,
+          ],
+        );
+        await client.query("COMMIT");
+        return true;
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+
+    async revokeAdminElevation({ userId, sessionId, elevationTokenHash }) {
+      const result = await pool.query(
+        `UPDATE admin_elevated_sessions
+         SET revoked_at = COALESCE(revoked_at, now())
+         WHERE user_id = $1
+           AND base_session_id = $2
+           AND token_hash = $3
+           AND revoked_at IS NULL
+         RETURNING id`,
+        [userId, sessionId, elevationTokenHash],
+      );
+      return result.rowCount > 0;
+    },
+
+    async getAdminOverview() {
+      const result = await pool.query(
+        `SELECT
+           count(*)::integer AS total_users,
+           count(*) FILTER (WHERE status = 'active')::integer AS active_users,
+           count(*) FILTER (WHERE status = 'disabled')::integer AS disabled_users,
+           count(*) FILTER (WHERE role = 'admin')::integer AS administrators,
+           count(*) FILTER (WHERE email_verified_at IS NOT NULL)::integer
+             AS verified_emails
+         FROM app_users
+         WHERE status <> 'deleted'`,
+      );
+      const row = result.rows[0];
+      return {
+        totalUsers: row.total_users,
+        activeUsers: row.active_users,
+        disabledUsers: row.disabled_users,
+        administrators: row.administrators,
+        verifiedEmails: row.verified_emails,
+      };
+    },
+
+    async listAdminUsers({ query, limit }) {
+      const normalizedQuery = query.toLocaleLowerCase("en-US");
+      const result = await pool.query(
+        `SELECT
+           id,
+           username,
+           display_name,
+           email,
+           email_verified_at,
+           school_account_verified_at,
+           status,
+           role,
+           created_at,
+           last_login_at
+         FROM app_users
+         WHERE status <> 'deleted'
+           AND (
+             $1 = ''
+             OR normalized_username LIKE '%' || $1 || '%'
+             OR normalized_email LIKE '%' || $1 || '%'
+           )
+         ORDER BY created_at DESC, id DESC
+         LIMIT $2`,
+        [normalizedQuery, limit],
+      );
+      return result.rows.map((row) => ({
+        id: String(row.id),
+        username: row.username,
+        displayName: row.display_name,
+        email: row.email,
+        emailVerified: Boolean(row.email_verified_at),
+        schoolAccountVerified: Boolean(row.school_account_verified_at),
+        status: row.status,
+        role: row.role,
+        createdAt: new Date(row.created_at).toISOString(),
+        lastLoginAt: row.last_login_at
+          ? new Date(row.last_login_at).toISOString()
+          : null,
+      }));
+    },
+
+    async listAdminAudit({ limit }) {
+      const result = await pool.query(
+        `SELECT
+           id,
+           actor_user_id,
+           actor_role,
+           action,
+           target_type,
+           target_id,
+           request_id,
+           metadata,
+           created_at
+         FROM admin_audit_events
+         ORDER BY created_at DESC, id DESC
+         LIMIT $1`,
+        [limit],
+      );
+      return result.rows.map((row) => ({
+        id: String(row.id),
+        actorUserId: row.actor_user_id ? String(row.actor_user_id) : null,
+        actorRole: row.actor_role,
+        action: row.action,
+        targetType: row.target_type,
+        targetId: row.target_id,
+        requestId: row.request_id ? String(row.request_id) : null,
+        metadata: row.metadata,
+        createdAt: new Date(row.created_at).toISOString(),
+      }));
+    },
+
+    async updateAdminUserStatus(input) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const actor = await client.query(
+          `SELECT users.role, users.status
+           FROM app_users AS users
+           INNER JOIN user_sessions AS sessions
+             ON sessions.id = $2
+            AND sessions.user_id = users.id
+            AND sessions.revoked_at IS NULL
+            AND sessions.expires_at > now()
+           INNER JOIN admin_elevated_sessions AS elevation
+             ON elevation.base_session_id = sessions.id
+            AND elevation.user_id = users.id
+            AND elevation.token_hash = $3
+            AND elevation.revoked_at IS NULL
+            AND elevation.expires_at > now()
+           WHERE users.id = $1
+           FOR UPDATE OF users, sessions, elevation`,
+          [
+            input.actorUserId,
+            input.actorSessionId,
+            input.actorElevationTokenHash,
+          ],
+        );
+        if (
+          actor.rowCount === 0 ||
+          actor.rows[0].role !== "admin" ||
+          actor.rows[0].status !== "active"
+        ) {
+          const error = new Error("administrator permission was revoked");
+          error.code = "AUTH_ADMIN_FORBIDDEN";
+          throw error;
+        }
+        if (
+          String(input.actorUserId) === String(input.targetUserId) &&
+          input.status === "disabled"
+        ) {
+          const error = new Error("administrator cannot disable itself");
+          error.code = "AUTH_ADMIN_SELF_DISABLE";
+          throw error;
+        }
+        const target = await client.query(
+          `SELECT id, username, status, role
+           FROM app_users
+           WHERE id = $1
+             AND status <> 'deleted'
+           FOR UPDATE`,
+          [input.targetUserId],
+        );
+        if (target.rowCount === 0) {
+          await client.query("ROLLBACK");
+          return null;
+        }
+        if (
+          input.expectedStatus &&
+          target.rows[0].status !== input.expectedStatus
+        ) {
+          await client.query("ROLLBACK");
+          return { conflict: true, currentStatus: target.rows[0].status };
+        }
+        await client.query(
+          `UPDATE app_users
+           SET status = $2, updated_at = now()
+           WHERE id = $1`,
+          [input.targetUserId, input.status],
+        );
+        if (input.status === "disabled") {
+          await client.query(
+            `UPDATE user_sessions
+             SET revoked_at = COALESCE(revoked_at, now())
+             WHERE user_id = $1`,
+            [input.targetUserId],
+          );
+          await client.query(
+            `UPDATE admin_elevated_sessions
+             SET revoked_at = COALESCE(revoked_at, now())
+             WHERE user_id = $1`,
+            [input.targetUserId],
+          );
+        }
+        await client.query(
+          `INSERT INTO admin_audit_events (
+             actor_user_id,
+             actor_role,
+             session_id,
+             action,
+             target_type,
+             target_id,
+             request_id,
+             ip_hash,
+             user_agent_hash,
+             metadata
+           )
+           VALUES ($1, 'admin', $2, 'admin.user.status_changed', 'user', $3,
+                   $4, $5, $6, $7::jsonb)`,
+          [
+            input.actorUserId,
+            input.actorSessionId,
+            input.targetUserId,
+            input.requestId,
+            input.ipHash,
+            input.userAgentHash,
+            JSON.stringify({
+              before: { status: target.rows[0].status },
+              after: { status: input.status },
+              reason: input.reason,
+            }),
+          ],
+        );
+        await client.query("COMMIT");
+        return {
+          conflict: false,
+          user: {
+            id: String(target.rows[0].id),
+            username: target.rows[0].username,
+            status: input.status,
+            role: target.rows[0].role,
+          },
+        };
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+
     async registerCredentialUser({
       username,
       normalizedUsername,
@@ -1068,6 +1549,12 @@ export function createAuthStore(pool) {
            WHERE user_id = $1`,
           [userId],
         );
+        await client.query(
+          `UPDATE admin_elevated_sessions
+           SET revoked_at = COALESCE(revoked_at, now())
+           WHERE user_id = $1`,
+          [userId],
+        );
         await client.query("COMMIT");
         return true;
       } catch (error) {
@@ -1151,6 +1638,18 @@ export function createAuthStore(pool) {
           [userId, deviceId],
         );
         await client.query(
+          `UPDATE admin_elevated_sessions
+           SET revoked_at = COALESCE(revoked_at, now())
+           WHERE user_id = $1
+             AND base_session_id IN (
+               SELECT id
+               FROM user_sessions
+               WHERE user_id = $1
+                 AND device_id = $2
+             )`,
+          [userId, deviceId],
+        );
+        await client.query(
           `UPDATE user_devices
            SET revoked_at = now()
            WHERE user_id = $1
@@ -1180,9 +1679,15 @@ export function createAuthStore(pool) {
 
     async revokeSession(tokenHash) {
       await pool.query(
-        `UPDATE user_sessions
+        `WITH revoked_sessions AS (
+           UPDATE user_sessions
+           SET revoked_at = COALESCE(revoked_at, now())
+           WHERE token_hash = $1
+           RETURNING id
+         )
+         UPDATE admin_elevated_sessions
          SET revoked_at = COALESCE(revoked_at, now())
-         WHERE token_hash = $1`,
+         WHERE base_session_id IN (SELECT id FROM revoked_sessions)`,
         [tokenHash],
       );
     },

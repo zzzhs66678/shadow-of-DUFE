@@ -165,6 +165,9 @@ test("admin security requires encrypted MFA, short elevation, and append-only au
   const migration = await read("ops/postgres/migrations/0008_admin_security.sql");
   const config = await read("services/auth-api/src/config.mjs");
   const security = await read("services/auth-api/src/admin-security.mjs");
+  const routes = await read("services/auth-api/src/admin-routes.mjs");
+  const caddy = await read("deploy/Caddyfile");
+  const migrations = await read("ops/postgres/run-migrations.sh");
 
   assert.match(migration, /role IN \('user', 'moderator', 'admin'\)/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS admin_elevated_sessions/);
@@ -178,6 +181,18 @@ test("admin security requires encrypted MFA, short elevation, and append-only au
   assert.match(security, /aes-256-gcm/);
   assert.match(security, /timingSafeEqual/);
   assert.doesNotMatch(security, /console\.(?:log|error)/);
+  assert.match(routes, /SameSite=Strict|sameSite: "Strict"/);
+  assert.match(routes, /admin_forbidden/);
+  assert.match(routes, /admin_mfa_required/);
+  assert.match(caddy, /handle \/api\/admin\/\*/);
+  assert.match(caddy, /X-Robots-Tag "noindex, nofollow, noarchive"/);
+  assert.match(migrations, /AUTH_DB_USER/);
+  assert.match(migrations, /NOSUPERUSER NOCREATEDB NOCREATEROLE/);
+  assert.match(
+    migrations,
+    /REVOKE UPDATE, DELETE, TRUNCATE ON admin_audit_events/,
+  );
+  assert.match(migrations, /REVOKE ALL PRIVILEGES ON schema_migrations/);
 });
 
 test("auth traffic has bounded in-memory burst protection", async () => {
