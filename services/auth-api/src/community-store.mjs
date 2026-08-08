@@ -76,6 +76,64 @@ async function withTransaction(pool, callback) {
   }
 }
 
+async function assertElevatedAdmin(client, input) {
+  const result = await client.query(
+    `SELECT
+       users.role,
+       users.status,
+       COALESCE(users.display_name, users.username) AS actor_label
+     FROM app_users AS users
+     JOIN user_sessions AS sessions
+       ON sessions.id = $2::uuid
+      AND sessions.user_id = users.id
+      AND sessions.revoked_at IS NULL
+      AND sessions.expires_at > now()
+     JOIN admin_elevated_sessions AS elevation
+       ON elevation.base_session_id = sessions.id
+      AND elevation.user_id = users.id
+      AND elevation.token_hash = $3
+      AND elevation.revoked_at IS NULL
+      AND elevation.expires_at > now()
+     WHERE users.id = $1::uuid
+     FOR UPDATE OF users, sessions, elevation`,
+    [
+      input.actorUserId,
+      input.actorSessionId,
+      input.actorElevationTokenHash,
+    ],
+  );
+  if (
+    result.rowCount !== 1 ||
+    result.rows[0].role !== "admin" ||
+    result.rows[0].status !== "active"
+  ) {
+    throw communityError("AUTH_ADMIN_FORBIDDEN");
+  }
+  return result.rows[0];
+}
+
+async function insertAdminAudit(client, input, action, targetType, targetId, metadata) {
+  await client.query(
+    `INSERT INTO admin_audit_events (
+       actor_user_id, actor_role, session_id, action,
+       target_type, target_id, request_id, ip_hash, user_agent_hash, metadata
+     ) VALUES (
+       $1::uuid, 'admin', $2::uuid, $3, $4, $5, $6::uuid, $7, $8, $9::jsonb
+     )`,
+    [
+      input.actorUserId,
+      input.actorSessionId,
+      action,
+      targetType,
+      String(targetId),
+      input.requestId,
+      input.ipHash,
+      input.userAgentHash,
+      JSON.stringify(metadata),
+    ],
+  );
+}
+
 async function assertPostingAllowed(client, userId) {
   const result = await client.query(
     `SELECT
@@ -1124,6 +1182,391 @@ export function createCommunityStore(pool) {
           [reporterUserId, targetType, targetId, reasonCode, detail],
         );
         return reportResult(result.rows[0]);
+      });
+    },
+
+    async listCommunityReportQueue({ status = "open", limit = 50 }) {
+      const result = await pool.query(
+        `SELECT
+           reports.id,
+           reports.target_type,
+           reports.target_id,
+           reports.reason_code,
+           reports.detail,
+           reports.status,
+           reports.created_at,
+           reports.updated_at,
+           reporter.username AS reporter_username,
+           COALESCE(
+             topics.title,
+             left(comments.body, 160),
+             target_user.username
+           ) AS target_label,
+           cases.id AS case_id,
+           cases.status AS case_status
+         FROM community_reports AS reports
+         LEFT JOIN app_users AS reporter ON reporter.id = reports.reporter_user_id
+         LEFT JOIN community_topics AS topics
+           ON reports.target_type = 'topic' AND topics.id = reports.target_id
+         LEFT JOIN community_comments AS comments
+           ON reports.target_type = 'comment' AND comments.id = reports.target_id
+         LEFT JOIN app_users AS target_user
+           ON reports.target_type = 'user' AND target_user.id = reports.target_id
+         LEFT JOIN community_case_reports AS links ON links.report_id = reports.id
+         LEFT JOIN community_moderation_cases AS cases ON cases.id = links.case_id
+         WHERE reports.status = $1
+         ORDER BY reports.created_at ASC, reports.id ASC
+         LIMIT $2`,
+        [status, limit],
+      );
+      return result.rows.map((row) => ({
+        id: String(row.id),
+        targetType: row.target_type,
+        targetId: String(row.target_id),
+        targetLabel: row.target_label,
+        reporterUsername: row.reporter_username,
+        reasonCode: row.reason_code,
+        detail: row.detail,
+        status: row.status,
+        caseId: row.case_id ? String(row.case_id) : null,
+        caseStatus: row.case_status,
+        createdAt: iso(row.created_at),
+        updatedAt: iso(row.updated_at),
+      }));
+    },
+
+    async openCommunityModerationCase(input) {
+      return withTransaction(pool, async (client) => {
+        const actor = await assertElevatedAdmin(client, input);
+        const reportResultQuery = await client.query(
+          `SELECT id, target_type, target_id, status
+           FROM community_reports
+           WHERE id = $1::uuid
+           FOR UPDATE`,
+          [input.reportId],
+        );
+        const report = reportResultQuery.rows[0];
+        if (!report || !["open", "reviewing"].includes(report.status)) {
+          throw communityError("COMMUNITY_REPORT_NOT_FOUND");
+        }
+        let caseResult = await client.query(
+          `INSERT INTO community_moderation_cases (
+             target_type, target_id, assigned_moderator_id
+           ) VALUES ($1, $2::uuid, $3::uuid)
+           ON CONFLICT (target_type, target_id)
+             WHERE status IN ('open', 'reviewing', 'appealed')
+           DO NOTHING
+           RETURNING id, target_type, target_id, status, assigned_moderator_id,
+                     opened_at, updated_at, true AS created`,
+          [report.target_type, report.target_id, input.actorUserId],
+        );
+        if (caseResult.rowCount === 0) {
+          caseResult = await client.query(
+            `SELECT id, target_type, target_id, status, assigned_moderator_id,
+                    opened_at, updated_at, false AS created
+             FROM community_moderation_cases
+             WHERE target_type = $1
+               AND target_id = $2::uuid
+               AND status IN ('open', 'reviewing', 'appealed')
+             FOR UPDATE`,
+            [report.target_type, report.target_id],
+          );
+        }
+        const moderationCase = caseResult.rows[0];
+        const link = await client.query(
+          `INSERT INTO community_case_reports (case_id, report_id)
+           VALUES ($1::uuid, $2::uuid)
+           ON CONFLICT DO NOTHING
+           RETURNING report_id`,
+          [moderationCase.id, input.reportId],
+        );
+        if (link.rowCount === 0) {
+          return {
+            id: String(moderationCase.id),
+            targetType: moderationCase.target_type,
+            targetId: String(moderationCase.target_id),
+            status: moderationCase.status,
+            created: false,
+          };
+        }
+        await client.query(
+          `UPDATE community_reports
+           SET status = 'reviewing'
+           WHERE id = $1::uuid AND status = 'open'`,
+          [input.reportId],
+        );
+        await client.query(
+          `UPDATE community_moderation_cases
+           SET status = 'reviewing', assigned_moderator_id = $2::uuid
+           WHERE id = $1::uuid`,
+          [moderationCase.id, input.actorUserId],
+        );
+        const moderationAction = moderationCase.created
+          ? "case_opened"
+          : "assigned";
+        await client.query(
+          `INSERT INTO community_moderation_actions (
+             case_id, actor_user_id, actor_label, actor_role, action,
+             target_type, target_id, reason, metadata, request_id
+           ) VALUES (
+             $1::uuid, $2::uuid, $3, 'admin', $4,
+             $5, $6::uuid, $7, $8::jsonb, $9::uuid
+           )`,
+          [
+            moderationCase.id,
+            input.actorUserId,
+            actor.actor_label,
+            moderationAction,
+            report.target_type,
+            report.target_id,
+            input.reason,
+            JSON.stringify({ reportId: String(input.reportId) }),
+            input.requestId,
+          ],
+        );
+        await insertAdminAudit(
+          client,
+          input,
+          "admin.community.case_opened",
+          report.target_type,
+          report.target_id,
+          {
+            caseId: String(moderationCase.id),
+            reportId: String(input.reportId),
+            reason: input.reason,
+          },
+        );
+        return {
+          id: String(moderationCase.id),
+          targetType: report.target_type,
+          targetId: String(report.target_id),
+          status: "reviewing",
+          created: Boolean(moderationCase.created),
+        };
+      });
+    },
+
+    async applyCommunityModerationAction(input) {
+      return withTransaction(pool, async (client) => {
+        const actor = await assertElevatedAdmin(client, input);
+        const caseResult = await client.query(
+          `SELECT id, target_type, target_id, status
+           FROM community_moderation_cases
+           WHERE id = $1::uuid
+           FOR UPDATE`,
+          [input.caseId],
+        );
+        const moderationCase = caseResult.rows[0];
+        if (
+          !moderationCase ||
+          !["open", "reviewing", "appealed"].includes(moderationCase.status)
+        ) {
+          throw communityError("COMMUNITY_CASE_NOT_FOUND");
+        }
+        if (
+          ["suspend", "ban", "unban"].includes(input.action) &&
+          moderationCase.target_type !== "user"
+        ) {
+          throw communityError("COMMUNITY_MODERATION_ACTION_INVALID");
+        }
+        if (
+          ["hide", "restore", "delete"].includes(input.action) &&
+          !["topic", "comment"].includes(moderationCase.target_type)
+        ) {
+          throw communityError("COMMUNITY_MODERATION_ACTION_INVALID");
+        }
+        if (
+          String(moderationCase.target_id) === String(input.actorUserId) &&
+          ["suspend", "ban"].includes(input.action)
+        ) {
+          throw communityError("COMMUNITY_MODERATION_SELF_FORBIDDEN");
+        }
+
+        let recipientUserId = null;
+        let topicId = null;
+        let commentId = null;
+        if (["topic", "comment"].includes(moderationCase.target_type)) {
+          const table = moderationCase.target_type === "topic"
+            ? "community_topics"
+            : "community_comments";
+          const target = await client.query(
+            `SELECT id, author_user_id, status${
+              moderationCase.target_type === "comment" ? ", topic_id" : ""
+            }
+             FROM ${table}
+             WHERE id = $1::uuid
+             FOR UPDATE`,
+            [moderationCase.target_id],
+          );
+          if (target.rowCount !== 1) {
+            throw communityError("COMMUNITY_CASE_NOT_FOUND");
+          }
+          recipientUserId = target.rows[0].author_user_id;
+          topicId = moderationCase.target_type === "topic"
+            ? moderationCase.target_id
+            : target.rows[0].topic_id;
+          commentId = moderationCase.target_type === "comment"
+            ? moderationCase.target_id
+            : null;
+          if (input.action === "hide") {
+            if (target.rows[0].status !== "published") {
+              throw communityError("COMMUNITY_MODERATION_STATE_CONFLICT");
+            }
+            await client.query(
+              `UPDATE ${table}
+               SET status = 'hidden', version = version + 1, updated_at = now()
+               WHERE id = $1::uuid`,
+              [moderationCase.target_id],
+            );
+            await client.query(
+              `UPDATE community_notifications
+               SET title = '相关内容正在审核', body = NULL,
+                   fallback_path = '/community'
+               WHERE ${moderationCase.target_type === "topic" ? "topic_id" : "comment_id"} = $1::uuid`,
+              [moderationCase.target_id],
+            );
+          } else if (input.action === "restore") {
+            if (target.rows[0].status !== "hidden") {
+              throw communityError("COMMUNITY_MODERATION_STATE_CONFLICT");
+            }
+            await client.query(
+              `UPDATE ${table}
+               SET status = 'published', version = version + 1,
+                   updated_at = now(), deleted_at = NULL
+               WHERE id = $1::uuid`,
+              [moderationCase.target_id],
+            );
+          } else if (input.action === "delete") {
+            if (target.rows[0].status === "deleted") {
+              throw communityError("COMMUNITY_MODERATION_STATE_CONFLICT");
+            }
+            await client.query(
+              `UPDATE ${table}
+               SET status = 'deleted', version = version + 1,
+                   updated_at = now(), deleted_at = now()
+               WHERE id = $1::uuid`,
+              [moderationCase.target_id],
+            );
+            await client.query(
+              `UPDATE community_notifications
+               SET title = '相关内容已被处理', body = NULL,
+                   fallback_path = '/community'
+               WHERE ${moderationCase.target_type === "topic" ? "topic_id" : "comment_id"} = $1::uuid`,
+              [moderationCase.target_id],
+            );
+          }
+        } else {
+          recipientUserId = moderationCase.target_id;
+        }
+
+        if (["suspend", "ban"].includes(input.action)) {
+          const expiresAt = input.durationHours
+            ? new Date(Date.now() + input.durationHours * 60 * 60 * 1_000)
+            : null;
+          await client.query(
+            `INSERT INTO community_user_sanctions (
+               user_id, sanction_type, reason, expires_at, created_by_user_id
+             ) VALUES ($1::uuid, $2, $3, $4, $5::uuid)`,
+            [
+              moderationCase.target_id,
+              input.action === "suspend" ? "posting_suspension" : "ban",
+              input.reason,
+              expiresAt,
+              input.actorUserId,
+            ],
+          );
+        } else if (input.action === "unban") {
+          const revoked = await client.query(
+            `UPDATE community_user_sanctions
+             SET revoked_at = now(), revoked_by_user_id = $2::uuid
+             WHERE user_id = $1::uuid AND revoked_at IS NULL`,
+            [moderationCase.target_id, input.actorUserId],
+          );
+          if (revoked.rowCount === 0) {
+            throw communityError("COMMUNITY_MODERATION_STATE_CONFLICT");
+          }
+        }
+
+        const reportStatus = input.action === "dismiss" ? "dismissed" : "resolved";
+        const caseStatus = input.action === "dismiss" ? "closed" : "resolved";
+        await client.query(
+          `UPDATE community_reports AS reports
+           SET status = $2
+           FROM community_case_reports AS links
+           WHERE links.case_id = $1::uuid
+             AND reports.id = links.report_id
+             AND reports.status IN ('open', 'reviewing')`,
+          [input.caseId, reportStatus],
+        );
+        await client.query(
+          `UPDATE community_moderation_cases
+           SET status = $2, assigned_moderator_id = $3::uuid
+           WHERE id = $1::uuid`,
+          [input.caseId, caseStatus, input.actorUserId],
+        );
+        await client.query(
+          `INSERT INTO community_moderation_actions (
+             case_id, actor_user_id, actor_label, actor_role, action,
+             target_type, target_id, reason, metadata, request_id
+           ) VALUES (
+             $1::uuid, $2::uuid, $3, 'admin', $4,
+             $5, $6::uuid, $7, $8::jsonb, $9::uuid
+           )`,
+          [
+            input.caseId,
+            input.actorUserId,
+            actor.actor_label,
+            input.action,
+            moderationCase.target_type,
+            moderationCase.target_id,
+            input.reason,
+            JSON.stringify({ durationHours: input.durationHours ?? null }),
+            input.requestId,
+          ],
+        );
+        await insertAdminAudit(
+          client,
+          input,
+          `admin.community.${input.action}`,
+          moderationCase.target_type,
+          moderationCase.target_id,
+          {
+            caseId: String(input.caseId),
+            reason: input.reason,
+            durationHours: input.durationHours ?? null,
+          },
+        );
+        if (
+          recipientUserId &&
+          String(recipientUserId) !== String(input.actorUserId)
+        ) {
+          await client.query(
+            `INSERT INTO community_notifications (
+               recipient_user_id, actor_user_id, notification_type,
+               topic_id, comment_id, title, body, fallback_path, dedupe_key
+             ) VALUES (
+               $1::uuid, $2::uuid, 'content_moderated',
+               $3::uuid, $4::uuid, '你的社区内容有新的处理结果',
+               $5, '/community', 'moderation:' || $6::uuid::text
+             )
+             ON CONFLICT DO NOTHING`,
+            [
+              recipientUserId,
+              input.actorUserId,
+              topicId,
+              commentId,
+              input.reason,
+              input.requestId,
+            ],
+          );
+        }
+        return {
+          id: String(input.caseId),
+          targetType: moderationCase.target_type,
+          targetId: String(moderationCase.target_id),
+          status: caseStatus,
+          action: input.action,
+        };
       });
     },
 

@@ -600,3 +600,162 @@ test("soft-deleting a reply redacts its notification preview in the same transac
   assert.match(redaction.sql, /fallback_path = '\/community'/u);
   assert.equal(calls.at(-1).sql, "COMMIT");
 });
+
+test("opening a moderation case rechecks elevation and appends both audit trails", async () => {
+  const adminId = "00000000-0000-4000-8000-000000000001";
+  const reportId = "00000000-0000-4000-8000-000000000041";
+  const caseId = "00000000-0000-4000-8000-000000000061";
+  const calls = [];
+  const client = {
+    async query(sql, values) {
+      calls.push({ sql, values });
+      if (sql.includes("JOIN admin_elevated_sessions")) {
+        return {
+          rowCount: 1,
+          rows: [{ role: "admin", status: "active", actor_label: "管理员" }],
+        };
+      }
+      if (sql.includes("FROM community_reports") && sql.includes("FOR UPDATE")) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: reportId,
+            target_type: "topic",
+            target_id: topicId,
+            status: "open",
+          }],
+        };
+      }
+      if (sql.includes("INSERT INTO community_moderation_cases")) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: caseId,
+            target_type: "topic",
+            target_id: topicId,
+            status: "open",
+            assigned_moderator_id: adminId,
+            created: true,
+          }],
+        };
+      }
+      if (sql.includes("INSERT INTO community_case_reports")) {
+        return { rowCount: 1, rows: [{ report_id: reportId }] };
+      }
+      return { rowCount: 1, rows: [] };
+    },
+    release() {},
+  };
+  const store = createCommunityStore({ async connect() { return client; } });
+  const result = await store.openCommunityModerationCase({
+    actorUserId: adminId,
+    actorSessionId: "00000000-0000-4000-8000-000000000071",
+    actorElevationTokenHash: "elevation-hash",
+    reportId,
+    reason: "举报需要进入人工审核流程",
+    requestId: "00000000-0000-4000-8000-000000000081",
+    ipHash: "ip-hash",
+    userAgentHash: "ua-hash",
+  });
+  assert.equal(result.status, "reviewing");
+  assert.ok(calls.some(({ sql }) => sql.includes("FOR UPDATE OF users, sessions, elevation")));
+  assert.ok(calls.some(({ sql }) => sql.includes("INSERT INTO community_moderation_actions")));
+  assert.ok(calls.some(({ sql }) => sql.includes("INSERT INTO admin_audit_events")));
+  assert.equal(calls.at(-1).sql, "COMMIT");
+});
+
+test("moderation hides content, resolves reports, notifies the author, and audits atomically", async () => {
+  const adminId = "00000000-0000-4000-8000-000000000001";
+  const authorId = "00000000-0000-4000-8000-000000000012";
+  const caseId = "00000000-0000-4000-8000-000000000061";
+  const calls = [];
+  const client = {
+    async query(sql, values) {
+      calls.push({ sql, values });
+      if (sql.includes("JOIN admin_elevated_sessions")) {
+        return {
+          rowCount: 1,
+          rows: [{ role: "admin", status: "active", actor_label: "管理员" }],
+        };
+      }
+      if (sql.includes("FROM community_moderation_cases") && sql.includes("FOR UPDATE")) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: caseId,
+            target_type: "topic",
+            target_id: topicId,
+            status: "reviewing",
+          }],
+        };
+      }
+      if (sql.includes("FROM community_topics") && sql.includes("FOR UPDATE")) {
+        return {
+          rowCount: 1,
+          rows: [{ id: topicId, author_user_id: authorId, status: "published" }],
+        };
+      }
+      return { rowCount: 1, rows: [] };
+    },
+    release() {},
+  };
+  const store = createCommunityStore({ async connect() { return client; } });
+  const result = await store.applyCommunityModerationAction({
+    actorUserId: adminId,
+    actorSessionId: "00000000-0000-4000-8000-000000000071",
+    actorElevationTokenHash: "elevation-hash",
+    caseId,
+    action: "hide",
+    reason: "内容包含针对个人的持续攻击，先隐藏处理",
+    durationHours: null,
+    requestId: "00000000-0000-4000-8000-000000000081",
+    ipHash: "ip-hash",
+    userAgentHash: "ua-hash",
+  });
+  assert.equal(result.action, "hide");
+  assert.ok(
+    calls.some(
+      ({ sql }) =>
+        sql.includes("UPDATE community_topics") &&
+        sql.includes("status = 'hidden'"),
+    ),
+  );
+  assert.ok(calls.some(({ sql }) => sql.includes("UPDATE community_reports AS reports")));
+  assert.ok(calls.some(({ sql }) => sql.includes("INSERT INTO community_moderation_actions")));
+  assert.ok(calls.some(({ sql }) => sql.includes("INSERT INTO admin_audit_events")));
+  assert.ok(calls.some(({ sql }) => sql.includes("'content_moderated'")));
+  assert.equal(calls.at(-1).sql, "COMMIT");
+});
+
+test("moderation mutations stop before target access when elevation was revoked", async () => {
+  const calls = [];
+  const client = {
+    async query(sql, values) {
+      calls.push({ sql, values });
+      if (sql.includes("JOIN admin_elevated_sessions")) {
+        return { rowCount: 0, rows: [] };
+      }
+      return { rowCount: 0, rows: [] };
+    },
+    release() {},
+  };
+  const store = createCommunityStore({ async connect() { return client; } });
+  await assert.rejects(
+    store.openCommunityModerationCase({
+      actorUserId: "00000000-0000-4000-8000-000000000001",
+      actorSessionId: "00000000-0000-4000-8000-000000000071",
+      actorElevationTokenHash: "revoked",
+      reportId: "00000000-0000-4000-8000-000000000041",
+      reason: "这是一条满足长度要求的审核原因",
+      requestId: "00000000-0000-4000-8000-000000000081",
+      ipHash: "ip-hash",
+      userAgentHash: "ua-hash",
+    }),
+    (error) => error.code === "AUTH_ADMIN_FORBIDDEN",
+  );
+  assert.equal(
+    calls.some(({ sql }) => sql.includes("FROM community_reports")),
+    false,
+  );
+  assert.equal(calls.at(-1).sql, "ROLLBACK");
+});

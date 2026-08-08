@@ -14,6 +14,8 @@ const activeKeyId = "test-v1";
 const keyring = { [activeKeyId]: randomBytes(32).toString("base64") };
 const adminId = "00000000-0000-4000-8000-000000000001";
 const userId = "00000000-0000-4000-8000-000000000002";
+const reportId = "00000000-0000-4000-8000-000000000003";
+const moderationCaseId = "00000000-0000-4000-8000-000000000004";
 const adminSecurity = createAdminSecurity({
   activeKeyId,
   keyring,
@@ -152,6 +154,49 @@ function createAdminStore() {
       sensitiveCalls += 1;
       return structuredClone(audit);
     },
+    async listCommunityReportQueue(input) {
+      sensitiveCalls += 1;
+      return [{
+        id: reportId,
+        targetType: "user",
+        targetId: userId,
+        targetLabel: "student",
+        reasonCode: "harassment",
+        detail: "持续发布针对个人的攻击内容。",
+        status: input.status,
+        caseId: null,
+      }];
+    },
+    async openCommunityModerationCase(input) {
+      sensitiveCalls += 1;
+      audit.push({
+        action: "admin.community.case_opened",
+        reportId: input.reportId,
+        reason: input.reason,
+      });
+      return {
+        id: moderationCaseId,
+        targetType: "user",
+        targetId: userId,
+        status: "reviewing",
+        created: true,
+      };
+    },
+    async applyCommunityModerationAction(input) {
+      sensitiveCalls += 1;
+      audit.push({
+        action: `admin.community.${input.action}`,
+        caseId: input.caseId,
+        reason: input.reason,
+      });
+      return {
+        id: moderationCaseId,
+        targetType: "user",
+        targetId: userId,
+        status: "resolved",
+        action: input.action,
+      };
+    },
     async updateAdminUserStatus(input) {
       sensitiveCalls += 1;
       if (input.targetUserId !== target.id) return null;
@@ -223,6 +268,26 @@ function adminCookieFrom(response) {
     .find((value) => value.startsWith(`${config.adminCookie}=`));
 }
 
+async function elevatedCookie(baseUrl, store) {
+  const code = __test.codeForStep(
+    store.enrollment.secret,
+    Math.floor(now / 1_000 / 30),
+  );
+  const response = await fetch(`${baseUrl}/api/admin/elevation`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Origin: "https://dufesh.cn",
+      Cookie: baseCookie(store.tokens.adminTokenOne),
+    },
+    body: JSON.stringify({ code }),
+  });
+  assert.equal(response.status, 200);
+  return `${baseCookie(store.tokens.adminTokenOne)}; ${
+    adminCookieFrom(response).split(";", 1)[0]
+  }`;
+}
+
 test("admin routes reject anonymous and ordinary users before sensitive queries", async () => {
   await withAdminServer(async ({ baseUrl, store }) => {
     const anonymous = await fetch(`${baseUrl}/api/admin/users`);
@@ -233,6 +298,11 @@ test("admin routes reject anonymous and ordinary users before sensitive queries"
     });
     assert.equal(ordinary.status, 403);
     assert.deepEqual(await ordinary.json(), { error: "admin_forbidden" });
+    const community = await fetch(
+      `${baseUrl}/api/admin/community/reports`,
+      { headers: { Cookie: baseCookie(store.tokens.userToken) } },
+    );
+    assert.equal(community.status, 403);
     assert.equal(store.sensitiveCalls, 0);
   });
 });
@@ -372,6 +442,102 @@ test("elevated administrators disable users with audit and optimistic status che
     assert.deepEqual(await oldUserSession.json(), {
       error: "authentication_required",
     });
+  });
+});
+
+test("elevated administrators open and resolve community cases with audit", async () => {
+  await withAdminServer(async ({ baseUrl, store }) => {
+    const cookie = await elevatedCookie(baseUrl, store);
+    const reports = await fetch(
+      `${baseUrl}/api/admin/community/reports?status=open`,
+      { headers: { Cookie: cookie } },
+    );
+    assert.equal(reports.status, 200);
+    assert.equal((await reports.json()).reports[0].id, reportId);
+
+    const opened = await fetch(
+      `${baseUrl}/api/admin/community/reports/${reportId}/case`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "https://dufesh.cn",
+          Cookie: cookie,
+        },
+        body: JSON.stringify({ reason: "举报内容需要进入人工复核流程" }),
+      },
+    );
+    assert.equal(opened.status, 200);
+    assert.equal((await opened.json()).case.status, "reviewing");
+
+    const acted = await fetch(
+      `${baseUrl}/api/admin/community/cases/${moderationCaseId}/actions`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "https://dufesh.cn",
+          Cookie: cookie,
+        },
+        body: JSON.stringify({
+          action: "suspend",
+          durationHours: 24,
+          reason: "确认存在持续骚扰行为，暂停发布一天",
+        }),
+      },
+    );
+    assert.equal(acted.status, 200);
+    assert.equal((await acted.json()).case.action, "suspend");
+    assert.ok(
+      store.audit.some(
+        (event) => event.action === "admin.community.case_opened",
+      ),
+    );
+    assert.ok(
+      store.audit.some(
+        (event) => event.action === "admin.community.suspend",
+      ),
+    );
+  });
+});
+
+test("community moderation rejects cross-site and mass-assigned actions", async () => {
+  await withAdminServer(async ({ baseUrl, store }) => {
+    const cookie = await elevatedCookie(baseUrl, store);
+    const crossSite = await fetch(
+      `${baseUrl}/api/admin/community/reports/${reportId}/case`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "https://evil.example",
+          Cookie: cookie,
+        },
+        body: JSON.stringify({ reason: "这是一条满足长度要求的原因" }),
+      },
+    );
+    assert.equal(crossSite.status, 403);
+
+    const before = store.audit.length;
+    const invalid = await fetch(
+      `${baseUrl}/api/admin/community/cases/${moderationCaseId}/actions`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "https://dufesh.cn",
+          Cookie: cookie,
+        },
+        body: JSON.stringify({
+          action: "hide",
+          durationHours: 24,
+          reason: "不能把无关持续时间塞进隐藏操作",
+          targetId: userId,
+        }),
+      },
+    );
+    assert.equal(invalid.status, 400);
+    assert.equal(store.audit.length, before);
   });
 });
 

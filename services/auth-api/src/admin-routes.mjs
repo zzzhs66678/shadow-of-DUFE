@@ -71,6 +71,28 @@ function maskedEmail(email) {
   return `${local.slice(0, 2)}***@${domain}`;
 }
 
+function exactObject(value, allowedKeys, requiredKeys) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const keys = Object.keys(value);
+  return (
+    keys.every((key) => allowedKeys.has(key)) &&
+    requiredKeys.every((key) => Object.hasOwn(value, key))
+  );
+}
+
+function moderationReason(value) {
+  if (typeof value !== "string") return null;
+  const reason = value.normalize("NFKC").trim();
+  if (
+    reason.length < 8 ||
+    reason.length > 1_000 ||
+    /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(reason)
+  ) {
+    return null;
+  }
+  return reason;
+}
+
 export function createAdminRequestHandler({
   store,
   config,
@@ -301,6 +323,167 @@ export function createAdminRequestHandler({
       sendJson(response, 200, {
         events: await store.listAdminAudit({ limit: 50 }),
       });
+      return true;
+    }
+
+    if (url.pathname === "/api/admin/community/reports") {
+      if (request.method !== "GET") {
+        methodNotAllowed(response, "GET");
+        return true;
+      }
+      const status = url.searchParams.get("status") ?? "open";
+      if (!["open", "reviewing"].includes(status)) {
+        sendJson(response, 400, { error: "invalid_community_report_query" });
+        return true;
+      }
+      sendJson(response, 200, {
+        reports: await store.listCommunityReportQueue({ status, limit: 50 }),
+      });
+      return true;
+    }
+
+    const reportCaseMatch = url.pathname.match(
+      /^\/api\/admin\/community\/reports\/([0-9a-f-]{36})\/case$/iu,
+    );
+    if (reportCaseMatch) {
+      if (request.method !== "POST") {
+        methodNotAllowed(response, "POST");
+        return true;
+      }
+      if (!isUuid(reportCaseMatch[1])) {
+        sendJson(response, 404, { error: "community_report_not_found" });
+        return true;
+      }
+      const body = await readJsonBody(request);
+      const reason = moderationReason(body?.reason);
+      if (
+        !exactObject(body, new Set(["reason"]), ["reason"]) ||
+        !reason
+      ) {
+        sendJson(response, 400, { error: "invalid_community_case" });
+        return true;
+      }
+      try {
+        const moderationCase = await store.openCommunityModerationCase({
+          actorUserId: session.userId,
+          actorSessionId: session.id,
+          actorElevationTokenHash: elevationTokenHash,
+          reportId: reportCaseMatch[1],
+          reason,
+          requestId,
+          ipHash: tokenDigest(
+            `admin-ip:${clientAddress(request)}`,
+            config.tokenPepper,
+          ),
+          userAgentHash: tokenDigest(
+            `admin-ua:${String(request.headers["user-agent"] ?? "")}`,
+            config.tokenPepper,
+          ),
+        });
+        sendJson(response, 200, { case: moderationCase });
+      } catch (error) {
+        if (error?.code === "AUTH_ADMIN_FORBIDDEN") {
+          sendJson(response, 403, { error: "admin_mfa_required" }, [
+            clearAdminCookie(),
+          ]);
+        } else if (error?.code === "COMMUNITY_REPORT_NOT_FOUND") {
+          sendJson(response, 404, { error: "community_report_not_found" });
+        } else {
+          throw error;
+        }
+      }
+      return true;
+    }
+
+    const caseActionMatch = url.pathname.match(
+      /^\/api\/admin\/community\/cases\/([0-9a-f-]{36})\/actions$/iu,
+    );
+    if (caseActionMatch) {
+      if (request.method !== "POST") {
+        methodNotAllowed(response, "POST");
+        return true;
+      }
+      if (!isUuid(caseActionMatch[1])) {
+        sendJson(response, 404, { error: "community_case_not_found" });
+        return true;
+      }
+      const body = await readJsonBody(request);
+      const reason = moderationReason(body?.reason);
+      const actions = new Set([
+        "hide",
+        "restore",
+        "delete",
+        "warn",
+        "suspend",
+        "ban",
+        "unban",
+        "dismiss",
+      ]);
+      const durationHours = body?.durationHours ?? null;
+      const validDuration =
+        durationHours === null ||
+        (Number.isSafeInteger(durationHours) &&
+          durationHours >= 1 &&
+          durationHours <= 8_760);
+      if (
+        !exactObject(
+          body,
+          new Set(["action", "reason", "durationHours"]),
+          ["action", "reason"],
+        ) ||
+        !actions.has(body.action) ||
+        !reason ||
+        !validDuration ||
+        (body.action === "suspend" && durationHours === null) ||
+        (!["suspend", "ban"].includes(body.action) && durationHours !== null)
+      ) {
+        sendJson(response, 400, {
+          error: "invalid_community_moderation_action",
+        });
+        return true;
+      }
+      try {
+        const moderationCase = await store.applyCommunityModerationAction({
+          actorUserId: session.userId,
+          actorSessionId: session.id,
+          actorElevationTokenHash: elevationTokenHash,
+          caseId: caseActionMatch[1],
+          action: body.action,
+          reason,
+          durationHours,
+          requestId,
+          ipHash: tokenDigest(
+            `admin-ip:${clientAddress(request)}`,
+            config.tokenPepper,
+          ),
+          userAgentHash: tokenDigest(
+            `admin-ua:${String(request.headers["user-agent"] ?? "")}`,
+            config.tokenPepper,
+          ),
+        });
+        sendJson(response, 200, { case: moderationCase });
+      } catch (error) {
+        if (error?.code === "AUTH_ADMIN_FORBIDDEN") {
+          sendJson(response, 403, { error: "admin_mfa_required" }, [
+            clearAdminCookie(),
+          ]);
+        } else if (error?.code === "COMMUNITY_CASE_NOT_FOUND") {
+          sendJson(response, 404, { error: "community_case_not_found" });
+        } else if (
+          error?.code === "COMMUNITY_MODERATION_ACTION_INVALID" ||
+          error?.code === "COMMUNITY_MODERATION_SELF_FORBIDDEN"
+        ) {
+          sendJson(response, 400, {
+            error: "invalid_community_moderation_action",
+          });
+        } else if (error?.code === "COMMUNITY_MODERATION_STATE_CONFLICT") {
+          sendJson(response, 409, {
+            error: "community_moderation_state_conflict",
+          });
+        } else {
+          throw error;
+        }
+      }
       return true;
     }
 
