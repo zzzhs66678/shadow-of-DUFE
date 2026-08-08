@@ -199,6 +199,7 @@ export function createAuthServer({
   const handleCommunityRequest = createCommunityRequestHandler({
     store,
     config,
+    rateLimiters,
   });
 
   return createServer(async (request, response) => {

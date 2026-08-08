@@ -178,3 +178,137 @@ test("comment pagination includes one reply level and hides deleted bodies", asy
   assert.deepEqual(calls[1].values, [topicId, viewerId, [rootId]]);
   assert.match(calls[1].sql, /comments\.root_comment_id = ANY/u);
 });
+
+test("topic creation checks active sanctions inside the write transaction", async () => {
+  const calls = [];
+  const client = {
+    async query(sql, values) {
+      calls.push({ sql, values });
+      if (sql.includes("FROM app_users AS users")) {
+        return { rowCount: 1, rows: [{ status: "active", sanctioned: false }] };
+      }
+      if (sql.includes("INSERT INTO community_topics")) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              id: topicId,
+              status: "published",
+              visibility: "public",
+              version: 1,
+              created_at: new Date("2026-08-09T08:00:00Z"),
+              updated_at: new Date("2026-08-09T08:00:00Z"),
+            },
+          ],
+        };
+      }
+      return { rowCount: 0, rows: [] };
+    },
+    release() {
+      calls.push({ sql: "RELEASE" });
+    },
+  };
+  const store = createCommunityStore({ async connect() { return client; } });
+  const topic = await store.createCommunityTopic({
+    userId: viewerId,
+    title: "图书馆闭馆之后去哪里",
+    body: "想找一个安静的地方。",
+    visibility: "public",
+  });
+
+  assert.equal(topic.id, topicId);
+  assert.equal(topic.version, 1);
+  assert.equal(calls[0].sql, "BEGIN");
+  assert.match(calls[1].sql, /community_user_sanctions/u);
+  assert.match(calls[2].sql, /INSERT INTO community_topics/u);
+  assert.equal(calls[3].sql, "COMMIT");
+  assert.equal(calls[4].sql, "RELEASE");
+});
+
+test("replying to a reply flattens under its root and conflict edits roll back", async () => {
+  const calls = [];
+  const client = {
+    async query(sql, values) {
+      calls.push({ sql, values });
+      if (sql.includes("FROM app_users AS users")) {
+        return { rowCount: 1, rows: [{ status: "active", sanctioned: false }] };
+      }
+      if (sql.includes("FROM community_topics AS topics") && sql.includes("blocked")) {
+        return {
+          rowCount: 1,
+          rows: [{ id: topicId, author_user_id: viewerId, status: "published", blocked: false }],
+        };
+      }
+      if (sql.includes("FROM community_comments") && sql.includes("FOR SHARE")) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: replyId,
+            author_user_id: "00000000-0000-4000-8000-000000000012",
+            parent_comment_id: rootId,
+            root_comment_id: rootId,
+            status: "published",
+            blocked: false,
+          }],
+        };
+      }
+      if (sql.includes("INSERT INTO community_comments")) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: "00000000-0000-4000-8000-000000000033",
+            topic_id: topicId,
+            parent_comment_id: rootId,
+            root_comment_id: rootId,
+            status: "published",
+            version: 1,
+            created_at: new Date("2026-08-09T08:10:00Z"),
+            updated_at: new Date("2026-08-09T08:10:00Z"),
+          }],
+        };
+      }
+      if (sql.includes("FOR UPDATE OF topics")) {
+        return {
+          rowCount: 1,
+          rows: [{
+            ...topicRow(),
+            actor_label: "东财同学",
+            version: 2,
+          }],
+        };
+      }
+      return { rowCount: 0, rows: [] };
+    },
+    release() {
+      calls.push({ sql: "RELEASE" });
+    },
+  };
+  const store = createCommunityStore({ async connect() { return client; } });
+  const comment = await store.createCommunityComment({
+    topicId,
+    userId: viewerId,
+    body: "回复第二层评论",
+    replyToCommentId: replyId,
+  });
+  assert.equal(comment.parentCommentId, rootId);
+  const insert = calls.find(({ sql }) => sql.includes("INSERT INTO community_comments"));
+  assert.equal(insert.values[2], rootId);
+  assert.equal(insert.values[3], "00000000-0000-4000-8000-000000000012");
+
+  await assert.rejects(
+    store.updateCommunityTopic({
+      topicId,
+      userId: viewerId,
+      expectedVersion: 1,
+      body: "过期修改",
+    }),
+    (error) =>
+      error.code === "COMMUNITY_VERSION_CONFLICT" &&
+      error.currentVersion === 2,
+  );
+  assert.equal(calls.filter(({ sql }) => sql === "ROLLBACK").length, 1);
+  assert.equal(
+    calls.some(({ sql }) => sql.includes("INSERT INTO community_content_edits")),
+    false,
+  );
+});

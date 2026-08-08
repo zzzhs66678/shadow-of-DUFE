@@ -57,6 +57,177 @@ function mapComment(row) {
   };
 }
 
+function communityError(code, details = {}) {
+  return Object.assign(new Error(code), { code, ...details });
+}
+
+async function withTransaction(pool, callback) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await callback(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function assertPostingAllowed(client, userId) {
+  const result = await client.query(
+    `SELECT
+       users.status,
+       EXISTS (
+         SELECT 1
+         FROM community_user_sanctions AS sanctions
+         WHERE sanctions.user_id = users.id
+           AND sanctions.revoked_at IS NULL
+           AND sanctions.starts_at <= now()
+           AND (sanctions.expires_at IS NULL OR sanctions.expires_at > now())
+       ) AS sanctioned
+     FROM app_users AS users
+     WHERE users.id = $1::uuid
+     FOR UPDATE OF users`,
+    [userId],
+  );
+  if (
+    result.rowCount !== 1 ||
+    result.rows[0].status !== "active" ||
+    result.rows[0].sanctioned
+  ) {
+    throw communityError("COMMUNITY_POSTING_FORBIDDEN");
+  }
+}
+
+async function assertTopicInteractionAllowed(client, topicId, userId) {
+  const result = await client.query(
+    `SELECT
+       topics.id,
+       topics.author_user_id,
+       topics.status,
+       EXISTS (
+         SELECT 1
+         FROM community_user_blocks AS blocks
+         WHERE (
+           blocks.blocker_user_id = $2::uuid AND
+           blocks.blocked_user_id = topics.author_user_id
+         ) OR (
+           blocks.blocker_user_id = topics.author_user_id AND
+           blocks.blocked_user_id = $2::uuid
+         )
+       ) AS blocked
+     FROM community_topics AS topics
+     WHERE topics.id = $1::uuid
+     FOR SHARE OF topics`,
+    [topicId, userId],
+  );
+  if (result.rowCount !== 1 || result.rows[0].status !== "published") {
+    throw communityError("COMMUNITY_TOPIC_UNAVAILABLE");
+  }
+  if (result.rows[0].blocked) {
+    throw communityError("COMMUNITY_TOPIC_UNAVAILABLE");
+  }
+  return result.rows[0];
+}
+
+async function lockOwnedTopic(client, topicId, userId) {
+  const result = await client.query(
+    `SELECT
+       topics.*,
+       COALESCE(authors.display_name, authors.username) AS actor_label
+     FROM community_topics AS topics
+     LEFT JOIN app_users AS authors ON authors.id = topics.author_user_id
+     WHERE topics.id = $1::uuid
+     FOR UPDATE OF topics`,
+    [topicId],
+  );
+  const topic = result.rows[0];
+  if (!topic || String(topic.author_user_id) !== String(userId)) {
+    throw communityError("COMMUNITY_CONTENT_NOT_FOUND");
+  }
+  if (topic.status !== "published") {
+    throw communityError("COMMUNITY_CONTENT_UNAVAILABLE");
+  }
+  return topic;
+}
+
+async function lockOwnedComment(client, commentId, userId) {
+  const result = await client.query(
+    `SELECT
+       comments.*,
+       COALESCE(authors.display_name, authors.username) AS actor_label
+     FROM community_comments AS comments
+     LEFT JOIN app_users AS authors ON authors.id = comments.author_user_id
+     WHERE comments.id = $1::uuid
+     FOR UPDATE OF comments`,
+    [commentId],
+  );
+  const comment = result.rows[0];
+  if (!comment || String(comment.author_user_id) !== String(userId)) {
+    throw communityError("COMMUNITY_CONTENT_NOT_FOUND");
+  }
+  if (comment.status !== "published") {
+    throw communityError("COMMUNITY_CONTENT_UNAVAILABLE");
+  }
+  return comment;
+}
+
+async function recordTopicEdit(client, topic, userId) {
+  await client.query(
+    `INSERT INTO community_content_edits (
+       actor_user_id, actor_label, content_type, content_id,
+       previous_version, previous_title, previous_body
+     ) VALUES ($1::uuid, $2, 'topic', $3::uuid, $4, $5, $6)`,
+    [
+      userId,
+      topic.actor_label,
+      topic.id,
+      topic.version,
+      topic.title,
+      topic.body,
+    ],
+  );
+}
+
+async function recordCommentEdit(client, comment, userId) {
+  await client.query(
+    `INSERT INTO community_content_edits (
+       actor_user_id, actor_label, content_type, content_id,
+       previous_version, previous_title, previous_body
+     ) VALUES ($1::uuid, $2, 'comment', $3::uuid, $4, NULL, $5)`,
+    [userId, comment.actor_label, comment.id, comment.version, comment.body],
+  );
+}
+
+function mutationTopic(row) {
+  return {
+    id: String(row.id),
+    status: row.status,
+    visibility: row.visibility,
+    version: Number(row.version),
+    createdAt: iso(row.created_at),
+    updatedAt: iso(row.updated_at),
+  };
+}
+
+function mutationComment(row) {
+  return {
+    id: String(row.id),
+    topicId: String(row.topic_id),
+    parentCommentId: row.parent_comment_id
+      ? String(row.parent_comment_id)
+      : null,
+    rootCommentId: row.root_comment_id ? String(row.root_comment_id) : null,
+    status: row.status,
+    version: Number(row.version),
+    createdAt: iso(row.created_at),
+    updatedAt: iso(row.updated_at),
+  };
+}
+
 const topicSelect = `
   SELECT
     topics.id,
@@ -247,6 +418,187 @@ export function createCommunityStore(pool) {
           ? { createdAt: iso(last.created_at), id: String(last.id) }
           : null,
       };
+    },
+
+    async createCommunityTopic({ userId, title, body, visibility }) {
+      return withTransaction(pool, async (client) => {
+        await assertPostingAllowed(client, userId);
+        const result = await client.query(
+          `INSERT INTO community_topics (
+             author_user_id, title, body, visibility
+           ) VALUES ($1::uuid, $2, $3, $4)
+           RETURNING id, status, visibility, version, created_at, updated_at`,
+          [userId, title, body, visibility],
+        );
+        return mutationTopic(result.rows[0]);
+      });
+    },
+
+    async updateCommunityTopic({
+      topicId,
+      userId,
+      expectedVersion,
+      title,
+      body,
+      visibility,
+    }) {
+      return withTransaction(pool, async (client) => {
+        await assertPostingAllowed(client, userId);
+        const topic = await lockOwnedTopic(client, topicId, userId);
+        if (Number(topic.version) !== expectedVersion) {
+          throw communityError("COMMUNITY_VERSION_CONFLICT", {
+            currentVersion: Number(topic.version),
+          });
+        }
+        await recordTopicEdit(client, topic, userId);
+        const result = await client.query(
+          `UPDATE community_topics
+           SET title = COALESCE($3, title),
+               body = COALESCE($4, body),
+               visibility = COALESCE($5, visibility),
+               version = version + 1,
+               updated_at = now(),
+               edited_at = now()
+           WHERE id = $1::uuid AND author_user_id = $2::uuid
+           RETURNING id, status, visibility, version, created_at, updated_at`,
+          [topicId, userId, title ?? null, body ?? null, visibility ?? null],
+        );
+        return mutationTopic(result.rows[0]);
+      });
+    },
+
+    async deleteCommunityTopic({ topicId, userId, expectedVersion }) {
+      return withTransaction(pool, async (client) => {
+        const topic = await lockOwnedTopic(client, topicId, userId);
+        if (Number(topic.version) !== expectedVersion) {
+          throw communityError("COMMUNITY_VERSION_CONFLICT", {
+            currentVersion: Number(topic.version),
+          });
+        }
+        await recordTopicEdit(client, topic, userId);
+        const result = await client.query(
+          `UPDATE community_topics
+           SET status = 'deleted',
+               version = version + 1,
+               updated_at = now(),
+               deleted_at = now()
+           WHERE id = $1::uuid AND author_user_id = $2::uuid
+           RETURNING id, status, visibility, version, created_at, updated_at`,
+          [topicId, userId],
+        );
+        return mutationTopic(result.rows[0]);
+      });
+    },
+
+    async createCommunityComment({
+      topicId,
+      userId,
+      body,
+      replyToCommentId,
+    }) {
+      return withTransaction(pool, async (client) => {
+        await assertPostingAllowed(client, userId);
+        await assertTopicInteractionAllowed(client, topicId, userId);
+        let parentCommentId = null;
+        let replyToUserId = null;
+        if (replyToCommentId) {
+          const targetResult = await client.query(
+            `SELECT
+               comments.id,
+               comments.author_user_id,
+               comments.parent_comment_id,
+               comments.root_comment_id,
+               comments.status,
+               EXISTS (
+                 SELECT 1
+                 FROM community_user_blocks AS blocks
+                 WHERE (
+                   blocks.blocker_user_id = $3::uuid AND
+                   blocks.blocked_user_id = comments.author_user_id
+                 ) OR (
+                   blocks.blocker_user_id = comments.author_user_id AND
+                   blocks.blocked_user_id = $3::uuid
+                 )
+               ) AS blocked
+             FROM community_comments AS comments
+             WHERE comments.id = $1::uuid AND comments.topic_id = $2::uuid
+             FOR SHARE OF comments`,
+            [replyToCommentId, topicId, userId],
+          );
+          const target = targetResult.rows[0];
+          if (!target || target.status !== "published" || target.blocked) {
+            throw communityError("COMMUNITY_REPLY_TARGET_UNAVAILABLE");
+          }
+          parentCommentId = target.parent_comment_id
+            ? target.root_comment_id
+            : target.id;
+          replyToUserId = target.author_user_id;
+        }
+        const result = await client.query(
+          `INSERT INTO community_comments (
+             topic_id, author_user_id, parent_comment_id,
+             root_comment_id, reply_to_user_id, body
+           ) VALUES ($1::uuid, $2::uuid, $3::uuid, $3::uuid, $4::uuid, $5)
+           RETURNING id, topic_id, parent_comment_id, root_comment_id,
+                     status, version, created_at, updated_at`,
+          [topicId, userId, parentCommentId, replyToUserId, body],
+        );
+        return mutationComment(result.rows[0]);
+      });
+    },
+
+    async updateCommunityComment({
+      commentId,
+      userId,
+      expectedVersion,
+      body,
+    }) {
+      return withTransaction(pool, async (client) => {
+        await assertPostingAllowed(client, userId);
+        const comment = await lockOwnedComment(client, commentId, userId);
+        if (Number(comment.version) !== expectedVersion) {
+          throw communityError("COMMUNITY_VERSION_CONFLICT", {
+            currentVersion: Number(comment.version),
+          });
+        }
+        await recordCommentEdit(client, comment, userId);
+        const result = await client.query(
+          `UPDATE community_comments
+           SET body = $3,
+               version = version + 1,
+               updated_at = now(),
+               edited_at = now()
+           WHERE id = $1::uuid AND author_user_id = $2::uuid
+           RETURNING id, topic_id, parent_comment_id, root_comment_id,
+                     status, version, created_at, updated_at`,
+          [commentId, userId, body],
+        );
+        return mutationComment(result.rows[0]);
+      });
+    },
+
+    async deleteCommunityComment({ commentId, userId, expectedVersion }) {
+      return withTransaction(pool, async (client) => {
+        const comment = await lockOwnedComment(client, commentId, userId);
+        if (Number(comment.version) !== expectedVersion) {
+          throw communityError("COMMUNITY_VERSION_CONFLICT", {
+            currentVersion: Number(comment.version),
+          });
+        }
+        await recordCommentEdit(client, comment, userId);
+        const result = await client.query(
+          `UPDATE community_comments
+           SET status = 'deleted',
+               version = version + 1,
+               updated_at = now(),
+               deleted_at = now()
+           WHERE id = $1::uuid AND author_user_id = $2::uuid
+           RETURNING id, topic_id, parent_comment_id, root_comment_id,
+                     status, version, created_at, updated_at`,
+          [commentId, userId],
+        );
+        return mutationComment(result.rows[0]);
+      });
     },
   };
 }

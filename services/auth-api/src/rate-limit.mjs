@@ -104,6 +104,12 @@ export function createApiRateLimiters() {
       maxKeys: 20_000,
       idleTtlMs: 2 * 60 * 60_000,
     }),
+    communityWrite: createTokenBucket({
+      capacity: 12,
+      refillPerSecond: 1 / 20,
+      maxKeys: 30_000,
+      idleTtlMs: 2 * 60 * 60_000,
+    }),
     adminMfa: createTokenBucket({
       capacity: 5,
       refillPerSecond: 1 / 60,
