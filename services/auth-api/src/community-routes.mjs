@@ -213,6 +213,103 @@ export function createCommunityRequestHandler({ store, config, rateLimiters }) {
       }
     }
 
+    function requireSession() {
+      if (session) return true;
+      sendJson(response, 401, { error: "authentication_required" });
+      return false;
+    }
+
+    if (url.pathname === "/api/community/notifications") {
+      if (request.method !== "GET") {
+        methodNotAllowed(response, "GET");
+        return true;
+      }
+      if (!requireSession()) return true;
+      const limit = pageLimit(url.searchParams.get("limit"));
+      const cursor = decodeCursor(url.searchParams.get("cursor"));
+      if (limit === null || cursor === false) {
+        sendJson(response, 400, { error: "invalid_community_query" });
+        return true;
+      }
+      const result = await store.listCommunityNotifications({
+        userId: session.userId,
+        cursor,
+        limit,
+      });
+      sendJson(response, 200, {
+        items: result.items,
+        nextCursor: encodeCursor(result.nextCursor),
+      });
+      return true;
+    }
+
+    if (url.pathname === "/api/community/notifications/unread-count") {
+      if (request.method !== "GET") {
+        methodNotAllowed(response, "GET");
+        return true;
+      }
+      if (!requireSession()) return true;
+      sendJson(response, 200, {
+        unread: await store.getCommunityUnreadCount(session.userId),
+      });
+      return true;
+    }
+
+    if (url.pathname === "/api/community/notifications/read-all") {
+      if (request.method !== "PUT") {
+        methodNotAllowed(response, "PUT");
+        return true;
+      }
+      if (!(await writeAccess("communityReaction"))) return true;
+      sendJson(
+        response,
+        200,
+        await store.markAllCommunityNotificationsRead(session.userId),
+      );
+      return true;
+    }
+
+    const notificationMatch = url.pathname.match(
+      /^\/api\/community\/notifications\/([0-9a-f-]{36})$/iu,
+    );
+    if (notificationMatch) {
+      if (!isCommunityUuid(notificationMatch[1])) {
+        sendJson(response, 404, { error: "community_notification_not_found" });
+        return true;
+      }
+      if (request.method !== "PUT" && request.method !== "DELETE") {
+        methodNotAllowed(response, "PUT, DELETE");
+        return true;
+      }
+      if (!(await writeAccess("communityReaction"))) return true;
+      if (request.method === "PUT") {
+        const notification = await store.markCommunityNotificationRead({
+          userId: session.userId,
+          notificationId: notificationMatch[1],
+        });
+        if (!notification) {
+          sendJson(response, 404, {
+            error: "community_notification_not_found",
+          });
+        } else {
+          sendJson(response, 200, { notification });
+        }
+      } else {
+        const dismissed = await store.dismissCommunityNotification({
+          userId: session.userId,
+          notificationId: notificationMatch[1],
+        });
+        if (!dismissed) {
+          sendJson(response, 404, {
+            error: "community_notification_not_found",
+          });
+        } else {
+          sendJson(response, 200, { dismissed: true });
+        }
+      }
+      return true;
+    }
+
     if (url.pathname === "/api/community/topics") {
       if (request.method === "POST") {
         const input = await writeInput(validateTopicCreate);

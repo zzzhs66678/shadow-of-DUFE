@@ -11,6 +11,7 @@ const otherUserId = "00000000-0000-4000-8000-000000000012";
 const topicId = "00000000-0000-4000-8000-000000000021";
 const commentId = "00000000-0000-4000-8000-000000000031";
 const nextTopicId = "00000000-0000-4000-8000-000000000022";
+const notificationId = "00000000-0000-4000-8000-000000000051";
 
 const config = {
   tokenPepper,
@@ -128,6 +129,37 @@ function createCommunityStore() {
         status: "open",
         created: true,
       };
+    },
+    async listCommunityNotifications(input) {
+      calls.push(["listCommunityNotifications", structuredClone(input)]);
+      return {
+        items: [{
+          id: notificationId,
+          type: "topic_reply",
+          title: "有人回复了你的主题",
+          read: false,
+          fallbackPath: `/community/topics/${topicId}`,
+        }],
+        nextCursor: null,
+      };
+    },
+    async getCommunityUnreadCount(inputUserId) {
+      calls.push(["getCommunityUnreadCount", inputUserId]);
+      return 1;
+    },
+    async markCommunityNotificationRead(input) {
+      calls.push(["markCommunityNotificationRead", structuredClone(input)]);
+      return input.notificationId === notificationId
+        ? { id: notificationId, readAt: "2026-08-09T12:00:00.000Z" }
+        : null;
+    },
+    async markAllCommunityNotificationsRead(inputUserId) {
+      calls.push(["markAllCommunityNotificationsRead", inputUserId]);
+      return { updated: 1 };
+    },
+    async dismissCommunityNotification(input) {
+      calls.push(["dismissCommunityNotification", structuredClone(input)]);
+      return input.notificationId === notificationId;
     },
   };
 }
@@ -483,5 +515,54 @@ test("reports are validated, authenticated, and use the dedicated limiter", asyn
         },
       },
     },
+  });
+});
+
+test("notifications are account-scoped with unread, single, all-read, and dismiss flows", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    const anonymous = await fetch(`${baseUrl}/api/community/notifications`);
+    assert.equal(anonymous.status, 401);
+
+    const headers = {
+      Cookie: `${sessionCookie}=${store.sessionToken}`,
+      Origin: "https://dufesh.cn",
+    };
+    const list = await fetch(`${baseUrl}/api/community/notifications?limit=10`, {
+      headers,
+    });
+    assert.equal(list.status, 200);
+    assert.equal((await list.json()).items[0].id, notificationId);
+    assert.deepEqual(
+      store.calls.find(([name]) => name === "listCommunityNotifications")[1],
+      { userId, cursor: null, limit: 10 },
+    );
+
+    const count = await fetch(
+      `${baseUrl}/api/community/notifications/unread-count`,
+      { headers },
+    );
+    assert.deepEqual(await count.json(), { unread: 1 });
+
+    const read = await fetch(
+      `${baseUrl}/api/community/notifications/${notificationId}`,
+      { method: "PUT", headers },
+    );
+    assert.equal(read.status, 200);
+    const allRead = await fetch(
+      `${baseUrl}/api/community/notifications/read-all`,
+      { method: "PUT", headers },
+    );
+    assert.deepEqual(await allRead.json(), { updated: 1 });
+    const dismissed = await fetch(
+      `${baseUrl}/api/community/notifications/${notificationId}`,
+      { method: "DELETE", headers },
+    );
+    assert.deepEqual(await dismissed.json(), { dismissed: true });
+
+    const missing = await fetch(
+      `${baseUrl}/api/community/notifications/${nextTopicId}`,
+      { method: "PUT", headers },
+    );
+    assert.equal(missing.status, 404);
   });
 });

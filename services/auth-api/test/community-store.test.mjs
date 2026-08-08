@@ -294,6 +294,9 @@ test("replying to a reply flattens under its root and conflict edits roll back",
   const insert = calls.find(({ sql }) => sql.includes("INSERT INTO community_comments"));
   assert.equal(insert.values[2], rootId);
   assert.equal(insert.values[3], "00000000-0000-4000-8000-000000000012");
+  assert.ok(
+    calls.some(({ sql }) => sql.includes("INSERT INTO community_notifications")),
+  );
 
   await assert.rejects(
     store.updateCommunityTopic({
@@ -442,4 +445,158 @@ test("duplicate open reports reuse immutable evidence instead of inserting anoth
     calls.find(({ sql }) => sql.includes("INSERT INTO community_reports")).sql,
     /ON CONFLICT \(reporter_user_id, target_type, target_id\)[\s\S]*?DO NOTHING/u,
   );
+});
+
+test("topic mentions resolve normalized usernames and create deduplicated notifications", async () => {
+  const calls = [];
+  const client = {
+    async query(sql, values) {
+      calls.push({ sql, values });
+      if (sql.includes("FROM app_users AS users") && sql.includes("sanctioned")) {
+        return { rowCount: 1, rows: [{ status: "active", sanctioned: false }] };
+      }
+      if (sql.includes("INSERT INTO community_topics")) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: topicId,
+            status: "published",
+            visibility: "public",
+            version: 1,
+            created_at: new Date("2026-08-09T08:00:00Z"),
+            updated_at: new Date("2026-08-09T08:00:00Z"),
+          }],
+        };
+      }
+      return { rowCount: 0, rows: [] };
+    },
+    release() {},
+  };
+  const store = createCommunityStore({ async connect() { return client; } });
+  await store.createCommunityTopic({
+    userId: viewerId,
+    title: "想问问图书馆闭馆时间",
+    body: "@Student_01 你上周去过吗？再次提及 @student_01",
+    visibility: "public",
+  });
+  const mention = calls.find(({ sql }) => sql.includes("INSERT INTO community_mentions"));
+  assert.deepEqual(mention.values[0], ["student_01"]);
+  assert.match(mention.sql, /ON CONFLICT DO NOTHING/u);
+  assert.match(mention.sql, /INSERT INTO community_notifications/u);
+  assert.match(mention.sql, /community_user_blocks/u);
+});
+
+test("notification reads and mutations remain scoped to the recipient", async () => {
+  const notificationId = "00000000-0000-4000-8000-000000000051";
+  const calls = [];
+  const pool = {
+    async query(sql, values) {
+      calls.push({ sql, values });
+      if (sql.includes("ORDER BY notifications.created_at")) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: notificationId,
+            notification_type: "topic_reply",
+            topic_id: topicId,
+            comment_id: rootId,
+            title: "有人回复了你的主题",
+            body: "我也想知道。",
+            fallback_path: `/community/topics/${topicId}`,
+            actor_user_id: "00000000-0000-4000-8000-000000000012",
+            actor_username: "another_student",
+            actor_display_name: "另一位同学",
+            actor_avatar_url: null,
+            created_at: new Date("2026-08-09T11:00:00Z"),
+            read_at: null,
+          }],
+        };
+      }
+      if (sql.includes("SET read_at = COALESCE") && sql.includes("RETURNING id, read_at")) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: notificationId,
+            read_at: new Date("2026-08-09T12:00:00Z"),
+          }],
+        };
+      }
+      return { rowCount: 0, rows: [] };
+    },
+  };
+  const store = createCommunityStore(pool);
+  const list = await store.listCommunityNotifications({
+    userId: viewerId,
+    limit: 20,
+  });
+  assert.equal(list.items[0].actor.displayName, "另一位同学");
+  assert.equal(list.items[0].read, false);
+  assert.match(calls[0].sql, /notifications\.recipient_user_id = \$1::uuid/u);
+  assert.match(calls[0].sql, /community_user_blocks/u);
+
+  const marked = await store.markCommunityNotificationRead({
+    userId: viewerId,
+    notificationId,
+  });
+  assert.equal(marked.id, notificationId);
+  assert.deepEqual(calls[1].values, [notificationId, viewerId]);
+  assert.match(calls[1].sql, /recipient_user_id = \$2::uuid/u);
+});
+
+test("soft-deleting a reply redacts its notification preview in the same transaction", async () => {
+  const calls = [];
+  const client = {
+    async query(sql, values) {
+      calls.push({ sql, values });
+      if (sql.includes("FOR UPDATE OF comments")) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: rootId,
+            topic_id: topicId,
+            author_user_id: viewerId,
+            parent_comment_id: null,
+            root_comment_id: null,
+            body: "准备删除的回复",
+            status: "published",
+            version: 1,
+            actor_label: "东财同学",
+          }],
+        };
+      }
+      if (sql.includes("UPDATE community_comments")) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: rootId,
+            topic_id: topicId,
+            parent_comment_id: null,
+            root_comment_id: null,
+            status: "deleted",
+            version: 2,
+            created_at: new Date("2026-08-09T11:00:00Z"),
+            updated_at: new Date("2026-08-09T12:00:00Z"),
+          }],
+        };
+      }
+      return { rowCount: 1, rows: [] };
+    },
+    release() {},
+  };
+  const store = createCommunityStore({ async connect() { return client; } });
+  const deleted = await store.deleteCommunityComment({
+    commentId: rootId,
+    userId: viewerId,
+    expectedVersion: 1,
+  });
+  assert.equal(deleted.status, "deleted");
+  const redaction = calls.find(
+    ({ sql }) =>
+      sql.includes("UPDATE community_notifications") &&
+      sql.includes("相关回复已删除"),
+  );
+  assert.deepEqual(redaction.values, [rootId]);
+  assert.match(redaction.sql, /body = NULL/u);
+  assert.match(redaction.sql, /fallback_path = '\/community'/u);
+  assert.equal(calls.at(-1).sql, "COMMIT");
 });

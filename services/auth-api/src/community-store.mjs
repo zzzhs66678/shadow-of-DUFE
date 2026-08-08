@@ -237,6 +237,135 @@ async function assertReportTarget(client, targetType, targetId, userId) {
   }
 }
 
+function mentionUsernames(body) {
+  const usernames = new Set();
+  const pattern = /(^|[^\p{L}\p{N}_-])@([\p{L}\p{N}_-]{3,24})/gu;
+  for (const match of body.matchAll(pattern)) {
+    usernames.add(
+      match[2].normalize("NFKC").toLocaleLowerCase("en-US"),
+    );
+    if (usernames.size >= 10) break;
+  }
+  return [...usernames];
+}
+
+async function insertMentionNotifications(
+  client,
+  {
+    actorUserId,
+    topicId,
+    commentId = null,
+    body,
+    excludedUserIds = [],
+  },
+) {
+  const usernames = mentionUsernames(body);
+  if (usernames.length === 0) return;
+  const contentType = commentId ? "comment" : "topic";
+  const fallbackPath = `/community/topics/${topicId}`;
+  await client.query(
+    `WITH recipients AS (
+       SELECT users.id
+       FROM app_users AS users
+       WHERE users.normalized_username = ANY($1::text[])
+         AND users.status = 'active'
+         AND users.id <> $2::uuid
+         AND NOT (users.id = ANY($7::uuid[]))
+         AND NOT EXISTS (
+           SELECT 1 FROM community_user_blocks AS blocks
+           WHERE (
+             blocks.blocker_user_id = $2::uuid AND
+             blocks.blocked_user_id = users.id
+           ) OR (
+             blocks.blocker_user_id = users.id AND
+             blocks.blocked_user_id = $2::uuid
+           )
+         )
+     ), inserted_mentions AS (
+       INSERT INTO community_mentions (
+         mentioned_user_id, actor_user_id, topic_id, comment_id
+       )
+       SELECT id, $2::uuid, $3::uuid, $4::uuid
+       FROM recipients
+       ON CONFLICT DO NOTHING
+       RETURNING mentioned_user_id
+     )
+     INSERT INTO community_notifications (
+       recipient_user_id, actor_user_id, notification_type,
+       topic_id, comment_id, title, body, fallback_path, dedupe_key
+     )
+     SELECT
+       mentioned_user_id,
+       $2::uuid,
+       'mention',
+       $3::uuid,
+       $4::uuid,
+       '有人在社区中提到了你',
+       left($5, 500),
+       $6,
+       'mention:${contentType}:' || ${commentId ? "$4::uuid" : "$3::uuid"}::text || ':' || mentioned_user_id::text
+     FROM inserted_mentions
+     ON CONFLICT DO NOTHING`,
+    [
+      usernames,
+      actorUserId,
+      topicId,
+      commentId,
+      body,
+      fallbackPath,
+      excludedUserIds,
+    ],
+  );
+}
+
+async function insertReplyNotification(
+  client,
+  { recipientUserId, actorUserId, topicId, commentId, replyType, body },
+) {
+  if (!recipientUserId || String(recipientUserId) === String(actorUserId)) return;
+  await client.query(
+    `INSERT INTO community_notifications (
+       recipient_user_id, actor_user_id, notification_type,
+       topic_id, comment_id, title, body, fallback_path, dedupe_key
+     )
+     SELECT
+       users.id,
+       $2::uuid,
+       $5,
+       $3::uuid,
+       $4::uuid,
+       CASE
+         WHEN $5 = 'topic_reply' THEN '有人回复了你的主题'
+         ELSE '有人回复了你的评论'
+       END,
+       left($6, 500),
+       '/community/topics/' || $3::uuid::text,
+       'reply:' || $4::uuid::text || ':' || users.id::text
+     FROM app_users AS users
+     WHERE users.id = $1::uuid
+       AND users.status = 'active'
+       AND NOT EXISTS (
+         SELECT 1 FROM community_user_blocks AS blocks
+         WHERE (
+           blocks.blocker_user_id = $2::uuid AND
+           blocks.blocked_user_id = users.id
+         ) OR (
+           blocks.blocker_user_id = users.id AND
+           blocks.blocked_user_id = $2::uuid
+         )
+       )
+     ON CONFLICT DO NOTHING`,
+    [
+      recipientUserId,
+      actorUserId,
+      topicId,
+      commentId,
+      replyType,
+      body,
+    ],
+  );
+}
+
 async function assertTopicInteractionAllowed(client, topicId, userId) {
   const result = await client.query(
     `SELECT
@@ -373,6 +502,29 @@ function reportResult(row) {
     created: Boolean(row.created),
     createdAt: iso(row.created_at),
     updatedAt: iso(row.updated_at),
+  };
+}
+
+function notificationResult(row) {
+  return {
+    id: String(row.id),
+    type: row.notification_type,
+    topicId: row.topic_id ? String(row.topic_id) : null,
+    commentId: row.comment_id ? String(row.comment_id) : null,
+    title: row.title,
+    body: row.body,
+    fallbackPath: row.fallback_path,
+    actor: row.actor_user_id && (row.actor_username || row.actor_display_name)
+      ? {
+          id: String(row.actor_user_id),
+          username: row.actor_username,
+          displayName: row.actor_display_name,
+          avatarUrl: row.actor_avatar_url,
+        }
+      : null,
+    read: Boolean(row.read_at),
+    createdAt: iso(row.created_at),
+    readAt: iso(row.read_at),
   };
 }
 
@@ -578,6 +730,11 @@ export function createCommunityStore(pool) {
            RETURNING id, status, visibility, version, created_at, updated_at`,
           [userId, title, body, visibility],
         );
+        await insertMentionNotifications(client, {
+          actorUserId: userId,
+          topicId: result.rows[0].id,
+          body,
+        });
         return mutationTopic(result.rows[0]);
       });
     },
@@ -611,6 +768,11 @@ export function createCommunityStore(pool) {
            RETURNING id, status, visibility, version, created_at, updated_at`,
           [topicId, userId, title ?? null, body ?? null, visibility ?? null],
         );
+        await insertMentionNotifications(client, {
+          actorUserId: userId,
+          topicId,
+          body: body ?? topic.body,
+        });
         return mutationTopic(result.rows[0]);
       });
     },
@@ -634,6 +796,14 @@ export function createCommunityStore(pool) {
            RETURNING id, status, visibility, version, created_at, updated_at`,
           [topicId, userId],
         );
+        await client.query(
+          `UPDATE community_notifications
+           SET title = '相关主题已删除',
+               body = NULL,
+               fallback_path = '/community'
+           WHERE topic_id = $1::uuid`,
+          [topicId],
+        );
         return mutationTopic(result.rows[0]);
       });
     },
@@ -646,7 +816,11 @@ export function createCommunityStore(pool) {
     }) {
       return withTransaction(pool, async (client) => {
         await assertPostingAllowed(client, userId);
-        await assertTopicInteractionAllowed(client, topicId, userId);
+        const topic = await assertTopicInteractionAllowed(
+          client,
+          topicId,
+          userId,
+        );
         let parentCommentId = null;
         let replyToUserId = null;
         if (replyToCommentId) {
@@ -691,6 +865,24 @@ export function createCommunityStore(pool) {
                      status, version, created_at, updated_at`,
           [topicId, userId, parentCommentId, replyToUserId, body],
         );
+        const recipientUserId = replyToCommentId
+          ? replyToUserId
+          : topic.author_user_id;
+        await insertReplyNotification(client, {
+          recipientUserId,
+          actorUserId: userId,
+          topicId,
+          commentId: result.rows[0].id,
+          replyType: replyToCommentId ? "comment_reply" : "topic_reply",
+          body,
+        });
+        await insertMentionNotifications(client, {
+          actorUserId: userId,
+          topicId,
+          commentId: result.rows[0].id,
+          body,
+          excludedUserIds: recipientUserId ? [recipientUserId] : [],
+        });
         return mutationComment(result.rows[0]);
       });
     },
@@ -721,6 +913,12 @@ export function createCommunityStore(pool) {
                      status, version, created_at, updated_at`,
           [commentId, userId, body],
         );
+        await insertMentionNotifications(client, {
+          actorUserId: userId,
+          topicId: comment.topic_id,
+          commentId,
+          body,
+        });
         return mutationComment(result.rows[0]);
       });
     },
@@ -744,6 +942,14 @@ export function createCommunityStore(pool) {
            RETURNING id, topic_id, parent_comment_id, root_comment_id,
                      status, version, created_at, updated_at`,
           [commentId, userId],
+        );
+        await client.query(
+          `UPDATE community_notifications
+           SET title = '相关回复已删除',
+               body = NULL,
+               fallback_path = '/community'
+           WHERE comment_id = $1::uuid`,
+          [commentId],
         );
         return mutationComment(result.rows[0]);
       });
@@ -919,6 +1125,123 @@ export function createCommunityStore(pool) {
         );
         return reportResult(result.rows[0]);
       });
+    },
+
+    async listCommunityNotifications({
+      userId,
+      cursor = null,
+      limit = 20,
+    }) {
+      const result = await pool.query(
+        `SELECT
+           notifications.id,
+           notifications.notification_type,
+           notifications.topic_id,
+           notifications.comment_id,
+           notifications.title,
+           notifications.body,
+           notifications.fallback_path,
+           notifications.actor_user_id,
+           notifications.created_at,
+           notifications.read_at,
+           actors.username AS actor_username,
+           actors.display_name AS actor_display_name,
+           actors.avatar_url AS actor_avatar_url
+         FROM community_notifications AS notifications
+         LEFT JOIN app_users AS actors ON actors.id = notifications.actor_user_id
+         WHERE notifications.recipient_user_id = $1::uuid
+           AND notifications.dismissed_at IS NULL
+           AND (
+             $2::timestamptz IS NULL OR
+             (notifications.created_at, notifications.id) <
+               ($2::timestamptz, $3::uuid)
+           )
+           AND NOT EXISTS (
+             SELECT 1 FROM community_user_blocks AS blocks
+             WHERE notifications.actor_user_id IS NOT NULL
+               AND (
+                 (blocks.blocker_user_id = $1::uuid AND
+                  blocks.blocked_user_id = notifications.actor_user_id) OR
+                 (blocks.blocker_user_id = notifications.actor_user_id AND
+                  blocks.blocked_user_id = $1::uuid)
+               )
+           )
+         ORDER BY notifications.created_at DESC, notifications.id DESC
+         LIMIT $4`,
+        [userId, cursor?.createdAt ?? null, cursor?.id ?? null, limit + 1],
+      );
+      const hasMore = result.rows.length > limit;
+      const rows = result.rows.slice(0, limit);
+      const last = rows.at(-1);
+      return {
+        items: rows.map(notificationResult),
+        nextCursor: hasMore && last
+          ? { createdAt: iso(last.created_at), id: String(last.id) }
+          : null,
+      };
+    },
+
+    async getCommunityUnreadCount(userId) {
+      const result = await pool.query(
+        `SELECT count(*) AS total
+         FROM community_notifications AS notifications
+         WHERE notifications.recipient_user_id = $1::uuid
+           AND notifications.read_at IS NULL
+           AND notifications.dismissed_at IS NULL
+           AND NOT EXISTS (
+             SELECT 1 FROM community_user_blocks AS blocks
+             WHERE notifications.actor_user_id IS NOT NULL
+               AND (
+                 (blocks.blocker_user_id = $1::uuid AND
+                  blocks.blocked_user_id = notifications.actor_user_id) OR
+                 (blocks.blocker_user_id = notifications.actor_user_id AND
+                  blocks.blocked_user_id = $1::uuid)
+               )
+           )`,
+        [userId],
+      );
+      return Number(result.rows[0]?.total ?? 0);
+    },
+
+    async markCommunityNotificationRead({ userId, notificationId }) {
+      const result = await pool.query(
+        `UPDATE community_notifications
+         SET read_at = COALESCE(read_at, now())
+         WHERE id = $1::uuid
+           AND recipient_user_id = $2::uuid
+           AND dismissed_at IS NULL
+         RETURNING id, read_at`,
+        [notificationId, userId],
+      );
+      return result.rowCount === 1
+        ? { id: String(result.rows[0].id), readAt: iso(result.rows[0].read_at) }
+        : null;
+    },
+
+    async markAllCommunityNotificationsRead(userId) {
+      const result = await pool.query(
+        `UPDATE community_notifications
+         SET read_at = COALESCE(read_at, now())
+         WHERE recipient_user_id = $1::uuid
+           AND read_at IS NULL
+           AND dismissed_at IS NULL`,
+        [userId],
+      );
+      return { updated: result.rowCount };
+    },
+
+    async dismissCommunityNotification({ userId, notificationId }) {
+      const result = await pool.query(
+        `UPDATE community_notifications
+         SET read_at = COALESCE(read_at, now()),
+             dismissed_at = COALESCE(dismissed_at, now())
+         WHERE id = $1::uuid
+           AND recipient_user_id = $2::uuid
+           AND dismissed_at IS NULL
+         RETURNING id`,
+        [notificationId, userId],
+      );
+      return result.rowCount === 1;
     },
   };
 }
