@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-async function render() {
+async function render(pathname = "/") {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
   const { default: worker } = await import(workerUrl.href);
 
   return worker.fetch(
-    new Request("http://localhost/", {
+    new Request(`http://localhost${pathname}`, {
       headers: { accept: "text/html" },
     }),
     {
@@ -22,6 +22,33 @@ async function render() {
     },
   );
 }
+
+test("material search and detail routes stay independent from course selection", async () => {
+  const searchResponse = await render(
+    "/api/materials?q=%E9%AB%98%E6%95%B0&limit=10",
+  );
+  assert.equal(searchResponse.status, 200);
+  const search = await searchResponse.json();
+  assert.equal(search.total, 1);
+  assert.equal(search.items[0].name, "高数下.pdf");
+  assert.ok(search.items.every((item) => item.id && item.downloadUrl));
+  assert.ok(search.items.every((item) => !("sectionId" in item)));
+
+  const materialId = search.items[0].id;
+  const detailApi = await render(`/api/materials/${materialId}`);
+  assert.equal(detailApi.status, 200);
+  assert.equal((await detailApi.json()).material.id, materialId);
+
+  const detailPage = await render(`/materials/${materialId}`);
+  assert.equal(detailPage.status, 200);
+  const detailHtml = await detailPage.text();
+  assert.match(detailHtml, /高数下\.pdf/);
+  assert.match(detailHtml, /下载原件/);
+  assert.doesNotMatch(detailHtml, /选择教学班/);
+
+  const missing = await render("/api/materials/missing-material");
+  assert.equal(missing.status, 404);
+});
 
 test("server-renders the branded data-loading shell", async () => {
   const response = await render();

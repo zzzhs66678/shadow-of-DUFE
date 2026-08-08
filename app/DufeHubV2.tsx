@@ -165,6 +165,7 @@ type SearchItem = {
   title: string;
   meta: string;
   course?: Course;
+  material?: Material;
   teacher?: string;
   room?: string;
 };
@@ -172,11 +173,18 @@ type Material = {
   id: string;
   courseTitle: string;
   courseIds: string[];
+  teachers?: string[];
+  colleges?: string[];
+  terms?: string[];
+  years?: number[];
+  tags?: string[];
   category: string;
   name: string;
   kind: string;
   extension: string;
   sizeBytes: number;
+  catalogedAt?: string;
+  description?: string;
   previewable: boolean;
   previewUrl: string;
   downloadUrl: string;
@@ -1108,6 +1116,37 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
     const needle = normalize(query);
     if (!needle) return [] as SearchItem[];
     const items: Array<SearchItem & { score: number }> = [];
+    for (const material of materials) {
+      const title = normalize(material.name);
+      const courseTitle = normalize(material.courseTitle);
+      const haystack = normalize(
+        [
+          material.name,
+          material.courseTitle,
+          ...material.courseIds,
+          ...(material.teachers ?? []),
+          ...(material.tags ?? []),
+          material.kind,
+          material.extension,
+        ].join(" "),
+      );
+      if (!haystack.includes(needle)) continue;
+      items.push({
+        key: `material-${material.id}`,
+        kind: "material",
+        title: material.name,
+        meta: `${material.courseTitle} · ${material.kind} · ${formatFileSize(material.sizeBytes)}`,
+        material,
+        score:
+          title === needle
+            ? 0
+            : title.includes(needle)
+              ? 1
+              : courseTitle === needle
+                ? 2
+                : 3,
+      });
+    }
     for (const course of data.courses) {
       const title = normalize(course.title);
       const aliases = aliasesForCourse(course).map(normalize);
@@ -1137,15 +1176,6 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
         course,
         score,
       });
-      if (course.textbook)
-        items.push({
-          key: `material-${course.id}`,
-          kind: "material",
-          title: `${course.title} · 教材`,
-          meta: `${course.textbook}${course.author ? ` · ${course.author}` : ""}`,
-          course,
-          score: score + 0.5,
-        });
     }
     const teacherSet = new Set<string>();
     const roomSet = new Set<string>();
@@ -1184,7 +1214,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
         (a, b) => a.score - b.score || a.title.localeCompare(b.title, "zh-CN"),
       )
       .slice(0, 18);
-  }, [data.courses, data.schedules, query, searchKind]);
+  }, [data.courses, data.schedules, materials, query, searchKind]);
 
   const currentWeek = schoolWeek(new Date(), term);
   const nowWeekday = new Date().getDay() || 7;
@@ -1254,6 +1284,10 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
 
   function selectSearchItem(item: SearchItem) {
     setCommandOpen(false);
+    if (item.material) {
+      window.location.assign(`/materials/${encodeURIComponent(item.material.id)}`);
+      return;
+    }
     if (item.course) {
       setSelectedCourse(item.course);
       return;
@@ -1378,7 +1412,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           setYear={setYear}
           courses={courses}
           onCourse={setSelectedCourse}
-          onSearch={openSearch}
+          onSearch={() => window.location.assign("/materials")}
         />
       )}
       {view === "schedule" && (
