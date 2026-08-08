@@ -1,15 +1,26 @@
 @import "tailwindcss";
 
 :root {
-  --paper: #f3f0e8;
-  --paper-deep: #e8e3d8;
-  --ink: #25211e;
-  --muted: #756f68;
-  --line: #cbc4b8;
-  --accent: #a52325;
-  --accent-deep: #751719;
-  --accent-soft: #ead8d2;
-  --green: #285f4c;
+  --dufe-paper: #f4f1e9;
+  --dufe-paper-raised: #fbfaf5;
+  --dufe-paper-deep: #e7e1d6;
+  --dufe-ink: #1d1b18;
+  --dufe-muted: #706a62;
+  --dufe-line: #cec6ba;
+  --dufe-red: #a52325;
+  --dufe-red-deep: #751719;
+  --dufe-red-soft: #ead8d2;
+  --dufe-pine: #315f4d;
+  --dufe-gold: #9a7132;
+  --paper: var(--dufe-paper);
+  --paper-deep: var(--dufe-paper-deep);
+  --ink: var(--dufe-ink);
+  --muted: var(--dufe-muted);
+  --line: var(--dufe-line);
+  --accent: var(--dufe-red);
+  --accent-deep: var(--dufe-red-deep);
+  --accent-soft: var(--dufe-red-soft);
+  --green: var(--dufe-pine);
   --panel: rgba(255, 255, 255, 0.62);
   --shadow: 0 24px 70px rgba(63, 47, 37, 0.09);
   --serif: "Noto Serif SC", "Songti SC", SimSun, serif;
@@ -50,9 +61,9 @@
 
 /* 今日学习台：行为卡片，而不是宣传型首页。 */
 .page-wrap.today-page {
-  --today-blue: #3157d5;
-  --today-line: #dfe3ec;
-  --today-paper: #f6f7fa;
+  --today-blue: var(--dufe-red);
+  --today-line: var(--dufe-line);
+  --today-paper: var(--dufe-paper);
   background: var(--today-paper);
   max-width: none;
   padding-left: max(22px, calc((100vw - 1460px) / 2));
@@ -181,7 +192,7 @@
 }
 
 .setup-action button {
-  background: #6f8cff;
+  background: #d66a61;
   border: 0;
   border-radius: 9px;
   color: white;
@@ -203,14 +214,14 @@
 }
 
 .primary-action {
-  background: #3157d5;
-  border-color: #3157d5;
+  background: #a52325;
+  border-color: #a52325;
   color: white;
 }
 
 .primary-action > header span,
 .primary-action > header b {
-  color: #d9e1ff;
+  color: #f2d7d4;
 }
 
 .primary-action > footer {
@@ -219,7 +230,7 @@
 
 .primary-action > footer button {
   background: white;
-  color: #2447bd;
+  color: #751719;
 }
 
 .primary-action > footer button + button {
@@ -254,7 +265,7 @@
 }
 
 .class-card-body p {
-  color: #d6deff;
+  color: #ead8d2;
   margin: 0;
 }
 
@@ -278,7 +289,7 @@
 
 .room-rank i {
   align-items: center;
-  background: #eaf0ff;
+  background: #eee8df;
   border-radius: 8px;
   color: var(--today-blue);
   display: flex;
@@ -467,12 +478,12 @@
 
 /* 空教室：独立的校园夜航视觉，数据仍来自同一课表。 */
 .page-wrap.living-spaces {
-  --space-blue: #93b7ff;
+  --space-blue: #c56a62;
   --space-green: #79e1b4;
   --space-line: rgba(193, 213, 255, .18);
   background:
     radial-gradient(circle at 72% 8%, rgba(80, 119, 219, .3), transparent 31rem),
-    linear-gradient(145deg, #111c35 0%, #0a1020 68%);
+    linear-gradient(145deg, #25211e 0%, #141311 68%);
   color: #edf3ff;
   max-width: none;
   padding-left: max(22px, calc((100vw - 1500px) / 2));
@@ -4455,8 +4466,8 @@ kbd {
 }
 
 .schedule-cell > button.personal-event {
-  background: #e5edf8;
-  border-left-color: #426a9d;
+  background: #e4e1da;
+  border-left-color: #4c4842;
 }
 
 .schedule-cell > button.personal-event.red {
@@ -4616,17 +4627,27 @@ kbd {
 }
 
 .event-colors button {
-  background: #426a9d;
-  border: 3px solid transparent;
-  border-radius: 50%;
-  height: 27px;
-  width: 27px;
+  background: transparent;
+  border: 0;
+  height: 44px;
+  padding: 0;
+  position: relative;
+  width: 44px;
 }
 
-.event-colors button.red { background: #a51f25; }
-.event-colors button.green { background: #46734d; }
-.event-colors button.amber { background: #a36e21; }
-.event-colors button.active { border-color: var(--paper); box-shadow: 0 0 0 1px var(--ink); }
+.event-colors button::before {
+  background: #4c4842;
+  border: 3px solid transparent;
+  border-radius: 50%;
+  content: "";
+  inset: 8px;
+  position: absolute;
+}
+
+.event-colors button.red::before { background: #a51f25; }
+.event-colors button.green::before { background: #46734d; }
+.event-colors button.amber::before { background: #a36e21; }
+.event-colors button.active::before { border-color: var(--paper); box-shadow: 0 0 0 1px var(--ink); }
 
 .calendar-editor > footer {
   align-items: center;
@@ -7642,7 +7663,7 @@ kbd {
 }
 
 .planner-columns > div > button > i {
-  background: #426a9d;
+  background: #4c4842;
   border-radius: 50%;
   flex: 0 0 9px;
   height: 9px;

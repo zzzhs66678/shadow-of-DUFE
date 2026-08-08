@@ -663,6 +663,72 @@ function CampusAlmanac() {
   );
 }
 
+function KnowledgeTribute() {
+  return (
+    <section className="knowledge-tribute">
+      <figure className="tribute-photo">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/alexandra-elbakyan.jpg"
+          alt="Alexandra Elbakyan 在 2010 年 Humanity+ 峰会上"
+          width="500"
+          height="669"
+          loading="lazy"
+          decoding="async"
+        />
+        <figcaption>
+          Apneet Jolly ·{" "}
+          <a
+            href="https://commons.wikimedia.org/wiki/File:Alexandra_Elbakyan_(cropped).jpg"
+            target="_blank"
+            rel="noreferrer"
+          >
+            CC BY 2.0
+          </a>
+        </figcaption>
+      </figure>
+      <div className="tribute-copy">
+        <span>致敬 · Alexandra Elbakyan</span>
+        <h2>希望每个人都能更容易地接近知识。</h2>
+        <p>
+          她在 2011 年创建 Sci-Hub，也让论文获取的门槛被更多人看见。东财之影认同知识应更容易抵达读者；站内资料只收录可合法分享或已获授权的内容。
+        </p>
+      </div>
+      <nav aria-label="了解 Alexandra Elbakyan">
+        <a
+          className="scihub-link"
+          href="https://sci-hub.ru/"
+          target="_blank"
+          rel="noreferrer nofollow"
+        >
+          Sci-Hub · 访问网站 ↗
+        </a>
+        <a
+          href="https://www.nature.com/articles/540507a"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Nature · 2016 年度人物 ↗
+        </a>
+        <a
+          href="https://www.eff.org/deeplinks/2023/09/eff-award-winner-alexandra-asanova-elbakyan"
+          target="_blank"
+          rel="noreferrer"
+        >
+          EFF · 科学知识获取奖 ↗
+        </a>
+        <a
+          href="https://elifesciences.org/articles/32822"
+          target="_blank"
+          rel="noreferrer"
+        >
+          eLife · 学术获取研究 ↗
+        </a>
+      </nav>
+    </section>
+  );
+}
+
 function CreatorsCorner({
   open,
   onClose,
@@ -730,10 +796,8 @@ function CreatorsCorner({
         <div>
           <span>东财之影 · 幕后</span>
           <h2 id="creators-title">三个学生，想把每天上课这件事做得顺手一点。</h2>
-          <p>
-            我们在东财上课、赶作业、找自习室，也在空闲时继续修这个网站。它还不完美，但会一直有人管。
-          </p>
-          <small>2024—∞ · 三个做东西的人</small>
+          <p>我们在东财上课、赶作业、找自习室，也在课余一起做这个网站。</p>
+          <small>始于 2024 · 三个做东西的人</small>
         </div>
       </section>
     </div>
@@ -2256,67 +2320,6 @@ function HomePage({
         </div>
       </section>
 
-      <section className="knowledge-tribute">
-        <figure className="tribute-photo">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/alexandra-elbakyan.jpg"
-            alt="Alexandra Elbakyan 在 2010 年 Humanity+ 峰会上"
-            width="500"
-            height="669"
-            loading="lazy"
-            decoding="async"
-          />
-          <figcaption>
-            Apneet Jolly ·{" "}
-            <a
-              href="https://commons.wikimedia.org/wiki/File:Alexandra_Elbakyan_(cropped).jpg"
-              target="_blank"
-              rel="noreferrer"
-            >
-              CC BY 2.0
-            </a>
-          </figcaption>
-        </figure>
-        <div className="tribute-copy">
-          <span>致敬 · Alexandra Elbakyan</span>
-          <h2>希望每个人都能更容易地接近知识。</h2>
-          <p>
-            她在 2011 年创建 Sci-Hub，也让论文获取的门槛被更多人看见。东财之影认同知识应更容易抵达读者；站内资料只收录可合法分享或已获授权的内容。
-          </p>
-        </div>
-        <nav aria-label="了解 Alexandra Elbakyan">
-          <a
-            className="scihub-link"
-            href="https://sci-hub.ru/"
-            target="_blank"
-            rel="noreferrer nofollow"
-          >
-            Sci-Hub · 访问网站 ↗
-          </a>
-          <a
-            href="https://www.nature.com/articles/540507a"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Nature · 2016 年度人物 ↗
-          </a>
-          <a
-            href="https://www.eff.org/deeplinks/2023/09/eff-award-winner-alexandra-asanova-elbakyan"
-            target="_blank"
-            rel="noreferrer"
-          >
-            EFF · 科学知识获取奖 ↗
-          </a>
-          <a
-            href="https://elifesciences.org/articles/32822"
-            target="_blank"
-            rel="noreferrer"
-          >
-            eLife · 学术获取研究 ↗
-          </a>
-        </nav>
-      </section>
     </div>
   );
 }
@@ -3356,7 +3359,7 @@ function CalendarEditor({
   );
   const [location, setLocation] = useState(activity?.location ?? "");
   const [color, setColor] = useState<PersonalActivity["color"]>(
-    activity?.color ?? "blue",
+    activity?.color ?? "red",
   );
   const [courseId, setCourseId] = useState(
     assignment?.courseId ??
@@ -3530,7 +3533,7 @@ function CalendarEditor({
                   type="button"
                   className={`${item} ${color === item ? "active" : ""}`}
                   onClick={() => setColor(item)}
-                  aria-label={`选择${item}颜色`}
+                  aria-label={`选择${({ red: "朱红", blue: "炭墨", green: "松针", amber: "金色" } as const)[item]}`}
                 />
               ))}
             </fieldset>
@@ -4376,7 +4379,7 @@ function MePage({
           credential_rate_limit_exceeded: "尝试次数过多，请稍后再试。",
           password_reset_rate_limit_exceeded: "请求太频繁，请稍后再试。",
           password_reset_delivery_unavailable:
-            "重置邮件服务尚未开通；你的原密码不会被更改。",
+            "暂时无法通过邮件找回密码；你的原密码不会被更改。",
           invalid_password_reset: "重置链接已失效，或新密码不符合要求。",
         };
         setCredentialFeedback(
@@ -4392,9 +4395,7 @@ function MePage({
             resetToken: payload.debugToken ?? "",
             password: "",
           }));
-          setCredentialFeedback(
-            "本地开发模式已生成一次性重置码，请设置新密码。",
-          );
+          setCredentialFeedback("已生成一次性重置码，请设置新密码。");
         } else {
           setCredentialFeedback(
             "如果账号存在，重置邮件会在几分钟内到达。",
@@ -4535,7 +4536,7 @@ function MePage({
       if (!response.ok) {
         const messages: Record<string, string> = {
           email_verification_delivery_unavailable:
-            "邮箱验证通道尚未开通。",
+            "暂时无法发送验证邮件，请稍后再试。",
           email_verification_rate_limit_exceeded:
             "验证邮件请求太频繁，请稍后再试。",
           email_verification_unavailable:
@@ -4551,9 +4552,7 @@ function MePage({
         onAuthChanged();
       } else if (payload.debugToken) {
         setEmailVerificationToken(payload.debugToken);
-        setProfileFeedback(
-          "本地开发模式已生成一次性验证令牌；生产环境不会在页面显示它。",
-        );
+        setProfileFeedback("已生成一次性验证令牌，请继续完成验证。");
       } else {
         setProfileFeedback("验证邮件已发送，请在 24 小时内完成验证。");
       }
@@ -4636,7 +4635,7 @@ function MePage({
         <article>
           <span>隐私</span>
           <strong>只留必要数据</strong>
-          <p>不使用 GPS，不采集与课程服务无关的信息。</p>
+          <p>不会读取 GPS；只保存你主动填写或使用功能时产生的数据。</p>
         </article>
       </div>
       <section
@@ -4854,7 +4853,7 @@ function MePage({
                       title={
                         account.passwordResetAvailable
                           ? "找回密码"
-                          : "生产邮件服务尚未配置"
+                          : "暂时无法通过邮件找回密码"
                       }
                       onClick={() => {
                         setCredentialMode("reset");
@@ -4863,7 +4862,7 @@ function MePage({
                     >
                       {account.passwordResetAvailable
                         ? "忘记密码？"
-                        : "找回密码服务待开通"}
+                        : "暂不支持邮件找回"}
                     </button>
                   )}
                   <span>密码只以 Argon2id 安全哈希保存</span>
@@ -4882,10 +4881,10 @@ function MePage({
                 title={
                   account.wechatAvailable
                     ? "使用微信账号登录"
-                    : "微信网站应用正在审核"
+                    : "微信登录暂未开放"
                 }
               >
-                {account.wechatAvailable ? "微信登录" : "资质审核中"}
+                {account.wechatAvailable ? "微信登录" : "暂未开放"}
               </button>
             </div>
           </div>
@@ -5232,6 +5231,7 @@ function MePage({
         )}
       </section>
       <CampusAlmanac />
+      <KnowledgeTribute />
       <section className="trust-panel">
         <div>
           <h2>本机数据由你控制</h2>

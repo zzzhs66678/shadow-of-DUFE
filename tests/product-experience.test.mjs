@@ -14,6 +14,26 @@ const redAccessStyles = await readFile(
   new URL("../app/red-access-system.css", import.meta.url),
   "utf8",
 );
+const globalStyles = await readFile(
+  new URL("../app/globals.css", import.meta.url),
+  "utf8",
+);
+const materialsSource = await readFile(
+  new URL("../app/materials/MaterialsExplorer.tsx", import.meta.url),
+  "utf8",
+);
+const materialsStyles = await readFile(
+  new URL("../app/materials/materials.module.css", import.meta.url),
+  "utf8",
+);
+const communityStyles = await readFile(
+  new URL("../app/community/community.module.css", import.meta.url),
+  "utf8",
+);
+const adminStyles = await readFile(
+  new URL("../app/admin/admin.module.css", import.meta.url),
+  "utf8",
+);
 
 test("today page keeps the one-glance command deck", () => {
   assert.match(component, /today-command-deck/);
@@ -21,6 +41,25 @@ test("today page keeps the one-glance command deck", () => {
   assert.match(component, /campusSuggestion/);
   assert.match(productStyles, /\.now-card/);
   assert.match(productStyles, /\.agenda-glance/);
+});
+
+test("the active visual system shares one paper ink and cinnabar palette", () => {
+  for (const token of ["paper", "ink", "red", "pine", "gold"]) {
+    assert.match(globalStyles, new RegExp(`--dufe-${token}:`));
+  }
+  assert.match(productStyles, /--ds-accent: var\(--dufe-red\)/);
+  assert.match(redAccessStyles, /--journal-red: var\(--dufe-red\)/);
+  assert.match(materialsStyles, /--red: var\(--dufe-red\)/);
+  assert.match(communityStyles, /--red: var\(--dufe-red\)/);
+  assert.match(adminStyles, /--admin-red: var\(--dufe-red\)/);
+  assert.doesNotMatch(globalStyles, /#426a9d/i);
+});
+
+test("personal activities default to cinnabar while legacy blue renders as charcoal", () => {
+  assert.match(component, /activity\?\.color \?\? "red"/);
+  assert.match(component, /blue: "炭墨"/);
+  assert.match(globalStyles, /\.event-colors button::before[\s\S]*background: #4c4842/);
+  assert.match(globalStyles, /\.event-colors button[\s\S]*height: 44px[\s\S]*width: 44px/);
 });
 
 test("campus services keep a compact today dock and a full personal-page gateway", () => {
@@ -55,7 +94,9 @@ test("the daily workspace stays functional while campus photographs live in My",
   assert.match(component, /function CreatorsCorner/);
   assert.match(homeSource, /CampusTimeMark/);
   assert.doesNotMatch(homeSource, /CampusAlmanac/);
+  assert.doesNotMatch(homeSource, /KnowledgeTribute/);
   assert.match(meSource, /CampusAlmanac/);
+  assert.match(meSource, /KnowledgeTribute/);
   assert.match(redAccessStyles, /\.campus-time-mark/);
   assert.match(redAccessStyles, /@keyframes photo-reveal/);
   assert.match(redAccessStyles, /\.campus-almanac/);
@@ -85,7 +126,7 @@ test("personal page explains local data, cloud sync, devices, and account contro
   assert.match(meSource, /账号与同步/);
   assert.match(meSource, /创建账号/);
   assert.match(meSource, /用户名或邮箱/);
-  assert.match(meSource, /资质审核中/);
+  assert.match(meSource, /微信登录暂未开放/);
   assert.match(meSource, /账号资料/);
   assert.match(meSource, /更换头像/);
   assert.match(meSource, /原图与定位信息没有保留/);
@@ -144,6 +185,9 @@ test("customer-facing copy does not expose planning notes", () => {
   assert.doesNotMatch(component, /这个搜索词会作为后续补充别名的依据/);
   assert.doesNotMatch(component, /常用入口留在学习流的下方/);
   assert.doesNotMatch(component, /课程、教室与资料关系正在抵达/);
+  assert.doesNotMatch(component, /生产邮件服务尚未配置|本地开发模式|资质审核中|2024—∞|会一直有人管/);
+  assert.doesNotMatch(materialsSource, /就在这里结束搜索|不再绕进选课流程/);
+  assert.doesNotMatch(materialsSource, /autoFocus/);
 });
 
 test("public compliance pages expose filing, privacy, terms, and deletion paths", async () => {

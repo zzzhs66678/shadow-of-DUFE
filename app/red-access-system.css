@@ -5,18 +5,18 @@
 
 :root,
 :root[data-term="spring"] {
-  --journal-paper: #f4f4ef;
-  --journal-paper-raised: #fbfbf7;
-  --journal-ink: #171816;
-  --journal-muted: #696d68;
-  --journal-fog: #c9cdc7;
-  --journal-fog-soft: #e5e7e2;
-  --journal-red: #c62b27;
-  --journal-red-deep: #98201e;
-  --journal-red-soft: #f1d9d5;
-  --journal-green: #285448;
-  --journal-green-soft: #dce7e1;
-  --journal-line: #aeb3ad;
+  --journal-paper: var(--dufe-paper);
+  --journal-paper-raised: var(--dufe-paper-raised);
+  --journal-ink: var(--dufe-ink);
+  --journal-muted: var(--dufe-muted);
+  --journal-fog: var(--dufe-line);
+  --journal-fog-soft: var(--dufe-paper-deep);
+  --journal-red: var(--dufe-red);
+  --journal-red-deep: var(--dufe-red-deep);
+  --journal-red-soft: var(--dufe-red-soft);
+  --journal-green: var(--dufe-pine);
+  --journal-green-soft: color-mix(in srgb, var(--dufe-pine) 14%, var(--dufe-paper));
+  --journal-line: var(--dufe-line);
   --journal-display: "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", STSong, SimSun, serif;
   --journal-body: "Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif;
   --journal-data: "IBM Plex Mono", "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
@@ -1196,6 +1196,14 @@ textarea {
   .map-heading h1,
   .me-heading h1 {
     font-size: 46px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .account-loading > span,
+  .sync-syncing > span,
+  .add-feedback {
+    animation: none !important;
   }
 }
 

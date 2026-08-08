@@ -326,7 +326,7 @@ export function CommunityTopicView({ topicId }: { topicId: string }) {
       {editingComment && (
         <div className={styles.modalBackdrop} onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setEditingComment(null); }}>
           <form ref={editCommentRef} className={styles.reportSheet} role="dialog" aria-modal="true" aria-labelledby="edit-comment-title" onSubmit={saveComment}>
-            <span>修改回复</span><h2 id="edit-comment-title">保留新的表达</h2>
+            <span>修改回复</span><h2 id="edit-comment-title">编辑这条回复</h2>
             <textarea value={editCommentBody} onChange={(event) => setEditCommentBody(event.target.value)} maxLength={3000} rows={8} autoFocus />
             <div><button type="button" onClick={() => setEditingComment(null)}>取消</button><button disabled={busy === `comment-edit:${editingComment.id}` || !editCommentBody.trim()}>保存更改</button></div>
           </form>

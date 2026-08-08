@@ -214,7 +214,7 @@ export function CommunityHub() {
           )}
 
           <Feedback message={feedback} />
-          {undoBlock && <div className={styles.undoBar}><span>屏蔽会清理双方旧互动。</span><button onClick={() => void undoBlockAuthor()} disabled={busy === "undo-block"}>立即撤销</button></div>}
+          {undoBlock && <div className={styles.undoBar}><span>已屏蔽该用户，其内容将不再显示。</span><button onClick={() => void undoBlockAuthor()} disabled={busy === "undo-block"}>立即撤销</button></div>}
 
           {feedState === "loading" && topics.length === 0 && <div className={styles.feedState} role="status"><i /><b>正在听回廊里的声音</b><p>主题加载完成后会按时间出现。</p></div>}
           {feedState === "error" && topics.length === 0 && <div className={styles.feedState} role="alert"><b>回廊暂时没有回应</b><p>检查网络后重新连接，已经发布的内容不会被改动。</p><button onClick={() => void loadTopics()}>重新加载</button></div>}

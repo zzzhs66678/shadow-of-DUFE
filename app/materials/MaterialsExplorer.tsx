@@ -202,14 +202,13 @@ export function MaterialsExplorer() {
         </div>
         <div className={styles.heroCopy}>
           <span>东财课程资料档案</span>
-          <h1 id="materials-title">找资料，就在这里结束搜索。</h1>
-          <p>课程、教师、文件名都可以直接搜。结果只呈现资料，不再绕进选课流程。</p>
+          <h1 id="materials-title">按课程、教师或文件名找资料。</h1>
+          <p>搜索结果可以直接查看详情、预览或下载。</p>
         </div>
         <label className={styles.searchField}>
           <span>搜索档案</span>
           <input
             ref={inputRef}
-            autoFocus
             name="material-search"
             autoComplete="off"
             value={query}

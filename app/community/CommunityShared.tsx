@@ -112,7 +112,7 @@ export function ReportDialog({
         { method: "POST", body: JSON.stringify(payload) },
       );
       resetAndClose();
-      onReported(result.report.created ? "举报已提交，审核记录已经建立。" : "这条举报已经在审核中，没有重复提交。");
+      onReported(result.report.created ? "举报已提交。" : "这条内容已经举报过，无需重复操作。");
     } catch (caught) {
       setError(communityErrorMessage(caught));
     } finally {

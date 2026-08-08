@@ -1,13 +1,13 @@
 :root {
-  --ds-bg: #f4f0e8;
-  --ds-surface: #fffdf8;
-  --ds-surface-soft: #ebe5da;
-  --ds-ink: #1f1d1a;
-  --ds-muted: #746f67;
-  --ds-line: #d7d0c5;
-  --ds-accent: #a52325;
-  --ds-green: #2f6954;
-  --ds-amber: #a06b16;
+  --ds-bg: var(--dufe-paper);
+  --ds-surface: var(--dufe-paper-raised);
+  --ds-surface-soft: var(--dufe-paper-deep);
+  --ds-ink: var(--dufe-ink);
+  --ds-muted: var(--dufe-muted);
+  --ds-line: var(--dufe-line);
+  --ds-accent: var(--dufe-red);
+  --ds-green: var(--dufe-pine);
+  --ds-amber: var(--dufe-gold);
   --ds-radius-sm: 10px;
   --ds-radius-md: 16px;
   --ds-radius-lg: 24px;
@@ -2594,8 +2594,7 @@ body,
   }
 }
 
-/* V14 · 大连校园导视系统
-   冷色纸张、海港蓝与校园红替代旧版米白编辑模板。 */
+/* V14 · 大连校园导视系统（历史兼容层） */
 :root {
   --paper: #edf3f4;
   --paper-deep: #dbe6e8;
@@ -3347,8 +3346,7 @@ body:has(.hub-v2) .preload-intro {
   }
 }
 
-/* V15 · 生产级校园效率系统
-   以校内导视牌的清晰层级为母题：墨蓝承载主任务，校园红只标记当前位置。 */
+/* V15 · 生产级校园效率系统（历史兼容层） */
 :root {
   color-scheme: light;
   --ui-page: #f3f6f7;
@@ -6599,9 +6597,9 @@ body,
 /* My · community corridor entry. Kept outside the five-item primary navigation. */
 .community-corridor-entry {
   align-items: center;
-  border-bottom: 1px solid var(--ink-soft);
-  border-top: 1px solid var(--ink);
-  color: var(--ink);
+  border-bottom: 1px solid var(--journal-line);
+  border-top: 1px solid var(--journal-ink);
+  color: var(--journal-ink);
   display: grid;
   gap: 18px;
   grid-template-columns: 24px 1fr auto;
@@ -6612,7 +6610,7 @@ body,
 }
 
 .community-corridor-entry > i {
-  background: var(--red);
+  background: var(--journal-red);
   border-radius: 50%;
   height: 12px;
   position: relative;
@@ -6620,7 +6618,7 @@ body,
 }
 
 .community-corridor-entry > i::after {
-  background: var(--red);
+  background: var(--journal-red);
   content: "";
   height: 1px;
   left: 12px;
@@ -6632,12 +6630,12 @@ body,
 .community-corridor-entry span { padding-left: 24px; }
 .community-corridor-entry small,
 .community-corridor-entry b { display: block; }
-.community-corridor-entry small { color: var(--red); font: 700 9px/1 var(--mono); letter-spacing: .12em; }
-.community-corridor-entry b { font: 500 22px/1.4 var(--serif); margin-top: 8px; }
-.community-corridor-entry em { color: var(--red-deep); font-size: 11px; font-style: normal; }
+.community-corridor-entry small { color: var(--journal-red); font: 700 9px/1 var(--journal-data); letter-spacing: .12em; }
+.community-corridor-entry b { font: 500 22px/1.4 var(--journal-display); margin-top: 8px; }
+.community-corridor-entry em { color: var(--journal-red-deep); font-size: 11px; font-style: normal; }
 .community-corridor-entry:hover b,
-.community-corridor-entry:focus-visible b { color: var(--red-deep); }
-.community-corridor-entry:focus-visible { outline: 2px solid var(--red); outline-offset: 5px; }
+.community-corridor-entry:focus-visible b { color: var(--journal-red-deep); }
+.community-corridor-entry:focus-visible { outline: 2px solid var(--journal-red); outline-offset: 5px; }
 
 @media (max-width: 640px) {
   .community-corridor-entry { grid-template-columns: 18px 1fr auto; margin-top: 38px; min-height: 78px; }

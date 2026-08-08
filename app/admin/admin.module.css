@@ -1,11 +1,11 @@
 .shell {
-  --admin-paper: #f2efe7;
-  --admin-ink: #201d1a;
-  --admin-muted: #736d65;
-  --admin-line: #c8c0b4;
-  --admin-red: #a12027;
-  --admin-red-deep: #70151b;
-  --admin-green: #35624d;
+  --admin-paper: var(--dufe-paper);
+  --admin-ink: var(--dufe-ink);
+  --admin-muted: var(--dufe-muted);
+  --admin-line: var(--dufe-line);
+  --admin-red: var(--dufe-red);
+  --admin-red-deep: var(--dufe-red-deep);
+  --admin-green: var(--dufe-pine);
   background:
     linear-gradient(90deg, transparent 0 7.5%, rgba(32, 29, 26, .045) 7.5% calc(7.5% + 1px), transparent calc(7.5% + 1px)),
     repeating-linear-gradient(0deg, transparent 0 31px, rgba(32, 29, 26, .027) 31px 32px),
@@ -171,8 +171,8 @@
 .auditTrail p { color: var(--admin-muted); font-size: 8px; margin: 7px 0 0; }
 .auditTrail q { color: var(--admin-red-deep); display: block; font: 10px/1.6 var(--serif); margin-top: 9px; }
 
-.modalBackdrop { align-items: center; background: rgba(20, 17, 15, .58); display: flex; inset: 0; justify-content: center; padding: 20px; position: fixed; z-index: 100; }
-.actionSheet { background: var(--admin-paper); border: 1px solid var(--admin-ink); box-shadow: 18px 18px 0 rgba(0,0,0,.18); max-width: 520px; padding: clamp(26px, 4vw, 44px); width: 100%; }
+.modalBackdrop { align-items: center; background: rgba(20, 17, 15, .58); display: flex; inset: 0; justify-content: center; padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom)); position: fixed; z-index: 100; }
+.actionSheet { background: var(--admin-paper); border: 1px solid var(--admin-ink); box-shadow: 18px 18px 0 rgba(0,0,0,.18); max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); max-width: 520px; overscroll-behavior: contain; overflow-y: auto; padding: clamp(26px, 4vw, 44px); width: 100%; }
 .actionSheet > span { color: var(--admin-red); font: 700 10px/1 var(--mono); letter-spacing: .13em; }
 .actionSheet h2 { font: 500 34px/1.2 var(--serif); margin: 14px 0; }
 .actionSheet p { color: var(--admin-muted); font-size: 11px; line-height: 1.8; }
@@ -251,8 +251,8 @@
 .reportQueue button:focus-visible b { color: var(--admin-red-deep); }
 .reportQueue button:focus-visible { outline: 2px solid var(--admin-red); outline-offset: -2px; }
 
-.moderationBackdrop { align-items: center; background: rgba(20, 17, 15, .62); display: flex; inset: 0; justify-content: center; padding: 20px; position: fixed; z-index: 120; }
-.caseSheet { background: var(--admin-paper); border: 1px solid var(--admin-ink); box-shadow: 18px 18px 0 rgba(0,0,0,.18); max-height: calc(100vh - 40px); max-width: 720px; overflow-y: auto; padding: clamp(26px, 4vw, 46px); width: 100%; }
+.moderationBackdrop { align-items: center; background: rgba(20, 17, 15, .62); display: flex; inset: 0; justify-content: center; padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom)); position: fixed; z-index: 120; }
+.caseSheet { background: var(--admin-paper); border: 1px solid var(--admin-ink); box-shadow: 18px 18px 0 rgba(0,0,0,.18); max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); max-width: 720px; overscroll-behavior: contain; overflow-y: auto; padding: clamp(26px, 4vw, 46px); width: 100%; }
 .caseSheet > header { align-items: start; display: flex; justify-content: space-between; }
 .caseSheet > header span { color: var(--admin-red); font: 700 9px/1 var(--mono); letter-spacing: .13em; }
 .caseSheet > header h2 { font: 500 34px/1.25 var(--serif); margin: 12px 0 0; }
@@ -287,7 +287,8 @@
   .reportQueue li:nth-child(even) button,
   .reportQueue button { padding-left: 0; padding-right: 0; }
   .moderationBackdrop { align-items: flex-end; padding: 0; }
-  .caseSheet { border-bottom: 0; border-left: 0; border-right: 0; box-shadow: none; max-height: 92vh; }
+  .actionSheet,
+  .caseSheet { border-bottom: 0; border-left: 0; border-right: 0; box-shadow: none; max-height: 92vh; max-height: 92dvh; padding-bottom: max(26px, env(safe-area-inset-bottom)); }
   .caseSheet dl { grid-template-columns: 1fr; }
   .caseSheet dl > div:nth-child(odd) { border-right: 0; }
 }
