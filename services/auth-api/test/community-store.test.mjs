@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createCommunityStore } from "../src/community-store.mjs";
+import {
+  communityModerationAllowedActions,
+  createCommunityStore,
+} from "../src/community-store.mjs";
 
 const viewerId = "00000000-0000-4000-8000-000000000011";
 const topicId = "00000000-0000-4000-8000-000000000021";
@@ -401,6 +404,16 @@ test("duplicate open reports reuse immutable evidence instead of inserting anoth
       if (sql.includes("sanction_type = 'ban'")) {
         return { rowCount: 1, rows: [{ status: "active", banned: true }] };
       }
+      if (sql.includes("AS evidence_title")) {
+        return {
+          rowCount: 1,
+          rows: [{
+            evidence_title: "被举报的主题",
+            evidence_body: "提交举报时看到的原始正文。",
+            evidence_author_label: "另一位同学",
+          }],
+        };
+      }
       if (sql.includes("FROM community_topics")) {
         return {
           rowCount: 1,
@@ -444,6 +457,86 @@ test("duplicate open reports reuse immutable evidence instead of inserting anoth
   assert.match(
     calls.find(({ sql }) => sql.includes("INSERT INTO community_reports")).sql,
     /ON CONFLICT \(reporter_user_id, target_type, target_id\)[\s\S]*?DO NOTHING/u,
+  );
+  const insert = calls.find(({ sql }) => sql.includes("INSERT INTO community_reports"));
+  assert.match(insert.sql, /evidence_title, evidence_body, evidence_author_label/u);
+  assert.deepEqual(insert.values.slice(5), [
+    "被举报的主题",
+    "提交举报时看到的原始正文。",
+    "另一位同学",
+  ]);
+});
+
+test("moderation queue exposes immutable evidence and state-safe actions", async () => {
+  const reportId = "00000000-0000-4000-8000-000000000041";
+  const pool = {
+    async query(sql) {
+      assert.match(sql, /reports\.evidence_body/u);
+      assert.match(sql, /active_sanction/u);
+      return {
+        rowCount: 1,
+        rows: [{
+          id: reportId,
+          target_type: "topic",
+          target_id: topicId,
+          target_label: "被举报的主题",
+          target_status: "hidden",
+          active_sanction_type: null,
+          reporter_username: "reporter",
+          reason_code: "harassment",
+          detail: "包含针对个人的持续攻击。",
+          status: "reviewing",
+          case_id: "00000000-0000-4000-8000-000000000061",
+          case_status: "reviewing",
+          evidence_title: "被举报的主题",
+          evidence_body: "提交举报时留存的原始正文。",
+          evidence_author_label: "内容作者",
+          evidence_captured_at: new Date("2026-08-09T09:00:00Z"),
+          created_at: new Date("2026-08-09T09:00:00Z"),
+          updated_at: new Date("2026-08-09T10:00:00Z"),
+        }, {
+          id: "00000000-0000-4000-8000-000000000042",
+          target_type: "user",
+          target_id: "00000000-0000-4000-8000-000000000043",
+          target_label: "已停用用户",
+          target_status: "disabled",
+          active_sanction_type: null,
+          reporter_username: "reporter",
+          reason_code: "spam",
+          detail: "该账号已经由账号值守流程停用。",
+          status: "reviewing",
+          case_id: "00000000-0000-4000-8000-000000000062",
+          case_status: "reviewing",
+          evidence_title: "已停用用户",
+          evidence_body: null,
+          evidence_author_label: "已停用用户",
+          evidence_captured_at: new Date("2026-08-09T09:00:00Z"),
+          created_at: new Date("2026-08-09T09:00:00Z"),
+          updated_at: new Date("2026-08-09T10:00:00Z"),
+        }],
+      };
+    },
+  };
+  const [report, disabledUser] = await createCommunityStore(pool).listCommunityReportQueue({
+    status: "reviewing",
+  });
+  assert.equal(report.evidenceBody, "提交举报时留存的原始正文。");
+  assert.deepEqual(report.allowedActions, ["restore", "delete"]);
+  assert.deepEqual(disabledUser.allowedActions, ["dismiss"]);
+});
+
+test("moderation actions preserve a path to reverse active interventions", () => {
+  assert.deepEqual(
+    communityModerationAllowedActions("topic", "hidden"),
+    ["restore", "delete"],
+  );
+  assert.deepEqual(
+    communityModerationAllowedActions("user", "active", "ban"),
+    ["unban"],
+  );
+  assert.deepEqual(
+    communityModerationAllowedActions("user", "disabled", "ban"),
+    ["dismiss"],
   );
 });
 
@@ -664,7 +757,7 @@ test("opening a moderation case rechecks elevation and appends both audit trails
   assert.equal(calls.at(-1).sql, "COMMIT");
 });
 
-test("moderation hides content, resolves reports, notifies the author, and audits atomically", async () => {
+test("moderation hides content, keeps the case reviewable, notifies the author, and audits atomically", async () => {
   const adminId = "00000000-0000-4000-8000-000000000001";
   const authorId = "00000000-0000-4000-8000-000000000012";
   const caseId = "00000000-0000-4000-8000-000000000061";
@@ -713,6 +806,7 @@ test("moderation hides content, resolves reports, notifies the author, and audit
     userAgentHash: "ua-hash",
   });
   assert.equal(result.action, "hide");
+  assert.equal(result.status, "reviewing");
   assert.ok(
     calls.some(
       ({ sql }) =>
@@ -721,10 +815,125 @@ test("moderation hides content, resolves reports, notifies the author, and audit
     ),
   );
   assert.ok(calls.some(({ sql }) => sql.includes("UPDATE community_reports AS reports")));
+  assert.ok(
+    calls.some(
+      ({ sql, values }) =>
+        sql.includes("UPDATE community_moderation_cases") &&
+        values?.[1] === "reviewing",
+    ),
+  );
   assert.ok(calls.some(({ sql }) => sql.includes("INSERT INTO community_moderation_actions")));
   assert.ok(calls.some(({ sql }) => sql.includes("INSERT INTO admin_audit_events")));
   assert.ok(calls.some(({ sql }) => sql.includes("'content_moderated'")));
   assert.equal(calls.at(-1).sql, "COMMIT");
+});
+
+test("moderation cannot close a case while hidden content still needs restoration", async () => {
+  const calls = [];
+  const client = {
+    async query(sql) {
+      calls.push(sql);
+      if (sql.includes("JOIN admin_elevated_sessions")) {
+        return {
+          rowCount: 1,
+          rows: [{ role: "admin", status: "active", actor_label: "管理员" }],
+        };
+      }
+      if (sql.includes("FROM community_moderation_cases") && sql.includes("FOR UPDATE")) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: "00000000-0000-4000-8000-000000000061",
+            target_type: "topic",
+            target_id: topicId,
+            status: "reviewing",
+          }],
+        };
+      }
+      if (sql.includes("FROM community_topics") && sql.includes("FOR UPDATE")) {
+        return {
+          rowCount: 1,
+          rows: [{ id: topicId, author_user_id: viewerId, status: "hidden" }],
+        };
+      }
+      return { rowCount: 1, rows: [] };
+    },
+    release() {},
+  };
+  const store = createCommunityStore({ async connect() { return client; } });
+  await assert.rejects(
+    store.applyCommunityModerationAction({
+      actorUserId: "00000000-0000-4000-8000-000000000001",
+      actorSessionId: "00000000-0000-4000-8000-000000000071",
+      actorElevationTokenHash: "elevation-hash",
+      caseId: "00000000-0000-4000-8000-000000000061",
+      action: "dismiss",
+      reason: "隐藏内容仍需明确恢复或删除，不能直接结案",
+      requestId: "00000000-0000-4000-8000-000000000081",
+      ipHash: "ip-hash",
+      userAgentHash: "ua-hash",
+    }),
+    (error) => error.code === "COMMUNITY_MODERATION_STATE_CONFLICT",
+  );
+  assert.equal(
+    calls.some((sql) => sql.includes("UPDATE community_moderation_cases")),
+    false,
+  );
+  assert.equal(calls.at(-1), "ROLLBACK");
+});
+
+test("moderation cannot close a sanctioned user case before unbanning", async () => {
+  const calls = [];
+  const client = {
+    async query(sql) {
+      calls.push(sql);
+      if (sql.includes("JOIN admin_elevated_sessions")) {
+        return {
+          rowCount: 1,
+          rows: [{ role: "admin", status: "active", actor_label: "管理员" }],
+        };
+      }
+      if (sql.includes("FROM community_moderation_cases") && sql.includes("FOR UPDATE")) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: "00000000-0000-4000-8000-000000000061",
+            target_type: "user",
+            target_id: viewerId,
+            status: "reviewing",
+          }],
+        };
+      }
+      if (sql.includes("FROM app_users") && sql.includes("FOR UPDATE")) {
+        return { rowCount: 1, rows: [{ id: viewerId, status: "active" }] };
+      }
+      if (sql.includes("FROM community_user_sanctions")) {
+        return { rowCount: 1, rows: [{ sanction_type: "ban" }] };
+      }
+      return { rowCount: 1, rows: [] };
+    },
+    release() {},
+  };
+  const store = createCommunityStore({ async connect() { return client; } });
+  await assert.rejects(
+    store.applyCommunityModerationAction({
+      actorUserId: "00000000-0000-4000-8000-000000000001",
+      actorSessionId: "00000000-0000-4000-8000-000000000071",
+      actorElevationTokenHash: "elevation-hash",
+      caseId: "00000000-0000-4000-8000-000000000061",
+      action: "warn",
+      reason: "仍有生效中的封禁，必须先执行解封动作",
+      requestId: "00000000-0000-4000-8000-000000000081",
+      ipHash: "ip-hash",
+      userAgentHash: "ua-hash",
+    }),
+    (error) => error.code === "COMMUNITY_MODERATION_STATE_CONFLICT",
+  );
+  assert.equal(
+    calls.some((sql) => sql.includes("UPDATE community_moderation_cases")),
+    false,
+  );
+  assert.equal(calls.at(-1), "ROLLBACK");
 });
 
 test("moderation mutations stop before target access when elevation was revoked", async () => {

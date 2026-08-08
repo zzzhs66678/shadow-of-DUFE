@@ -5185,6 +5185,14 @@ function MePage({
           </>
         )}
       </section>
+      <a className="community-corridor-entry" href="/community">
+        <i aria-hidden="true" />
+        <span>
+          <small>校园回廊</small>
+          <b>看看同学们最近在讨论什么</b>
+        </span>
+        <em>进入 →</em>
+      </a>
       <section className="campus-gateway" aria-labelledby="campus-gateway-title">
         <header>
           <span>东财常用</span>

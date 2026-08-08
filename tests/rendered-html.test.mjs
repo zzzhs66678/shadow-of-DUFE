@@ -65,6 +65,25 @@ test("server-renders the branded data-loading shell", async () => {
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/i);
 });
 
+test("community list and topic routes render independent readable shells", async () => {
+  const list = await render("/community");
+  assert.equal(list.status, 200);
+  const listHtml = await list.text();
+  assert.match(listHtml, /<title>校园回廊｜东财之影<\/title>/i);
+  assert.match(listHtml, /让有用的话/);
+  assert.match(listHtml, /主题按发布时间排序/);
+  assert.match(listHtml, /href="\/materials"/);
+  assert.doesNotMatch(listHtml, /热门排序|积分榜|用户等级/);
+
+  const detail = await render(
+    "/community/topics/00000000-0000-4000-8000-000000000001",
+  );
+  assert.equal(detail.status, 200);
+  const detailHtml = await detail.text();
+  assert.match(detailHtml, /正在展开这段讨论/);
+  assert.match(detailHtml, /href="\/community"/);
+});
+
 test("course index preserves the expected source relationships", async () => {
   const raw = await readFile(
     new URL("../public/data/course-data.json", import.meta.url),

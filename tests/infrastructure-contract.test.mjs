@@ -353,6 +353,20 @@ test("community read paths preserve deleted thread anchors and use the auth prox
   assert.match(vite, /"\/api\/community": \{ target: authApiDevTarget \}/);
 });
 
+test("community reports preserve immutable evidence snapshots for moderation", async () => {
+  const migration = await read(
+    "ops/postgres/migrations/0012_community_report_evidence.sql",
+  );
+  assert.match(migration, /evidence_title/);
+  assert.match(migration, /evidence_body/);
+  assert.match(migration, /evidence_author_label/);
+  assert.match(migration, /community report evidence snapshot is required/);
+  assert.match(
+    migration,
+    /NEW\.evidence_body IS DISTINCT FROM OLD\.evidence_body/,
+  );
+});
+
 test("auth traffic has bounded in-memory burst protection", async () => {
   const limiter = await read("services/auth-api/src/rate-limit.mjs");
   const server = await read("services/auth-api/src/server.mjs");

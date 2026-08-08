@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import styles from "./admin.module.css";
+import { ModerationDesk } from "./ModerationDesk";
 
 type AccessState = {
   role: "admin";
@@ -60,6 +61,15 @@ const actionLabels: Record<string, string> = {
   "admin.user.status_changed": "用户状态已变更",
   "admin.bootstrap.created": "管理员权限已建立",
   "admin.mfa.rotated": "管理员验证器已轮换",
+  "admin.community.case_opened": "社区举报已入案",
+  "admin.community.hide": "社区内容已隐藏",
+  "admin.community.restore": "社区内容已恢复",
+  "admin.community.delete": "社区内容已删除",
+  "admin.community.warn": "社区账号已警告",
+  "admin.community.suspend": "社区账号已限时停发",
+  "admin.community.ban": "社区账号已封禁",
+  "admin.community.unban": "社区账号制裁已解除",
+  "admin.community.dismiss": "社区举报已驳回",
 };
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -131,17 +141,21 @@ export function AdminConsole() {
   const [target, setTarget] = useState<AdminUser | null>(null);
   const [reason, setReason] = useState("");
 
+  const loadAudit = useCallback(async () => {
+    const payload = await requestJson<{ events: AuditEvent[] }>("/api/admin/audit");
+    setAudit(payload.events);
+  }, []);
+
   const loadDashboard = useCallback(async (search = "") => {
     const suffix = search ? `?query=${encodeURIComponent(search)}` : "";
-    const [overviewPayload, usersPayload, auditPayload] = await Promise.all([
+    const [overviewPayload, usersPayload] = await Promise.all([
       requestJson<{ overview: Overview }>("/api/admin/overview"),
       requestJson<{ users: AdminUser[] }>(`/api/admin/users${suffix}`),
-      requestJson<{ events: AuditEvent[] }>("/api/admin/audit"),
+      loadAudit(),
     ]);
     setOverview(overviewPayload.overview);
     setUsers(usersPayload.users);
-    setAudit(auditPayload.events);
-  }, []);
+  }, [loadAudit]);
 
   const loadAccess = useCallback(async () => {
     try {
@@ -419,6 +433,11 @@ export function AdminConsole() {
           </section>
 
           {feedback && <div className={styles.feedback} role="status">{feedback}</div>}
+
+          <ModerationDesk
+            onMfaExpired={() => setScreen("elevation")}
+            onAuditChanged={loadAudit}
+          />
 
           <div className={styles.workbench}>
             <section className={styles.userBook} aria-labelledby="admin-users-title">

@@ -6596,3 +6596,54 @@ body,
 .campus-window figcaption span {
   color: #ffffff;
 }
+/* My · community corridor entry. Kept outside the five-item primary navigation. */
+.community-corridor-entry {
+  align-items: center;
+  border-bottom: 1px solid var(--ink-soft);
+  border-top: 1px solid var(--ink);
+  color: var(--ink);
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 24px 1fr auto;
+  margin: 54px 0 0;
+  min-height: 88px;
+  padding: 16px 4px;
+  text-decoration: none;
+}
+
+.community-corridor-entry > i {
+  background: var(--red);
+  border-radius: 50%;
+  height: 12px;
+  position: relative;
+  width: 12px;
+}
+
+.community-corridor-entry > i::after {
+  background: var(--red);
+  content: "";
+  height: 1px;
+  left: 12px;
+  position: absolute;
+  top: 5px;
+  width: 42px;
+}
+
+.community-corridor-entry span { padding-left: 24px; }
+.community-corridor-entry small,
+.community-corridor-entry b { display: block; }
+.community-corridor-entry small { color: var(--red); font: 700 9px/1 var(--mono); letter-spacing: .12em; }
+.community-corridor-entry b { font: 500 22px/1.4 var(--serif); margin-top: 8px; }
+.community-corridor-entry em { color: var(--red-deep); font-size: 11px; font-style: normal; }
+.community-corridor-entry:hover b,
+.community-corridor-entry:focus-visible b { color: var(--red-deep); }
+.community-corridor-entry:focus-visible { outline: 2px solid var(--red); outline-offset: 5px; }
+
+@media (max-width: 640px) {
+  .community-corridor-entry { grid-template-columns: 18px 1fr auto; margin-top: 38px; min-height: 78px; }
+  .community-corridor-entry > i { height: 10px; width: 10px; }
+  .community-corridor-entry > i::after { left: 10px; width: 24px; }
+  .community-corridor-entry span { padding-left: 12px; }
+  .community-corridor-entry b { font-size: 17px; }
+  .community-corridor-entry em { font-size: 9px; }
+}

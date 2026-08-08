@@ -62,6 +62,21 @@ test("the daily workspace stays functional while campus photographs live in My",
   assert.doesNotMatch(component, /<i>0[123]<\/i>/);
 });
 
+test("community stays outside the five-item primary workspace and enters through My", () => {
+  const homeStart = component.indexOf("function HomePage");
+  const catalogStart = component.indexOf("function CatalogPage");
+  const meStart = component.indexOf("function MePage");
+  const searchStart = component.indexOf("function SearchCommand");
+  const homeSource = component.slice(homeStart, catalogStart);
+  const meSource = component.slice(meStart, searchStart);
+
+  assert.doesNotMatch(homeSource, /community-corridor-entry/);
+  assert.match(meSource, /community-corridor-entry/);
+  assert.match(meSource, /href="\/community"/);
+  assert.match(productStyles, /\.community-corridor-entry/);
+  assert.doesNotMatch(component, /id: "community"/);
+});
+
 test("personal page explains local data, cloud sync, devices, and account control", () => {
   const meStart = component.indexOf("function MePage");
   const searchStart = component.indexOf("function SearchCommand");

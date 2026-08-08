@@ -24,6 +24,7 @@
 - [ ] 数据库 owner、migrator、runtime、backup 角色按最小权限分离。
 - [ ] 在 PostgreSQL 17 验证 `0010_community_foundation.sql` 空库/升级库迁移、两级回复触发器、软删除引用、通知/互动去重和开放举报部分唯一索引。
 - [ ] 在 PostgreSQL 17 验证 `0011_community_read_paths.sql` 重复执行和查询计划；软删除根评论仍使用墓碑索引分页并保留回复线程。
+- [ ] 在 PostgreSQL 17 验证 `0012_community_report_evidence.sql` 空库/升级/重复迁移、旧举报回填和快照不可变触发器；编辑或删除目标后审核证据仍保持举报时内容。
 - [ ] 验证 auth runtime 无法 UPDATE/DELETE/TRUNCATE `community_content_edits` 与 `community_moderation_actions`，但仍可按设计追加记录。
 - [ ] 验证 auth runtime 无法硬删除或截断 `community_topics`/`community_comments`；软删除后通知、回复引用和降级页仍可读取。
 - [ ] 用做过编辑、举报、审核与被制裁的测试账号验证注销不会被外键/不可变触发器阻断，且去标识化审计证据仍保留。
@@ -46,6 +47,8 @@
 - [ ] 软删除主题/评论后通知正文被清空且跳转降级到 `/community`；发件账号注销后响应不暴露去标识化 actor UUID。
 - [ ] 普通用户不能读取管理员举报队列或触发任何敏感查询；管理员举报队列、入案与治理动作必须同时通过角色、基础会话、短期 MFA 提升和可信 Origin，提升会话在事务开始后被撤销时整体回滚。
 - [ ] 在真实 PostgreSQL 17 验证内容隐藏/恢复/软删除、用户警告/暂停/封禁/解封、举报结案、作者通知、社区治理记录与全局管理员审计同事务提交；重复动作、目标类型错误、管理员自我制裁和并发处理均安全拒绝。
+- [ ] 验证隐藏→恢复/删除、暂停/封禁→解封的案件保持审核中，隐藏或制裁仍生效时警告/驳回会被服务端拒绝；前端只显示服务端 `allowedActions`，目标状态变化后会刷新而不是强行提交旧动作，写成功但刷新失败时不得提示重复处置。
+- [ ] Linux staging 容器逐项请求 HTML 引用的 JS/CSS 哈希资源并确认 200、正确 MIME 与长期缓存；Windows 本机 vinext 生产静态缓存存在路径分隔符差异，不能把本机 `vinext start` 结果替代容器验收。
 
 ## 4. 自动化门禁
 
@@ -93,5 +96,5 @@
 - 微信开放平台正式 AppID/AppSecret 与最终审核状态：未提供，本地不需要等待；生产微信入口受此阻塞。
 - 独立 staging 环境与凭据：尚未确认，未擅自创建付费资源。
 - 邮件发送服务凭据：尚未提供；密码注册可先本地验证，生产验证/重置邮件受此阻塞。
-- 当前开发机未安装 `sh`、Docker/PostgreSQL；`0006_credential_auth.sql`、`0007_user_avatars.sql`、`0008_admin_security.sql`、`0009_email_verification.sql` 的空库、升级库、重复执行，以及 Linux musl 原生 Argon2id/Sharp 镜像验证必须在 staging 或具备 Docker 的 CI 完成。邮箱令牌、管理员 TOTP/恢复码并发消费、审计失败回滚、`AUTH_DB_USER` 对业务表/审计表/迁移账本的权限矩阵和 `run-migrations.sh` 实际执行仍需真实 PostgreSQL 集成测试。
+- 当前开发机未安装 `sh`、Docker/PostgreSQL；`0006_credential_auth.sql`—`0012_community_report_evidence.sql` 的空库、升级库、重复执行，以及 Linux musl 原生 Argon2id/Sharp 镜像验证必须在 staging 或具备 Docker 的 CI 完成。邮箱令牌、管理员 TOTP/恢复码并发消费、社区举报证据/可逆治理并发、审计失败回滚、`AUTH_DB_USER` 对业务表/审计表/迁移账本的权限矩阵和 `run-migrations.sh` 实际执行仍需真实 PostgreSQL 集成测试。
 - 异地对象存储/备份凭据：尚未提供；本地适配器和恢复流程继续开发，生产异地副本受此阻塞。

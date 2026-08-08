@@ -61,6 +61,24 @@ function communityError(code, details = {}) {
   return Object.assign(new Error(code), { code, ...details });
 }
 
+export function communityModerationAllowedActions(
+  targetType,
+  targetStatus,
+  activeSanctionType = null,
+) {
+  if (targetType === "user") {
+    if (targetStatus !== "active") return ["dismiss"];
+    return activeSanctionType
+      ? ["unban"]
+      : ["warn", "suspend", "ban", "dismiss"];
+  }
+  if (targetStatus === "hidden") return ["restore", "delete"];
+  if (targetStatus === "published") {
+    return ["hide", "delete", "warn", "dismiss"];
+  }
+  return ["warn", "dismiss"];
+}
+
 async function withTransaction(pool, callback) {
   const client = await pool.connect();
   try {
@@ -293,6 +311,41 @@ async function assertReportTarget(client, targetType, targetId, userId) {
   if (String(target.author_user_id) === String(userId)) {
     throw communityError("COMMUNITY_REPORT_SELF");
   }
+}
+
+async function communityReportEvidence(client, targetType, targetId) {
+  const result = targetType === "topic"
+    ? await client.query(
+        `SELECT topics.title AS evidence_title,
+                topics.body AS evidence_body,
+                COALESCE(authors.display_name, authors.username, '已注销用户') AS evidence_author_label
+         FROM community_topics AS topics
+         LEFT JOIN app_users AS authors ON authors.id = topics.author_user_id
+         WHERE topics.id = $1::uuid`,
+        [targetId],
+      )
+    : targetType === "comment"
+      ? await client.query(
+          `SELECT NULL::text AS evidence_title,
+                  comments.body AS evidence_body,
+                  COALESCE(authors.display_name, authors.username, '已注销用户') AS evidence_author_label
+           FROM community_comments AS comments
+           LEFT JOIN app_users AS authors ON authors.id = comments.author_user_id
+           WHERE comments.id = $1::uuid`,
+          [targetId],
+        )
+      : await client.query(
+          `SELECT COALESCE(users.display_name, users.username) AS evidence_title,
+                  NULL::text AS evidence_body,
+                  COALESCE(users.display_name, users.username, '已注销用户') AS evidence_author_label
+           FROM app_users AS users
+           WHERE users.id = $1::uuid`,
+          [targetId],
+        );
+  if (result.rowCount !== 1) {
+    throw communityError("COMMUNITY_CONTENT_UNAVAILABLE");
+  }
+  return result.rows[0];
 }
 
 function mentionUsernames(body) {
@@ -1157,11 +1210,17 @@ export function createCommunityStore(pool) {
           targetId,
           reporterUserId,
         );
+        const evidence = await communityReportEvidence(
+          client,
+          targetType,
+          targetId,
+        );
         const result = await client.query(
           `WITH inserted AS (
              INSERT INTO community_reports (
-               reporter_user_id, target_type, target_id, reason_code, detail
-             ) VALUES ($1::uuid, $2, $3::uuid, $4, $5)
+               reporter_user_id, target_type, target_id, reason_code, detail,
+               evidence_title, evidence_body, evidence_author_label
+             ) VALUES ($1::uuid, $2, $3::uuid, $4, $5, $6, $7, $8)
              ON CONFLICT (reporter_user_id, target_type, target_id)
                WHERE status IN ('open', 'reviewing')
              DO NOTHING
@@ -1179,7 +1238,16 @@ export function createCommunityStore(pool) {
              AND status IN ('open', 'reviewing')
              AND NOT EXISTS (SELECT 1 FROM inserted)
            LIMIT 1`,
-          [reporterUserId, targetType, targetId, reasonCode, detail],
+          [
+            reporterUserId,
+            targetType,
+            targetId,
+            reasonCode,
+            detail,
+            evidence.evidence_title,
+            evidence.evidence_body,
+            evidence.evidence_author_label,
+          ],
         );
         return reportResult(result.rows[0]);
       });
@@ -1197,11 +1265,17 @@ export function createCommunityStore(pool) {
            reports.created_at,
            reports.updated_at,
            reporter.username AS reporter_username,
-           COALESCE(
-             topics.title,
-             left(comments.body, 160),
-             target_user.username
-           ) AS target_label,
+           COALESCE(reports.evidence_title, left(reports.evidence_body, 160)) AS target_label,
+           reports.evidence_title,
+           reports.evidence_body,
+           reports.evidence_author_label,
+           reports.evidence_captured_at,
+           CASE
+             WHEN reports.target_type = 'topic' THEN topics.status
+             WHEN reports.target_type = 'comment' THEN comments.status
+             ELSE target_user.status
+           END AS target_status,
+           active_sanction.sanction_type AS active_sanction_type,
            cases.id AS case_id,
            cases.status AS case_status
          FROM community_reports AS reports
@@ -1212,6 +1286,17 @@ export function createCommunityStore(pool) {
            ON reports.target_type = 'comment' AND comments.id = reports.target_id
          LEFT JOIN app_users AS target_user
            ON reports.target_type = 'user' AND target_user.id = reports.target_id
+         LEFT JOIN LATERAL (
+           SELECT sanctions.sanction_type
+           FROM community_user_sanctions AS sanctions
+           WHERE reports.target_type = 'user'
+             AND sanctions.user_id = reports.target_id
+             AND sanctions.revoked_at IS NULL
+             AND sanctions.starts_at <= now()
+             AND (sanctions.expires_at IS NULL OR sanctions.expires_at > now())
+           ORDER BY sanctions.created_at DESC
+           LIMIT 1
+         ) AS active_sanction ON true
          LEFT JOIN community_case_reports AS links ON links.report_id = reports.id
          LEFT JOIN community_moderation_cases AS cases ON cases.id = links.case_id
          WHERE reports.status = $1
@@ -1219,20 +1304,35 @@ export function createCommunityStore(pool) {
          LIMIT $2`,
         [status, limit],
       );
-      return result.rows.map((row) => ({
-        id: String(row.id),
-        targetType: row.target_type,
-        targetId: String(row.target_id),
-        targetLabel: row.target_label,
-        reporterUsername: row.reporter_username,
-        reasonCode: row.reason_code,
-        detail: row.detail,
-        status: row.status,
-        caseId: row.case_id ? String(row.case_id) : null,
-        caseStatus: row.case_status,
-        createdAt: iso(row.created_at),
-        updatedAt: iso(row.updated_at),
-      }));
+      return result.rows.map((row) => {
+        const targetStatus = row.target_status;
+        const allowedActions = communityModerationAllowedActions(
+          row.target_type,
+          targetStatus,
+          row.active_sanction_type,
+        );
+        return {
+          id: String(row.id),
+          targetType: row.target_type,
+          targetId: String(row.target_id),
+          targetLabel: row.target_label,
+          evidenceTitle: row.evidence_title,
+          evidenceBody: row.evidence_body,
+          evidenceAuthorLabel: row.evidence_author_label,
+          evidenceCapturedAt: iso(row.evidence_captured_at),
+          targetStatus,
+          activeSanctionType: row.active_sanction_type,
+          allowedActions,
+          reporterUsername: row.reporter_username,
+          reasonCode: row.reason_code,
+          detail: row.detail,
+          status: row.status,
+          caseId: row.case_id ? String(row.case_id) : null,
+          caseStatus: row.case_status,
+          createdAt: iso(row.created_at),
+          updatedAt: iso(row.updated_at),
+        };
+      });
     },
 
     async openCommunityModerationCase(input) {
@@ -1401,6 +1501,13 @@ export function createCommunityStore(pool) {
           if (target.rowCount !== 1) {
             throw communityError("COMMUNITY_CASE_NOT_FOUND");
           }
+          const allowedActions = communityModerationAllowedActions(
+            moderationCase.target_type,
+            target.rows[0].status,
+          );
+          if (!allowedActions.includes(input.action)) {
+            throw communityError("COMMUNITY_MODERATION_STATE_CONFLICT");
+          }
           recipientUserId = target.rows[0].author_user_id;
           topicId = moderationCase.target_type === "topic"
             ? moderationCase.target_id
@@ -1456,6 +1563,36 @@ export function createCommunityStore(pool) {
             );
           }
         } else {
+          const targetUser = await client.query(
+            `SELECT id, status
+             FROM app_users
+             WHERE id = $1::uuid
+             FOR UPDATE`,
+            [moderationCase.target_id],
+          );
+          if (targetUser.rowCount !== 1) {
+            throw communityError("COMMUNITY_CASE_NOT_FOUND");
+          }
+          const activeSanction = await client.query(
+            `SELECT sanction_type
+             FROM community_user_sanctions
+             WHERE user_id = $1::uuid
+               AND revoked_at IS NULL
+               AND starts_at <= now()
+               AND (expires_at IS NULL OR expires_at > now())
+             ORDER BY created_at DESC
+             LIMIT 1
+             FOR UPDATE`,
+            [moderationCase.target_id],
+          );
+          const allowedActions = communityModerationAllowedActions(
+            "user",
+            targetUser.rows[0].status,
+            activeSanction.rows[0]?.sanction_type ?? null,
+          );
+          if (!allowedActions.includes(input.action)) {
+            throw communityError("COMMUNITY_MODERATION_STATE_CONFLICT");
+          }
           recipientUserId = moderationCase.target_id;
         }
 
@@ -1487,8 +1624,17 @@ export function createCommunityStore(pool) {
           }
         }
 
-        const reportStatus = input.action === "dismiss" ? "dismissed" : "resolved";
-        const caseStatus = input.action === "dismiss" ? "closed" : "resolved";
+        const remainsReviewing = ["hide", "suspend", "ban"].includes(input.action);
+        const reportStatus = remainsReviewing
+          ? "reviewing"
+          : input.action === "dismiss"
+            ? "dismissed"
+            : "resolved";
+        const caseStatus = remainsReviewing
+          ? "reviewing"
+          : input.action === "dismiss"
+            ? "closed"
+            : "resolved";
         await client.query(
           `UPDATE community_reports AS reports
            SET status = $2
