@@ -333,6 +333,26 @@ test("community notifications and moderation preserve dedupe, fallback, and immu
   );
 });
 
+test("community read paths preserve deleted thread anchors and use the auth proxy", async () => {
+  const migration = await read(
+    "ops/postgres/migrations/0011_community_read_paths.sql",
+  );
+  const caddy = await read("deploy/Caddyfile");
+  const vite = await read("vite.config.ts");
+
+  assert.match(
+    migration,
+    /community_comments_public_roots_cursor_idx[\s\S]*?\(topic_id, created_at ASC, id ASC\)[\s\S]*?WHERE parent_comment_id IS NULL/,
+  );
+  assert.match(
+    migration,
+    /community_comments_public_replies_cursor_idx[\s\S]*?\(root_comment_id, created_at ASC, id ASC\)[\s\S]*?WHERE root_comment_id IS NOT NULL/,
+  );
+  assert.doesNotMatch(migration, /status <> 'deleted'/);
+  assert.match(caddy, /handle \/api\/community\/\*/);
+  assert.match(vite, /"\/api\/community": \{ target: authApiDevTarget \}/);
+});
+
 test("auth traffic has bounded in-memory burst protection", async () => {
   const limiter = await read("services/auth-api/src/rate-limit.mjs");
   const server = await read("services/auth-api/src/server.mjs");

@@ -23,6 +23,7 @@
 - [ ] teacher/material/community 导入先 dry-run，保存批次报告和回滚标识。
 - [ ] 数据库 owner、migrator、runtime、backup 角色按最小权限分离。
 - [ ] 在 PostgreSQL 17 验证 `0010_community_foundation.sql` 空库/升级库迁移、两级回复触发器、软删除引用、通知/互动去重和开放举报部分唯一索引。
+- [ ] 在 PostgreSQL 17 验证 `0011_community_read_paths.sql` 重复执行和查询计划；软删除根评论仍使用墓碑索引分页并保留回复线程。
 - [ ] 验证 auth runtime 无法 UPDATE/DELETE/TRUNCATE `community_content_edits` 与 `community_moderation_actions`，但仍可按设计追加记录。
 - [ ] 验证 auth runtime 无法硬删除或截断 `community_topics`/`community_comments`；软删除后通知、回复引用和降级页仍可读取。
 - [ ] 用做过编辑、举报、审核与被制裁的测试账号验证注销不会被外键/不可变触发器阻断，且去标识化审计证据仍保留。
@@ -37,6 +38,7 @@
 - [ ] PostgreSQL、auth-api、小影不映射公网端口。
 - [ ] 静态资料和上传目录只授予所需读写权限，路径遍历测试通过。
 - [ ] `/api/materials` 数量与发布清单一致，随机抽样列表、详情、预览、下载、404/410 与 403 状态；旧 `/resources/files/*` 有效链接保持兼容。
+- [ ] `/api/community/topics` 列表、详情和评论游标读取通过；匿名/登录个性化、双向屏蔽、删除主题 410、删除评论墓碑及无效游标均符合契约。
 
 ## 4. 自动化门禁
 

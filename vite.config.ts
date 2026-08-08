@@ -52,6 +52,7 @@ export default defineConfig(async () => {
       proxy: {
         "/api/auth": { target: authApiDevTarget },
         "/api/admin": { target: authApiDevTarget },
+        "/api/community": { target: authApiDevTarget },
       },
     },
     plugins: [

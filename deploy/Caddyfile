@@ -39,6 +39,10 @@
 		reverse_proxy auth-api:3100
 	}
 
+	handle /api/community/* {
+		reverse_proxy auth-api:3100
+	}
+
 	redir /campus-lab /campus-lab/ 308
 
 	handle_path /campus-lab/* {
