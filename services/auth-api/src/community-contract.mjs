@@ -38,6 +38,12 @@ function normalizeBody(value, maxLength) {
   return normalized;
 }
 
+function normalizeOptionalDetail(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const detail = normalizeBody(value, 1_000);
+  return detail && detail.length >= 8 ? detail : null;
+}
+
 function version(value) {
   return Number.isSafeInteger(value) && value >= 1 ? value : null;
 }
@@ -126,4 +132,38 @@ export function validateCommentUpdate(value) {
   const body = normalizeBody(value.body, 3_000);
   const expectedVersion = version(value.version);
   return body && expectedVersion ? { body, expectedVersion } : null;
+}
+
+export function validateCommunityReport(value) {
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(
+      value,
+      new Set(["targetType", "targetId", "reasonCode", "detail"]),
+    )
+  ) {
+    return null;
+  }
+  const targetType = value.targetType;
+  const targetId = value.targetId;
+  const reasonCode = value.reasonCode;
+  const detail = normalizeOptionalDetail(value.detail);
+  if (
+    !["topic", "comment", "user"].includes(targetType) ||
+    !isCommunityUuid(targetId) ||
+    ![
+      "harassment",
+      "privacy",
+      "spam",
+      "misinformation",
+      "illegal",
+      "self_harm",
+      "other",
+    ].includes(reasonCode) ||
+    (Object.hasOwn(value, "detail") && value.detail && !detail) ||
+    (reasonCode === "other" && !detail)
+  ) {
+    return null;
+  }
+  return { targetType, targetId, reasonCode, detail };
 }

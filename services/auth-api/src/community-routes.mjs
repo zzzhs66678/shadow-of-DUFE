@@ -4,6 +4,7 @@ import {
   isCommunityUuid,
   validateCommentCreate,
   validateCommentUpdate,
+  validateCommunityReport,
   validateTopicCreate,
   validateTopicUpdate,
   validateVersionedDelete,
@@ -101,14 +102,20 @@ async function optionalSession(request, store, config) {
   );
 }
 
-function writeRateAllowed(request, userId, rateLimiters, config) {
-  const limiter = rateLimiters.communityWrite ?? rateLimiters.write;
+function writeRateAllowed(
+  request,
+  userId,
+  rateLimiters,
+  config,
+  limiterName = "communityWrite",
+) {
+  const limiter = rateLimiters[limiterName] ?? rateLimiters.write;
   const userKey = tokenDigest(
-    `community-write:user:${userId}`,
+    `${limiterName}:user:${userId}`,
     config.tokenPepper,
   );
   const ipKey = tokenDigest(
-    `community-write:ip:${clientAddress(request)}`,
+    `${limiterName}:ip:${clientAddress(request)}`,
     config.tokenPepper,
   );
   return limiter.consume(userKey) && limiter.consume(ipKey);
@@ -117,6 +124,17 @@ function writeRateAllowed(request, userId, rateLimiters, config) {
 function handleStoreError(error, response) {
   if (error?.code === "COMMUNITY_POSTING_FORBIDDEN") {
     sendJson(response, 403, { error: "community_posting_forbidden" });
+    return true;
+  }
+  if (error?.code === "COMMUNITY_ACTION_FORBIDDEN") {
+    sendJson(response, 403, { error: "community_action_forbidden" });
+    return true;
+  }
+  if (
+    error?.code === "COMMUNITY_BLOCK_SELF" ||
+    error?.code === "COMMUNITY_REPORT_SELF"
+  ) {
+    sendJson(response, 400, { error: "invalid_community_target" });
     return true;
   }
   if (error?.code === "COMMUNITY_CONTENT_NOT_FOUND") {
@@ -153,16 +171,31 @@ export function createCommunityRequestHandler({ store, config, rateLimiters }) {
     const session = await optionalSession(request, store, config);
     const viewerUserId = session?.userId ?? null;
 
-    async function writeInput(validator) {
+    async function writeAccess(limiterName = "communityWrite") {
       if (!session) {
         sendJson(response, 401, { error: "authentication_required" });
-        return null;
+        return false;
       }
-      if (!writeRateAllowed(request, session.userId, rateLimiters, config)) {
+      if (!writeRateAllowed(
+        request,
+        session.userId,
+        rateLimiters,
+        config,
+        limiterName,
+      )) {
         response.setHeader("Retry-After", "30");
-        sendJson(response, 429, { error: "community_write_rate_limited" });
-        return null;
+        sendJson(response, 429, {
+          error: limiterName === "communityReport"
+            ? "community_report_rate_limited"
+            : "community_write_rate_limited",
+        });
+        return false;
       }
+      return true;
+    }
+
+    async function writeInput(validator, limiterName = "communityWrite") {
+      if (!(await writeAccess(limiterName))) return null;
       const input = validator(await readJsonBody(request));
       if (!input) {
         sendJson(response, 400, { error: "invalid_community_body" });
@@ -350,6 +383,119 @@ export function createCommunityRequestHandler({ store, config, rateLimiters }) {
               ...input,
             }),
       }));
+      return true;
+    }
+
+    const topicLikeMatch = url.pathname.match(
+      /^\/api\/community\/topics\/([0-9a-f-]{36})\/like$/iu,
+    );
+    if (topicLikeMatch) {
+      if (!isCommunityUuid(topicLikeMatch[1])) {
+        sendJson(response, 404, { error: "community_content_not_found" });
+        return true;
+      }
+      if (request.method !== "PUT" && request.method !== "DELETE") {
+        methodNotAllowed(response, "PUT, DELETE");
+        return true;
+      }
+      if (!(await writeAccess("communityReaction"))) return true;
+      await runWrite(async () => ({
+        like: await store.setCommunityLike({
+          targetType: "topic",
+          targetId: topicLikeMatch[1],
+          userId: session.userId,
+          active: request.method === "PUT",
+        }),
+      }));
+      return true;
+    }
+
+    const topicBookmarkMatch = url.pathname.match(
+      /^\/api\/community\/topics\/([0-9a-f-]{36})\/bookmark$/iu,
+    );
+    if (topicBookmarkMatch) {
+      if (!isCommunityUuid(topicBookmarkMatch[1])) {
+        sendJson(response, 404, { error: "community_content_not_found" });
+        return true;
+      }
+      if (request.method !== "PUT" && request.method !== "DELETE") {
+        methodNotAllowed(response, "PUT, DELETE");
+        return true;
+      }
+      if (!(await writeAccess("communityReaction"))) return true;
+      await runWrite(async () => ({
+        bookmark: await store.setCommunityBookmark({
+          topicId: topicBookmarkMatch[1],
+          userId: session.userId,
+          active: request.method === "PUT",
+        }),
+      }));
+      return true;
+    }
+
+    const commentLikeMatch = url.pathname.match(
+      /^\/api\/community\/comments\/([0-9a-f-]{36})\/like$/iu,
+    );
+    if (commentLikeMatch) {
+      if (!isCommunityUuid(commentLikeMatch[1])) {
+        sendJson(response, 404, { error: "community_content_not_found" });
+        return true;
+      }
+      if (request.method !== "PUT" && request.method !== "DELETE") {
+        methodNotAllowed(response, "PUT, DELETE");
+        return true;
+      }
+      if (!(await writeAccess("communityReaction"))) return true;
+      await runWrite(async () => ({
+        like: await store.setCommunityLike({
+          targetType: "comment",
+          targetId: commentLikeMatch[1],
+          userId: session.userId,
+          active: request.method === "PUT",
+        }),
+      }));
+      return true;
+    }
+
+    const blockMatch = url.pathname.match(
+      /^\/api\/community\/users\/([0-9a-f-]{36})\/block$/iu,
+    );
+    if (blockMatch) {
+      if (!isCommunityUuid(blockMatch[1])) {
+        sendJson(response, 404, { error: "community_content_not_found" });
+        return true;
+      }
+      if (request.method !== "PUT" && request.method !== "DELETE") {
+        methodNotAllowed(response, "PUT, DELETE");
+        return true;
+      }
+      if (!(await writeAccess())) return true;
+      await runWrite(async () => ({
+        block: await store.setCommunityBlock({
+          blockerUserId: session.userId,
+          blockedUserId: blockMatch[1],
+          active: request.method === "PUT",
+        }),
+      }));
+      return true;
+    }
+
+    if (url.pathname === "/api/community/reports") {
+      if (request.method !== "POST") {
+        methodNotAllowed(response, "POST");
+        return true;
+      }
+      const input = await writeInput(
+        validateCommunityReport,
+        "communityReport",
+      );
+      if (!input) return true;
+      await runWrite(async () => ({
+        report: await store.createCommunityReport({
+          reporterUserId: session.userId,
+          ...input,
+        }),
+      }), 201);
       return true;
     }
 

@@ -102,6 +102,141 @@ async function assertPostingAllowed(client, userId) {
   }
 }
 
+async function assertCommunityAccountAllowed(client, userId, { rejectBan = true } = {}) {
+  const result = await client.query(
+    `SELECT
+       users.status,
+       EXISTS (
+         SELECT 1
+         FROM community_user_sanctions AS sanctions
+         WHERE sanctions.user_id = users.id
+           AND sanctions.sanction_type = 'ban'
+           AND sanctions.revoked_at IS NULL
+           AND sanctions.starts_at <= now()
+           AND (sanctions.expires_at IS NULL OR sanctions.expires_at > now())
+       ) AS banned
+     FROM app_users AS users
+     WHERE users.id = $1::uuid
+     FOR UPDATE OF users`,
+    [userId],
+  );
+  if (
+    result.rowCount !== 1 ||
+    result.rows[0].status !== "active" ||
+    (rejectBan && result.rows[0].banned)
+  ) {
+    throw communityError("COMMUNITY_ACTION_FORBIDDEN");
+  }
+}
+
+async function assertInteractionTarget(client, targetType, targetId, userId) {
+  const result = targetType === "topic"
+    ? await client.query(
+        `SELECT
+           topics.id,
+           topics.author_user_id,
+           topics.status,
+           EXISTS (
+             SELECT 1 FROM community_user_blocks AS blocks
+             WHERE (
+               blocks.blocker_user_id = $2::uuid AND
+               blocks.blocked_user_id = topics.author_user_id
+             ) OR (
+               blocks.blocker_user_id = topics.author_user_id AND
+               blocks.blocked_user_id = $2::uuid
+             )
+           ) AS blocked
+         FROM community_topics AS topics
+         WHERE topics.id = $1::uuid
+         FOR SHARE OF topics`,
+        [targetId, userId],
+      )
+    : await client.query(
+        `SELECT
+           comments.id,
+           comments.author_user_id,
+           comments.status,
+           topics.author_user_id AS topic_author_user_id,
+           topics.status AS topic_status,
+           EXISTS (
+             SELECT 1 FROM community_user_blocks AS blocks
+             WHERE (
+               blocks.blocker_user_id = $2::uuid AND
+               blocks.blocked_user_id IN (
+                 comments.author_user_id, topics.author_user_id
+               )
+             ) OR (
+               blocks.blocked_user_id = $2::uuid AND
+               blocks.blocker_user_id IN (
+                 comments.author_user_id, topics.author_user_id
+               )
+             )
+           ) AS blocked
+         FROM community_comments AS comments
+         JOIN community_topics AS topics ON topics.id = comments.topic_id
+         WHERE comments.id = $1::uuid
+         FOR SHARE OF comments, topics`,
+        [targetId, userId],
+      );
+  const target = result.rows[0];
+  if (
+    !target ||
+    target.status !== "published" ||
+    (targetType === "comment" && target.topic_status !== "published") ||
+    target.blocked
+  ) {
+    throw communityError("COMMUNITY_CONTENT_UNAVAILABLE");
+  }
+  return target;
+}
+
+async function assertReportTarget(client, targetType, targetId, userId) {
+  if (targetType === "user") {
+    if (String(targetId) === String(userId)) {
+      throw communityError("COMMUNITY_REPORT_SELF");
+    }
+    const result = await client.query(
+      `SELECT id FROM app_users WHERE id = $1::uuid AND status = 'active' FOR SHARE`,
+      [targetId],
+    );
+    if (result.rowCount !== 1) {
+      throw communityError("COMMUNITY_CONTENT_UNAVAILABLE");
+    }
+    return;
+  }
+  const result = targetType === "topic"
+    ? await client.query(
+        `SELECT id, author_user_id, status
+         FROM community_topics
+         WHERE id = $1::uuid
+         FOR SHARE`,
+        [targetId],
+      )
+    : await client.query(
+        `SELECT
+           comments.id,
+           comments.author_user_id,
+           comments.status,
+           topics.status AS topic_status
+         FROM community_comments AS comments
+         JOIN community_topics AS topics ON topics.id = comments.topic_id
+         WHERE comments.id = $1::uuid
+         FOR SHARE OF comments, topics`,
+        [targetId],
+      );
+  const target = result.rows[0];
+  if (
+    !target ||
+    target.status !== "published" ||
+    (targetType === "comment" && target.topic_status !== "published")
+  ) {
+    throw communityError("COMMUNITY_CONTENT_UNAVAILABLE");
+  }
+  if (String(target.author_user_id) === String(userId)) {
+    throw communityError("COMMUNITY_REPORT_SELF");
+  }
+}
+
 async function assertTopicInteractionAllowed(client, topicId, userId) {
   const result = await client.query(
     `SELECT
@@ -223,6 +358,19 @@ function mutationComment(row) {
     rootCommentId: row.root_comment_id ? String(row.root_comment_id) : null,
     status: row.status,
     version: Number(row.version),
+    createdAt: iso(row.created_at),
+    updatedAt: iso(row.updated_at),
+  };
+}
+
+function reportResult(row) {
+  return {
+    id: String(row.id),
+    targetType: row.target_type,
+    targetId: String(row.target_id),
+    reasonCode: row.reason_code,
+    status: row.status,
+    created: Boolean(row.created),
     createdAt: iso(row.created_at),
     updatedAt: iso(row.updated_at),
   };
@@ -598,6 +746,178 @@ export function createCommunityStore(pool) {
           [commentId, userId],
         );
         return mutationComment(result.rows[0]);
+      });
+    },
+
+    async setCommunityLike({ targetType, targetId, userId, active }) {
+      const table = targetType === "topic"
+        ? "community_topic_likes"
+        : "community_comment_likes";
+      const idColumn = targetType === "topic" ? "topic_id" : "comment_id";
+      if (!active) {
+        await pool.query(
+          `DELETE FROM ${table}
+           WHERE ${idColumn} = $1::uuid AND user_id = $2::uuid`,
+          [targetId, userId],
+        );
+        return { active: false };
+      }
+      return withTransaction(pool, async (client) => {
+        await assertCommunityAccountAllowed(client, userId);
+        await assertInteractionTarget(client, targetType, targetId, userId);
+        const result = await client.query(
+          `WITH inserted AS (
+             INSERT INTO ${table} (${idColumn}, user_id)
+             VALUES ($1::uuid, $2::uuid)
+             ON CONFLICT DO NOTHING
+             RETURNING 1
+           )
+           SELECT true AS active,
+                  (SELECT count(*) FROM ${table} WHERE ${idColumn} = $1::uuid) AS total`,
+          [targetId, userId],
+        );
+        return {
+          active: true,
+          total: Number(result.rows[0].total),
+        };
+      });
+    },
+
+    async setCommunityBookmark({ topicId, userId, active }) {
+      if (!active) {
+        await pool.query(
+          `DELETE FROM community_topic_bookmarks
+           WHERE topic_id = $1::uuid AND user_id = $2::uuid`,
+          [topicId, userId],
+        );
+        return { active: false };
+      }
+      return withTransaction(pool, async (client) => {
+        await assertCommunityAccountAllowed(client, userId);
+        await assertInteractionTarget(client, "topic", topicId, userId);
+        await client.query(
+          `INSERT INTO community_topic_bookmarks (topic_id, user_id)
+           VALUES ($1::uuid, $2::uuid)
+           ON CONFLICT DO NOTHING`,
+          [topicId, userId],
+        );
+        return { active: true };
+      });
+    },
+
+    async setCommunityBlock({ blockerUserId, blockedUserId, active }) {
+      if (String(blockerUserId) === String(blockedUserId)) {
+        throw communityError("COMMUNITY_BLOCK_SELF");
+      }
+      if (!active) {
+        await pool.query(
+          `DELETE FROM community_user_blocks
+           WHERE blocker_user_id = $1::uuid AND blocked_user_id = $2::uuid`,
+          [blockerUserId, blockedUserId],
+        );
+        return { active: false };
+      }
+      return withTransaction(pool, async (client) => {
+        await assertCommunityAccountAllowed(client, blockerUserId, {
+          rejectBan: false,
+        });
+        const target = await client.query(
+          `SELECT id FROM app_users
+           WHERE id = $1::uuid AND status = 'active'
+           FOR SHARE`,
+          [blockedUserId],
+        );
+        if (target.rowCount !== 1) {
+          throw communityError("COMMUNITY_CONTENT_NOT_FOUND");
+        }
+        await client.query(
+          `INSERT INTO community_user_blocks (blocker_user_id, blocked_user_id)
+           VALUES ($1::uuid, $2::uuid)
+           ON CONFLICT DO NOTHING`,
+          [blockerUserId, blockedUserId],
+        );
+        await client.query(
+          `DELETE FROM community_topic_likes AS likes
+           USING community_topics AS topics
+           WHERE likes.topic_id = topics.id
+             AND (
+               (likes.user_id = $1::uuid AND topics.author_user_id = $2::uuid) OR
+               (likes.user_id = $2::uuid AND topics.author_user_id = $1::uuid)
+             )`,
+          [blockerUserId, blockedUserId],
+        );
+        await client.query(
+          `DELETE FROM community_comment_likes AS likes
+           USING community_comments AS comments
+           WHERE likes.comment_id = comments.id
+             AND (
+               (likes.user_id = $1::uuid AND comments.author_user_id = $2::uuid) OR
+               (likes.user_id = $2::uuid AND comments.author_user_id = $1::uuid)
+             )`,
+          [blockerUserId, blockedUserId],
+        );
+        await client.query(
+          `DELETE FROM community_topic_bookmarks AS bookmarks
+           USING community_topics AS topics
+           WHERE bookmarks.topic_id = topics.id
+             AND bookmarks.user_id = $1::uuid
+             AND topics.author_user_id = $2::uuid`,
+          [blockerUserId, blockedUserId],
+        );
+        await client.query(
+          `UPDATE community_notifications
+           SET dismissed_at = COALESCE(dismissed_at, now())
+           WHERE recipient_user_id = $1::uuid
+             AND actor_user_id = $2::uuid
+             AND dismissed_at IS NULL`,
+          [blockerUserId, blockedUserId],
+        );
+        return { active: true };
+      });
+    },
+
+    async createCommunityReport({
+      reporterUserId,
+      targetType,
+      targetId,
+      reasonCode,
+      detail,
+    }) {
+      return withTransaction(pool, async (client) => {
+        await assertCommunityAccountAllowed(client, reporterUserId, {
+          rejectBan: false,
+        });
+        await assertReportTarget(
+          client,
+          targetType,
+          targetId,
+          reporterUserId,
+        );
+        const result = await client.query(
+          `WITH inserted AS (
+             INSERT INTO community_reports (
+               reporter_user_id, target_type, target_id, reason_code, detail
+             ) VALUES ($1::uuid, $2, $3::uuid, $4, $5)
+             ON CONFLICT (reporter_user_id, target_type, target_id)
+               WHERE status IN ('open', 'reviewing')
+             DO NOTHING
+             RETURNING id, target_type, target_id, reason_code, status,
+                       created_at, updated_at, true AS created
+           )
+           SELECT * FROM inserted
+           UNION ALL
+           SELECT id, target_type, target_id, reason_code, status,
+                  created_at, updated_at, false AS created
+           FROM community_reports
+           WHERE reporter_user_id = $1::uuid
+             AND target_type = $2
+             AND target_id = $3::uuid
+             AND status IN ('open', 'reviewing')
+             AND NOT EXISTS (SELECT 1 FROM inserted)
+           LIMIT 1`,
+          [reporterUserId, targetType, targetId, reasonCode, detail],
+        );
+        return reportResult(result.rows[0]);
       });
     },
   };

@@ -360,6 +360,8 @@ test("auth traffic has bounded in-memory burst protection", async () => {
   assert.match(limiter, /capacity: 2_400/);
   assert.match(limiter, /capacity: 300/);
   assert.match(limiter, /communityWrite:[\s\S]*?capacity: 12/);
+  assert.match(limiter, /communityReaction:[\s\S]*?capacity: 60/);
+  assert.match(limiter, /communityReport:[\s\S]*?capacity: 5/);
   assert.match(limiter, /maxKeys = 10_000/);
   assert.match(limiter, /idleTtlMs/);
   assert.match(server, /rate_limit_exceeded/);

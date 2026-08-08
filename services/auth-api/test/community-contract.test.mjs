@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   validateCommentCreate,
   validateCommentUpdate,
+  validateCommunityReport,
   validateTopicCreate,
   validateTopicUpdate,
   validateVersionedDelete,
@@ -60,4 +61,47 @@ test("community comment and delete input require exact versioned contracts", () 
   assert.deepEqual(validateVersionedDelete({ version: 1 }), {
     expectedVersion: 1,
   });
+});
+
+test("community reports accept only known targets, reasons, and meaningful detail", () => {
+  assert.deepEqual(
+    validateCommunityReport({
+      targetType: "comment",
+      targetId: commentId,
+      reasonCode: "harassment",
+      detail: "  持续发布针对个人的攻击内容。 ",
+    }),
+    {
+      targetType: "comment",
+      targetId: commentId,
+      reasonCode: "harassment",
+      detail: "持续发布针对个人的攻击内容。",
+    },
+  );
+  assert.equal(
+    validateCommunityReport({
+      targetType: "comment",
+      targetId: commentId,
+      reasonCode: "other",
+    }),
+    null,
+  );
+  assert.equal(
+    validateCommunityReport({
+      targetType: "comment",
+      targetId: commentId,
+      reasonCode: "spam",
+      detail: "太短",
+    }),
+    null,
+  );
+  assert.equal(
+    validateCommunityReport({
+      targetType: "comment",
+      targetId: commentId,
+      reasonCode: "spam",
+      status: "resolved",
+    }),
+    null,
+  );
 });

@@ -7,6 +7,7 @@ import { createOpaqueToken, tokenDigest } from "../src/tokens.mjs";
 const tokenPepper = "community-test-pepper-that-is-longer-than-thirty-two";
 const sessionCookie = "__Host-dufesh_session";
 const userId = "00000000-0000-4000-8000-000000000011";
+const otherUserId = "00000000-0000-4000-8000-000000000012";
 const topicId = "00000000-0000-4000-8000-000000000021";
 const commentId = "00000000-0000-4000-8000-000000000031";
 const nextTopicId = "00000000-0000-4000-8000-000000000022";
@@ -101,6 +102,32 @@ function createCommunityStore() {
     async deleteCommunityComment(input) {
       calls.push(["deleteCommunityComment", structuredClone(input)]);
       return { id: commentId, topicId, status: "deleted", version: 3 };
+    },
+    async setCommunityLike(input) {
+      calls.push(["setCommunityLike", structuredClone(input)]);
+      return { active: input.active, total: input.active ? 3 : 2 };
+    },
+    async setCommunityBookmark(input) {
+      calls.push(["setCommunityBookmark", structuredClone(input)]);
+      return { active: input.active };
+    },
+    async setCommunityBlock(input) {
+      calls.push(["setCommunityBlock", structuredClone(input)]);
+      if (input.blockerUserId === input.blockedUserId) {
+        throw Object.assign(new Error("self"), { code: "COMMUNITY_BLOCK_SELF" });
+      }
+      return { active: input.active };
+    },
+    async createCommunityReport(input) {
+      calls.push(["createCommunityReport", structuredClone(input)]);
+      return {
+        id: "00000000-0000-4000-8000-000000000041",
+        targetType: input.targetType,
+        targetId: input.targetId,
+        reasonCode: input.reasonCode,
+        status: "open",
+        created: true,
+      };
     },
   };
 }
@@ -367,6 +394,91 @@ test("community mutations consume independent user and IP rate-limit keys", asyn
       communityWrite: {
         consume(key) {
           keys.push(key);
+          return true;
+        },
+      },
+    },
+  });
+});
+
+test("likes, bookmarks, and blocks use idempotent PUT and DELETE endpoints", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    const headers = {
+      Cookie: `${sessionCookie}=${store.sessionToken}`,
+      Origin: "https://dufesh.cn",
+    };
+    for (const [path, storeMethod] of [
+      [`/api/community/topics/${topicId}/like`, "setCommunityLike"],
+      [`/api/community/topics/${topicId}/bookmark`, "setCommunityBookmark"],
+      [`/api/community/comments/${commentId}/like`, "setCommunityLike"],
+      [`/api/community/users/${otherUserId}/block`, "setCommunityBlock"],
+    ]) {
+      const enabled = await fetch(`${baseUrl}${path}`, {
+        method: "PUT",
+        headers,
+      });
+      assert.equal(enabled.status, 200, path);
+      const disabled = await fetch(`${baseUrl}${path}`, {
+        method: "DELETE",
+        headers,
+      });
+      assert.equal(disabled.status, 200, path);
+      const calls = store.calls.filter(([name]) => name === storeMethod);
+      assert.ok(calls.some(([, input]) => input.active === true));
+      assert.ok(calls.some(([, input]) => input.active === false));
+    }
+
+    const selfBlock = await fetch(
+      `${baseUrl}/api/community/users/${userId}/block`,
+      { method: "PUT", headers },
+    );
+    assert.equal(selfBlock.status, 400);
+  });
+});
+
+test("reports are validated, authenticated, and use the dedicated limiter", async () => {
+  const reportKeys = [];
+  const allow = { consume: () => true };
+  await withServer(async ({ baseUrl, store }) => {
+    const headers = {
+      "Content-Type": "application/json",
+      Cookie: `${sessionCookie}=${store.sessionToken}`,
+      Origin: "https://dufesh.cn",
+    };
+    const invalid = await fetch(`${baseUrl}/api/community/reports`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        targetType: "topic",
+        targetId: topicId,
+        reasonCode: "other",
+      }),
+    });
+    assert.equal(invalid.status, 400);
+
+    const report = await fetch(`${baseUrl}/api/community/reports`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        targetType: "topic",
+        targetId: topicId,
+        reasonCode: "spam",
+        detail: "同一广告内容被重复发布多次。",
+      }),
+    });
+    assert.equal(report.status, 201);
+    assert.equal((await report.json()).report.status, "open");
+    assert.equal(reportKeys.length, 4);
+    const stored = store.calls.find(([name]) => name === "createCommunityReport")[1];
+    assert.equal(stored.reporterUserId, userId);
+    assert.equal(stored.reasonCode, "spam");
+  }, {
+    rateLimiters: {
+      read: allow,
+      write: allow,
+      communityReport: {
+        consume(key) {
+          reportKeys.push(key);
           return true;
         },
       },

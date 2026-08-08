@@ -312,3 +312,134 @@ test("replying to a reply flattens under its root and conflict edits roll back",
     false,
   );
 });
+
+test("likes are idempotent and verify account, content, and block state", async () => {
+  const calls = [];
+  const client = {
+    async query(sql, values) {
+      calls.push({ sql, values });
+      if (sql.includes("sanction_type = 'ban'")) {
+        return { rowCount: 1, rows: [{ status: "active", banned: false }] };
+      }
+      if (sql.includes("FROM community_topics AS topics")) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: topicId,
+            author_user_id: "00000000-0000-4000-8000-000000000012",
+            status: "published",
+            blocked: false,
+          }],
+        };
+      }
+      if (sql.includes("INSERT INTO community_topic_likes")) {
+        return { rowCount: 1, rows: [{ active: true, total: "3" }] };
+      }
+      return { rowCount: 0, rows: [] };
+    },
+    release() {},
+  };
+  const store = createCommunityStore({ async connect() { return client; } });
+  assert.deepEqual(
+    await store.setCommunityLike({
+      targetType: "topic",
+      targetId: topicId,
+      userId: viewerId,
+      active: true,
+    }),
+    { active: true, total: 3 },
+  );
+  assert.match(
+    calls.find(({ sql }) => sql.includes("INSERT INTO community_topic_likes")).sql,
+    /ON CONFLICT DO NOTHING/u,
+  );
+  assert.ok(calls.some(({ sql }) => sql.includes("community_user_blocks")));
+});
+
+test("blocking a user removes bilateral reactions and the blocker's bookmark", async () => {
+  const blockedUserId = "00000000-0000-4000-8000-000000000012";
+  const calls = [];
+  const client = {
+    async query(sql, values) {
+      calls.push({ sql, values });
+      if (sql.includes("sanction_type = 'ban'")) {
+        return { rowCount: 1, rows: [{ status: "active", banned: true }] };
+      }
+      if (sql.includes("SELECT id FROM app_users")) {
+        return { rowCount: 1, rows: [{ id: blockedUserId }] };
+      }
+      return { rowCount: 1, rows: [] };
+    },
+    release() {},
+  };
+  const store = createCommunityStore({ async connect() { return client; } });
+  assert.deepEqual(
+    await store.setCommunityBlock({
+      blockerUserId: viewerId,
+      blockedUserId,
+      active: true,
+    }),
+    { active: true },
+  );
+  assert.ok(calls.some(({ sql }) => sql.includes("INSERT INTO community_user_blocks")));
+  assert.ok(calls.some(({ sql }) => sql.includes("DELETE FROM community_topic_likes")));
+  assert.ok(calls.some(({ sql }) => sql.includes("DELETE FROM community_comment_likes")));
+  assert.ok(calls.some(({ sql }) => sql.includes("DELETE FROM community_topic_bookmarks")));
+  assert.ok(calls.some(({ sql }) => sql.includes("UPDATE community_notifications")));
+});
+
+test("duplicate open reports reuse immutable evidence instead of inserting another row", async () => {
+  const otherUserId = "00000000-0000-4000-8000-000000000012";
+  const reportId = "00000000-0000-4000-8000-000000000041";
+  const calls = [];
+  const client = {
+    async query(sql, values) {
+      calls.push({ sql, values });
+      if (sql.includes("sanction_type = 'ban'")) {
+        return { rowCount: 1, rows: [{ status: "active", banned: true }] };
+      }
+      if (sql.includes("FROM community_topics")) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: topicId,
+            author_user_id: otherUserId,
+            status: "published",
+            blocked: false,
+          }],
+        };
+      }
+      if (sql.includes("INSERT INTO community_reports")) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: reportId,
+            target_type: "topic",
+            target_id: topicId,
+            reason_code: "spam",
+            status: "open",
+            created: false,
+            created_at: new Date("2026-08-09T10:00:00Z"),
+            updated_at: new Date("2026-08-09T10:00:00Z"),
+          }],
+        };
+      }
+      return { rowCount: 0, rows: [] };
+    },
+    release() {},
+  };
+  const store = createCommunityStore({ async connect() { return client; } });
+  const report = await store.createCommunityReport({
+    reporterUserId: viewerId,
+    targetType: "topic",
+    targetId: topicId,
+    reasonCode: "spam",
+    detail: "同一广告重复发布。",
+  });
+  assert.equal(report.id, reportId);
+  assert.equal(report.created, false);
+  assert.match(
+    calls.find(({ sql }) => sql.includes("INSERT INTO community_reports")).sql,
+    /ON CONFLICT \(reporter_user_id, target_type, target_id\)[\s\S]*?DO NOTHING/u,
+  );
+});
