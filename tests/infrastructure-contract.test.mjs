@@ -238,6 +238,101 @@ test("administrator console is private, elevated, and auditable by design", asyn
   assert.doesNotMatch(console, /dangerouslySetInnerHTML/);
 });
 
+test("community foundation enforces two-level replies, idempotent reactions, and soft deletion", async () => {
+  const migration = await read(
+    "ops/postgres/migrations/0010_community_foundation.sql",
+  );
+
+  for (const table of [
+    "community_topics",
+    "community_comments",
+    "community_topic_likes",
+    "community_comment_likes",
+    "community_topic_bookmarks",
+    "community_user_blocks",
+    "community_content_edits",
+  ]) {
+    assert.match(migration, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`));
+  }
+
+  assert.match(migration, /validate_community_comment_depth/);
+  assert.match(migration, /community replies are limited to two levels/);
+  assert.match(migration, /community comment thread identity is immutable/);
+  assert.match(migration, /PRIMARY KEY \(topic_id, user_id\)/);
+  assert.match(migration, /PRIMARY KEY \(comment_id, user_id\)/);
+  assert.match(migration, /status IN \('published', 'hidden', 'deleted'\)/);
+  assert.match(migration, /community content must be soft-deleted/);
+  assert.match(migration, /community_content_edits_append_only/);
+  assert.match(migration, /ON DELETE SET NULL/);
+});
+
+test("community notifications and moderation preserve dedupe, fallback, and immutable audit", async () => {
+  const migration = await read(
+    "ops/postgres/migrations/0010_community_foundation.sql",
+  );
+  const migrations = await read("ops/postgres/run-migrations.sh");
+
+  for (const table of [
+    "community_notifications",
+    "community_reports",
+    "community_moderation_cases",
+    "community_case_reports",
+    "community_moderation_actions",
+    "community_user_sanctions",
+  ]) {
+    assert.match(migration, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`));
+  }
+
+  assert.match(migration, /UNIQUE \(recipient_user_id, dedupe_key\)/);
+  assert.match(migration, /fallback_path text/);
+  assert.match(migration, /community_reports_open_dedupe_uidx/);
+  assert.match(migration, /community_moderation_cases_active_uidx/);
+  assert.match(migration, /community_moderation_actions_append_only/);
+  assert.match(migration, /community report evidence is immutable/);
+  assert.match(migration, /community case-report links are append-only/);
+  assert.match(
+    migration,
+    /community moderation action target must match its case/,
+  );
+  assert.match(
+    migration,
+    /community notification comment must belong to its topic/,
+  );
+  assert.match(migration, /left\(fallback_path, 2\) <> '\/\/'/);
+  assert.doesNotMatch(
+    migration,
+    /reporter_user_id uuid NOT NULL REFERENCES app_users/,
+  );
+  assert.match(
+    migration,
+    /CREATE TABLE IF NOT EXISTS community_content_edits \([\s\S]*?actor_user_id uuid,/,
+  );
+  assert.match(
+    migration,
+    /CREATE TABLE IF NOT EXISTS community_moderation_actions \([\s\S]*?actor_user_id uuid,/,
+  );
+  assert.match(
+    migration,
+    /CREATE TABLE IF NOT EXISTS community_notifications \([\s\S]*?actor_user_id uuid,/,
+  );
+  assert.doesNotMatch(
+    migration,
+    /community_user_sanctions[\s\S]*user_id uuid NOT NULL REFERENCES app_users/,
+  );
+  assert.match(
+    migrations,
+    /REVOKE UPDATE, DELETE, TRUNCATE ON community_moderation_actions/,
+  );
+  assert.match(
+    migrations,
+    /REVOKE UPDATE, DELETE, TRUNCATE ON community_content_edits/,
+  );
+  assert.match(
+    migrations,
+    /REVOKE DELETE, TRUNCATE ON community_topics, community_comments/,
+  );
+});
+
 test("auth traffic has bounded in-memory burst protection", async () => {
   const limiter = await read("services/auth-api/src/rate-limit.mjs");
   const server = await read("services/auth-api/src/server.mjs");

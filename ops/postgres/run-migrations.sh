@@ -124,6 +124,26 @@ SELECT format(
     :'runtime_user'
 ) \gexec
 SELECT format(
+    'REVOKE UPDATE, DELETE, TRUNCATE ON community_moderation_actions FROM %I',
+    :'runtime_user'
+) \gexec
+SELECT format(
+    'REVOKE UPDATE, DELETE, TRUNCATE ON community_content_edits FROM %I',
+    :'runtime_user'
+) \gexec
+SELECT format(
+    'REVOKE DELETE, TRUNCATE ON community_reports, community_moderation_cases, community_user_sanctions FROM %I',
+    :'runtime_user'
+) \gexec
+SELECT format(
+    'REVOKE UPDATE, DELETE, TRUNCATE ON community_case_reports FROM %I',
+    :'runtime_user'
+) \gexec
+SELECT format(
+    'REVOKE DELETE, TRUNCATE ON community_topics, community_comments FROM %I',
+    :'runtime_user'
+) \gexec
+SELECT format(
     'REVOKE ALL PRIVILEGES ON schema_migrations FROM %I',
     :'runtime_user'
 ) \gexec

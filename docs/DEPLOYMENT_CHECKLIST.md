@@ -1,6 +1,6 @@
 # 东财之影部署检查表
 
-最后更新：2026-08-07
+最后更新：2026-08-09
 
 当前结论：**尚不具备生产部署条件。本轮未部署。** 只有全部“生产前门禁”通过，且没有不可接受的高危项，才允许进入人工生产发布审批。
 
@@ -22,6 +22,11 @@
 - [ ] 大索引和回填不在单个长事务中阻塞生产业务。
 - [ ] teacher/material/community 导入先 dry-run，保存批次报告和回滚标识。
 - [ ] 数据库 owner、migrator、runtime、backup 角色按最小权限分离。
+- [ ] 在 PostgreSQL 17 验证 `0010_community_foundation.sql` 空库/升级库迁移、两级回复触发器、软删除引用、通知/互动去重和开放举报部分唯一索引。
+- [ ] 验证 auth runtime 无法 UPDATE/DELETE/TRUNCATE `community_content_edits` 与 `community_moderation_actions`，但仍可按设计追加记录。
+- [ ] 验证 auth runtime 无法硬删除或截断 `community_topics`/`community_comments`；软删除后通知、回复引用和降级页仍可读取。
+- [ ] 用做过编辑、举报、审核与被制裁的测试账号验证注销不会被外键/不可变触发器阻断，且去标识化审计证据仍保留。
+- [ ] 应用回滚只回滚运行镜像，不运行旧版本迁移器；每次发布和回滚后查询 ACL，防止旧的广泛授权恢复审计表变更权限。
 
 ## 3. 应用与容器
 
