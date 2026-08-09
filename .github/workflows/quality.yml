@@ -11,7 +11,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -24,6 +24,8 @@ jobs:
         run: npm ci --prefix xiaoying-executor --ignore-scripts --no-audit --no-fund
       - name: Install auth API
         run: npm ci --prefix services/auth-api --ignore-scripts --no-audit --no-fund
+      - name: Install browser for accessibility checks
+        run: npx playwright install --with-deps chromium
       - name: Check production dependencies
         run: |
           npm audit --omit=dev --omit=optional --audit-level=high
@@ -43,6 +45,8 @@ jobs:
         run: npm run typecheck
       - name: Check rendered HTML
         run: node --test tests/rendered-html.test.mjs
+      - name: Check desktop and mobile accessibility
+        run: npm run test:a11y
 
   codeql:
     name: codeql

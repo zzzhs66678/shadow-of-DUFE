@@ -2606,3 +2606,27 @@ body {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* WCAG AA color steps: preserve the paper/ink palette without low-contrast quiet text. */
+:root,
+:root[data-term="spring"] {
+  --dufe-muted: #655f58;
+}
+
+.hub-footer .wordmark span,
+.hub-footer > div:not(.wordmark) > p,
+.onboarding > footer span {
+  color: #cfc9bf;
+}
+
+.choice-grid button.active span,
+.onboarding-two button.active span,
+.class-choice button.active span {
+  color: var(--journal-red-deep);
+}
+
+.legal-content a {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}

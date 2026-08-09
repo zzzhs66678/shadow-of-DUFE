@@ -152,6 +152,13 @@
 - 仓库级 TypeScript 门禁现已通过并加入 CI：社区举报异步闭包显式捕获已判空目标，资料详情使用明确实体类型，测试导入通过 `allowImportingTsExtensions` 与既有 no-emit 配置匹配；Cloudflare 使用与 Wrangler 兼容的官方 Worker 类型和可选 D1 绑定声明。未使用 `any`、`@ts-ignore` 或排除目录绕过错误。
 - 2026-08-09 生产依赖审计仍被 `vinext@0.0.50` 固定的 `image-size@2.0.2` 两个新披露 high 阻塞；`fast-uri` 与 `nanoid` 已锁到修复版本。审计不满足发布门禁。
 
+## 当前无障碍门禁
+
+- 仓库现有 Playwright + axe 自动门禁，覆盖今日学习台、资料、社区、教师、隐私、用户协议、账号注销和管理员入口 8 个核心页面，并分别以桌面 Chrome 与 Pixel 5 手机视口运行，共 16 个浏览器场景。
+- 门禁检查 WCAG 2 A/AA 与 WCAG 2.1 A/AA，并把 axe 的 `critical`、`serious` 违规作为构建失败；本地 16/16 场景通过。CI 会安装 Chromium 并执行同一门禁，本地开发默认复用已安装的 Chrome。
+- 本轮修复了手机全站搜索按钮缺少可读名称、浅灰静默文本和深色页脚对比不足、正文链接只靠颜色区分，以及资料搜索把含多个独立链接的资料卡错误建模为 listbox 选项的问题。资料页现在使用原生搜索框与语义结果列表，方向键聚焦、Enter 打开和 Escape 清空行为保持不变。
+- 本轮验证：主仓 Node 61/61、个人存储/同步 9/9、auth-api 72/72、小影 26/26、构建后渲染 4/4、axe 浏览器场景 16/16、`npm run typecheck`、CSS 审计、全仓 ESLint、生产构建与 `git diff --check` 通过；本轮未部署。
+
 ## 当前数据规模
 
 - 19 个学院。
@@ -179,6 +186,7 @@
 - 核心体验回归：`node --test tests/product-experience.test.mjs`
 - 教师/教材导入预检回归：`node --test tests/academic-import-preflight.test.mjs`
 - 基础设施与安全契约：`node --test tests/infrastructure-contract.test.mjs`
+- 桌面与手机无障碍门禁：`npm run test:a11y`
 - 小影回归：`npm run test:xiaoying`
 - 生产依赖审计：主站和 `xiaoying-executor` 分别执行 `npm audit --omit=dev --audit-level=high`
 - 代码检查：`npx eslint app services tests scripts xiaoying-executor/bin xiaoying-executor/src`

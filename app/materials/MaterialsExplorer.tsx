@@ -208,19 +208,13 @@ export function MaterialsExplorer() {
           <span>搜索档案</span>
           <input
             ref={inputRef}
+            type="search"
             name="material-search"
             autoComplete="off"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={handleSearchKeyDown}
             placeholder="输入课程、教师或资料标题…"
-            role="combobox"
-            aria-autocomplete="list"
-            aria-expanded={status === "ready" && Boolean(result?.items.length)}
-            aria-controls="material-results"
-            aria-activedescendant={
-              activeIndex >= 0 ? `material-result-${activeIndex}` : undefined
-            }
           />
           <kbd>ESC 清空</kbd>
         </label>
@@ -302,9 +296,13 @@ export function MaterialsExplorer() {
           )}
 
           {status === "ready" && Boolean(result?.items.length) && (
-            <div className={styles.results} id="material-results" role="listbox" aria-label="资料搜索结果">
+            <div className={styles.results} id="material-results" role="list" aria-label="资料搜索结果">
               {result?.items.map((material, index) => (
-                <article key={material.id} className={activeIndex === index ? styles.active : ""}>
+                <article
+                  key={material.id}
+                  className={activeIndex === index ? styles.active : ""}
+                  role="listitem"
+                >
                   <div className={styles.fileMark} aria-hidden="true">
                     <span>{String(index + 1).padStart(2, "0")}</span>
                     <b>{material.extension.replace(".", "").slice(0, 4).toUpperCase()}</b>
@@ -319,8 +317,6 @@ export function MaterialsExplorer() {
                       ref={(node) => { resultRefs.current[index] = node; }}
                       id={`material-result-${index}`}
                       href={`/materials/${encodeURIComponent(material.id)}`}
-                      role="option"
-                      aria-selected={activeIndex === index}
                       onFocus={() => setActiveIndex(index)}
                       onKeyDown={(event) => handleResultKeyDown(index, event)}
                     >

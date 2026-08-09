@@ -1430,7 +1430,11 @@ function HubApp({ data }: { data: SiteData }) {
           ))}
         </nav>
         <div className="hub-top-actions">
-          <button className="command-trigger" onClick={() => openSearch()}>
+          <button
+            className="command-trigger"
+            aria-label="搜索全站"
+            onClick={() => openSearch()}
+          >
             <UiIcon name="search" />
             <span>搜索全站</span>
             <kbd>⌘ K</kbd>

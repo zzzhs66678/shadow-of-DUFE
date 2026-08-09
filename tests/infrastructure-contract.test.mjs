@@ -17,6 +17,24 @@ test("CI enforces the repository TypeScript boundary", async () => {
   assert.match(cloudflareEnv, /interface Env[\s\S]*DB\?: D1Database/);
 });
 
+test("CI blocks critical and serious accessibility regressions on desktop and mobile", async () => {
+  const packageJson = JSON.parse(await read("package.json"));
+  const workflow = await read(".github/workflows/quality.yml");
+  const config = await read("playwright.config.ts");
+  const suite = await read("tests/e2e/accessibility.spec.ts");
+
+  assert.equal(
+    packageJson.scripts["test:a11y"],
+    "playwright test tests/e2e/accessibility.spec.ts",
+  );
+  assert.match(workflow, /playwright install --with-deps chromium/);
+  assert.match(workflow, /npm run test:a11y/);
+  assert.match(config, /devices\["Desktop Chrome"\]/);
+  assert.match(config, /devices\["Pixel 5"\]/);
+  assert.match(suite, /blockingImpacts = new Set\(\["critical", "serious"\]\)/);
+  assert.match(suite, /new AxeBuilder\(\{ page \}\)/);
+});
+
 test("PostgreSQL is private, resource-limited, health-checked, and log-rotated", async () => {
   const compose = await read("docker-compose.yml");
 

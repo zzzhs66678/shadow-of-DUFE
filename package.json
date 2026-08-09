@@ -12,7 +12,8 @@
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
     "typecheck": "tsc --noEmit",
     "audit:css": "node scripts/audit-css-cascade.mjs",
-    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
+    "test:a11y": "playwright test tests/e2e/accessibility.spec.ts",
+    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern .codex_tmp --ignore-pattern outputs --ignore-pattern work --ignore-pattern test-results --ignore-pattern playwright-report --ignore-pattern blob-report",
     "db:generate": "drizzle-kit generate",
     "import:academic:preflight": "node scripts/academic-import-preflight.mjs",
     "import:academic:write": "node scripts/academic-import-apply.mjs",
@@ -32,9 +33,11 @@
     "vinext": "0.0.50"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@cloudflare/vite-plugin": "1.37.1",
     "@cloudflare/workers-types": "^4.20260702.1",
     "@electric-sql/pglite": "^0.3.14",
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "4.2.1",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",
