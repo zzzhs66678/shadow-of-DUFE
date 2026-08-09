@@ -112,7 +112,7 @@
 }
 
 .searchField input::placeholder { color: rgba(255, 255, 255, 0.48); }
-.searchField input:focus { border-bottom-color: #fff; }
+.searchField input:focus-visible { border-bottom-color: #fff; }
 .searchField kbd {
   padding: 5px 7px;
   color: rgba(255, 255, 255, 0.65);

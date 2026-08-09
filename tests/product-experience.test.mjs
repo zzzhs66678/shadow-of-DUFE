@@ -121,6 +121,30 @@ test("today page keeps the one-glance command deck", () => {
   assert.match(productStyles, /\.agenda-glance/);
 });
 
+test("the daily workspace defers non-critical materials until idle or demand", () => {
+  const shellStart = component.indexOf("export function DufeHubV2");
+  const hubStart = component.indexOf("function HubApp");
+  const homeStart = component.indexOf("function HomePage");
+  const shellSource = component.slice(shellStart, hubStart);
+  const hubSource = component.slice(hubStart, homeStart);
+
+  assert.match(shellSource, /fetch\("\/data\/course-data\.json"\)/);
+  assert.doesNotMatch(shellSource, /resource-manifest\.json/);
+  assert.match(hubSource, /materialsRequestRef/);
+  assert.match(hubSource, /requestIdleCallback/);
+  assert.match(hubSource, /setTimeout\(\(\) => void loadMaterials\(\), 1200\)/);
+  assert.match(hubSource, /commandOpen \|\| selectedCourse/);
+  assert.match(hubSource, /fetch\("\/data\/resource-manifest\.json"\)/);
+  assert.match(component, /资料清单没有加载成功。关闭课程后重新打开即可再试。/);
+
+  assert.match(adminStyles, /\.gateForm input:focus-visible/);
+  assert.match(communityStyles, /\.replyComposer textarea:focus-visible/);
+  assert.match(materialsStyles, /\.searchField input:focus-visible/);
+  assert.doesNotMatch(adminStyles, /\.gateForm input:focus(?!-visible)/);
+  assert.doesNotMatch(communityStyles, /\.replyComposer textarea:focus(?!-visible)/);
+  assert.doesNotMatch(materialsStyles, /\.searchField input:focus(?!-visible)/);
+});
+
 test("the active visual system shares one paper ink and cinnabar palette", () => {
   for (const token of ["paper", "ink", "red", "pine", "gold"]) {
     assert.match(globalStyles, new RegExp(`--dufe-${token}:`));

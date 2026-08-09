@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -194,6 +195,7 @@ type MaterialManifest = {
   previewLimitBytes: number;
   materials: Material[];
 };
+type MaterialsLoadStatus = "idle" | "loading" | "ready" | "error";
 
 const campusLinks = {
   library:
@@ -808,7 +810,6 @@ function CreatorsCorner({
 export function DufeHubV2() {
   const [data, setData] = useState<SiteData | null>(null);
   const [dataError, setDataError] = useState(false);
-  const [materials, setMaterials] = useState<Material[]>([]);
   useEffect(() => {
     let live = true;
     fetch("/data/course-data.json")
@@ -819,16 +820,6 @@ export function DufeHubV2() {
       .then((response) => response.json() as Promise<SiteData>)
       .then((payload) => live && setData(payload))
       .catch(() => live && setDataError(true));
-    fetch("/data/resource-manifest.json")
-      .then((response) =>
-        response.ok
-          ? (response.json() as Promise<MaterialManifest>)
-          : Promise.reject(new Error("resource manifest unavailable")),
-      )
-      .then((payload) => live && setMaterials(payload.materials))
-      .catch(() => {
-        if (live) setMaterials([]);
-      });
     return () => {
       live = false;
     };
@@ -857,10 +848,10 @@ export function DufeHubV2() {
       </main>
     );
   }
-  return <HubApp data={data} materials={materials} />;
+  return <HubApp data={data} />;
 }
 
-function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) {
+function HubApp({ data }: { data: SiteData }) {
   const [view, setView] = useState<View>("home");
   const [term, setTerm] = useState<Term>("fall");
   const [saved, setSaved] = useState<SavedState>(emptySavedState);
@@ -888,6 +879,9 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
   const [onboarding, setOnboarding] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [creatorsOpen, setCreatorsOpen] = useState(false);
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [materialsStatus, setMaterialsStatus] =
+    useState<MaterialsLoadStatus>("idle");
   const [query, setQuery] = useState("");
   const [searchKind, setSearchKind] = useState<SearchKind>("all");
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
@@ -904,7 +898,46 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
   const savedRef = useRef(saved);
   const termRef = useRef(term);
   const syncQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const materialsRequestRef = useRef<Promise<void> | null>(null);
   const [addFeedback, setAddFeedback] = useState("");
+
+  const loadMaterials = useCallback(() => {
+    if (materialsRequestRef.current) return materialsRequestRef.current;
+    setMaterialsStatus("loading");
+    const request = fetch("/data/resource-manifest.json")
+      .then((response) =>
+        response.ok
+          ? (response.json() as Promise<MaterialManifest>)
+          : Promise.reject(new Error("resource manifest unavailable")),
+      )
+      .then((payload) => {
+        setMaterials(payload.materials);
+        setMaterialsStatus("ready");
+      })
+      .catch(() => {
+        setMaterials([]);
+        setMaterialsStatus("error");
+        materialsRequestRef.current = null;
+      });
+    materialsRequestRef.current = request;
+    return request;
+  }, []);
+
+  useEffect(() => {
+    if (typeof window.requestIdleCallback === "function") {
+      const handle = window.requestIdleCallback(
+        () => void loadMaterials(),
+        { timeout: 3500 },
+      );
+      return () => window.cancelIdleCallback(handle);
+    }
+    const timer = window.setTimeout(() => void loadMaterials(), 1200);
+    return () => window.clearTimeout(timer);
+  }, [loadMaterials]);
+
+  useEffect(() => {
+    if (commandOpen || selectedCourse) void loadMaterials();
+  }, [commandOpen, loadMaterials, selectedCourse]);
 
   const courses = useMemo(
     () => new Map(data.courses.map((item) => [item.id, item])),
@@ -1755,6 +1788,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
               item.courseIds.includes(selectedCourse.id) ||
               item.courseTitle === selectedCourse.title,
           )}
+          materialsStatus={materialsStatus}
           offerings={data.schedules.filter(
             (item) => item.term === term && item.courseId === selectedCourse.id,
           )}
@@ -5424,6 +5458,7 @@ function SearchCommand({
 function CourseDrawer({
   course,
   materials,
+  materialsStatus,
   offerings,
   activeIds,
   activeSchedules,
@@ -5432,6 +5467,7 @@ function CourseDrawer({
 }: {
   course: Course;
   materials: Material[];
+  materialsStatus: MaterialsLoadStatus;
   offerings: Schedule[];
   activeIds: Set<string>;
   activeSchedules: Schedule[];
@@ -5769,14 +5805,27 @@ function CourseDrawer({
           </div>
         </section>
 
-        {(course.textbook || materials.length > 0) && (
+        {(course.textbook ||
+          materials.length > 0 ||
+          materialsStatus !== "ready") && (
           <section className="drawer-resources">
             <div className="drawer-section-heading">
               <div>
                 <span className="drawer-label">教材与学习资料</span>
-                <small>{materials.length} 份资料 · 原件可下载</small>
+                <small>
+                  {materialsStatus === "idle" || materialsStatus === "loading"
+                    ? "正在读取资料…"
+                    : materialsStatus === "error"
+                      ? "资料清单暂不可用"
+                      : `${materials.length} 份资料 · 原件可下载`}
+                </small>
               </div>
             </div>
+            {materialsStatus === "error" && (
+              <p className="quiet-empty" role="alert">
+                资料清单没有加载成功。关闭课程后重新打开即可再试。
+              </p>
+            )}
             {course.textbook && (
               <div className="material-block">
                 <span>教材信息</span>

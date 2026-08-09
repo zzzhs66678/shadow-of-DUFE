@@ -105,7 +105,7 @@
 .gateForm .seal { height: 54px; margin-bottom: 46px; width: 54px; }
 .gateForm label { font-size: 11px; }
 .gateForm input { background: transparent; border: 0; border-bottom: 2px solid var(--admin-ink); border-radius: 0; font: 500 25px/1 var(--mono); letter-spacing: .14em; margin-top: 10px; min-height: 58px; outline: 0; width: 100%; }
-.gateForm input:focus { border-color: var(--admin-red); box-shadow: 0 3px 0 rgba(161, 32, 39, .12); }
+.gateForm input:focus-visible { border-color: var(--admin-red); box-shadow: 0 3px 0 rgba(161, 32, 39, .12); }
 .gateForm button { background: var(--admin-ink); border: 1px solid var(--admin-ink); color: var(--admin-paper); margin-top: 28px; min-height: 48px; }
 .gateForm button:disabled { opacity: .42; }
 .gateForm p { color: var(--admin-red-deep); font-size: 11px; line-height: 1.6; margin: 16px 0 0; }
