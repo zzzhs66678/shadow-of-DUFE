@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { DialogBackdrop } from "../DialogBackdrop";
+import { DialogActions, DialogBackdrop } from "../DialogBackdrop";
 import { useModalFocus } from "../use-modal-focus";
 import { PublicMasthead } from "../PublicMasthead";
 import {
@@ -142,10 +142,10 @@ export function ReportDialog({
           <textarea value={detail} onChange={(event) => setDetail(event.target.value)} maxLength={1000} rows={5} />
         </label>
         {error && <p className={styles.formError} role="alert">{error}</p>}
-        <div>
+        <DialogActions>
           <button type="button" onClick={resetAndClose} disabled={busy}>取消</button>
           <button disabled={busy || (detail.trim().length > 0 && detail.trim().length < 8) || (reasonCode === "other" && detail.trim().length < 8)}>{busy ? "正在提交" : "提交举报"}</button>
-        </div>
+        </DialogActions>
       </form>
     </DialogBackdrop>
   );

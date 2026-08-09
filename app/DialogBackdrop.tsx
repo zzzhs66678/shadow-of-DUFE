@@ -27,3 +27,7 @@ export function DialogBackdrop({
     </div>
   );
 }
+
+export function DialogActions({ children }: { children: ReactNode }) {
+  return <footer className={styles.actions}>{children}</footer>;
+}

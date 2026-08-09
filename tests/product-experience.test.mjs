@@ -115,15 +115,22 @@ test("community and admin dialogs share one dismissible responsive backdrop", ()
   assert.match(dialogBackdropStyles, /env\(safe-area-inset-top\)/);
   assert.match(dialogBackdropStyles, /env\(safe-area-inset-bottom\)/);
   assert.match(dialogBackdropStyles, /@media \(max-width: 680px\)/);
+  assert.match(dialogBackdropSource, /export function DialogActions/);
+  assert.match(dialogBackdropStyles, /\.actions button[\s\S]*min-height: 44px/);
+  assert.match(dialogBackdropStyles, /\.actions button:last-child[\s\S]*--dufe-red/);
+  assert.match(dialogBackdropStyles, /\.actions button:disabled/);
 
   for (const source of [communitySource, communityTopicSource, adminSource, moderationSource]) {
-    assert.match(source, /import \{ DialogBackdrop \}/);
+    assert.match(source, /import \{[^}]*DialogBackdrop/);
     assert.match(source, /<DialogBackdrop/);
+    assert.match(source, /DialogActions/);
   }
   assert.match(adminSource, /useModalFocus<HTMLFormElement>/);
   assert.match(adminSource, /ref=\{actionDialogRef\}/);
   assert.doesNotMatch(communityStyles, /\.modalBackdrop/);
+  assert.doesNotMatch(communityStyles, /\.reportSheet > div button/);
   assert.doesNotMatch(adminStyles, /\.(?:modalBackdrop|moderationBackdrop)/);
+  assert.doesNotMatch(adminStyles, /\.(?:actionSheet|caseSheet) (?:button|> footer)/);
 });
 
 test("personal activities default to cinnabar while legacy blue renders as charcoal", () => {

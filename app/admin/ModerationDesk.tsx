@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { DialogBackdrop } from "../DialogBackdrop";
+import { DialogActions, DialogBackdrop } from "../DialogBackdrop";
 import { useModalFocus } from "../use-modal-focus";
 import styles from "./admin.module.css";
 
@@ -266,7 +266,7 @@ export function ModerationDesk({
               </>
             )}
             {feedback && <p className={styles.caseFeedback} role="status">{feedback}</p>}
-            <footer><button type="button" onClick={closeSelected} disabled={Boolean(busy)}>取消</button><button disabled={Boolean(busy) || (selected.caseId ? actionReason.trim().length < 8 : caseReason.trim().length < 8)}>{busy ? "正在写入审计" : selected.caseId ? actionLabels[action] : "建立审核案件"}</button></footer>
+            <DialogActions><button type="button" onClick={closeSelected} disabled={Boolean(busy)}>取消</button><button disabled={Boolean(busy) || (selected.caseId ? actionReason.trim().length < 8 : caseReason.trim().length < 8)}>{busy ? "正在写入审计" : selected.caseId ? actionLabels[action] : "建立审核案件"}</button></DialogActions>
           </form>
         </DialogBackdrop>
       )}

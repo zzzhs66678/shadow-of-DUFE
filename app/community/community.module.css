@@ -217,9 +217,6 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .reportSheet > span { color: var(--red); font: 700 9px/1 var(--mono); letter-spacing: .13em; }
 .reportSheet h2 { font: 500 33px/1.25 var(--serif); margin: 14px 0; }
 .reportSheet > p { color: var(--muted); font-size: 10px; line-height: 1.8; }
-.reportSheet > div { display: flex; gap: 10px; justify-content: flex-end; margin-top: 26px; }
-.reportSheet > div button { background: transparent; border: 1px solid var(--line); min-height: 42px; padding: 0 18px; }
-.reportSheet > div button:last-child { background: var(--red); border-color: var(--red); color: white; }
 .formError { border-left: 2px solid var(--red); color: var(--red-deep) !important; padding-left: 10px; }
 
 .panelBackdrop { display: flex; justify-content: flex-end; }

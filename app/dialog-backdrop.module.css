@@ -14,6 +14,32 @@
   z-index: 120;
 }
 
+.actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 26px;
+}
+
+.actions button {
+  background: transparent;
+  border: 1px solid var(--dufe-line);
+  color: var(--dufe-ink);
+  min-height: 44px;
+  padding: 0 18px;
+}
+
+.actions button:last-child {
+  background: var(--dufe-red);
+  border-color: var(--dufe-red);
+  color: white;
+}
+
+.actions button:disabled {
+  cursor: not-allowed;
+  opacity: .42;
+}
+
 @media (max-width: 680px) {
   .backdrop {
     align-items: flex-end;

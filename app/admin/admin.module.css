@@ -178,10 +178,6 @@
 .actionSheet label { display: block; font-size: 10px; margin-top: 28px; }
 .actionSheet textarea { background: rgba(255,255,255,.32); border: 1px solid var(--admin-line); border-radius: 0; font: 12px/1.7 var(--sans); margin-top: 10px; padding: 12px; resize: vertical; width: 100%; }
 .actionSheet textarea:focus { border-color: var(--admin-red); outline: 2px solid rgba(161, 32, 39, .12); }
-.actionSheet > div { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
-.actionSheet button { background: transparent; border: 1px solid var(--admin-line); min-height: 42px; padding: 0 18px; }
-.actionSheet button:last-child { background: var(--admin-red); border-color: var(--admin-red); color: white; }
-.actionSheet button:disabled { opacity: .42; }
 
 @keyframes scan { 50% { transform: translateX(100%); } 100% { transform: translateX(100%); } }
 
@@ -272,10 +268,6 @@
 .caseSheet select:focus,
 .caseSheet input:focus { border-color: var(--admin-red); outline: 2px solid rgba(161, 32, 39, .12); }
 .caseFeedback { border-left: 2px solid var(--admin-red); color: var(--admin-red-deep); font-size: 10px; padding-left: 10px; }
-.caseSheet > footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 26px; }
-.caseSheet > footer button { background: transparent; border: 1px solid var(--admin-line); min-height: 44px; padding: 0 18px; }
-.caseSheet > footer button:last-child { background: var(--admin-red); border-color: var(--admin-red); color: white; }
-.caseSheet > footer button:disabled { opacity: .42; }
 
 @media (max-width: 720px) {
   .moderationDesk > header { align-items: stretch; flex-direction: column; }
