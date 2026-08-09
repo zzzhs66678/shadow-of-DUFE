@@ -12,7 +12,7 @@ import { XiaoyingExecutor } from "../src/executor.mjs";
 import { XiaoyingLocalStore } from "../src/local-store.mjs";
 import { loadOrCreateMasterKey } from "../src/secret-vault.mjs";
 import { PairingService } from "../src/pairing-service.mjs";
-import { toPublicHttpError } from "../src/public-errors.mjs";
+import { toPublicHttpError, toPublicTaskError } from "../src/public-errors.mjs";
 import { SeatWatchRunner } from "../src/seat-watch-runner.mjs";
 import { ScheduledReservationRunner } from "../src/scheduled-reservation-runner.mjs";
 import { ReservationGuardRunner } from "../src/reservation-guard-runner.mjs";
@@ -28,6 +28,20 @@ const defaultInviteCode =
   process.env.XIAOYING_DEFAULT_INVITE_CODE ?? (isProduction ? "" : "fjbadguy");
 const configuredPublicBaseUrl = process.env.XIAOYING_PUBLIC_BASE_URL ?? "";
 const configuredBasePath = process.env.XIAOYING_BASE_PATH ?? "";
+const DURABLE_CONFIRM_TASKS = new Set([
+  "library.confirm_reservation",
+  "library.confirm_cancellation",
+]);
+
+function failedTaskResult(task, code) {
+  return {
+    taskId: typeof task?.taskId === "string" ? task.taskId : "invalid-task",
+    type: typeof task?.type === "string" ? task.type : "unknown",
+    status: "failed",
+    completedAt: new Date().toISOString(),
+    error: toPublicTaskError(code),
+  };
+}
 
 function normalizeBasePath(value) {
   const trimmed = String(value ?? "").trim();
@@ -691,10 +705,45 @@ const server = createServer(async (request, response) => {
     }
     if (request.method === "POST" && requestUrl.pathname === "/v1/tasks/execute") {
       const task = await readJson(request);
+      const durable = DURABLE_CONFIRM_TASKS.has(task?.type);
+      const claim = durable ? store.claimTaskExecution(user.id, task) : null;
+      if (claim?.state === "replay") {
+        return sendJson(
+          response,
+          claim.result.status === "succeeded" ? 200 : 400,
+          claim.result,
+        );
+      }
+      if (claim?.state && claim.state !== "claimed") {
+        const code =
+          claim.state === "in_progress"
+            ? "EXECUTION_IN_PROGRESS"
+            : claim.state === "conflict"
+              ? "IDEMPOTENCY_CONFLICT"
+              : "EXECUTION_REVIEW_REQUIRED";
+        return sendJson(response, 409, failedTaskResult(task, code));
+      }
       const executor = executorFor(user);
       const result = await executor.execute(task);
       const latestAudit = executor.getAuditLog().at(-1);
-      if (latestAudit) store.appendAudit(user.id, latestAudit);
+      if (durable && latestAudit) {
+        const stored = store.finishTaskExecution(
+          user.id,
+          task.idempotencyKey,
+          claim.leaseToken,
+          result,
+          latestAudit,
+        );
+        if (!stored) {
+          return sendJson(
+            response,
+            409,
+            failedTaskResult(task, "EXECUTION_REVIEW_REQUIRED"),
+          );
+        }
+      } else if (latestAudit) {
+        store.appendAudit(user.id, latestAudit);
+      }
       return sendJson(response, result.status === "succeeded" ? 200 : 400, result);
     }
     if (request.method === "POST" && requestUrl.pathname === "/v1/baiguo/normalize") {

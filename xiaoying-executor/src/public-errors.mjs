@@ -34,6 +34,9 @@ const TASK_ERRORS = new Map([
   ["TASK_EXPIRED", "任务已过期，请重新发起"],
   ["CONFIRMATION_REQUIRED", "操作需要重新确认"],
   ["TASK_NOT_ALLOWED", "不支持这项任务"],
+  ["EXECUTION_IN_PROGRESS", "操作正在执行，请稍后查看结果"],
+  ["IDEMPOTENCY_CONFLICT", "同一操作标识对应了不同内容，请重新发起"],
+  ["EXECUTION_REVIEW_REQUIRED", "上次执行结果不确定，请先核对当前状态"],
   ["TASK_FAILED", "任务执行失败，请稍后重试"],
 ]);
 

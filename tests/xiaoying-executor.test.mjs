@@ -126,6 +126,77 @@ test("production HTTP surface isolates cookies, paths, origins, and invite burst
     });
     assert.equal(currentUser.status, 200);
 
+    const issuedAt = Date.now();
+    const previewResponse = await fetch(
+      `http://127.0.0.1:${port}/v1/tasks/execute`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: sessionCookie,
+          origin: "https://dufesh.cn",
+        },
+        body: JSON.stringify({
+          taskId: "http-preview-1",
+          type: "library.preview_reservation",
+          issuedAt: new Date(issuedAt - 1_000).toISOString(),
+          expiresAt: new Date(issuedAt + 60_000).toISOString(),
+          payload: { seatId: "LIB-3F-032", date: "2026-08-10" },
+        }),
+      },
+    );
+    const preview = await previewResponse.json();
+    assert.equal(previewResponse.status, 200);
+    const confirmedTask = {
+      taskId: "http-confirm-1",
+      type: "library.confirm_reservation",
+      issuedAt: new Date(issuedAt - 1_000).toISOString(),
+      expiresAt: new Date(issuedAt + 60_000).toISOString(),
+      payload: { previewDigest: preview.data.previewDigest },
+      idempotencyKey: "http-confirm-reservation-1",
+      confirmation: {
+        confirmed: true,
+        confirmedAt: new Date(issuedAt).toISOString(),
+      },
+    };
+    const confirmedResponse = await fetch(
+      `http://127.0.0.1:${port}/v1/tasks/execute`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: sessionCookie,
+          origin: "https://dufesh.cn",
+        },
+        body: JSON.stringify(confirmedTask),
+      },
+    );
+    const confirmed = await confirmedResponse.json();
+    const replayResponse = await fetch(
+      `http://127.0.0.1:${port}/v1/tasks/execute`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: sessionCookie,
+          origin: "https://dufesh.cn",
+        },
+        body: JSON.stringify(confirmedTask),
+      },
+    );
+    const replay = await replayResponse.json();
+    assert.equal(confirmedResponse.status, 200);
+    assert.equal(replayResponse.status, 200);
+    assert.deepEqual(replay, confirmed);
+    const auditResponse = await fetch(`http://127.0.0.1:${port}/v1/audit`, {
+      headers: { cookie: sessionCookie },
+    });
+    const audit = await auditResponse.json();
+    assert.equal(
+      audit.records.filter((item) => item.type === "library.confirm_reservation").length,
+      1,
+    );
+
     const malformedSecret = "private-provider-token";
     const malformed = await fetch(`http://127.0.0.1:${port}/v1/preferences`, {
       method: "PUT",
@@ -300,6 +371,90 @@ test("public error boundaries never return raw exception messages", async () => 
   assert.equal(result.error.message, "任务执行失败，请稍后重试");
   assert.equal(JSON.stringify(result).includes(secret), false);
   assert.equal(JSON.stringify(executor.getAuditLog()).includes(secret), false);
+});
+
+test("durable confirmation results replay and expired executions require review after restart", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "xiaoying-task-ledger-"));
+  const databasePath = join(directory, "xiaoying.sqlite");
+  const masterKey = Buffer.alloc(32, 18);
+  let now = baseTime;
+  let store = new XiaoyingLocalStore({
+    databasePath,
+    masterKey,
+    defaultInviteCode: "fjbadguy",
+    clock: () => now,
+  });
+
+  try {
+    const { user } = store.unlockVip({
+      inviteCode: "fjbadguy",
+      displayName: "持久幂等测试",
+    });
+    const completedTask = task(
+      "library.confirm_reservation",
+      { previewDigest: "preview-one" },
+      { idempotencyKey: "durable-confirm-one" },
+    );
+    const completedClaim = store.claimTaskExecution(user.id, completedTask, 30_000);
+    const completedResult = {
+      taskId: completedTask.taskId,
+      type: completedTask.type,
+      status: "succeeded",
+      completedAt: new Date(now).toISOString(),
+      data: { reservationId: "reservation-one" },
+    };
+    assert.equal(completedClaim.state, "claimed");
+    assert.equal(
+      store.finishTaskExecution(
+        user.id,
+        completedTask.idempotencyKey,
+        completedClaim.leaseToken,
+        completedResult,
+        {
+          type: completedTask.type,
+          status: "succeeded",
+          idempotencyKey: completedTask.idempotencyKey,
+          completedAt: completedResult.completedAt,
+        },
+      ),
+      true,
+    );
+
+    const interruptedTask = task(
+      "library.confirm_cancellation",
+      { previewDigest: "preview-two" },
+      { idempotencyKey: "durable-confirm-two" },
+    );
+    assert.equal(
+      store.claimTaskExecution(user.id, interruptedTask, 30_000).state,
+      "claimed",
+    );
+    store.close();
+
+    now += 30_001;
+    store = new XiaoyingLocalStore({
+      databasePath,
+      masterKey,
+      defaultInviteCode: "fjbadguy",
+      clock: () => now,
+    });
+    const replay = store.claimTaskExecution(user.id, completedTask, 30_000);
+    const conflict = store.claimTaskExecution(
+      user.id,
+      { ...completedTask, payload: { previewDigest: "different-preview" } },
+      30_000,
+    );
+    const uncertain = store.claimTaskExecution(user.id, interruptedTask, 30_000);
+
+    assert.equal(replay.state, "replay");
+    assert.deepEqual(replay.result, completedResult);
+    assert.equal(conflict.state, "conflict");
+    assert.equal(uncertain.state, "review_required");
+    assert.equal(store.listAudit(user.id).length, 1);
+  } finally {
+    store.close();
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("reservation requires a fresh preview and explicit confirmation", async () => {
@@ -996,6 +1151,50 @@ test("venue discovery reports available counts without writing reservations", as
   store.close();
 });
 
+test("expired read leases can be reclaimed without accepting stale results", () => {
+  let now = baseTime;
+  const store = new XiaoyingLocalStore({
+    databasePath: ":memory:",
+    masterKey: Buffer.alloc(32, 15),
+    defaultInviteCode: "fjbadguy",
+    clock: () => now,
+  });
+  const { user } = store.unlockVip({
+    inviteCode: "fjbadguy",
+    displayName: "读取租约测试",
+  });
+  store.saveSeatWatch(user.id, {
+    libraryId: "8",
+    libraryName: "四楼",
+    seatKey: "A-09",
+    seatLabel: "009",
+  });
+  const watch = store.listDueSeatWatches(1)[0];
+  const firstLease = store.claimSeatWatch(watch.id, 30_000);
+
+  assert.equal(typeof firstLease, "string");
+  assert.equal(store.claimSeatWatch(watch.id, 30_000), null);
+  now += 30_001;
+  const recoveredLease = store.claimSeatWatch(watch.id, 30_000);
+  assert.notEqual(recoveredLease, firstLease);
+  assert.equal(
+    store.finishSeatWatchCheck(watch.id, {
+      available: true,
+      leaseToken: firstLease,
+    }),
+    false,
+  );
+  assert.equal(
+    store.finishSeatWatchCheck(watch.id, {
+      available: true,
+      leaseToken: recoveredLease,
+    }),
+    true,
+  );
+  assert.equal(store.listSeatWatches(user.id)[0].status, "available");
+  store.close();
+});
+
 test("scheduled reservations claim once and persist a user notification", async () => {
   const store = new XiaoyingLocalStore({
     databasePath: ":memory:",
@@ -1035,6 +1234,58 @@ test("scheduled reservations claim once and persist a user notification", async 
   assert.equal(reserveCount, 1);
   assert.equal(action.status, "succeeded");
   assert.equal(notification.title.includes("预约成功"), true);
+  store.close();
+});
+
+test("expired scheduled write leases require review instead of replaying", async () => {
+  let now = baseTime;
+  const store = new XiaoyingLocalStore({
+    databasePath: ":memory:",
+    masterKey: Buffer.alloc(32, 16),
+    defaultInviteCode: "fjbadguy",
+    clock: () => now,
+  });
+  const { user } = store.unlockVip({
+    inviteCode: "fjbadguy",
+    displayName: "定时预约恢复测试",
+  });
+  store.saveScheduledReservation(user.id, {
+    libraryId: "12",
+    libraryName: "北区三楼",
+    seatKey: "B-20",
+    seatLabel: "020",
+    runAt: new Date(now).toISOString(),
+  });
+  const action = store.listDueScheduledReservations(1)[0];
+  const staleLease = store.claimScheduledReservation(action.id);
+  let reserveCount = 0;
+  const runner = new ScheduledReservationRunner({
+    store,
+    adapterForUser: () => ({
+      reserve: async () => {
+        reserveCount += 1;
+      },
+    }),
+  });
+
+  now += 3 * 60_000 + 1;
+  await runner.runDue();
+  await runner.runDue();
+  const recovered = store.listScheduledReservations(user.id)[0];
+  const notifications = store.listNotifications(user.id);
+
+  assert.equal(reserveCount, 0);
+  assert.equal(recovered.status, "review_required");
+  assert.equal(recovered.lastErrorCode, "LEASE_EXPIRED_RECONCILE_REQUIRED");
+  assert.equal(notifications.length, 1);
+  assert.equal(notifications[0].title.includes("需要确认"), true);
+  assert.equal(
+    store.finishScheduledReservation(action.id, {
+      succeeded: true,
+      leaseToken: staleLease,
+    }),
+    false,
+  );
   store.close();
 });
 
@@ -1091,6 +1342,53 @@ test("reservation guard performs only the user-approved number of rebook cycles"
   assert.equal(reserveCount, 1);
   assert.equal(guard.status, "completed");
   assert.equal(guard.cycleCount, 1);
+  store.close();
+});
+
+test("expired guard leases pause without repeating cancel or reserve", async () => {
+  let now = baseTime;
+  const store = new XiaoyingLocalStore({
+    databasePath: ":memory:",
+    masterKey: Buffer.alloc(32, 17),
+    defaultInviteCode: "fjbadguy",
+    clock: () => now,
+  });
+  const { user } = store.unlockVip({
+    inviteCode: "fjbadguy",
+    displayName: "守护恢复测试",
+  });
+  const guard = store.enableReservationGuard(user.id);
+  const staleLease = store.claimReservationGuard(guard.id);
+  let remoteCalls = 0;
+  const runner = new ReservationGuardRunner({
+    store,
+    clock: () => now,
+    adapterForUser: () => ({
+      getStatus: async () => {
+        remoteCalls += 1;
+        return {};
+      },
+    }),
+  });
+
+  now += 3 * 60_000 + 1;
+  await runner.runDue();
+  await runner.runDue();
+  const recovered = store.getReservationGuard(user.id);
+  const notifications = store.listNotifications(user.id);
+
+  assert.equal(remoteCalls, 0);
+  assert.equal(recovered.status, "paused");
+  assert.equal(recovered.lastErrorCode, "LEASE_EXPIRED_RECONCILE_REQUIRED");
+  assert.equal(notifications.length, 1);
+  assert.equal(notifications[0].title.includes("请确认"), true);
+  assert.equal(
+    store.finishReservationGuardCheck(guard.id, {
+      status: "completed",
+      leaseToken: staleLease,
+    }),
+    false,
+  );
   store.close();
 });
 

@@ -664,11 +664,15 @@
         if (state.connection.status !== "connected") return;
         const result = await api("/v1/library/scheduled");
         state.scheduledReservations = result.reservations || [];
-        const visible = state.scheduledReservations.filter((item) => ["scheduled", "running"].includes(item.status));
+        const visible = state.scheduledReservations.filter((item) => ["scheduled", "running", "review_required"].includes(item.status));
         $("scheduledListCard").classList.toggle("hidden", !visible.length);
-        $("scheduledList").innerHTML = visible.map((item) =>
-          `<div class="quick-row"><div><b>${escapeHtml(item.seatLabel)}</b><small>${escapeHtml(item.libraryName)} · ${escapeHtml(formatTime(item.runAt))} · 最多 ${item.maxAttempts} 次</small></div><button class="button text" data-cancel-scheduled="${escapeHtml(item.id)}">取消</button></div>`
-        ).join("");
+        $("scheduledList").innerHTML = visible.map((item) => {
+          const reviewRequired = item.status === "review_required";
+          const detail = reviewRequired
+            ? "执行曾中断，请先核对当前预约；小影不会自动重试"
+            : `${formatTime(item.runAt)} · 最多 ${item.maxAttempts} 次`;
+          return `<div class="quick-row"><div><b>${escapeHtml(item.seatLabel)}</b><small>${escapeHtml(item.libraryName)} · ${escapeHtml(detail)}</small></div>${reviewRequired ? '<span class="eyebrow">需核对</span>' : `<button class="button text" data-cancel-scheduled="${escapeHtml(item.id)}">取消</button>`}</div>`;
+        }).join("");
         document.querySelectorAll("[data-cancel-scheduled]").forEach((button) => button.addEventListener("click", async () => {
           await api(`/v1/library/scheduled?actionId=${encodeURIComponent(button.dataset.cancelScheduled)}`, { method: "DELETE" });
           loadScheduledReservations();
