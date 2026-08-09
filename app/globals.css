@@ -4310,9 +4310,6 @@ kbd {
 }
 
 /* V8：任务卡片、可编辑课表与移动端完整周视图。 */
-.focus-side {
-  grid-template-rows: 1.15fr .85fr;
-}
 
 .focus-assignment {
   background: #f8f3e8;
@@ -4729,74 +4726,8 @@ kbd {
     width: 100%;
   }
 
-  .timetable-panel {
-    overflow: hidden;
-    padding: 8px;
-  }
-
-  .week-grid {
-    grid-template-columns: 34px repeat(5, minmax(0, 1fr));
-    overflow-x: visible;
-    padding-bottom: 0;
-    width: 100%;
-  }
-
-  .grid-corner,
-  .day-head,
-  .block-head,
-  .schedule-cell {
-    min-width: 0;
-  }
-
-  .grid-corner,
-  .day-head {
-    font-size: 9px;
-    padding: 8px 2px;
-  }
-
-  .block-head {
-    min-height: 104px;
-    padding: 2px;
-  }
-
   .block-head b {
     font-size: 20px;
-  }
-
-  .block-head span {
-    display: none;
-  }
-
-  .schedule-cell {
-    min-height: 104px;
-    padding: 2px;
-  }
-
-  .schedule-cell > button {
-    border-left-width: 2px;
-    min-height: 0;
-    padding: 6px 3px 6px 5px;
-  }
-
-  .schedule-cell > button strong {
-    display: -webkit-box;
-    font-size: 9px;
-    line-height: 1.25;
-    overflow: hidden;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
-  }
-
-  .schedule-cell > button span,
-  .schedule-cell > button small {
-    font-size: 7px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .schedule-cell > button > i {
-    display: none;
   }
 
   .empty-cell-add {

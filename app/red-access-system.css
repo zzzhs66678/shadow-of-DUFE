@@ -1102,10 +1102,6 @@ textarea {
     margin-top: 7px;
   }
 
-  .today-command-deck {
-    margin-top: 20px;
-  }
-
   .now-card {
     min-height: 420px;
     padding: 24px;
@@ -1224,26 +1220,6 @@ textarea {
 
 /* V18.1 · keep the daily workspace primary; photography lives in My. */
 
-.focus-head.focus-head-v5 {
-  border-bottom: 1px solid var(--journal-ink);
-  column-gap: clamp(36px, 6vw, 82px);
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
-  min-height: 260px;
-  overflow: visible;
-  padding: 20px 0 34px;
-}
-
-.focus-head h1 {
-  font-size: clamp(58px, 6.5vw, 86px);
-  letter-spacing: -0.085em;
-  margin: 48px 0 18px;
-  max-width: none;
-}
-
-.focus-head > p {
-  max-width: 520px;
-}
-
 .campus-time-mark {
   align-self: center;
   border-left: 1px solid var(--journal-ink);
@@ -1321,18 +1297,6 @@ textarea {
   color: var(--journal-muted);
   font-size: 11px;
   line-height: 1.45;
-}
-
-.focus-head + .campus-pins {
-  margin-top: 0;
-}
-
-.today-command-deck {
-  margin-top: 30px;
-}
-
-.me-page .campus-almanac {
-  margin-top: clamp(70px, 9vw, 112px);
 }
 
 .account-import-notice {
@@ -1770,20 +1734,6 @@ textarea {
 }
 
 @media (max-width: 760px) {
-  .focus-head.focus-head-v5 {
-    display: block;
-    min-height: 0;
-    padding: 10px 0 24px;
-  }
-
-  .focus-head h1 {
-    font-size: clamp(48px, 14vw, 60px);
-    margin: 38px 0 14px;
-  }
-
-  .focus-head > p {
-    max-width: 100%;
-  }
 
   .campus-time-mark {
     border-left: 0;
@@ -1809,10 +1759,6 @@ textarea {
 
   .time-mark-copy b {
     font-size: 18px;
-  }
-
-  .today-command-deck {
-    margin-top: 20px;
   }
 
   .account-login-v2 {
