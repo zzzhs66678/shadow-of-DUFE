@@ -39,6 +39,8 @@ jobs:
           npm run test:xiaoying
       - name: Build production app
         run: npm run build
+      - name: Type-check TypeScript
+        run: npm run typecheck
       - name: Check rendered HTML
         run: node --test tests/rendered-html.test.mjs
 

@@ -108,4 +108,5 @@
 - 邮件发送服务凭据：尚未提供；密码注册可先本地验证，生产验证/重置邮件受此阻塞。
 - 当前开发机未安装 `sh`、Docker/PostgreSQL；`0006_credential_auth.sql`—`0015_teacher_user_reviews.sql` 的空库、升级库、重复执行，以及 Linux musl 原生 Argon2id/Sharp 镜像验证必须在 staging 或具备 Docker 的 CI 完成。邮箱令牌、管理员 TOTP/恢复码并发消费、社区举报证据/可逆治理并发、教师导入/审核/用户评价并发、`AUTH_DB_USER`/`IMPORT_DB_USER` 权限矩阵和 `run-migrations.sh` 实际执行仍需真实 PostgreSQL 集成测试。
 - 主站生产依赖审计仍被 `vinext@0.0.50 → image-size@2.0.2` 的 2 个 high 阻塞；上游发布兼容修复或完成安全替代/隔离前不得放行生产发布。
+- 本地 `npm run typecheck`、全仓 174 项 Node 回归、构建后渲染 4/4、CSS 审计和相关 ESLint 已通过，quality workflow 已加入 TypeScript 步骤；仍须由 Pull Request CI 在 Linux 上复核后才能勾选生产前质量门禁。
 - 异地对象存储/备份凭据：尚未提供；本地适配器和恢复流程继续开发，生产异地副本受此阻塞。

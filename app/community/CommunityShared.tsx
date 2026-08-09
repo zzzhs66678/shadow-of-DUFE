@@ -90,6 +90,7 @@ export function ReportDialog({
   }
 
   if (!target) return null;
+  const activeTarget = target;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -101,8 +102,8 @@ export function ReportDialog({
     setError("");
     try {
       const payload: Record<string, string> = {
-        targetType: target.type,
-        targetId: target.id,
+        targetType: activeTarget.type,
+        targetId: activeTarget.id,
         reasonCode,
       };
       if (detail.trim()) payload.detail = detail.trim();

@@ -4,6 +4,19 @@ import test from "node:test";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
+test("CI enforces the repository TypeScript boundary", async () => {
+  const packageJson = JSON.parse(await read("package.json"));
+  const workflow = await read(".github/workflows/quality.yml");
+  const tsconfig = JSON.parse(await read("tsconfig.json"));
+  const cloudflareEnv = await read("cloudflare-env.d.ts");
+
+  assert.equal(packageJson.scripts.typecheck, "tsc --noEmit");
+  assert.match(workflow, /npm run typecheck/);
+  assert.equal(tsconfig.compilerOptions.allowImportingTsExtensions, true);
+  assert.deepEqual(tsconfig.compilerOptions.types, ["@cloudflare/workers-types"]);
+  assert.match(cloudflareEnv, /interface Env[\s\S]*DB\?: D1Database/);
+});
+
 test("PostgreSQL is private, resource-limited, health-checked, and log-rotated", async () => {
   const compose = await read("docker-compose.yml");
 

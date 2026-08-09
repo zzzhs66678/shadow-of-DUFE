@@ -7,6 +7,27 @@ import styles from "../materials.module.css";
 import { getMaterialById } from "../materials-catalog.mjs";
 
 type PageProps = { params: Promise<{ materialId: string }> };
+type MaterialDetail = {
+  name: string;
+  courseTitle: string;
+  kind: string;
+  description: string;
+  extension: string;
+  category: string;
+  courseIds: string[];
+  teachers: string[];
+  sizeBytes: number;
+  terms: string[];
+  years: number[];
+  tags: string[];
+  downloadUrl: string;
+  previewUrl: string;
+  previewable: boolean;
+};
+
+function materialById(materialId: string) {
+  return getMaterialById(materialId) as MaterialDetail | null;
+}
 
 function fileSize(bytes: number) {
   return bytes < 1024 * 1024
@@ -15,7 +36,7 @@ function fileSize(bytes: number) {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const material = getMaterialById((await params).materialId);
+  const material = materialById((await params).materialId);
   if (!material) return { title: "资料未找到" };
   return {
     title: material.name,
@@ -24,7 +45,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function MaterialDetailPage({ params }: PageProps) {
-  const material = getMaterialById((await params).materialId);
+  const material = materialById((await params).materialId);
   if (!material) notFound();
   return (
     <main className={styles.detailPage} id="main-content">

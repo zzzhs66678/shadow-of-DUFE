@@ -297,6 +297,13 @@
 - 新增结构回归锁定四类页面接入、计数、展示字体、44px、键盘焦点、朱红 Token 和减少动态偏好。验证：全仓 Node 173/173、相关体验测试 16/16、构建后渲染 4/4、CSS 审计、相关 ESLint、vinext 生产构建与 `git diff --check` 通过。仓库级 `npx tsc --noEmit` 仍只报既有社区/资料、Cloudflare Worker 环境类型和测试扩展导入错误，共享表单与教师评价未新增类型错误。
 - 浏览器使用临时本地响应复核社区发布区和教师评价表单的前端契约与布局：桌面和 390px 级手机宽度均无横向溢出，教师正文字数随输入更新；临时响应不作为 Cookie 或数据库证据，已清理。本切片未部署。
 
+## M8 已验证切片：仓库 TypeScript 门禁
+
+- 修复社区举报异步提交对可空目标的闭包收窄；为资料详情建立明确实体边界，消除来自 `.mjs` 目录模块的隐式 `any`，没有把数据改成宽泛 `any`。
+- `tsconfig` 的 `.ts` 测试导入与既有 `noEmit` 模式通过 `allowImportingTsExtensions` 对齐；加入与 Wrangler 4.92 兼容的官方 `@cloudflare/workers-types`，并声明当前部署可选的 D1 `DB` 绑定。失败的 latest v5 安装没有写入依赖文件，最终锁定兼容 v4。
+- 新增 `npm run typecheck` 并加入 GitHub quality workflow；基础设施回归锁定命令、CI 步骤、官方类型和 D1 绑定声明，防止以后通过删除检查来“修复”类型错误。
+- 验证：`npm run typecheck`、全仓 Node 174/174、构建后渲染 4/4、CSS 审计、相关 ESLint 与 `git diff --check` 通过。主站生产依赖审计仍因 `vinext@0.0.50 → image-size@2.0.2` 保留 2 个 high，没有使用破坏性 `npm audit fix --force` 降级 vinext；本切片未部署。
+
 ## 下一步
 
 1. 在可用 PostgreSQL 17 环境验证 `0001`—`0015` 空库、升级、重复迁移、邮箱/TOTP/恢复码并发重放、社区证据快照、教师同名隔离、导入/审核/用户评价并发和 migrator/runtime/importer 权限，并补两个普通用户与一个管理员的真实浏览器 E2E。
