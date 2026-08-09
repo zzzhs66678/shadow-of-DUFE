@@ -30,6 +30,7 @@
     "@dnd-kit/core": "^6.3.1",
     "drizzle-orm": "0.45.2",
     "html-to-image": "^1.11.13",
+    "image-size": "file:vendor/image-size-disabled",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-loading-skeleton": "3.5.0",
@@ -62,6 +63,7 @@
   "overrides": {
     "esbuild": "0.28.1",
     "fast-uri": "3.1.5",
+    "image-size": "$image-size",
     "nanoid": "3.3.18",
     "postcss": "8.5.25",
     "sharp": "0.35.3"

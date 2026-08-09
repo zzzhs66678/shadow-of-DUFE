@@ -1,8 +1,60 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
+
+test("vinext image probing is replaced by a fail-closed local package", async () => {
+  const packageJson = JSON.parse(await read("package.json"));
+  const packageLock = await read("package-lock.json");
+  const replacement = JSON.parse(
+    await read("vendor/image-size-disabled/package.json"),
+  );
+  const { imageSize } = await import("image-size");
+
+  assert.equal(
+    packageJson.dependencies["image-size"],
+    "file:vendor/image-size-disabled",
+  );
+  assert.equal(packageJson.overrides["image-size"], "$image-size");
+  assert.equal(replacement.name, "image-size");
+  assert.equal(replacement.version, "2.0.3-dufesh.0");
+  assert.match(
+    packageLock,
+    /"node_modules\/image-size": \{\s*"resolved": "vendor\/image-size-disabled",\s*"link": true/,
+  );
+
+  const malformedInputs = [
+    Buffer.from("icns000000000000", "ascii"),
+    Buffer.from("0000ftypavif0000", "ascii"),
+    Buffer.from("0000JXL 00000000", "ascii"),
+  ];
+  for (const input of malformedInputs) {
+    assert.throws(
+      () => imageSize(input),
+      /Build-time image probing is disabled/,
+    );
+  }
+
+  const appFiles = await readdir(new URL("../app/", import.meta.url), {
+    recursive: true,
+  });
+  const sourceFiles = appFiles.filter((file) => /\.(?:[cm]?[jt]sx?)$/i.test(file));
+  const localImageImport = /(?:from\s*|import\s*\()\s*["'][^"']+\.(?:png|jpe?g|gif|webp|avif|svg|ico|bmp|tiff?)["']/i;
+  for (const file of sourceFiles) {
+    const source = await readFile(new URL(`../app/${file}`, import.meta.url), "utf8");
+    assert.doesNotMatch(source, localImageImport, `${file} imports a local image`);
+  }
+  assert.equal(
+    appFiles.some((file) =>
+      /(?:^|[\\/])(?:favicon|icon|apple-icon|opengraph-image|twitter-image)\.(?:png|jpe?g|gif|webp|avif|ico|bmp|tiff?)$/i.test(
+        file,
+      ),
+    ),
+    false,
+    "app metadata images must use audited public URLs with explicit dimensions",
+  );
+});
 
 test("CI enforces the repository TypeScript boundary", async () => {
   const packageJson = JSON.parse(await read("package.json"));

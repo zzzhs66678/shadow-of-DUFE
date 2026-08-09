@@ -1,0 +1,23 @@
+{
+  "name": "image-size",
+  "version": "2.0.3-dufesh.0",
+  "private": true,
+  "description": "Project-local fail-closed replacement for vinext build-time image probing",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.mjs",
+      "default": "./index.mjs"
+    },
+    "./fromFile": {
+      "types": "./fromFile.d.ts",
+      "import": "./fromFile.mjs",
+      "default": "./fromFile.mjs"
+    }
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "UNLICENSED"
+}
