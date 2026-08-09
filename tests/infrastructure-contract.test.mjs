@@ -367,6 +367,58 @@ test("community reports preserve immutable evidence snapshots for moderation", a
   );
 });
 
+test("teacher import foundation separates identities, section textbooks, and pending legacy reviews", async () => {
+  const migration = await read(
+    "ops/postgres/migrations/0013_teacher_catalog_imports.sql",
+  );
+  const migrations = await read("ops/postgres/run-migrations.sh");
+
+  for (const table of [
+    "data_import_batches",
+    "data_import_rows",
+    "data_import_mutations",
+    "teachers",
+    "teacher_source_identities",
+    "teacher_aliases",
+    "teacher_course_sections",
+    "teaching_section_textbooks",
+    "teacher_review_candidates",
+    "teacher_reviews",
+  ]) {
+    assert.match(migration, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`));
+  }
+
+  assert.match(
+    migration,
+    /UNIQUE \(source_system, external_teacher_key\)/,
+  );
+  assert.doesNotMatch(migration, /UNIQUE \(normalized_name\)/);
+  assert.doesNotMatch(
+    migration,
+    /UNIQUE \(normalized_college, normalized_name\)/,
+  );
+  assert.match(migration, /teacher identity fields are immutable/);
+  assert.match(migration, /data_import_batches_applied_fingerprint_uidx/);
+  assert.match(migration, /data import row evidence is append-only/);
+  assert.match(migration, /term_key, course_id, section_no/);
+  assert.match(migration, /isbn_status IN \('valid', 'missing', 'placeholder', 'invalid'\)/);
+  assert.match(migration, /source_type IN \('user', 'legacy_approved'\)/);
+  assert.match(migration, /author_label = '历史整理内容'/);
+  assert.match(migration, /legacy teacher review candidates must start pending/);
+  assert.match(migration, /sanitized_body text/);
+  assert.match(migration, /original_body_sha256 text/);
+  assert.match(migration, /teacher_reviews_legacy_dedupe_uidx/);
+  assert.match(migration, /teacher reviews must be soft-deleted/);
+  assert.match(
+    migrations,
+    /REVOKE ALL PRIVILEGES ON data_import_batches, data_import_rows, data_import_mutations, teacher_review_candidates/,
+  );
+  assert.match(
+    migrations,
+    /REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON teachers, teacher_source_identities, teacher_aliases, teacher_course_sections, teaching_section_textbooks/,
+  );
+});
+
 test("auth traffic has bounded in-memory burst protection", async () => {
   const limiter = await read("services/auth-api/src/rate-limit.mjs");
   const server = await read("services/auth-api/src/server.mjs");

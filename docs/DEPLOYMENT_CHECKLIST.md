@@ -25,6 +25,8 @@
 - [ ] 在 PostgreSQL 17 验证 `0010_community_foundation.sql` 空库/升级库迁移、两级回复触发器、软删除引用、通知/互动去重和开放举报部分唯一索引。
 - [ ] 在 PostgreSQL 17 验证 `0011_community_read_paths.sql` 重复执行和查询计划；软删除根评论仍使用墓碑索引分页并保留回复线程。
 - [ ] 在 PostgreSQL 17 验证 `0012_community_report_evidence.sql` 空库/升级/重复迁移、旧举报回填和快照不可变触发器；编辑或删除目标后审核证据仍保持举报时内容。
+- [ ] 在 PostgreSQL 17 验证 `0013_teacher_catalog_imports.sql` 空库/升级/重复迁移、同名教师隔离、来源键冲突、历史候选默认私有、同教学班多教材、重复/并发 apply、版本回滚和后续批次依赖拒绝。
+- [ ] 验证 auth runtime 对 `data_import_batches`、`data_import_rows`、`data_import_mutations` 和 `teacher_review_candidates` 无任何权限，并不能写教师来源身份或教学班教材事实。
 - [ ] 验证 auth runtime 无法 UPDATE/DELETE/TRUNCATE `community_content_edits` 与 `community_moderation_actions`，但仍可按设计追加记录。
 - [ ] 验证 auth runtime 无法硬删除或截断 `community_topics`/`community_comments`；软删除后通知、回复引用和降级页仍可读取。
 - [ ] 用做过编辑、举报、审核与被制裁的测试账号验证注销不会被外键/不可变触发器阻断，且去标识化审计证据仍保留。
@@ -96,5 +98,6 @@
 - 微信开放平台正式 AppID/AppSecret 与最终审核状态：未提供，本地不需要等待；生产微信入口受此阻塞。
 - 独立 staging 环境与凭据：尚未确认，未擅自创建付费资源。
 - 邮件发送服务凭据：尚未提供；密码注册可先本地验证，生产验证/重置邮件受此阻塞。
-- 当前开发机未安装 `sh`、Docker/PostgreSQL；`0006_credential_auth.sql`—`0012_community_report_evidence.sql` 的空库、升级库、重复执行，以及 Linux musl 原生 Argon2id/Sharp 镜像验证必须在 staging 或具备 Docker 的 CI 完成。邮箱令牌、管理员 TOTP/恢复码并发消费、社区举报证据/可逆治理并发、审计失败回滚、`AUTH_DB_USER` 对业务表/审计表/迁移账本的权限矩阵和 `run-migrations.sh` 实际执行仍需真实 PostgreSQL 集成测试。
+- 当前开发机未安装 `sh`、Docker/PostgreSQL；`0006_credential_auth.sql`—`0013_teacher_catalog_imports.sql` 的空库、升级库、重复执行，以及 Linux musl 原生 Argon2id/Sharp 镜像验证必须在 staging 或具备 Docker 的 CI 完成。邮箱令牌、管理员 TOTP/恢复码并发消费、社区举报证据/可逆治理并发、教师导入幂等/回滚、审计失败回滚、`AUTH_DB_USER` 权限矩阵和 `run-migrations.sh` 实际执行仍需真实 PostgreSQL 集成测试。
+- 主站生产依赖审计仍被 `vinext@0.0.50 → image-size@2.0.2` 的 2 个 high 阻塞；上游发布兼容修复或完成安全替代/隔离前不得放行生产发布。
 - 异地对象存储/备份凭据：尚未提供；本地适配器和恢复流程继续开发，生产异地副本受此阻塞。

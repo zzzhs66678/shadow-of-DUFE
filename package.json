@@ -13,6 +13,7 @@
     "audit:css": "node scripts/audit-css-cascade.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
+    "import:academic:preflight": "node scripts/academic-import-preflight.mjs",
     "xiaoying:x0": "node xiaoying-executor/bin/server.mjs",
     "xiaoying:x1": "node xiaoying-executor/bin/server.mjs",
     "xiaoying:x1:lan": "node xiaoying-executor/bin/lan-server.mjs",
@@ -41,6 +42,7 @@
     "eslint-config-next": "16.2.12",
     "next": "16.2.12",
     "react-server-dom-webpack": "19.2.8",
+    "read-excel-file": "^9.3.8",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
     "vite": "8.1.5",
@@ -48,7 +50,8 @@
   },
   "overrides": {
     "esbuild": "0.28.1",
-    "fast-uri": "3.1.4",
+    "fast-uri": "3.1.5",
+    "nanoid": "3.3.18",
     "postcss": "8.5.25",
     "sharp": "0.35.3"
   },

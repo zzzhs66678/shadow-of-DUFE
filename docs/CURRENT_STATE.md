@@ -130,7 +130,16 @@
 - `/admin` 的短期 MFA 值守台已接入举报队列、不可变证据、入案、状态安全动作、原因与期限校验，并在动作后刷新队列和全局审计。社区弹层和通知抽屉具备滚动锁、焦点陷阱、Escape 关闭与触发点焦点恢复；390×844 无横向溢出。
 - 浏览器实际验证了两类状态：auth-api 不可用时显示可重试错误而非无限加载；本机临时内存响应下走通主题列表、点赞、详情、回复、通知、举报长度规则和焦点恢复。临时响应只作为前端契约与视觉证据，不替代 PostgreSQL E2E。
 - auth-api 67/67、基础设施契约 21/21、全仓 Node 测试 155/155、构建后渲染 4/4、CSS 级联审计、相关 ESLint 与 `git diff --check` 通过。桌面 1280px 与手机 390×844 已复核五个主视图、资料检索、资料详情、社区和管理员入口；各页无横向溢出，资料搜索不会抢焦点，公共顶栏显隐与活动态正确，浏览器控制台无页面错误。当前机器没有 PostgreSQL/Docker，因此 `0010`—`0012` 的真实 PostgreSQL 17 迁移、事务、并发、查询计划、触发器和权限仍待 staging；登录后弹层的真实 Cookie/数据库浏览器 E2E 也保留为 staging 门禁。Windows 上 vinext 生产服务器的静态资源缓存存在路径分隔符问题，本地浏览器验收使用开发服务，Linux 容器静态资源仍是 staging 发布门禁。本轮未部署。
-- 教师评价与课程教材工作簿仍由用户整理，当前草稿未导入、未提交，先前局部统计不作为正式数据。收到完整版前不得按姓名或课程学院猜测教师身份，也不得覆盖现有教材事实。
+
+## 当前教师与教材导入状态
+
+- 用户于 2026-08-09 提供正式完整版教师评价和教材工作簿；两份文件只在本机执行 dry-run，没有复制进仓库、修改源文件或写入数据库。摘要与无正文统计见 `docs/IMPORT_PREFLIGHT_2026-08-09.md`。
+- dry-run 识别 863 位教师和 3,321 条历史评价候选；10 组同名教师分属不同学院，姓名和学院不得作为唯一身份。1 行缺教师姓名和来源键，其 6 条评价拒绝自动导入。
+- 1,370 条历史评价含时效性考核陈述、疑似攻击、其他教师或联系方式等至少一项风险。全部历史评价只能先进入私有待审核候选，不关联当前用户、不自动生成五维评分；批准后公开时固定标注“历史整理内容”。
+- 教材计划含 1,143 行，展开为 2,660 条教学班教材关系，覆盖 1,018 门课程。13 门课程存在多教材版本，777 行为“不指定教材”并带占位 ISBN，1 条课程号缺目录匹配、13 条教学班键缺直接匹配。
+- 当前发布分支新增 `0013_teacher_catalog_imports.sql`：教师使用独立 UUID，来源身份由 `(source_system, external_teacher_key)` 映射；教材按学期、课程号、课序号、教师和教材项版本化保存；导入批次、逐行证据和 mutation 可审计，回滚不硬删除。
+- `npm run import:academic:preflight` 可重复生成无评价正文的 JSON 摘要和逐行 CSV 错误报告。预检与基础设施契约 25/25、全仓 Node 159/159、相关 ESLint 和生产构建通过；嵌入式 PostgreSQL 17.5 已连续两遍执行 `0001`—`0013`，同学院同名双 UUID、来源键冲突拒绝和 pending 候选不可公开约束通过。本机没有原生 PostgreSQL/Docker，运行角色权限、并发幂等、业务回滚和升级库数据仍待 staging。当前未部署，教师索引、审核 API 和正式数据写入尚未实现。
+- 2026-08-09 生产依赖审计仍被 `vinext@0.0.50` 固定的 `image-size@2.0.2` 两个新披露 high 阻塞；`fast-uri` 与 `nanoid` 已锁到修复版本。审计不满足发布门禁。
 
 ## 当前数据规模
 
@@ -157,6 +166,7 @@
 - 数据生成：`node scripts/build-course-data.mjs`
 - 数据与周次回归：`node --test tests/course-schedule-logic.test.mjs`
 - 核心体验回归：`node --test tests/product-experience.test.mjs`
+- 教师/教材导入预检回归：`node --test tests/academic-import-preflight.test.mjs`
 - 基础设施与安全契约：`node --test tests/infrastructure-contract.test.mjs`
 - 小影回归：`npm run test:xiaoying`
 - 生产依赖审计：主站和 `xiaoying-executor` 分别执行 `npm audit --omit=dev --audit-level=high`

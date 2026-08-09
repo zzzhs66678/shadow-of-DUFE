@@ -144,6 +144,18 @@ SELECT format(
     :'runtime_user'
 ) \gexec
 SELECT format(
+    'REVOKE ALL PRIVILEGES ON data_import_batches, data_import_rows, data_import_mutations, teacher_review_candidates FROM %I',
+    :'runtime_user'
+) \gexec
+SELECT format(
+    'REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON teachers, teacher_source_identities, teacher_aliases, teacher_course_sections, teaching_section_textbooks FROM %I',
+    :'runtime_user'
+) \gexec
+SELECT format(
+    'REVOKE DELETE, TRUNCATE ON teacher_reviews FROM %I',
+    :'runtime_user'
+) \gexec
+SELECT format(
     'REVOKE ALL PRIVILEGES ON schema_migrations FROM %I',
     :'runtime_user'
 ) \gexec
