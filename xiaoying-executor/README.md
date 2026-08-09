@@ -71,7 +71,7 @@ npm run xiaoying:protocol -- rollback traceint-2.2.6
 }
 ```
 
-配置只允许 TraceInt 官方域名和受信任路径，写入采用临时文件原子替换，最多保留二十个版本。修改后重启 X1 生效。可用 `XIAOYING_TRACEINT_PROTOCOL_PATH` 指向另一个配置文件。
+配置只允许 TraceInt 官方域名、HTTPS 和受信任路径，写入采用临时文件原子替换，最多保留二十个版本。HTTP 配置及授权过程中的明文跳转都会失败关闭，不会为兼容上游而发送授权码或 Cookie。修改后重启 X1 生效。可用 `XIAOYING_TRACEINT_PROTOCOL_PATH` 指向另一个配置文件。
 
 ## 验证
 

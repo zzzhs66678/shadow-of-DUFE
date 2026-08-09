@@ -316,6 +316,13 @@ test("TraceInt protocol overrides reject untrusted endpoints", () => {
       }),
     /协议不受支持/,
   );
+  assert.throws(
+    () =>
+      validateTraceIntProtocol({
+        cookieEndpoint: "http://wechat.v2.traceint.com/index.php/urlNew/auth.html",
+      }),
+    /协议不受支持/,
+  );
 });
 
 test("TraceInt protocol configuration is versioned and can roll back", async () => {
@@ -934,6 +941,34 @@ test("TraceInt client exchanges authorization and maps normal library data", asy
     bookedSeats: 5,
   });
   assert.equal(requests.some((request) => request.options.headers?.cookie === cookie), true);
+  assert.equal(requests[0].url.startsWith("https://wechat.v2.traceint.com/"), true);
+});
+
+test("TraceInt authorization rejects plaintext redirects before sending cookies", async () => {
+  const requests = [];
+  const client = new TraceIntClient({
+    fetchImpl: async (url) => {
+      requests.push(String(url));
+      return {
+        status: 302,
+        ok: false,
+        headers: {
+          getSetCookie: () => ["wechatSESS_ID=private-session; Path=/"],
+          get: (name) =>
+            name === "location"
+              ? "http://web.traceint.com/web/index.html"
+              : null,
+        },
+      };
+    },
+  });
+
+  await assert.rejects(
+    client.exchangeAuthorization("abcdefgh1234"),
+    (error) => error?.code === "UNTRUSTED_REDIRECT",
+  );
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].startsWith("https://"), true);
 });
 
 test("TraceInt client maps layouts and reports expired sessions without leaking cookies", async () => {

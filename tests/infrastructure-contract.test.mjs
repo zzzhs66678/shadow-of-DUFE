@@ -679,6 +679,11 @@ test("Xiaoying is isolated behind a private, resource-bounded service", async ()
   const caddy = await read("deploy/Caddyfile");
   const server = await read("xiaoying-executor/bin/server.mjs");
   const store = await read("xiaoying-executor/src/local-store.mjs");
+  const traceProtocol = await read("xiaoying-executor/src/traceint-protocol.mjs");
+  const traceProtocolConfig = await read(
+    "xiaoying-executor/src/traceint-protocol-config.mjs",
+  );
+  const traceClient = await read("xiaoying-executor/src/traceint-client.mjs");
   const dockerfile = await read("xiaoying-executor/Dockerfile");
 
   assert.match(compose, /xiaoying:/);
@@ -697,6 +702,13 @@ test("Xiaoying is isolated behind a private, resource-bounded service", async ()
   assert.match(store, /CREATE TABLE IF NOT EXISTS public_rate_limits/);
   assert.match(store, /createHmac\("sha256", this\.masterKey\)/);
   assert.match(store, /BEGIN IMMEDIATE/);
+  assert.match(
+    traceProtocol,
+    /cookieEndpoint: "https:\/\/wechat\.v2\.traceint\.com/,
+  );
+  assert.doesNotMatch(traceProtocol, /cookieEndpoint: "http:\/\//);
+  assert.match(traceProtocolConfig, /protocols: \["https:"\]/);
+  assert.match(traceClient, /url\.protocol !== "https:"/);
   assert.match(server, /__Secure-dufesh_xiaoying_session/);
   assert.match(dockerfile, /USER node/);
 });
