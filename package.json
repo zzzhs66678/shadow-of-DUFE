@@ -13,6 +13,8 @@
     "typecheck": "tsc --noEmit",
     "audit:css": "node scripts/audit-css-cascade.mjs",
     "test:a11y": "playwright test tests/e2e/accessibility.spec.ts",
+    "test:responsive": "playwright test tests/e2e/responsive.spec.ts",
+    "test:browser": "playwright test",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern .codex_tmp --ignore-pattern outputs --ignore-pattern work --ignore-pattern test-results --ignore-pattern playwright-report --ignore-pattern blob-report",
     "db:generate": "drizzle-kit generate",
     "import:academic:preflight": "node scripts/academic-import-preflight.mjs",

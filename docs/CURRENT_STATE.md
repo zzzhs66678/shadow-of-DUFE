@@ -157,7 +157,9 @@
 - 仓库现有 Playwright + axe 自动门禁，覆盖今日学习台、资料、社区、教师、隐私、用户协议、账号注销和管理员入口 8 个核心页面，并分别以桌面 Chrome 与 Pixel 5 手机视口运行，共 16 个浏览器场景。
 - 门禁检查 WCAG 2 A/AA 与 WCAG 2.1 A/AA，并把 axe 的 `critical`、`serious` 违规作为构建失败；本地 16/16 场景通过。CI 会安装 Chromium 并执行同一门禁，本地开发默认复用已安装的 Chrome。
 - 本轮修复了手机全站搜索按钮缺少可读名称、浅灰静默文本和深色页脚对比不足、正文链接只靠颜色区分，以及资料搜索把含多个独立链接的资料卡错误建模为 listbox 选项的问题。资料页现在使用原生搜索框与语义结果列表，方向键聚焦、Enter 打开和 Escape 清空行为保持不变。
-- 本轮验证：主仓 Node 61/61、个人存储/同步 9/9、auth-api 72/72、小影 26/26、构建后渲染 4/4、axe 浏览器场景 16/16、`npm run typecheck`、CSS 审计、全仓 ESLint、生产构建与 `git diff --check` 通过；本轮未部署。
+- 五个主视图现在另有 768×1024 平板和 667×375 手机横屏门禁，共 10 个场景；每个场景等待真实课程数据完成，确认目标视图可见、没有未捕获脚本错误，并以根节点和 `body` 的实际 `scrollWidth` 阻断页面级横向溢出。与 axe 合并后的 CI 浏览器门禁共 26/26 通过。
+- 根目录 `performance-budgets.json` 记录可执行的阶段预算：当前首屏课程事实不得超过 3,250,000 字节，空闲/按需资料清单不得超过 420,000 字节；下一阶段拆分后的首屏数据目标不高于 750,000 字节。staging Web Vitals 仍以 LCP≤2.5 秒、INP≤200 毫秒、CLS≤0.1 为验收线，当前本地数据体积门禁不冒充 staging 实测。
+- 本轮验证：主仓领域 Node 63/63、个人存储/同步 9/9、auth-api 72/72、小影 26/26、构建后渲染 4/4、浏览器门禁 26/26、`npm run typecheck`、CSS 审计、全仓 ESLint、生产构建与 `git diff --check` 通过；本轮未部署。
 
 ## 当前数据规模
 
@@ -186,7 +188,10 @@
 - 核心体验回归：`node --test tests/product-experience.test.mjs`
 - 教师/教材导入预检回归：`node --test tests/academic-import-preflight.test.mjs`
 - 基础设施与安全契约：`node --test tests/infrastructure-contract.test.mjs`
+- 首屏数据与 staging 指标预算：`node --test tests/performance-budget.test.mjs`
 - 桌面与手机无障碍门禁：`npm run test:a11y`
+- 平板与手机横屏布局门禁：`npm run test:responsive`
+- 完整浏览器门禁：`npm run test:browser`
 - 小影回归：`npm run test:xiaoying`
 - 生产依赖审计：主站和 `xiaoying-executor` 分别执行 `npm audit --omit=dev --audit-level=high`
 - 代码检查：`npx eslint app services tests scripts xiaoying-executor/bin xiaoying-executor/src`

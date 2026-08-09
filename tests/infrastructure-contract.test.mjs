@@ -27,12 +27,37 @@ test("CI blocks critical and serious accessibility regressions on desktop and mo
     packageJson.scripts["test:a11y"],
     "playwright test tests/e2e/accessibility.spec.ts",
   );
+  assert.equal(packageJson.scripts["test:browser"], "playwright test");
   assert.match(workflow, /playwright install --with-deps chromium/);
-  assert.match(workflow, /npm run test:a11y/);
+  assert.match(workflow, /npm run test:browser/);
   assert.match(config, /devices\["Desktop Chrome"\]/);
   assert.match(config, /devices\["Pixel 5"\]/);
+  assert.match(config, /width: 768, height: 1024/);
+  assert.match(config, /width: 667, height: 375/);
   assert.match(suite, /blockingImpacts = new Set\(\["critical", "serious"\]\)/);
   assert.match(suite, /new AxeBuilder\(\{ page \}\)/);
+});
+
+test("CI checks five main views for tablet and landscape overflow", async () => {
+  const packageJson = JSON.parse(await read("package.json"));
+  const workflow = await read(".github/workflows/quality.yml");
+  const config = await read("playwright.config.ts");
+  const suite = await read("tests/e2e/responsive.spec.ts");
+
+  assert.equal(
+    packageJson.scripts["test:responsive"],
+    "playwright test tests/e2e/responsive.spec.ts",
+  );
+  assert.match(workflow, /npm run test:browser/);
+  assert.match(config, /name: "tablet"/);
+  assert.match(config, /name: "mobile-landscape"/);
+  assert.match(suite, /\.today-page/);
+  assert.match(suite, /\.catalog-page-v2/);
+  assert.match(suite, /\.schedule-page/);
+  assert.match(suite, /\.rooms-page/);
+  assert.match(suite, /\.me-page/);
+  assert.match(suite, /document\.documentElement\.scrollWidth/);
+  assert.match(suite, /toBeLessThanOrEqual/);
 });
 
 test("PostgreSQL is private, resource-limited, health-checked, and log-rotated", async () => {

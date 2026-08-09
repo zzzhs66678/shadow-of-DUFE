@@ -4,7 +4,6 @@ const localBrowserChannel = process.env.CI ? undefined : "chrome";
 
 export default defineConfig({
   testDir: "./tests/e2e",
-  testMatch: /accessibility\.spec\.ts/,
   timeout: 45_000,
   expect: {
     timeout: 10_000,
@@ -30,11 +29,27 @@ export default defineConfig({
   projects: [
     {
       name: "desktop",
+      testMatch: /accessibility\.spec\.ts/,
       use: { ...devices["Desktop Chrome"] },
     },
     {
       name: "mobile",
+      testMatch: /accessibility\.spec\.ts/,
       use: { ...devices["Pixel 5"] },
+    },
+    {
+      name: "tablet",
+      testMatch: /responsive\.spec\.ts/,
+      use: {
+        viewport: { width: 768, height: 1024 },
+      },
+    },
+    {
+      name: "mobile-landscape",
+      testMatch: /responsive\.spec\.ts/,
+      use: {
+        viewport: { width: 667, height: 375 },
+      },
     },
   ],
 });
