@@ -192,21 +192,6 @@
 }
 .ratingEditor input:checked + span { border-bottom: 3px solid var(--dufe-red); color: var(--dufe-red-deep); }
 .ratingEditor input:focus-visible + span { outline: 2px solid var(--dufe-red); outline-offset: -2px; }
-.reviewBodyField { display: block; margin-top: 28px; }
-.reviewBodyField > span { color: var(--dufe-muted); display: block; font-size: 10px; margin-bottom: 10px; }
-.reviewBodyField textarea {
-  background: color-mix(in srgb, var(--dufe-paper) 88%, white);
-  border: 0;
-  border-bottom: 2px solid var(--dufe-ink);
-  color: var(--dufe-ink);
-  font: 14px/1.8 var(--journal-body, sans-serif);
-  min-height: 150px;
-  padding: 14px 0;
-  resize: vertical;
-  width: 100%;
-}
-.reviewBodyField textarea:focus { border-bottom-color: var(--dufe-red); outline: 0; }
-.reviewBodyField small { color: var(--dufe-muted); display: block; font: 9px/1 var(--journal-data, monospace); margin-top: 8px; text-align: right; }
 .reviewActions { align-items: center; display: flex; flex-wrap: wrap; gap: 12px 20px; margin-top: 20px; }
 .reviewActions button { background: transparent; border: 0; border-bottom: 1px solid var(--dufe-ink); color: var(--dufe-ink); min-height: 44px; padding: 0; }
 .reviewActions button:first-child { border-bottom-color: var(--dufe-red); color: var(--dufe-red-deep); font-weight: 700; }

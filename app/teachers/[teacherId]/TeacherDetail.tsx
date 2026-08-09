@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
+import { FormField } from "../../FormField";
 import { PublicMasthead } from "../../PublicMasthead";
 import styles from "../teachers.module.css";
 
@@ -321,11 +322,9 @@ export function TeacherDetail({ teacherId }: { teacherId: string }) {
                     </fieldset>
                   ))}
                 </div>
-                <label className={styles.reviewBodyField}>
-                  <span>具体说说课堂组织、讲解、考核或资料</span>
+                <FormField label="具体说说课堂组织、讲解、考核或资料" counter={`${draftBody.normalize("NFKC").trim().length} / 3000`}>
                   <textarea value={draftBody} onChange={(event) => setDraftBody(event.target.value)} minLength={20} maxLength={3000} rows={6} placeholder="例如：课堂如何组织、哪些讲解方式有效、考核说明是否清楚……" />
-                  <small>{draftBody.normalize("NFKC").trim().length} / 3000</small>
-                </label>
+                </FormField>
                 <div className={styles.reviewActions}>
                   <button type="submit" disabled={reviewAction !== "idle"}>{reviewAction === "saving" ? "正在保存" : "保存并公开"}</button>
                   {ownReview && !confirmDelete && <button type="button" onClick={() => setConfirmDelete(true)} disabled={reviewAction !== "idle"}>删除我的评价</button>}

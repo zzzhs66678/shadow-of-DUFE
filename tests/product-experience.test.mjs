@@ -46,6 +46,18 @@ const dialogBackdropStyles = await readFile(
   new URL("../app/dialog-backdrop.module.css", import.meta.url),
   "utf8",
 );
+const formFieldSource = await readFile(
+  new URL("../app/FormField.tsx", import.meta.url),
+  "utf8",
+);
+const formFieldStyles = await readFile(
+  new URL("../app/form-field.module.css", import.meta.url),
+  "utf8",
+);
+const communityHubSource = await readFile(
+  new URL("../app/community/CommunityHub.tsx", import.meta.url),
+  "utf8",
+);
 const communitySource = await readFile(
   new URL("../app/community/CommunityShared.tsx", import.meta.url),
   "utf8",
@@ -161,6 +173,23 @@ test("community and admin dialogs share one dismissible responsive backdrop", ()
   assert.doesNotMatch(communityStyles, /\.reportSheet > div button/);
   assert.doesNotMatch(adminStyles, /\.(?:modalBackdrop|moderationBackdrop)/);
   assert.doesNotMatch(adminStyles, /\.(?:actionSheet|caseSheet) (?:button|> footer)/);
+});
+
+test("editorial forms share one paper-and-ink field primitive", () => {
+  assert.match(formFieldSource, /labelRow/);
+  assert.match(formFieldSource, /counter/);
+  assert.match(formFieldSource, /variant === "display"/);
+  assert.match(formFieldStyles, /min-height:\s*44px/);
+  assert.match(formFieldStyles, /:focus-visible/);
+  assert.match(formFieldStyles, /--dufe-red/);
+  assert.match(formFieldStyles, /prefers-reduced-motion:\s*reduce/);
+
+  for (const source of [communityHubSource, communitySource, communityTopicSource, teacherDetailSource]) {
+    assert.match(source, /import \{ FormField \}/);
+    assert.match(source, /<FormField/);
+  }
+  assert.doesNotMatch(communityStyles, /\.composer input:focus/);
+  assert.doesNotMatch(teacherStyles, /\.reviewBodyField/);
 });
 
 test("personal activities default to cinnabar while legacy blue renders as charcoal", () => {

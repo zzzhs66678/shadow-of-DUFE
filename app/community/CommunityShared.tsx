@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { DialogActions, DialogBackdrop } from "../DialogBackdrop";
+import { FormField } from "../FormField";
 import { useModalFocus } from "../use-modal-focus";
 import { PublicMasthead } from "../PublicMasthead";
 import {
@@ -131,16 +132,14 @@ export function ReportDialog({
         <span>社区安全</span>
         <h2 id="community-report-title">举报“{target.label}”</h2>
         <p>举报不会通知对方。审核员会看到你选择的原因和补充说明。</p>
-        <label>
-          <span>问题类型</span>
+        <FormField label="问题类型">
           <select value={reasonCode} onChange={(event) => setReasonCode(event.target.value as typeof reasonCode)}>
             {reportReasons.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
-        </label>
-        <label>
-          <span>补充说明{reasonCode === "other" ? "（至少 8 个字）" : "（可选）"}</span>
+        </FormField>
+        <FormField label={`补充说明${reasonCode === "other" ? "（至少 8 个字）" : "（可选）"}`} counter={`${detail.length} / 1000`}>
           <textarea value={detail} onChange={(event) => setDetail(event.target.value)} maxLength={1000} rows={5} />
-        </label>
+        </FormField>
         {error && <p className={styles.formError} role="alert">{error}</p>}
         <DialogActions>
           <button type="button" onClick={resetAndClose} disabled={busy}>取消</button>

@@ -75,30 +75,6 @@
 .composer header { align-items: center; display: flex; justify-content: space-between; margin-bottom: 30px; }
 .composer header span { font: 500 25px/1 var(--serif); }
 .composer header small { color: var(--muted); font: 8px/1 var(--mono); letter-spacing: .08em; }
-.composer > label,
-.inlineEditor > label,
-.reportSheet > label { display: block; margin-top: 22px; }
-.composer label > span,
-.inlineEditor label > span,
-.reportSheet label > span { color: var(--muted); display: block; font-size: 10px; margin-bottom: 8px; }
-.composer input,
-.composer textarea,
-.composer select,
-.inlineEditor input,
-.inlineEditor textarea,
-.reportSheet select,
-.reportSheet textarea { background: transparent; border: 0; border-bottom: 1px solid var(--ink); border-radius: 0; color: var(--ink); font: inherit; outline: 0; padding: 12px 4px; resize: vertical; width: 100%; }
-.composer input { font: 500 clamp(22px, 3vw, 34px)/1.35 var(--serif); }
-.composer textarea,
-.inlineEditor textarea,
-.reportSheet textarea { line-height: 1.8; }
-.composer input:focus,
-.composer textarea:focus,
-.composer select:focus,
-.inlineEditor input:focus,
-.inlineEditor textarea:focus,
-.reportSheet select:focus,
-.reportSheet textarea:focus { border-color: var(--red); box-shadow: 0 3px 0 rgba(198, 43, 39, .12); }
 .composerFooter { align-items: end; display: flex; gap: 24px; justify-content: space-between; margin-top: 24px; }
 .visibility { flex: 1; max-width: 300px; }
 .composerFooter > button,

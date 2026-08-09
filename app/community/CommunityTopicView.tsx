@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { DialogActions, DialogBackdrop } from "../DialogBackdrop";
+import { FormField } from "../FormField";
 import {
   authorName,
   communityErrorMessage,
@@ -279,8 +280,8 @@ export function CommunityTopicView({ topicId }: { topicId: string }) {
       {editingTopic && (
         <form className={styles.inlineEditor} onSubmit={saveTopic}>
           <header><b>编辑主题</b><button type="button" onClick={() => setEditingTopic(false)}>取消</button></header>
-          <label><span>标题</span><input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} minLength={4} maxLength={120} autoFocus /></label>
-          <label><span>正文</span><textarea value={editBody} onChange={(event) => setEditBody(event.target.value)} maxLength={5000} rows={9} /></label>
+          <FormField label="标题" counter={`${editTitle.length} / 120`} variant="display"><input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} minLength={4} maxLength={120} autoFocus /></FormField>
+          <FormField label="正文" counter={`${editBody.length} / 5000`}><textarea value={editBody} onChange={(event) => setEditBody(event.target.value)} maxLength={5000} rows={9} /></FormField>
           <button disabled={busy === "edit-topic" || editTitle.trim().length < 4 || !editBody.trim()}>{busy === "edit-topic" ? "正在保存" : "保存更改"}</button>
         </form>
       )}
@@ -328,7 +329,7 @@ export function CommunityTopicView({ topicId }: { topicId: string }) {
         <DialogBackdrop onDismiss={closeEditComment} dismissDisabled={Boolean(busy)}>
           <form ref={editCommentRef} className={styles.reportSheet} role="dialog" aria-modal="true" aria-labelledby="edit-comment-title" onSubmit={saveComment}>
             <span>修改回复</span><h2 id="edit-comment-title">编辑这条回复</h2>
-            <textarea value={editCommentBody} onChange={(event) => setEditCommentBody(event.target.value)} maxLength={3000} rows={8} autoFocus />
+            <FormField label="回复正文" counter={`${editCommentBody.length} / 3000`}><textarea value={editCommentBody} onChange={(event) => setEditCommentBody(event.target.value)} maxLength={3000} rows={8} autoFocus /></FormField>
             <DialogActions><button type="button" onClick={() => setEditingComment(null)}>取消</button><button disabled={busy === `comment-edit:${editingComment.id}` || !editCommentBody.trim()}>保存更改</button></DialogActions>
           </form>
         </DialogBackdrop>
