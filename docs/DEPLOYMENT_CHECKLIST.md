@@ -8,6 +8,7 @@
 
 - [ ] 明确 staging 域名、数据库、文件存储和回调地址，与生产完全隔离。
 - [ ] `POSTGRES_PASSWORD`、`AUTH_TOKEN_PEPPER`、`AUTH_ADMIN_MFA_KEYS`、`AUTH_ADMIN_RECOVERY_PEPPER`、邮件凭据、微信 AppSecret、上传存储密钥和小影主密钥只存在于受限环境文件或密钥管理服务。
+- [ ] 小影正式环境同时设置至少 12 位随机 `XIAOYING_DEFAULT_INVITE_CODE` 与 1—500 的 `XIAOYING_DEFAULT_INVITE_MAX_USES`；使用前复核本批计划人数，轮换时确认旧码立即失效。
 - [ ] `.env.example` 列全变量但不含真实值；服务器环境文件权限为 600。
 - [ ] 微信 AppID/AppSecret 与审核状态真实可用；若缺失，正式 UI 只提供已验证的降级登录。
 - [ ] 对象存储/头像存储凭据真实可用；若未开通，使用经过验证的本地受限存储适配器并记录容量边界。

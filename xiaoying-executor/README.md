@@ -35,9 +35,10 @@ npm run xiaoying:x1:lan
 
 默认地址为 `http://127.0.0.1:43120/`，默认本地邀请码为 `fjbadguy`。本地数据库和自动生成的主密钥保存在 `xiaoying-executor/.local-data/`，该目录不会进入 Git。
 
-正式环境必须通过 `XIAOYING_MASTER_KEY` 提供独立的 32 字节 Base64 主密钥，并设置至少
-12 位的 `XIAOYING_DEFAULT_INVITE_CODE`。数据库保存在独立持久卷，远程二维码授权必须配置
-HTTPS 地址和子路径：
+正式环境必须通过 `XIAOYING_MASTER_KEY` 提供独立的 32 字节 Base64 主密钥，设置至少
+12 位的 `XIAOYING_DEFAULT_INVITE_CODE`，并用 `XIAOYING_DEFAULT_INVITE_MAX_USES`
+把本批邀请码限制在 1—500 次。可复制 `xiaoying.env.example` 到服务器 600 权限环境文件；
+真实值不得提交。数据库保存在独立持久卷，远程二维码授权必须配置 HTTPS 地址和子路径：
 
 ```powershell
 $env:XIAOYING_PUBLIC_BASE_URL = "https://dufesh.cn/campus-lab"

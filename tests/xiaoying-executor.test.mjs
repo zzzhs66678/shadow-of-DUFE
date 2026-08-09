@@ -59,6 +59,30 @@ test("X1 local console inline script remains valid JavaScript", () => {
   assert.doesNotThrow(() => new Function(scripts[0][1]));
 });
 
+test("production requires an explicit bounded invite allowance", async () => {
+  const env = {
+    ...process.env,
+    NODE_ENV: "production",
+    XIAOYING_DEFAULT_INVITE_CODE: "production-invite-code",
+    XIAOYING_MASTER_KEY: Buffer.alloc(32, 23).toString("base64"),
+    XIAOYING_PUBLIC_BASE_URL: "https://dufesh.cn/campus-lab",
+  };
+  delete env.XIAOYING_DEFAULT_INVITE_MAX_USES;
+  const child = spawn(process.execPath, ["xiaoying-executor/bin/server.mjs"], {
+    cwd: new URL("..", import.meta.url),
+    env,
+    stdio: ["ignore", "ignore", "pipe"],
+  });
+  let stderr = "";
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk;
+  });
+  const exitCode = await new Promise((resolve) => child.once("exit", resolve));
+
+  assert.equal(exitCode, 1);
+  assert.match(stderr, /XIAOYING_DEFAULT_INVITE_MAX_USES/);
+});
+
 test("production HTTP surface isolates cookies, paths, origins, and invite bursts", async () => {
   const directory = await mkdtemp(join(tmpdir(), "xiaoying-http-"));
   const port = await freePort();
@@ -73,6 +97,7 @@ test("production HTTP surface isolates cookies, paths, origins, and invite burst
       XIAOYING_PUBLIC_BASE_URL: "https://dufesh.cn/campus-lab",
       XIAOYING_BASE_PATH: "/campus-lab",
       XIAOYING_DEFAULT_INVITE_CODE: inviteCode,
+      XIAOYING_DEFAULT_INVITE_MAX_USES: "20",
       XIAOYING_MASTER_KEY: Buffer.alloc(32, 19).toString("base64"),
       XIAOYING_DATABASE_PATH: join(directory, "xiaoying.sqlite"),
       XIAOYING_TRACEINT_PROTOCOL_PATH: join(directory, "protocol.json"),
@@ -588,6 +613,63 @@ test("VIP invite creates an expiring local session without storing the raw code"
   store.revokeSession(unlocked.sessionToken);
   assert.equal(store.authenticate(unlocked.sessionToken), null);
   store.close();
+});
+
+test("default invite allowance survives restart and code rotation resets it safely", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "xiaoying-invite-limit-"));
+  const databasePath = join(directory, "xiaoying.sqlite");
+  const masterKey = Buffer.alloc(32, 24);
+  let store = new XiaoyingLocalStore({
+    databasePath,
+    masterKey,
+    defaultInviteCode: "bounded-invite-one",
+    defaultInviteMaxUses: 2,
+    clock: () => baseTime,
+  });
+
+  try {
+    store.unlockVip({ inviteCode: "bounded-invite-one", displayName: "第一位" });
+    store.unlockVip({ inviteCode: "bounded-invite-one", displayName: "第二位" });
+    assert.throws(
+      () =>
+        store.unlockVip({ inviteCode: "bounded-invite-one", displayName: "第三位" }),
+      /使用上限/,
+    );
+    store.close();
+
+    store = new XiaoyingLocalStore({
+      databasePath,
+      masterKey,
+      defaultInviteCode: "bounded-invite-one",
+      defaultInviteMaxUses: 2,
+      clock: () => baseTime,
+    });
+    assert.throws(
+      () => store.unlockVip({ inviteCode: "bounded-invite-one", displayName: "重启后" }),
+      /使用上限/,
+    );
+    store.close();
+
+    store = new XiaoyingLocalStore({
+      databasePath,
+      masterKey,
+      defaultInviteCode: "bounded-invite-two",
+      defaultInviteMaxUses: 1,
+      clock: () => baseTime,
+    });
+    assert.throws(
+      () => store.unlockVip({ inviteCode: "bounded-invite-one", displayName: "旧码" }),
+      /无效/,
+    );
+    store.unlockVip({ inviteCode: "bounded-invite-two", displayName: "新码" });
+    assert.throws(
+      () => store.unlockVip({ inviteCode: "bounded-invite-two", displayName: "超额" }),
+      /使用上限/,
+    );
+  } finally {
+    store.close();
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("per-user model key is encrypted and API summaries never expose plaintext", () => {

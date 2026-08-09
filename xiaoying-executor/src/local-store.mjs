@@ -48,6 +48,7 @@ export class XiaoyingLocalStore {
     databasePath,
     masterKey,
     defaultInviteCode = "fjbadguy",
+    defaultInviteMaxUses = 20,
     clock = () => Date.now(),
   }) {
     if (databasePath !== ":memory:") mkdirSync(dirname(databasePath), { recursive: true });
@@ -56,7 +57,7 @@ export class XiaoyingLocalStore {
     this.clock = clock;
     this.db.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;");
     this.#migrate();
-    this.#seedDefaultInvite(defaultInviteCode);
+    this.#seedDefaultInvite(defaultInviteCode, defaultInviteMaxUses);
   }
 
   close() {
@@ -82,6 +83,16 @@ export class XiaoyingLocalStore {
 
     this.db.exec("BEGIN IMMEDIATE");
     try {
+      const consumed = this.db
+        .prepare(
+          `UPDATE invite_codes SET use_count = use_count + 1
+           WHERE id = ? AND enabled = 1
+             AND max_uses IS NOT NULL AND use_count < max_uses`,
+        )
+        .run(invite.id);
+      if (consumed.changes !== 1) {
+        throw new Error("邀请码无效或已达到使用上限");
+      }
       this.db
         .prepare("INSERT INTO users (id, display_name, created_at) VALUES (?, ?, ?)")
         .run(userId, cleanDisplayName(displayName), createdAt);
@@ -95,9 +106,6 @@ export class XiaoyingLocalStore {
           "INSERT INTO sessions (id, user_id, token_hash, created_at, expires_at) VALUES (?, ?, ?, ?, ?)",
         )
         .run(sessionId, userId, hashToken(sessionToken), createdAt, expiresAt);
-      this.db
-        .prepare("UPDATE invite_codes SET use_count = use_count + 1 WHERE id = ?")
-        .run(invite.id);
       this.db.exec("COMMIT");
     } catch (error) {
       this.db.exec("ROLLBACK");
@@ -1421,18 +1429,43 @@ export class XiaoyingLocalStore {
     return { courses, assignments, events, notifications, syncState };
   }
 
-  #seedDefaultInvite(defaultInviteCode) {
+  #seedDefaultInvite(defaultInviteCode, defaultInviteMaxUses) {
+    const maxUses = Math.max(1, Math.min(Number(defaultInviteMaxUses) || 20, 500));
     const exists = this.db
-      .prepare("SELECT 1 AS ok FROM invite_codes WHERE label = 'default-local-vip'")
+      .prepare(
+        `SELECT id, code_hash, max_uses AS maxUses
+         FROM invite_codes WHERE label = 'default-local-vip'`,
+      )
       .get();
-    if (exists) return;
+    if (exists) {
+      const codeMatches = verifyInviteCode(defaultInviteCode, exists.code_hash);
+      this.db
+        .prepare(
+          `UPDATE invite_codes SET code_hash = ?, max_uses = ?,
+             use_count = CASE WHEN ? THEN use_count ELSE 0 END,
+             enabled = 1
+           WHERE id = ?`,
+        )
+        .run(
+          codeMatches ? exists.code_hash : hashInviteCode(defaultInviteCode),
+          maxUses,
+          codeMatches ? 1 : 0,
+          exists.id,
+        );
+      return;
+    }
     this.db
       .prepare(
         `INSERT INTO invite_codes
           (id, label, code_hash, max_uses, use_count, enabled, created_at)
-         VALUES (?, 'default-local-vip', ?, NULL, 0, 1, ?)`,
+         VALUES (?, 'default-local-vip', ?, ?, 0, 1, ?)`,
       )
-      .run(randomUUID(), hashInviteCode(defaultInviteCode), nowIso(this.clock));
+      .run(
+        randomUUID(),
+        hashInviteCode(defaultInviteCode),
+        maxUses,
+        nowIso(this.clock),
+      );
   }
 
   #migrate() {

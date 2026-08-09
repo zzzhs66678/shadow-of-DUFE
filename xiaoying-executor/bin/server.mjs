@@ -26,6 +26,10 @@ const bearerToken = process.env.XIAOYING_EXECUTOR_TOKEN ?? "";
 const isProduction = process.env.NODE_ENV === "production";
 const defaultInviteCode =
   process.env.XIAOYING_DEFAULT_INVITE_CODE ?? (isProduction ? "" : "fjbadguy");
+const defaultInviteMaxUses = Number.parseInt(
+  process.env.XIAOYING_DEFAULT_INVITE_MAX_USES ?? (isProduction ? "" : "20"),
+  10,
+);
 const configuredPublicBaseUrl = process.env.XIAOYING_PUBLIC_BASE_URL ?? "";
 const configuredBasePath = process.env.XIAOYING_BASE_PATH ?? "";
 const DURABLE_CONFIRM_TASKS = new Set([
@@ -62,6 +66,14 @@ const sessionCookieName = secureCookie
 
 if (isProduction && defaultInviteCode.length < 12) {
   console.error("生产环境必须配置至少 12 位的 XIAOYING_DEFAULT_INVITE_CODE");
+  process.exit(1);
+}
+if (
+  !Number.isInteger(defaultInviteMaxUses) ||
+  defaultInviteMaxUses < 1 ||
+  defaultInviteMaxUses > 500
+) {
+  console.error("必须配置 1-500 之间的 XIAOYING_DEFAULT_INVITE_MAX_USES");
   process.exit(1);
 }
 if (isProduction && !process.env.XIAOYING_MASTER_KEY) {
@@ -120,6 +132,7 @@ const store = new XiaoyingLocalStore({
   databasePath,
   masterKey,
   defaultInviteCode,
+  defaultInviteMaxUses,
 });
 const pairingService = new PairingService();
 
