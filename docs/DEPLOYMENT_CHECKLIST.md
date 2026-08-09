@@ -43,6 +43,7 @@
 - [ ] auth-api 与小影镜像在目标架构验证原生依赖可加载。
 - [ ] 容器使用非 root、只读文件系统、受限 tmpfs、CPU/内存/PID 与日志轮转。
 - [ ] Caddy 只依赖主站核心服务启动；小影故障不会阻止主站和账号入口。
+- [ ] `curl -I` 验证 `http://112.126.75.74/<path>?<query>` 与 `https://www.dufesh.cn/<path>?<query>` 均只经一次 308 到 `https://dufesh.cn` 同路径/查询；IP 响应不含应用正文或 `Set-Cookie`。
 - [ ] PostgreSQL、auth-api、小影不映射公网端口。
 - [ ] 静态资料和上传目录只授予所需读写权限，路径遍历测试通过。
 - [ ] `/api/materials` 数量与发布清单一致，随机抽样列表、详情、预览、下载、404/410 与 403 状态；旧 `/resources/files/*` 有效链接保持兼容。

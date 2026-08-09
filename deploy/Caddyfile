@@ -80,5 +80,5 @@ www.dufesh.cn {
 }
 
 http://112.126.75.74 {
-	import dufesh_proxy
+	redir https://dufesh.cn{uri} 308
 }

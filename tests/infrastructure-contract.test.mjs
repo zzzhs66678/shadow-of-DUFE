@@ -646,6 +646,10 @@ test("static assets and route discovery have explicit cache and SEO policy", asy
   assert.match(server, /"X-Content-Type-Options": "nosniff"/);
   assert.match(caddy, /\.well-known\/security\.txt[\s\S]*text\/plain/);
   assert.match(caddy, /www\.dufesh\.cn[\s\S]*redir https:\/\/dufesh\.cn\{uri\} 308/);
+  assert.match(
+    caddy,
+    /http:\/\/112\.126\.75\.74 \{\r?\n\tredir https:\/\/dufesh\.cn\{uri\} 308\r?\n\}/,
+  );
   assert.match(robots, /\/campus-lab\//);
   assert.match(sitemap, /https:\/\/dufesh\.cn\/privacy/);
   assert.match(layout, /application\/ld\+json/);
