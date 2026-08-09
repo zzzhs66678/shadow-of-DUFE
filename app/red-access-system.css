@@ -1352,44 +1352,31 @@ textarea {
   padding-top: 14px;
 }
 
-.credential-gateway label {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
+.credential-field {
+  --dufe-ink: var(--journal-ink);
+  --dufe-muted: var(--journal-muted);
+  --dufe-red: var(--journal-red);
+  margin-top: 0;
 }
 
-.credential-gateway label > span {
-  color: var(--journal-muted);
+.credential-field > span:first-child {
   font: 700 10px/1.3 var(--journal-mono);
   letter-spacing: .08em;
 }
 
-.credential-gateway label small {
+.credential-field > span:last-child:not(:first-child) {
   color: var(--journal-muted);
   font: 500 9px/1.3 var(--journal-sans);
   letter-spacing: 0;
 }
 
-.credential-gateway input {
-  background: transparent;
-  border: 0;
+.credential-field > input {
   border-bottom: 1px solid color-mix(in srgb, var(--journal-ink) 42%, transparent);
-  border-radius: 0;
-  color: var(--journal-ink);
   font: 600 14px/1.35 var(--journal-sans);
-  min-height: 44px;
-  min-width: 0;
-  outline: 0;
   padding: 8px 2px;
-  width: 100%;
 }
 
-.credential-gateway input:focus {
-  border-bottom-color: var(--journal-red);
-  box-shadow: 0 2px 0 var(--journal-red-soft);
-}
-
-.credential-gateway input::placeholder {
+.credential-field > input::placeholder {
   color: color-mix(in srgb, var(--journal-muted) 70%, transparent);
   font-weight: 450;
 }
@@ -1499,8 +1486,7 @@ textarea {
 }
 
 .account-profile > header span,
-.account-profile dt,
-.account-profile label > span {
+.account-profile dt {
   color: var(--journal-muted);
   font: 700 9px/1.4 var(--journal-mono);
   letter-spacing: .08em;
@@ -1583,33 +1569,29 @@ textarea {
   margin-top: 18px;
 }
 
-.account-profile label {
-  display: grid;
-  gap: 5px;
-  min-width: 0;
+.profile-field,
+.verification-field {
+  --dufe-ink: var(--journal-ink);
+  --dufe-muted: var(--journal-muted);
+  --dufe-red: var(--journal-red);
+  margin-top: 0;
 }
 
-.account-profile label small {
+.profile-field > span:first-child,
+.verification-field > span:first-child {
+  font: 700 9px/1.4 var(--journal-mono);
+  letter-spacing: .08em;
+}
+
+.profile-field > span:last-child:not(:first-child) {
   font: 500 9px/1.4 var(--journal-sans);
   letter-spacing: 0;
 }
 
-.account-profile input {
-  background: transparent;
-  border: 0;
+.profile-field > input,
+.verification-field > input {
   border-bottom: 1px solid color-mix(in srgb, var(--journal-ink) 42%, transparent);
-  border-radius: 0;
-  color: var(--journal-ink);
-  min-height: 44px;
-  min-width: 0;
-  outline: 0;
   padding: 7px 2px;
-  width: 100%;
-}
-
-.account-profile input:focus {
-  border-bottom-color: var(--journal-red);
-  box-shadow: 0 2px 0 var(--journal-red-soft);
 }
 
 .account-profile form > button {

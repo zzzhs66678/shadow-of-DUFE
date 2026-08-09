@@ -184,7 +184,7 @@ test("editorial forms share one paper-and-ink field primitive", () => {
   assert.match(formFieldStyles, /--dufe-red/);
   assert.match(formFieldStyles, /prefers-reduced-motion:\s*reduce/);
 
-  for (const source of [communityHubSource, communitySource, communityTopicSource, teacherDetailSource, materialsSource, adminSource, moderationSource]) {
+  for (const source of [component, communityHubSource, communitySource, communityTopicSource, teacherDetailSource, materialsSource, adminSource, moderationSource]) {
     assert.match(source, /import \{ FormField \}/);
     assert.match(source, /<FormField/);
   }
@@ -193,6 +193,11 @@ test("editorial forms share one paper-and-ink field primitive", () => {
   assert.doesNotMatch(materialsStyles, /\.filters select/);
   assert.doesNotMatch(adminStyles, /\.actionSheet textarea:focus/);
   assert.doesNotMatch(adminStyles, /\.caseSheet textarea:focus/);
+  assert.doesNotMatch(redAccessStyles, /\.credential-gateway input:focus/);
+  assert.doesNotMatch(redAccessStyles, /\.account-profile input:focus/);
+  assert.match(component, /className="credential-field"/);
+  assert.match(component, /className="profile-field"/);
+  assert.match(component, /className="verification-field"/);
 });
 
 test("personal activities default to cinnabar while legacy blue renders as charcoal", () => {

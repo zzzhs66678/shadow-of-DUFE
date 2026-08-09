@@ -28,6 +28,7 @@ import {
   synchronizePersonalState,
   type PersonalSyncState,
 } from "./personal-sync";
+import { FormField } from "./FormField";
 import {
   anonymousPersonalScope,
   migrateLegacyPersonalStorage,
@@ -4722,8 +4723,7 @@ function MePage({
                 </nav>
                 <form onSubmit={submitCredentials}>
                   {credentialMode === "register" && (
-                    <label>
-                      <span>用户名</span>
+                    <FormField label="用户名" className="credential-field">
                       <input
                         required
                         minLength={3}
@@ -4738,11 +4738,10 @@ function MePage({
                         }
                         placeholder="以后也可以用它登录"
                       />
-                    </label>
+                    </FormField>
                   )}
                   {credentialMode === "register" ? (
-                    <label>
-                      <span>邮箱</span>
+                    <FormField label="邮箱" className="credential-field">
                       <input
                         required
                         type="email"
@@ -4757,15 +4756,13 @@ function MePage({
                         }
                         placeholder="用于登录和找回密码"
                       />
-                    </label>
+                    </FormField>
                   ) : (
                     !credentialForm.resetToken && (
-                      <label>
-                        <span>
-                          {credentialMode === "login"
-                            ? "用户名或邮箱"
-                            : "账号邮箱"}
-                        </span>
+                      <FormField
+                        label={credentialMode === "login" ? "用户名或邮箱" : "账号邮箱"}
+                        className="credential-field"
+                      >
                         <input
                           required
                           maxLength={254}
@@ -4785,14 +4782,14 @@ function MePage({
                               : "you@example.com"
                           }
                         />
-                      </label>
+                      </FormField>
                     )
                   )}
                   {(credentialMode !== "reset" || credentialForm.resetToken) && (
-                    <label>
-                      <span>
-                        {credentialMode === "reset" ? "新密码" : "密码"}
-                      </span>
+                    <FormField
+                      label={credentialMode === "reset" ? "新密码" : "密码"}
+                      className="credential-field"
+                    >
                       <input
                         required
                         type="password"
@@ -4816,11 +4813,14 @@ function MePage({
                             : "至少 10 位，包含文字与数字或符号"
                         }
                       />
-                    </label>
+                    </FormField>
                   )}
                   {credentialMode === "register" && (
-                    <label>
-                      <span>校园账号 <small>选填，不会自动认证身份</small></span>
+                    <FormField
+                      label="校园账号"
+                      hint="选填，不会自动认证身份"
+                      className="credential-field"
+                    >
                       <input
                         maxLength={32}
                         autoComplete="off"
@@ -4833,7 +4833,7 @@ function MePage({
                         }
                         placeholder="学号或校园账号"
                       />
-                    </label>
+                    </FormField>
                   )}
                   {credentialFeedback && (
                     <p className="credential-feedback" aria-live="polite">
@@ -4953,8 +4953,7 @@ function MePage({
               </header>
               {profileEditing ? (
                 <form onSubmit={saveAccountProfile}>
-                  <label>
-                    <span>用户名</span>
+                  <FormField label="用户名" className="profile-field">
                     <input
                       required
                       minLength={3}
@@ -4968,9 +4967,8 @@ function MePage({
                         }))
                       }
                     />
-                  </label>
-                  <label>
-                    <span>显示名</span>
+                  </FormField>
+                  <FormField label="显示名" className="profile-field">
                     <input
                       required
                       maxLength={40}
@@ -4983,9 +4981,12 @@ function MePage({
                         }))
                       }
                     />
-                  </label>
-                  <label>
-                    <span>校园账号 <small>选填，修改后需重新验证</small></span>
+                  </FormField>
+                  <FormField
+                    label="校园账号"
+                    hint="选填，修改后需重新验证"
+                    className="profile-field"
+                  >
                     <input
                       maxLength={32}
                       autoComplete="off"
@@ -4997,7 +4998,7 @@ function MePage({
                         }))
                       }
                     />
-                  </label>
+                  </FormField>
                   {profileFeedback && (
                     <p aria-live="polite">{profileFeedback}</p>
                   )}
@@ -5050,8 +5051,7 @@ function MePage({
                     </div>
                     {emailVerificationToken ? (
                       <form onSubmit={confirmEmailVerification}>
-                        <label>
-                          <span>一次性验证令牌</span>
+                        <FormField label="一次性验证令牌" className="verification-field">
                           <input
                             required
                             maxLength={64}
@@ -5061,7 +5061,7 @@ function MePage({
                               setEmailVerificationToken(event.target.value)
                             }
                           />
-                        </label>
+                        </FormField>
                         <button
                           disabled={
                             accountBusy === "email-verification-confirm"
