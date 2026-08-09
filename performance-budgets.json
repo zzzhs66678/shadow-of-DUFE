@@ -1,6 +1,10 @@
 {
   "version": 1,
   "initialRoute": {
+    "path": "public/data/course-core.json",
+    "maxBytes": 750000
+  },
+  "deferredCourseIndex": {
     "path": "public/data/course-data.json",
     "maxBytes": 3250000
   },
@@ -8,7 +12,7 @@
     "path": "public/data/resource-manifest.json",
     "maxBytes": 420000
   },
-  "nextInitialDataTargetBytes": 750000,
+  "initialDataTargetBytes": 750000,
   "stagingWebVitals": {
     "lcpMs": 2500,
     "inpMs": 200,

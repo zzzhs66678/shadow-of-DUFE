@@ -9,6 +9,9 @@ test("initial data and staging Web Vitals budgets stay explicit", async () => {
     await readFile(new URL("performance-budgets.json", repositoryRoot), "utf8"),
   );
   const initialData = await stat(new URL(budget.initialRoute.path, repositoryRoot));
+  const courseIndex = await stat(
+    new URL(budget.deferredCourseIndex.path, repositoryRoot),
+  );
   const materials = await stat(
     new URL(budget.deferredMaterials.path, repositoryRoot),
   );
@@ -19,12 +22,16 @@ test("initial data and staging Web Vitals budgets stay explicit", async () => {
     `${budget.initialRoute.path} is ${initialData.size} bytes; budget is ${budget.initialRoute.maxBytes}`,
   );
   assert.ok(
+    courseIndex.size <= budget.deferredCourseIndex.maxBytes,
+    `${budget.deferredCourseIndex.path} is ${courseIndex.size} bytes; budget is ${budget.deferredCourseIndex.maxBytes}`,
+  );
+  assert.ok(
     materials.size <= budget.deferredMaterials.maxBytes,
     `${budget.deferredMaterials.path} is ${materials.size} bytes; budget is ${budget.deferredMaterials.maxBytes}`,
   );
   assert.ok(
-    budget.nextInitialDataTargetBytes <= 750_000,
-    "the next initial data target must stay at or below 750 KB",
+    budget.initialDataTargetBytes <= 750_000,
+    "the initial data target must stay at or below 750 KB",
   );
   assert.deepEqual(budget.stagingWebVitals, {
     lcpMs: 2500,

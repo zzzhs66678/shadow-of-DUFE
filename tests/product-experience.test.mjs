@@ -128,8 +128,12 @@ test("the daily workspace defers non-critical materials until idle or demand", (
   const shellSource = component.slice(shellStart, hubStart);
   const hubSource = component.slice(hubStart, homeStart);
 
-  assert.match(shellSource, /fetch\("\/data\/course-data\.json"\)/);
+  assert.match(shellSource, /fetch\("\/data\/course-core\.json"\)/);
+  assert.doesNotMatch(shellSource, /fetch\("\/data\/course-data\.json"\)/);
   assert.doesNotMatch(shellSource, /resource-manifest\.json/);
+  assert.match(hubSource, /fetch\("\/data\/course-data\.json"\)/);
+  assert.match(hubSource, /fullDataRequired/);
+  assert.match(hubSource, /view === "catalog" \|\| view === "schedule" \|\| view === "rooms"/);
   assert.match(hubSource, /materialsRequestRef/);
   assert.match(hubSource, /requestIdleCallback/);
   assert.match(hubSource, /setTimeout\(\(\) => void loadMaterials\(\), 1200\)/);

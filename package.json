@@ -16,6 +16,7 @@
     "test:responsive": "playwright test tests/e2e/responsive.spec.ts",
     "test:browser": "playwright test",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern .codex_tmp --ignore-pattern outputs --ignore-pattern work --ignore-pattern test-results --ignore-pattern playwright-report --ignore-pattern blob-report",
+    "build:course-core": "node scripts/build-course-core.mjs",
     "db:generate": "drizzle-kit generate",
     "import:academic:preflight": "node scripts/academic-import-preflight.mjs",
     "import:academic:write": "node scripts/academic-import-apply.mjs",

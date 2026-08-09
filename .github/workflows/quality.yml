@@ -34,6 +34,7 @@ jobs:
       - name: Run regression tests
         run: |
           node --test tests/course-schedule-logic.test.mjs
+          node --test tests/course-core-data.test.mjs
           node --test tests/product-experience.test.mjs
           node --test tests/performance-budget.test.mjs
           node --test tests/infrastructure-contract.test.mjs

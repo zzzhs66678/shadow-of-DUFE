@@ -49,6 +49,7 @@ test("CI checks five main views for tablet and landscape overflow", async () => 
     "playwright test tests/e2e/responsive.spec.ts",
   );
   assert.match(workflow, /npm run test:browser/);
+  assert.match(workflow, /tests\/course-core-data\.test\.mjs/);
   assert.match(config, /name: "tablet"/);
   assert.match(config, /name: "mobile-landscape"/);
   assert.match(suite, /\.today-page/);

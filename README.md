@@ -4,7 +4,7 @@
 
 - 正式站：[dufesh.cn](https://dufesh.cn)
 - 技术栈：React、TypeScript、vinext、PostgreSQL、Caddy、Docker
-- 课程数据：由 Excel 离线生成到 `public/data/course-data.json`
+- 课程数据：由 Excel 离线生成完整 `public/data/course-data.json`，并同步生成首页轻量 `public/data/course-core.json`
 - VIP 校园服务：独立的 `xiaoying-executor`，通过主站子路径隔离运行
 
 ## 开始维护

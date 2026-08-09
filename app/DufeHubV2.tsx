@@ -92,6 +92,93 @@ type SiteData = {
   schedules: Schedule[];
   quality: { roomScheduleRows: number };
 };
+type CourseCorePayload = {
+  version: 1;
+  disclaimer: string;
+  periods: SiteData["periods"];
+  buildings: string[];
+  colleges: SiteData["colleges"];
+  majors: Major[];
+  quality: SiteData["quality"];
+  courseTitles: Array<[courseId: string, title: string]>;
+  dictionaries: {
+    teachers: string[];
+    timeTexts: string[];
+    venues: string[];
+    rooms: string[];
+  };
+  schedules: Array<
+    [
+      id: string,
+      term: 0 | 1,
+      courseIndex: number,
+      teacherIndex: number,
+      weekday: number,
+      block: number,
+      weeks: number[] | null,
+      timeTextIndex: number,
+      venueIndex: number,
+      roomIndex: number,
+    ]
+  >;
+};
+
+function inflateCourseCore(payload: CourseCorePayload): SiteData {
+  if (payload.version !== 1) throw new Error("unsupported course core version");
+  const courses = payload.courseTitles.map(([id, title]) => ({
+    id,
+    title,
+    college: "",
+    category: "",
+    property: "",
+    credits: "",
+    textbook: "",
+    publisher: "",
+    author: "",
+    terms: [],
+    teachers: [],
+  }));
+  const schedules = payload.schedules.map(
+    ([
+      id,
+      encodedTerm,
+      courseIndex,
+      teacherIndex,
+      weekday,
+      block,
+      weeks,
+      timeTextIndex,
+      venueIndex,
+      roomIndex,
+    ]): Schedule => ({
+      id,
+      term: encodedTerm === 0 ? "fall" : "spring",
+      courseId: courses[courseIndex]?.id ?? "",
+      title: courses[courseIndex]?.title ?? "课程",
+      teacher: payload.dictionaries.teachers[teacherIndex] ?? "",
+      weekday,
+      block,
+      periods: [],
+      weeks: weeks ?? [],
+      timeText: payload.dictionaries.timeTexts[timeTextIndex] ?? "",
+      building: payload.dictionaries.venues[venueIndex] ?? "",
+      room: payload.dictionaries.rooms[roomIndex] ?? "",
+      classNames: "",
+    }),
+  );
+
+  return {
+    disclaimer: payload.disclaimer,
+    periods: payload.periods,
+    buildings: payload.buildings,
+    colleges: payload.colleges,
+    majors: payload.majors,
+    courses,
+    majorCourses: [],
+    schedules,
+    quality: payload.quality,
+  };
+}
 type Profile = {
   entranceYear: number;
   college: string;
@@ -812,13 +899,13 @@ export function DufeHubV2() {
   const [dataError, setDataError] = useState(false);
   useEffect(() => {
     let live = true;
-    fetch("/data/course-data.json")
+    fetch("/data/course-core.json")
       .then((response) => {
         if (!response.ok) throw new Error("course data unavailable");
         return response;
       })
-      .then((response) => response.json() as Promise<SiteData>)
-      .then((payload) => live && setData(payload))
+      .then((response) => response.json() as Promise<CourseCorePayload>)
+      .then((payload) => live && setData(inflateCourseCore(payload)))
       .catch(() => live && setDataError(true));
     return () => {
       live = false;
@@ -851,7 +938,13 @@ export function DufeHubV2() {
   return <HubApp data={data} />;
 }
 
-function HubApp({ data }: { data: SiteData }) {
+type FullDataStatus = "idle" | "loading" | "ready" | "error";
+
+function HubApp({ data: initialData }: { data: SiteData }) {
+  const [data, setData] = useState(initialData);
+  const [fullDataStatus, setFullDataStatus] =
+    useState<FullDataStatus>("idle");
+  const fullDataRequestRef = useRef<Promise<void> | null>(null);
   const [view, setView] = useState<View>("home");
   const [term, setTerm] = useState<Term>("fall");
   const [saved, setSaved] = useState<SavedState>(emptySavedState);
@@ -901,6 +994,33 @@ function HubApp({ data }: { data: SiteData }) {
   const materialsRequestRef = useRef<Promise<void> | null>(null);
   const [addFeedback, setAddFeedback] = useState("");
 
+  const loadFullData = useCallback(() => {
+    if (fullDataRequestRef.current) return fullDataRequestRef.current;
+    setFullDataStatus("loading");
+    const request = fetch("/data/course-data.json")
+      .then((response) =>
+        response.ok
+          ? (response.json() as Promise<SiteData>)
+          : Promise.reject(new Error("full course data unavailable")),
+      )
+      .then((payload) => {
+        setData(payload);
+        setSelectedCourse((current) =>
+          current
+            ? payload.courses.find((course) => course.id === current.id) ??
+              current
+            : null,
+        );
+        setFullDataStatus("ready");
+      })
+      .catch(() => {
+        setFullDataStatus("error");
+        fullDataRequestRef.current = null;
+      });
+    fullDataRequestRef.current = request;
+    return request;
+  }, []);
+
   const loadMaterials = useCallback(() => {
     if (materialsRequestRef.current) return materialsRequestRef.current;
     setMaterialsStatus("loading");
@@ -936,8 +1056,11 @@ function HubApp({ data }: { data: SiteData }) {
   }, [loadMaterials]);
 
   useEffect(() => {
-    if (commandOpen || selectedCourse) void loadMaterials();
-  }, [commandOpen, loadMaterials, selectedCourse]);
+    if (commandOpen || selectedCourse) {
+      void loadMaterials();
+      void loadFullData();
+    }
+  }, [commandOpen, loadFullData, loadMaterials, selectedCourse]);
 
   const courses = useMemo(
     () => new Map(data.courses.map((item) => [item.id, item])),
@@ -1196,6 +1319,16 @@ function HubApp({ data }: { data: SiteData }) {
   }, []);
 
   useEffect(() => {
+    if (view === "catalog" || view === "schedule" || view === "rooms") {
+      void loadFullData();
+    }
+  }, [loadFullData, view]);
+
+  useEffect(() => {
+    if (onboarding) void loadFullData();
+  }, [loadFullData, onboarding]);
+
+  useEffect(() => {
     function handleShortcut(event: KeyboardEvent) {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -1380,6 +1513,11 @@ function HubApp({ data }: { data: SiteData }) {
     setCommandOpen(true);
   }
 
+  function openOnboarding() {
+    setOnboarding(true);
+    void loadFullData();
+  }
+
   function selectSearchItem(item: SearchItem) {
     setCommandOpen(false);
     if (item.material) {
@@ -1408,6 +1546,8 @@ function HubApp({ data }: { data: SiteData }) {
     { id: "catalog", label: "课程与资料", icon: "catalog" },
     { id: "me", label: "我的", icon: "user" },
   ];
+  const fullDataRequired =
+    view === "catalog" || view === "schedule" || view === "rooms";
 
   return (
     <main className="site-shell hub-v2" id="main-content">
@@ -1475,7 +1615,7 @@ function HubApp({ data }: { data: SiteData }) {
           term={term}
           onGo={go}
           onSearch={openSearch}
-          onSetup={() => setOnboarding(true)}
+          onSetup={openOnboarding}
           onEditCalendar={setCalendarEditor}
           onToggleAssignment={(id) =>
             setSaved((state) => ({
@@ -1502,7 +1642,29 @@ function HubApp({ data }: { data: SiteData }) {
           }
         />
       )}
-      {view === "catalog" && (
+      {fullDataRequired && fullDataStatus !== "ready" && (
+        <div className="page-wrap deferred-data-page" role="status">
+          <div className="quiet-empty">
+            <b>
+              {fullDataStatus === "error"
+                ? "完整课程数据没有加载成功"
+                : "正在打开完整课程库"}
+            </b>
+            <p>
+              {fullDataStatus === "error"
+                ? "检查网络后重试，今日学习台仍可继续使用。"
+                : "今日学习台已经可用，课程、课表和空教室数据正在按需加载。"}
+            </p>
+            {fullDataStatus === "error" && (
+              <div>
+                <button onClick={() => void loadFullData()}>重新加载</button>
+                <button onClick={() => go("home")}>回到今日</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      {view === "catalog" && fullDataStatus === "ready" && (
         <CatalogPage
           data={data}
           term={term}
@@ -1517,7 +1679,7 @@ function HubApp({ data }: { data: SiteData }) {
           onSearch={() => window.location.assign("/materials")}
         />
       )}
-      {view === "schedule" && (
+      {view === "schedule" && fullDataStatus === "ready" && (
         <SchedulePage
           data={data}
           term={term}
@@ -1533,11 +1695,11 @@ function HubApp({ data }: { data: SiteData }) {
           onRemove={(id) =>
             updateActivePlan((ids) => ids.filter((item) => item !== id))
           }
-          onSetup={() => setOnboarding(true)}
+          onSetup={openOnboarding}
           onEditCalendar={setCalendarEditor}
         />
       )}
-      {view === "rooms" && (
+      {view === "rooms" && fullDataStatus === "ready" && (
         <RoomsPage
           data={data}
           term={term}
@@ -1559,7 +1721,7 @@ function HubApp({ data }: { data: SiteData }) {
           data={data}
           saved={saved}
           setSaved={setSaved}
-          onSetup={() => setOnboarding(true)}
+          onSetup={openOnboarding}
           account={account}
           devices={accountDevices}
           syncStatus={cloudSyncStatus}
@@ -1784,7 +1946,46 @@ function HubApp({ data }: { data: SiteData }) {
           onClose={() => setCommandOpen(false)}
         />
       )}
-      {selectedCourse && (
+      {selectedCourse && fullDataStatus !== "ready" && (
+        <div
+          className="modal-backdrop drawer-backdrop"
+          onMouseDown={() => setSelectedCourse(null)}
+        >
+          <aside
+            className="course-drawer"
+            onMouseDown={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="course-data-loading-title"
+          >
+            <header>
+              <span>课程号 {selectedCourse.id}</span>
+              <button
+                onClick={() => setSelectedCourse(null)}
+                aria-label="关闭课程详情"
+              >
+                ×
+              </button>
+            </header>
+            <div className="quiet-empty">
+              <b id="course-data-loading-title">
+                {fullDataStatus === "error"
+                  ? "教学班数据没有加载成功"
+                  : `正在打开${selectedCourse.title}`}
+              </b>
+              <p>
+                {fullDataStatus === "error"
+                  ? "检查网络后重试，课程详情不会使用不完整数据。"
+                  : "正在按需加载教师、周次和上课地点。"}
+              </p>
+              {fullDataStatus === "error" && (
+                <button onClick={() => void loadFullData()}>重新加载</button>
+              )}
+            </div>
+          </aside>
+        </div>
+      )}
+      {selectedCourse && fullDataStatus === "ready" && (
         <CourseDrawer
           course={selectedCourse}
           materials={materials.filter(
@@ -1818,7 +2019,45 @@ function HubApp({ data }: { data: SiteData }) {
           <span>{addFeedback}</span>
         </div>
       )}
-      {onboarding && (
+      {onboarding && fullDataStatus !== "ready" && (
+        <div className="modal-backdrop onboarding-backdrop">
+          <section
+            className="onboarding"
+            role="dialog"
+            aria-modal="true"
+            aria-label="准备课表设置"
+          >
+            <header>
+              <Wordmark />
+              <button
+                onClick={() => {
+                  setSaved((state) => ({ ...state, skipped: true }));
+                  setOnboarding(false);
+                }}
+              >
+                暂时跳过
+              </button>
+            </header>
+            <div className="onboarding-copy">
+              <p>课表设置</p>
+              <h2>
+                {fullDataStatus === "error"
+                  ? "完整课程数据没有加载成功"
+                  : "正在准备班级与教学班数据"}
+              </h2>
+              <span>
+                {fullDataStatus === "error"
+                  ? "检查网络后重试，也可以先跳过，稍后从“我的”继续设置。"
+                  : "今日学习台已经可用，这部分数据只在设置课表时按需加载。"}
+              </span>
+            </div>
+            {fullDataStatus === "error" && (
+              <button onClick={() => void loadFullData()}>重新加载课程数据</button>
+            )}
+          </section>
+        </div>
+      )}
+      {onboarding && fullDataStatus === "ready" && (
         <Onboarding
           data={data}
           term={term}
