@@ -2489,12 +2489,20 @@ function DraggableScheduleCard({
         {...listeners}
       >
         <strong>{schedule.title}</strong>
-        <span>{schedule.teacher}</span>
         <small>
           {schedule.building}
           {schedule.room}
         </small>
       </button>
+      {schedule.teacher && (
+        <a
+          className="schedule-card-teacher-link"
+          href={`/teachers?q=${encodeURIComponent(schedule.teacher)}`}
+          onClick={(event) => event.stopPropagation()}
+        >
+          {schedule.teacher}
+        </a>
+      )}
       <button
         className="schedule-card-remove"
         data-export-ignore="true"
@@ -5710,7 +5718,11 @@ function CourseDrawer({
                   >
                     <div>
                       <header>
-                        <strong>{first.teacher || "教师未标注"}</strong>
+                        {first.teacher ? (
+                          <a className="teacher-record-link" href={`/teachers?q=${encodeURIComponent(first.teacher)}`}>
+                            {first.teacher}
+                          </a>
+                        ) : <strong>教师未标注</strong>}
                         <span className={section.conflict ? "conflict" : "available"}>
                           {section.conflict ? "与当前课表冲突" : "与课表不冲突"}
                         </span>
@@ -5824,7 +5836,11 @@ function CourseDrawer({
                     <span className={section.conflict ? "conflict" : "available"}>
                       {section.conflict ? "冲突" : "可用"}
                     </span>
-                    <strong>{first.teacher || "教师未标注"}</strong>
+                    {first.teacher ? (
+                      <a className="teacher-record-link" href={`/teachers?q=${encodeURIComponent(first.teacher)}`}>
+                        {first.teacher}
+                      </a>
+                    ) : <strong>教师未标注</strong>}
                     <small>
                       {section.meetings
                         .map(

@@ -6337,8 +6337,38 @@ kbd {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  padding: 10px 7px 9px 10px;
+  padding: 10px 7px 23px 10px;
   text-align: left;
+}
+
+.schedule-card-teacher-link {
+  bottom: 8px;
+  color: #6f625e;
+  font-size: 8px;
+  left: 10px;
+  max-width: calc(100% - 38px);
+  overflow: hidden;
+  position: absolute;
+  text-decoration-color: color-mix(in srgb, var(--dufe-red) 45%, transparent);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.schedule-card-teacher-link:hover,
+.schedule-card-teacher-link:focus-visible,
+.teacher-record-link:hover,
+.teacher-record-link:focus-visible {
+  color: var(--dufe-red-deep);
+  outline: 2px solid transparent;
+  text-decoration-color: currentColor;
+}
+
+.teacher-record-link {
+  color: inherit;
+  font-weight: 700;
+  text-decoration-color: color-mix(in srgb, var(--dufe-red) 38%, transparent);
+  text-underline-offset: 3px;
 }
 
 .schedule-card-main strong {

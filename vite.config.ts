@@ -53,6 +53,7 @@ export default defineConfig(async () => {
         "/api/auth": { target: authApiDevTarget },
         "/api/admin": { target: authApiDevTarget },
         "/api/community": { target: authApiDevTarget },
+        "/api/teachers": { target: authApiDevTarget },
       },
     },
     plugins: [

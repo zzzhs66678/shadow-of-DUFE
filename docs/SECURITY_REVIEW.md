@@ -28,6 +28,7 @@
 - 教师/教材 dry-run 对输入文件设置 50MB 上限，错误 CSV 不包含评价正文并防止公式注入；联系方式在候选正文中先脱敏。导入批次、逐行证据、mutation 和历史评价候选对 auth runtime 完全撤权，教师目录与教材事实也撤销运行时写权限。
 - 私有导入包拒绝写入 `public/`/`app/`，写入数据库前二次检查联系方式、摘要、正文长度和记录上限。数据库写入要求显式 `IMPORT_ALLOW_APPLY=true` 与独立无继承 importer 角色；事务 advisory lock、已应用文件部分唯一索引和 append-only mutation 共同约束重复/回滚。
 - 历史评价候选列表和决定只能通过固定 `search_path` 的 SECURITY DEFINER 函数访问，函数内再次验证活动管理员、基础会话和短期 MFA elevation。批准、一次性不可变决定、公开评价和管理员审计同事务；审计失败整体回滚。importer 没有候选 UPDATE 或决定/公开评价写权限。
+- 教师公开接口只接受 GET、有界 NFKC 查询、严格 UUID 和结构校验游标；SQL 参数化且每页最多 50 位教师/30 条评价。响应不含私有候选、原文摘要、来源 digest、导入证据或内部身份状态，只返回 `published` 评价；历史评价评分始终为 `null`。
 
 ## 3. 当前问题清单
 

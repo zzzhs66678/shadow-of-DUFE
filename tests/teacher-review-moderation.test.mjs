@@ -7,6 +7,7 @@ import { PGlite } from "@electric-sql/pglite";
 
 import { applyPrivateBundle } from "../scripts/academic-import-apply.mjs";
 import { createTeacherReviewStore } from "../services/auth-api/src/teacher-review-store.mjs";
+import { createTeacherStore } from "../services/auth-api/src/teacher-store.mjs";
 
 const ids = {
   admin: "00000000-0000-4000-8000-000000000101",
@@ -99,7 +100,11 @@ test("teacher review decisions publish once, reject privately, and audit atomica
       limit: 50,
     }));
     assert.equal(candidates.length, 3);
-    assert.equal(candidates[0].teacher.displayName, "审核测试教师");
+    const firstCandidate = candidates.find((candidate) => candidate.body === "第一条脱敏历史评价");
+    const secondCandidate = candidates.find((candidate) => candidate.body === "第二条脱敏历史评价");
+    const thirdCandidate = candidates.find((candidate) => candidate.body === "第三条脱敏历史评价");
+    assert.ok(firstCandidate && secondCandidate && thirdCandidate);
+    assert.equal(firstCandidate.teacher.displayName, "审核测试教师");
 
     await assert.rejects(
       store.listAdminTeacherReviewCandidates({
@@ -111,7 +116,7 @@ test("teacher review decisions publish once, reject privately, and audit atomica
 
     const firstRequestId = "00000000-0000-4000-8000-000000000103";
     const approved = await store.moderateAdminTeacherReviewCandidate(adminInput({
-      candidateId: candidates[0].id,
+      candidateId: firstCandidate.id,
       decision: "approve",
       reason: "人工核对后确认可以作为历史整理内容公开",
       requestId: firstRequestId,
@@ -120,9 +125,28 @@ test("teacher review decisions publish once, reject privately, and audit atomica
     }));
     assert.equal(approved.status, "approved");
     assert.ok(approved.publicReviewId);
+    const publicStore = createTeacherStore(database);
+    const publicTeachers = await publicStore.listPublicTeachers({
+      query: "审核测试教师",
+      college: "",
+      after: null,
+      limit: 30,
+    });
+    assert.equal(publicTeachers.length, 1);
+    assert.equal(publicTeachers[0].reviewCount, 1);
+    const publicDetail = await publicStore.getPublicTeacherDetail(publicTeachers[0].id);
+    assert.equal(publicDetail.reviewCount, 1);
+    assert.deepEqual(Object.values(publicDetail.ratings), [null, null, null, null, null]);
+    const publicReviews = await publicStore.listPublicTeacherReviews({
+      teacherId: publicTeachers[0].id,
+      after: null,
+      limit: 20,
+    });
+    assert.equal(publicReviews[0].body, "第一条脱敏历史评价");
+    assert.equal(publicReviews[0].authorLabel, "历史整理内容");
     await assert.rejects(
       store.moderateAdminTeacherReviewCandidate(adminInput({
-        candidateId: candidates[0].id,
+        candidateId: firstCandidate.id,
         decision: "reject",
         reason: "不能覆盖已经完成的第一次人工审核决定",
         requestId: "00000000-0000-4000-8000-000000000104",
@@ -133,7 +157,7 @@ test("teacher review decisions publish once, reject privately, and audit atomica
     );
 
     const rejected = await store.moderateAdminTeacherReviewCandidate(adminInput({
-      candidateId: candidates[1].id,
+      candidateId: secondCandidate.id,
       decision: "reject",
       reason: "内容缺少可核验上下文，因此不适合进入公开页面",
       requestId: "00000000-0000-4000-8000-000000000105",
@@ -145,7 +169,7 @@ test("teacher review decisions publish once, reject privately, and audit atomica
 
     await assert.rejects(
       store.moderateAdminTeacherReviewCandidate(adminInput({
-        candidateId: candidates[2].id,
+        candidateId: thirdCandidate.id,
         decision: "approve",
         reason: "故意复用审计请求号以验证整个审核语句原子回滚",
         requestId: firstRequestId,
@@ -158,7 +182,7 @@ test("teacher review decisions publish once, reject privately, and audit atomica
               EXISTS (SELECT 1 FROM teacher_review_candidate_decisions WHERE candidate_id = $1) AS has_decision,
               EXISTS (SELECT 1 FROM teacher_reviews WHERE import_candidate_id = $1) AS has_review
        FROM teacher_review_candidates WHERE id = $1`,
-      [candidates[2].id],
+      [thirdCandidate.id],
     );
     assert.deepEqual(rolledBackDecision.rows[0], {
       moderation_status: "pending",

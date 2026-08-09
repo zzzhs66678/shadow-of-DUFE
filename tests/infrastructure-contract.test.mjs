@@ -53,6 +53,7 @@ test("auth API is private, pooled, health-checked, and routed on the same origin
   assert.match(compose, /read_only: true/);
   assert.match(caddy, /handle \/api\/auth\/\*/);
   assert.match(caddy, /reverse_proxy auth-api:3100/);
+  assert.match(caddy, /@teacher_api path \/api\/teachers \/api\/teachers\/\*/);
   assert.match(vite, /AUTH_API_DEV_TARGET/);
   assert.match(vite, /"\/api\/auth"/);
   assert.match(vite, /"\/api\/admin"/);

@@ -5,6 +5,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     { url: "https://dufesh.cn/", lastModified, changeFrequency: "daily", priority: 1 },
     {
+      url: "https://dufesh.cn/teachers",
+      lastModified,
+      changeFrequency: "daily",
+      priority: 0.7,
+    },
+    {
       url: "https://dufesh.cn/privacy",
       lastModified,
       changeFrequency: "monthly",

@@ -70,6 +70,30 @@ const moderationSource = await readFile(
   new URL("../app/admin/ModerationDesk.tsx", import.meta.url),
   "utf8",
 );
+const teacherExplorerSource = await readFile(
+  new URL("../app/teachers/TeacherExplorer.tsx", import.meta.url),
+  "utf8",
+);
+const teacherDetailSource = await readFile(
+  new URL("../app/teachers/[teacherId]/TeacherDetail.tsx", import.meta.url),
+  "utf8",
+);
+const teacherStyles = await readFile(
+  new URL("../app/teachers/teachers.module.css", import.meta.url),
+  "utf8",
+);
+
+test("teacher directory disambiguates identities without taking over the daily workspace", () => {
+  assert.match(teacherExplorerSource, /同名教师会按学院分别展示/);
+  assert.match(teacherExplorerSource, /\/api\/teachers/);
+  assert.match(teacherDetailSource, /历史整理内容不参与均分/);
+  assert.match(teacherDetailSource, /同一课程的不同教学班可能使用不同教材/);
+  assert.match(teacherDetailSource, /历史整理内容经过人工审核后才会出现/);
+  assert.match(component, /href=\{`\/teachers\?q=\$\{encodeURIComponent\(schedule\.teacher\)\}`\}/);
+  assert.doesNotMatch(component, /href=\{`\/teachers\/\$\{[^}]*teacher/);
+  assert.match(teacherStyles, /min-height:\s*44px/);
+  assert.match(teacherStyles, /@media \(max-width:\s*820px\)/);
+});
 
 test("today page keeps the one-glance command deck", () => {
   assert.match(component, /today-command-deck/);

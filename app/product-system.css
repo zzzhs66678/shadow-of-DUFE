@@ -4077,6 +4077,10 @@ body:has(.hub-v2) .preload-intro {
     padding: 5px 3px;
   }
 
+  .schedule-card-main {
+    padding-bottom: 20px;
+  }
+
   .schedule-card-main strong,
   .personal-event strong {
     font-size: 9px;

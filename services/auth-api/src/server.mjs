@@ -13,6 +13,7 @@ import { validateSyncWrite } from "./sync-contract.mjs";
 import { createApiRateLimiters } from "./rate-limit.mjs";
 import { createAdminRequestHandler } from "./admin-routes.mjs";
 import { createCommunityRequestHandler } from "./community-routes.mjs";
+import { createTeacherRequestHandler } from "./teacher-routes.mjs";
 import {
   normalizeLoginIdentifier,
   validateLogin,
@@ -201,6 +202,7 @@ export function createAuthServer({
     config,
     rateLimiters,
   });
+  const handleTeacherRequest = createTeacherRequestHandler({ store });
 
   return createServer(async (request, response) => {
     try {
@@ -239,6 +241,7 @@ export function createAuthServer({
 
       if (await handleAdminRequest(request, response, url)) return;
       if (await handleCommunityRequest(request, response, url)) return;
+      if (await handleTeacherRequest(request, response, url)) return;
 
       if (url.pathname === "/api/auth/session") {
         if (request.method !== "GET") {
