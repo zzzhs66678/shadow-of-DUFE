@@ -161,6 +161,11 @@ test("the active visual system shares one paper ink and cinnabar palette", () =>
   assert.doesNotMatch(globalStyles, /#426a9d/i);
 });
 
+test("primary workspaces render immediately without a whole-page reveal", () => {
+  assert.doesNotMatch(redAccessStyles, /journal-reveal/);
+  assert.doesNotMatch(redAccessStyles, /\.page-wrap\s*\{[^}]*animation:/s);
+});
+
 test("public workspaces share one accessible masthead primitive", () => {
   assert.match(publicMastheadSource, /navigationLabel/);
   assert.match(publicMastheadSource, /aria-current/);

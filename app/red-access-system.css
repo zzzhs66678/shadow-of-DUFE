@@ -233,10 +233,6 @@ textarea {
   width: calc(100% - 48px);
 }
 
-.page-wrap {
-  animation: journal-reveal 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-
 .workspace-heading,
 .page-title,
 .map-heading {
@@ -817,17 +813,6 @@ textarea {
 .legal-page a:focus-visible {
   outline: 3px solid rgba(198, 43, 39, 0.36);
   outline-offset: 3px;
-}
-
-@keyframes journal-reveal {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 @keyframes sun-breathe {

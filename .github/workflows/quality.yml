@@ -46,7 +46,9 @@ jobs:
       - name: Type-check TypeScript
         run: npm run typecheck
       - name: Check rendered HTML
-        run: node --test tests/rendered-html.test.mjs
+        run: |
+          node --test tests/rendered-html.test.mjs
+          node --test tests/production-server.test.mjs
       - name: Check browser accessibility and responsive layouts
         run: npm run test:browser
 

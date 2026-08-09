@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "vinext dev",
     "build": "vinext build",
-    "start": "vinext start",
+    "start": "node server.mjs",
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
     "typecheck": "tsc --noEmit",
     "audit:css": "node scripts/audit-css-cascade.mjs",

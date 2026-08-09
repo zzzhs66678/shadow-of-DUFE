@@ -30,6 +30,8 @@ test("CI blocks critical and serious accessibility regressions on desktop and mo
   assert.equal(packageJson.scripts["test:browser"], "playwright test");
   assert.match(workflow, /playwright install --with-deps chromium/);
   assert.match(workflow, /npm run test:browser/);
+  assert.match(config, /npm run build && node server\.mjs/);
+  assert.match(config, /\? "node server\.mjs"/);
   assert.match(config, /devices\["Desktop Chrome"\]/);
   assert.match(config, /devices\["Pixel 5"\]/);
   assert.match(config, /width: 768, height: 1024/);
@@ -38,11 +40,12 @@ test("CI blocks critical and serious accessibility regressions on desktop and mo
   assert.match(suite, /new AxeBuilder\(\{ page \}\)/);
 });
 
-test("CI checks five main views for tablet and landscape overflow", async () => {
+test("CI checks five main views across all target widths", async () => {
   const packageJson = JSON.parse(await read("package.json"));
   const workflow = await read(".github/workflows/quality.yml");
   const config = await read("playwright.config.ts");
   const suite = await read("tests/e2e/responsive.spec.ts");
+  const performanceSuite = await read("tests/e2e/performance.spec.ts");
 
   assert.equal(
     packageJson.scripts["test:responsive"],
@@ -50,8 +53,10 @@ test("CI checks five main views for tablet and landscape overflow", async () => 
   );
   assert.match(workflow, /npm run test:browser/);
   assert.match(workflow, /tests\/course-core-data\.test\.mjs/);
-  assert.match(config, /name: "tablet"/);
-  assert.match(config, /name: "mobile-landscape"/);
+  for (const width of [320, 360, 375, 390, 414, 667, 768, 844]) {
+    assert.match(config, new RegExp(`width: ${width}`));
+  }
+  assert.match(config, /name: "performance"/);
   assert.match(suite, /\.today-page/);
   assert.match(suite, /\.catalog-page-v2/);
   assert.match(suite, /\.schedule-page/);
@@ -59,6 +64,7 @@ test("CI checks five main views for tablet and landscape overflow", async () => 
   assert.match(suite, /\.me-page/);
   assert.match(suite, /document\.documentElement\.scrollWidth/);
   assert.match(suite, /toBeLessThanOrEqual/);
+  assert.match(performanceSuite, /not\.toContain\("\/data\/course-data\.json"\)/);
 });
 
 test("PostgreSQL is private, resource-limited, health-checked, and log-rotated", async () => {
@@ -616,11 +622,21 @@ test("Xiaoying is isolated behind a private, resource-bounded service", async ()
 
 test("static assets and route discovery have explicit cache and SEO policy", async () => {
   const caddy = await read("deploy/Caddyfile");
+  const packageJson = JSON.parse(await read("package.json"));
+  const server = await read("server.mjs");
   const robots = await read("app/robots.ts");
   const sitemap = await read("app/sitemap.ts");
   const layout = await read("app/layout.tsx");
 
   assert.match(caddy, /max-age=31536000, immutable/);
+  assert.equal(packageJson.scripts.start, "node server.mjs");
+  for (const prefix of ["/assets/", "/data/", "/images/", "/.well-known/"]) {
+    assert.match(server, new RegExp(`"${prefix.replaceAll("/", "\\/")}"`));
+  }
+  assert.match(server, /max-age=31536000, immutable/);
+  assert.match(server, /candidate\.startsWith\(`\$\{clientDir\}\$\{sep\}`\)/);
+  assert.match(server, /host: "127\.0\.0\.1"/);
+  assert.match(server, /"X-Content-Type-Options": "nosniff"/);
   assert.match(caddy, /\.well-known\/security\.txt[\s\S]*text\/plain/);
   assert.match(caddy, /www\.dufesh\.cn[\s\S]*redir https:\/\/dufesh\.cn\{uri\} 308/);
   assert.match(robots, /\/campus-lab\//);

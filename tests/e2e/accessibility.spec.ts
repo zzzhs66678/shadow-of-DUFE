@@ -41,8 +41,9 @@ for (const route of routes) {
       await expect(page.locator("main")).toBeVisible();
     }
 
-    // Audit the settled interface, not an intermediate frame of the 520 ms page reveal.
-    await page.waitForTimeout(650);
+    await page.evaluate(
+      () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+    );
 
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
