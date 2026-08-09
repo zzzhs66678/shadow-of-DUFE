@@ -16,58 +16,6 @@
   font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif;
 }
 
-.siteHeader {
-  position: relative;
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 78px;
-  padding: 0 5vw 0 3.6vw;
-  border-bottom: 1px solid var(--line);
-}
-
-.wordmark {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  color: inherit;
-  text-decoration: none;
-}
-
-.wordmark b {
-  font-family: "Noto Serif SC", SimSun, serif;
-  font-size: 23px;
-  letter-spacing: 0.08em;
-}
-
-.wordmark span {
-  color: var(--red);
-  font: 700 9px/1.2 ui-monospace, monospace;
-  letter-spacing: 0.15em;
-}
-
-.siteHeader nav {
-  display: flex;
-  gap: 7px;
-}
-
-.siteHeader nav a {
-  min-height: 42px;
-  padding: 11px 15px;
-  color: var(--muted);
-  font-size: 13px;
-  text-decoration: none;
-  border-bottom: 2px solid transparent;
-}
-
-.siteHeader nav a:hover,
-.siteHeader nav a:focus-visible {
-  color: var(--red);
-  border-bottom-color: var(--red);
-  outline: none;
-}
-
 .hero {
   position: relative;
   display: grid;
@@ -455,12 +403,6 @@
 @media (max-width: 640px) {
   .page,
   .detailPage { background: linear-gradient(90deg, transparent 0 18px, rgba(167, 31, 40, 0.14) 18px 19px, transparent 19px), var(--paper); }
-  .siteHeader { min-height: 68px; padding: 0 18px 0 27px; }
-  .wordmark { display: grid; gap: 3px; }
-  .wordmark b { font-size: 18px; }
-  .siteHeader nav { gap: 0; }
-  .siteHeader nav a { display: none; }
-  .siteHeader nav a:first-child { display: grid; place-items: center; padding-inline: 8px; }
   .hero { display: block; padding: 42px 18px 34px 28px; }
   .hero::after { width: 110px; height: 110px; opacity: 0.55; }
   .indexMark { position: absolute; top: 28px; right: 24px; width: 62px; height: 88px; min-height: 0; padding: 10px; opacity: 0.94; }

@@ -19,29 +19,6 @@
   min-height: 100vh;
 }
 
-.siteHeader {
-  align-items: center;
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  justify-content: space-between;
-  min-height: 78px;
-  padding: 0 clamp(18px, 5vw, 76px) 0 clamp(18px, 3.6vw, 56px);
-  position: relative;
-  z-index: 3;
-}
-
-.wordmark { align-items: baseline; color: inherit; display: flex; gap: 12px; text-decoration: none; }
-.wordmark b { font: 600 23px/1 var(--serif, "Noto Serif SC", SimSun, serif); letter-spacing: .07em; }
-.wordmark span { color: var(--red); font: 700 9px/1.2 var(--mono, ui-monospace, monospace); letter-spacing: .14em; }
-.siteHeader nav { align-items: stretch; align-self: stretch; display: flex; }
-.siteHeader nav > a,
-.siteHeader nav > button { align-items: center; background: transparent; border: 0; border-bottom: 2px solid transparent; color: var(--muted); display: flex; font: 12px/1 var(--sans); gap: 7px; min-height: 44px; padding: 0 15px; text-decoration: none; }
-.siteHeader nav > a:hover,
-.siteHeader nav > a:focus-visible,
-.siteHeader nav > button:hover,
-.siteHeader nav > button:focus-visible { border-bottom-color: var(--red); color: var(--red-deep); outline: 0; }
-.siteHeader nav i { align-items: center; background: var(--red); border-radius: 999px; color: white; display: inline-flex; font: 700 8px/1 var(--mono); height: 18px; justify-content: center; min-width: 18px; padding: 0 4px; }
-
 .feedHero {
   align-items: end;
   border-bottom: 1px solid var(--ink);
@@ -278,13 +255,6 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 
 @media (max-width: 680px) {
   .page { background: linear-gradient(90deg, transparent 0 18px, rgba(198, 43, 39, .12) 18px 19px, transparent 19px), var(--paper); }
-  .siteHeader { min-height: 68px; padding: 0 14px 0 18px; }
-  .wordmark b { font-size: 18px; }
-  .wordmark span { display: none; }
-  .siteHeader nav > a,
-  .siteHeader nav > button { font-size: 10px; padding: 0 8px; }
-  .siteHeader nav > a:nth-child(2),
-  .siteHeader nav > a:nth-child(3) { display: none; }
   .feedHero { gap: 12px; grid-template-columns: 26px minmax(0, 1fr); min-height: 340px; padding: 38px 20px 36px 10px; }
   .corridorMark i { left: 8px; }
   .corridorMark span { display: none; }

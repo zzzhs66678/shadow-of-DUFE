@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useModalFocus } from "../use-modal-focus";
+import { PublicMasthead } from "../PublicMasthead";
 import {
   authorName,
   communityErrorMessage,
@@ -26,24 +26,21 @@ export function CommunityHeader({
   onOpenNotifications: () => void;
 }) {
   return (
-    <header className={styles.siteHeader}>
-      <Link href="/" className={styles.wordmark} aria-label="返回东财之影首页">
-        <b>东财之影</b>
-        <span>DUFE STUDENT DESK</span>
-      </Link>
-      <nav aria-label="校园回廊导航">
-        <Link href="/community" aria-current="page">回廊</Link>
-        <Link href="/materials">资料</Link>
-        <Link href="/?view=schedule">课表</Link>
-        {session?.authenticated ? (
-          <button type="button" onClick={onOpenNotifications}>
-            通知{unread > 0 ? <i aria-label={`${unread} 条未读`}>{unread > 99 ? "99+" : unread}</i> : null}
-          </button>
-        ) : (
-          <Link href="/?view=me">登录</Link>
-        )}
-      </nav>
-    </header>
+    <PublicMasthead
+      navigationLabel="校园回廊导航"
+      items={[
+        { href: "/community", label: "回廊", current: true },
+        { href: "/materials", label: "资料", showOnMobile: false },
+        { href: "/?view=schedule", label: "课表", showOnMobile: false },
+        ...(!session?.authenticated ? [{ href: "/?view=me", label: "登录" }] : []),
+      ]}
+      action={session?.authenticated ? {
+        label: "通知",
+        onClick: onOpenNotifications,
+        badge: unread > 0 ? (unread > 99 ? "99+" : String(unread)) : undefined,
+        badgeLabel: unread > 0 ? `${unread} 条未读` : undefined,
+      } : undefined}
+    />
   );
 }
 

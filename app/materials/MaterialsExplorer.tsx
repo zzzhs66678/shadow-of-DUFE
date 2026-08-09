@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { PublicMasthead } from "../PublicMasthead";
 import styles from "./materials.module.css";
 
 type Material = {
@@ -183,17 +184,14 @@ export function MaterialsExplorer() {
 
   return (
     <main className={styles.page} id="main-content">
-      <header className={styles.siteHeader}>
-        <Link href="/" className={styles.wordmark} aria-label="返回东财之影首页">
-          <b>东财之影</b>
-          <span>DUFE STUDENT DESK</span>
-        </Link>
-        <nav aria-label="资料页导航">
-          <Link href="/?view=catalog">课程库</Link>
-          <Link href="/?view=schedule">我的课表</Link>
-          <Link href="/?view=me">我的</Link>
-        </nav>
-      </header>
+      <PublicMasthead
+        navigationLabel="资料页导航"
+        items={[
+          { href: "/?view=catalog", label: "课程库" },
+          { href: "/?view=schedule", label: "我的课表", showOnMobile: false },
+          { href: "/?view=me", label: "我的", showOnMobile: false },
+        ]}
+      />
 
       <section className={styles.hero} aria-labelledby="materials-title">
         <div className={styles.indexMark} aria-hidden="true">

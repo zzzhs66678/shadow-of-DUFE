@@ -26,6 +26,22 @@ const materialsStyles = await readFile(
   new URL("../app/materials/materials.module.css", import.meta.url),
   "utf8",
 );
+const materialDetailSource = await readFile(
+  new URL("../app/materials/[materialId]/page.tsx", import.meta.url),
+  "utf8",
+);
+const publicMastheadSource = await readFile(
+  new URL("../app/PublicMasthead.tsx", import.meta.url),
+  "utf8",
+);
+const publicMastheadStyles = await readFile(
+  new URL("../app/public-masthead.module.css", import.meta.url),
+  "utf8",
+);
+const communitySource = await readFile(
+  new URL("../app/community/CommunityShared.tsx", import.meta.url),
+  "utf8",
+);
 const communityStyles = await readFile(
   new URL("../app/community/community.module.css", import.meta.url),
   "utf8",
@@ -53,6 +69,24 @@ test("the active visual system shares one paper ink and cinnabar palette", () =>
   assert.match(communityStyles, /--red: var\(--dufe-red\)/);
   assert.match(adminStyles, /--admin-red: var\(--dufe-red\)/);
   assert.doesNotMatch(globalStyles, /#426a9d/i);
+});
+
+test("public workspaces share one accessible masthead primitive", () => {
+  assert.match(publicMastheadSource, /navigationLabel/);
+  assert.match(publicMastheadSource, /aria-current/);
+  assert.match(publicMastheadSource, /data-mobile/);
+  assert.match(publicMastheadSource, /DUFE STUDENT DESK/);
+  assert.match(publicMastheadStyles, /--dufe-red/);
+  assert.match(publicMastheadStyles, /min-height: 44px/);
+
+  for (const source of [materialsSource, materialDetailSource, communitySource]) {
+    assert.match(source, /import \{ PublicMasthead \}/);
+    assert.match(source, /<PublicMasthead/);
+  }
+  for (const styles of [materialsStyles, communityStyles]) {
+    assert.doesNotMatch(styles, /\.siteHeader/);
+    assert.doesNotMatch(styles, /\.wordmark/);
+  }
 });
 
 test("personal activities default to cinnabar while legacy blue renders as charcoal", () => {

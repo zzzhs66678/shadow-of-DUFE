@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MaterialAvailability } from "../MaterialAvailability";
+import { PublicMasthead } from "../../PublicMasthead";
 import styles from "../materials.module.css";
 import { getMaterialById } from "../materials-catalog.mjs";
 
@@ -27,10 +28,13 @@ export default async function MaterialDetailPage({ params }: PageProps) {
   if (!material) notFound();
   return (
     <main className={styles.detailPage} id="main-content">
-      <header className={styles.siteHeader}>
-        <Link href="/" className={styles.wordmark}><b>东财之影</b><span>DUFE STUDENT DESK</span></Link>
-        <nav><Link href="/materials">返回资料档案</Link><Link href="/?view=catalog">课程库</Link></nav>
-      </header>
+      <PublicMasthead
+        navigationLabel="资料详情导航"
+        items={[
+          { href: "/materials", label: "返回资料档案" },
+          { href: "/?view=catalog", label: "课程库", showOnMobile: false },
+        ]}
+      />
       <article className={styles.detailSheet}>
         <div className={styles.detailIndex} aria-hidden="true">
           <span>MATERIAL</span>
