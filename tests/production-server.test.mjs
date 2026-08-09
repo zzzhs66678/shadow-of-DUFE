@@ -58,6 +58,22 @@ test(
       assert.equal(page.status, 200);
       const html = await page.text();
       assert.match(html, /<main|__next|东财之影/);
+      const contentSecurityPolicy = page.headers.get("content-security-policy") ?? "";
+      const nonce = contentSecurityPolicy.match(/script-src[^;]*'nonce-([^']+)'/)?.[1];
+      assert.ok(nonce, "document CSP should provide a per-request script nonce");
+      assert.doesNotMatch(contentSecurityPolicy, /script-src[^;]*'unsafe-inline'/);
+      const executableScripts = [...html.matchAll(/<script([^>]*)>/g)].filter(
+        (match) => !/type="application\/ld\+json"/.test(match[1]),
+      );
+      assert.equal(executableScripts.length > 0, true);
+      for (const script of executableScripts) {
+        assert.match(script[1], new RegExp(`nonce="${nonce}"`));
+      }
+      const secondPage = await fetch(`http://127.0.0.1:${port}/`);
+      const secondNonce = (secondPage.headers.get("content-security-policy") ?? "").match(
+        /script-src[^;]*'nonce-([^']+)'/,
+      )?.[1];
+      assert.notEqual(secondNonce, nonce);
 
       const assetPath = html.match(/(?:src|href)="(\/assets\/[^"]+\.(?:js|css))"/)?.[1];
       assert.ok(assetPath, "rendered page should reference a built JS or CSS asset");
@@ -66,6 +82,10 @@ test(
       assert.match(
         asset.headers.get("cache-control") ?? "",
         /max-age=31536000, immutable/,
+      );
+      assert.equal(
+        asset.headers.get("content-security-policy"),
+        "default-src 'none'; sandbox",
       );
       assert.equal((await asset.arrayBuffer()).byteLength > 0, true);
 

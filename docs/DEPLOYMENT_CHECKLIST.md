@@ -77,7 +77,7 @@
 
 - [ ] `SECURITY_REVIEW.md` 全部 P0/P1 关闭并附测试证据。
 - [ ] Secure/HttpOnly/SameSite Cookie、CSRF/Origin、CORS 白名单和请求体限制验证。
-- [ ] CSP 不依赖广泛 `unsafe-inline`；HSTS、COOP/CORP、点击劫持、MIME 与权限策略正确。
+- [ ] 主站每次文档响应生成新 CSP nonce，全部可执行内联脚本携带匹配值；小影脚本/样式哈希与实际 HTML 一致；浏览器控制台无 CSP 拒绝。仅主站动态样式属性允许定向 `style-src-attr 'unsafe-inline'`，`script-src` 与 `style-src` 不允许广泛内联；HSTS、COOP/CORP、点击劫持、MIME 与权限策略正确。
 - [ ] 登录、重置、发布、点赞、回复、举报、上传和第三方调用限流通过。
 - [ ] 头像/附件的魔数、MIME、尺寸、体积、EXIF 和隔离流程通过。
 - [ ] 日志、错误页、审计、备份、前端 bundle 和导出文件不含密钥/令牌/密码。

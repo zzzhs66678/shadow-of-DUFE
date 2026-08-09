@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createServer } from "node:http";
-import { timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { networkInterfaces } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -109,6 +109,27 @@ function htmlForBasePath(html) {
 }
 const servedUiHtml = htmlForBasePath(uiHtml);
 const servedPairHtml = htmlForBasePath(pairHtml);
+function inlineHashes(html, expression) {
+  return [...html.matchAll(expression)].map(
+    (match) => `'sha256-${createHash("sha256").update(match[1]).digest("base64")}'`,
+  );
+}
+const servedDocuments = `${servedUiHtml}\n${servedPairHtml}`;
+const scriptHashes = inlineHashes(servedDocuments, /<script[^>]*>([\s\S]*?)<\/script>/g);
+const styleHashes = inlineHashes(servedDocuments, /<style[^>]*>([\s\S]*?)<\/style>/g);
+const styleAttributeHashes = inlineHashes(servedDocuments, /\sstyle="([^"]*)"/g);
+const xiaoyingContentSecurityPolicy = [
+  "default-src 'self'",
+  "base-uri 'none'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "img-src 'self' data:",
+  "connect-src 'self'",
+  `script-src 'self' ${scriptHashes.join(" ")}`,
+  `style-src 'self' ${styleHashes.join(" ")}`,
+  `style-src-attr 'unsafe-hashes' ${styleAttributeHashes.join(" ")}`,
+].join("; ");
 const localDataDirectory = fileURLToPath(new URL("../.local-data/", import.meta.url));
 const databasePath =
   process.env.XIAOYING_DATABASE_PATH ??
@@ -207,7 +228,7 @@ function applySecurityHeaders(response) {
   response.setHeader("referrer-policy", "no-referrer");
   response.setHeader(
     "content-security-policy",
-    "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data:; connect-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
+    xiaoyingContentSecurityPolicy,
   );
   response.setHeader(
     "permissions-policy",

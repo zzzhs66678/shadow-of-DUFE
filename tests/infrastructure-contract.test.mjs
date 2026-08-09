@@ -589,14 +589,21 @@ test("expired sessions and sync tombstones have bounded retention", async () => 
 
 test("edge headers constrain embedding, browser capabilities, and active content", async () => {
   const caddy = await read("deploy/Caddyfile");
+  const gateway = await read("server.mjs");
+  const xiaoying = await read("xiaoying-executor/bin/server.mjs");
+  const policies = `${gateway}\n${xiaoying}\n${caddy}`;
 
   assert.match(caddy, /Strict-Transport-Security/);
   assert.match(caddy, /Permissions-Policy/);
-  assert.match(caddy, /Content-Security-Policy/);
-  assert.match(caddy, /default-src 'self'/);
-  assert.match(caddy, /object-src 'none'/);
-  assert.match(caddy, /frame-ancestors 'none'/);
-  assert.match(caddy, /connect-src 'self'/);
+  assert.match(policies, /Content-Security-Policy|content-security-policy/);
+  assert.match(policies, /default-src 'self'/);
+  assert.match(policies, /object-src 'none'/);
+  assert.match(policies, /frame-ancestors 'none'/);
+  assert.match(policies, /connect-src 'self'/);
+  assert.match(gateway, /'nonce-\$\{nonce\}'/);
+  assert.match(xiaoying, /'sha256-/);
+  assert.doesNotMatch(caddy, /unsafe-inline/);
+  assert.doesNotMatch(xiaoying, /unsafe-inline/);
 });
 
 test("Xiaoying is isolated behind a private, resource-bounded service", async () => {

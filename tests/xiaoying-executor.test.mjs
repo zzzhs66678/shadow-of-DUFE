@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { createServer as createNetServer } from "node:net";
@@ -121,6 +122,16 @@ test("production HTTP surface isolates cookies, paths, origins, and invite burst
     const html = await page.text();
     assert.equal(page.headers.get("x-robots-tag"), "noindex, nofollow, noarchive");
     assert.match(html, /\/campus-lab\/v1\/me/);
+    const contentSecurityPolicy = page.headers.get("content-security-policy") ?? "";
+    assert.doesNotMatch(contentSecurityPolicy, /'unsafe-inline'/);
+    for (const source of html.matchAll(/<(script|style)[^>]*>([\s\S]*?)<\/\1>/g)) {
+      const hash = createHash("sha256").update(source[2]).digest("base64");
+      assert.equal(contentSecurityPolicy.includes(`'sha256-${hash}'`), true);
+    }
+    for (const source of html.matchAll(/\sstyle="([^"]*)"/g)) {
+      const hash = createHash("sha256").update(source[1]).digest("base64");
+      assert.equal(contentSecurityPolicy.includes(`'sha256-${hash}'`), true);
+    }
 
     const missingOrigin = await fetch(
       `http://127.0.0.1:${port}/v1/auth/invite`,

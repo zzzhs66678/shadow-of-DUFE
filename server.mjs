@@ -1,5 +1,6 @@
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
+import { randomBytes } from "node:crypto";
 import { createServer, request as createProxyRequest } from "node:http";
 import { extname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,6 +41,27 @@ const contentTypes = new Map([
   [".webp", "image/webp"],
   [".xml", "application/xml; charset=utf-8"],
 ]);
+
+function documentContentSecurityPolicy(nonce) {
+  return [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+    "img-src 'self' data: https:",
+    "font-src 'self' data:",
+    "media-src 'self'",
+    "connect-src 'self'",
+    "frame-src 'self'",
+    "worker-src 'self' blob:",
+    "manifest-src 'self'",
+    `script-src 'self' 'nonce-${nonce}'`,
+    "style-src 'self'",
+    "style-src-attr 'unsafe-inline'",
+    "upgrade-insecure-requests",
+  ].join("; ");
+}
 
 export function resolvePublicAsset(pathname) {
   let decoded;
@@ -84,6 +106,7 @@ async function servePublicAsset(req, res, pathname) {
     "Content-Length": String(details.size),
     ...(contentType ? { "Content-Type": contentType } : {}),
     "X-Content-Type-Options": "nosniff",
+    "Content-Security-Policy": "default-src 'none'; sandbox",
   });
   if (req.method === "HEAD") {
     res.end();
@@ -94,24 +117,33 @@ async function servePublicAsset(req, res, pathname) {
 }
 
 function proxyToVinext(req, res) {
+  const nonce = randomBytes(18).toString("base64url");
+  const contentSecurityPolicy = documentContentSecurityPolicy(nonce);
   const upstream = createProxyRequest(
     {
       host: "127.0.0.1",
       port: internalPort,
       method: req.method,
       path: req.url,
-      headers: req.headers,
+      headers: {
+        ...req.headers,
+        "content-security-policy": contentSecurityPolicy,
+      },
     },
     (upstreamResponse) => {
       const statusCode = upstreamResponse.statusCode ?? 502;
+      const responseHeaders = {
+        ...upstreamResponse.headers,
+        "content-security-policy": contentSecurityPolicy,
+      };
       if (upstreamResponse.statusMessage) {
         res.writeHead(
           statusCode,
           upstreamResponse.statusMessage,
-          upstreamResponse.headers,
+          responseHeaders,
         );
       } else {
-        res.writeHead(statusCode, upstreamResponse.headers);
+        res.writeHead(statusCode, responseHeaders);
       }
       upstreamResponse.pipe(res);
     },
