@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { DialogActions, DialogBackdrop } from "../DialogBackdrop";
+import { FormField } from "../FormField";
 import { useModalFocus } from "../use-modal-focus";
 import styles from "./admin.module.css";
 
@@ -257,12 +258,12 @@ export function ModerationDesk({
             {selected.evidenceBody && <blockquote>{selected.evidenceBody}</blockquote>}
             {selected.detail && <p className={styles.reportDetail}><b>举报补充</b>{selected.detail}</p>}
             {!selected.caseId ? (
-              <label><span>入案原因（至少 8 个字）</span><textarea value={caseReason} onChange={(event) => setCaseReason(event.target.value)} maxLength={1000} rows={4} /></label>
+              <FormField label="入案原因（至少 8 个字）" counter={`${caseReason.length}/1000`} className={styles.caseField}><textarea value={caseReason} onChange={(event) => setCaseReason(event.target.value)} maxLength={1000} rows={4} /></FormField>
             ) : (
               <>
-                <label><span>治理动作</span><select value={action} onChange={(event) => setAction(event.target.value as ModerationAction)}>{selected.allowedActions.map((item) => <option key={item} value={item}>{actionLabels[item]}</option>)}</select></label>
-                {(action === "suspend" || action === "ban") && <label><span>{action === "suspend" ? "停发时长（小时，必填）" : "封禁时长（小时，留空为长期）"}</span><input type="number" min="1" max="8760" value={durationHours} onChange={(event) => setDurationHours(event.target.value)} required={action === "suspend"} /></label>}
-                <label><span>处置原因（至少 8 个字）</span><textarea value={actionReason} onChange={(event) => setActionReason(event.target.value)} maxLength={1000} rows={4} /></label>
+                <FormField label="治理动作" className={styles.caseField}><select value={action} onChange={(event) => setAction(event.target.value as ModerationAction)}>{selected.allowedActions.map((item) => <option key={item} value={item}>{actionLabels[item]}</option>)}</select></FormField>
+                {(action === "suspend" || action === "ban") && <FormField label={action === "suspend" ? "停发时长（小时，必填）" : "封禁时长（小时，留空为长期）"} className={styles.caseField}><input type="number" min="1" max="8760" value={durationHours} onChange={(event) => setDurationHours(event.target.value)} required={action === "suspend"} /></FormField>}
+                <FormField label="处置原因（至少 8 个字）" counter={`${actionReason.length}/1000`} className={styles.caseField}><textarea value={actionReason} onChange={(event) => setActionReason(event.target.value)} maxLength={1000} rows={4} /></FormField>
               </>
             )}
             {feedback && <p className={styles.caseFeedback} role="status">{feedback}</p>}

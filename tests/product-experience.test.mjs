@@ -184,12 +184,15 @@ test("editorial forms share one paper-and-ink field primitive", () => {
   assert.match(formFieldStyles, /--dufe-red/);
   assert.match(formFieldStyles, /prefers-reduced-motion:\s*reduce/);
 
-  for (const source of [communityHubSource, communitySource, communityTopicSource, teacherDetailSource]) {
+  for (const source of [communityHubSource, communitySource, communityTopicSource, teacherDetailSource, materialsSource, adminSource, moderationSource]) {
     assert.match(source, /import \{ FormField \}/);
     assert.match(source, /<FormField/);
   }
   assert.doesNotMatch(communityStyles, /\.composer input:focus/);
   assert.doesNotMatch(teacherStyles, /\.reviewBodyField/);
+  assert.doesNotMatch(materialsStyles, /\.filters select/);
+  assert.doesNotMatch(adminStyles, /\.actionSheet textarea:focus/);
+  assert.doesNotMatch(adminStyles, /\.caseSheet textarea:focus/);
 });
 
 test("personal activities default to cinnabar while legacy blue renders as charcoal", () => {

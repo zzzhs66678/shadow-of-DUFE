@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { DialogActions, DialogBackdrop } from "../DialogBackdrop";
+import { FormField } from "../FormField";
 import { useModalFocus } from "../use-modal-focus";
 import styles from "./admin.module.css";
 import { ModerationDesk } from "./ModerationDesk";
@@ -529,8 +530,9 @@ export function AdminConsole() {
             <span>{target.status === "active" ? "停用账号" : "恢复账号"}</span>
             <h2 id="admin-action-title">{target.displayName || target.username || "这名用户"}</h2>
             <p>{target.status === "active" ? "停用后，这名用户的所有登录与管理员短时权限都会立即撤销。" : "恢复后可以重新登录，但过去的会话不会重新生效。"}</p>
-            <label htmlFor="admin-action-reason">处置原因（至少 8 个字）</label>
-            <textarea id="admin-action-reason" value={reason} onChange={(event) => setReason(event.target.value)} maxLength={500} rows={4} autoFocus />
+            <FormField label="处置原因（至少 8 个字）" counter={`${reason.length}/500`} className={styles.caseField}>
+              <textarea id="admin-action-reason" value={reason} onChange={(event) => setReason(event.target.value)} maxLength={500} rows={4} autoFocus />
+            </FormField>
             <DialogActions>
               <button type="button" onClick={closeUserAction} disabled={Boolean(busy)}>取消</button>
               <button disabled={reason.trim().length < 8 || Boolean(busy)}>{busy ? "正在写入记录" : target.status === "active" ? "确认停用" : "确认恢复"}</button>

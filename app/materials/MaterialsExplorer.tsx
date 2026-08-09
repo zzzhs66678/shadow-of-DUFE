@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { FormField } from "../FormField";
 import { PublicMasthead } from "../PublicMasthead";
 import styles from "./materials.module.css";
 
@@ -231,42 +232,37 @@ export function MaterialsExplorer() {
             <span>缩小范围</span>
             {hasFilters && <button onClick={clearFilters}>全部清空</button>}
           </header>
-          <label>
-            <span>课程</span>
+          <FormField label="课程" className={styles.filterField}>
             <select value={course} onChange={(event) => setCourse(event.target.value)}>
               <option value="">全部课程</option>
               {filters.courses.map((item) => <option key={item}>{item}</option>)}
             </select>
-          </label>
-          <label>
-            <span>教师</span>
+          </FormField>
+          <FormField label="教师" className={styles.filterField}>
             <select value={teacher} onChange={(event) => setTeacher(event.target.value)}>
               <option value="">全部教师</option>
               {filters.teachers.map((item) => <option key={item}>{item}</option>)}
             </select>
-          </label>
-          <label>
-            <span>资料类型</span>
+          </FormField>
+          <FormField label="资料类型" className={styles.filterField}>
             <select value={type} onChange={(event) => setType(event.target.value)}>
               <option value="">全部类型</option>
               {filters.types.map((item) => <option key={item}>{item}</option>)}
             </select>
-          </label>
+          </FormField>
           <div className={styles.filterPair}>
-            <label>
-              <span>学期</span>
+            <FormField label="学期" className={styles.filterField}>
               <select value={term} onChange={(event) => setTerm(event.target.value)}>
                 <option value="">全部</option>
                 {filters.terms.map((item) => <option key={item} value={item}>{termLabel(item)}</option>)}
               </select>
-            </label>
-            <label>
-              <span>年级</span>
+            </FormField>
+            <FormField label="年级" className={styles.filterField}>
               <select value={year} onChange={(event) => setYear(event.target.value)}>
                 <option value="">全部</option>
                 {filters.years.map((item) => <option key={item} value={item}>大{"一二三四"[item - 1]}</option>)}
               </select>
-            </label>
+            </FormField>
           </div>
           <p>方向键浏览结果，Enter 打开，Escape 清空。手机上可直接触摸操作。</p>
         </aside>

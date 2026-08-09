@@ -158,27 +158,15 @@
   cursor: pointer;
 }
 
-.filters > label,
-.filterPair label {
-  display: grid;
-  gap: 7px;
+.filterField {
   margin-bottom: 17px;
+  margin-top: 0;
 }
 
-.filters label > span {
-  color: var(--muted);
-  font-size: 11px;
-}
-
-.filters select {
-  width: 100%;
-  min-height: 44px;
-  padding: 0 30px 0 12px;
-  color: var(--ink);
+.filterField > select {
+  --dufe-ink: var(--ink);
+  --dufe-muted: var(--muted);
   background: rgba(255, 255, 255, 0.25);
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  border-radius: 0;
 }
 
 .filterPair {
@@ -417,9 +405,8 @@
   .searchField kbd { font-size: 7px; }
   .workspace { gap: 32px; padding: 0 18px 76px 28px; }
   .filters { grid-template-columns: 1fr 1fr; gap: 8px 10px; }
-  .filters > label,
-  .filterPair label { margin-bottom: 6px; }
-  .filters > label:first-of-type { grid-column: 1 / -1; }
+  .filterField { margin-bottom: 6px; }
+  .filters > .filterField:first-of-type { grid-column: 1 / -1; }
   .resultHeader { min-height: 58px; }
   .resultHeader i { display: none; }
   .results article { grid-template-columns: 48px minmax(0, 1fr); gap: 12px; min-height: 146px; padding: 15px 0; }
