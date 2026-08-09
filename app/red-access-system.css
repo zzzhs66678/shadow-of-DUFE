@@ -714,6 +714,12 @@ textarea {
   gap: 16px;
 }
 
+body:has(.course-pool.finder-pool.open) .mobile-nav {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
 .college-list,
 .course-pool,
 .schedule-main,

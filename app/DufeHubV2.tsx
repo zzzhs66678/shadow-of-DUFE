@@ -1681,6 +1681,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
       )}
       {view === "schedule" && fullDataStatus === "ready" && (
         <SchedulePage
+          key={term}
           data={data}
           term={term}
           saved={saved}
@@ -2860,7 +2861,7 @@ function SchedulePage({
     Math.min(5, Math.max(1, new Date().getDay())),
   );
   const [finderBlock, setFinderBlock] = useState(currentBlock);
-  const [visibleLimit, setVisibleLimit] = useState(80);
+  const [visibleWindow, setVisibleWindow] = useState({ key: "", limit: 40 });
   const [exporting, setExporting] = useState(false);
   const [finderOpen, setFinderOpen] = useState(false);
   const [mobileScheduleView, setMobileScheduleView] = useState<
@@ -2876,6 +2877,31 @@ function SchedulePage({
     }),
     useSensor(KeyboardSensor),
   );
+  const offeringsByCourse = useMemo(() => {
+    const grouped = new Map<string, Schedule[]>();
+    for (const schedule of data.schedules) {
+      if (schedule.term !== term) continue;
+      const offerings = grouped.get(schedule.courseId);
+      if (offerings) offerings.push(schedule);
+      else grouped.set(schedule.courseId, [schedule]);
+    }
+    return grouped;
+  }, [data.schedules, term]);
+  const finderKey = JSON.stringify([
+    term,
+    finderMode,
+    finderBlock,
+    finderCollege,
+    finderMajor,
+    finderWeekday,
+    finderYear,
+    query,
+  ]);
+  const visibleLimit =
+    visibleWindow.key === finderKey ? visibleWindow.limit : 40;
+  function resetFinderWindow() {
+    setVisibleWindow({ key: "", limit: 40 });
+  }
   const needle = normalize(query);
   const searchPool = data.courses.filter(
     (course) =>
@@ -3101,19 +3127,28 @@ function SchedulePage({
             <div className="finder-tabs">
               <button
                 className={finderMode === "search" ? "active" : ""}
-                onClick={() => setFinderMode("search")}
+                onClick={() => {
+                  resetFinderWindow();
+                  setFinderMode("search");
+                }}
               >
                 全校搜索
               </button>
               <button
                 className={finderMode === "major" ? "active" : ""}
-                onClick={() => setFinderMode("major")}
+                onClick={() => {
+                  resetFinderWindow();
+                  setFinderMode("major");
+                }}
               >
                 按专业
               </button>
               <button
                 className={finderMode === "time" ? "active" : ""}
-                onClick={() => setFinderMode("time")}
+                onClick={() => {
+                  resetFinderWindow();
+                  setFinderMode("time");
+                }}
               >
                 按时间
               </button>
@@ -3124,7 +3159,10 @@ function SchedulePage({
                 name="course-search"
                 autoComplete="off"
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => {
+                  resetFinderWindow();
+                  setQuery(event.target.value);
+                }}
                 placeholder="课程、简称或教师…"
               />
             )}
@@ -3136,6 +3174,7 @@ function SchedulePage({
                   value={finderCollege}
                   onChange={(event) => {
                     const value = event.target.value;
+                    resetFinderWindow();
                     setFinderCollege(value);
                     setFinderMajor(
                       data.colleges.find((item) => item.name === value)
@@ -3151,7 +3190,10 @@ function SchedulePage({
                   aria-label="选择专业"
                   name="finder-major"
                   value={finderMajor}
-                  onChange={(event) => setFinderMajor(event.target.value)}
+                  onChange={(event) => {
+                    resetFinderWindow();
+                    setFinderMajor(event.target.value);
+                  }}
                 >
                   {finderMajors.map((item) => (
                     <option key={item.id} value={item.id}>
@@ -3164,7 +3206,10 @@ function SchedulePage({
                     <button
                       key={item}
                       className={finderYear === item ? "active" : ""}
-                      onClick={() => setFinderYear(item)}
+                      onClick={() => {
+                        resetFinderWindow();
+                        setFinderYear(item);
+                      }}
                     >
                       大{"一二三四"[item - 1]}
                     </button>
@@ -3179,7 +3224,10 @@ function SchedulePage({
                     <button
                       key={item}
                       className={finderWeekday === index + 1 ? "active" : ""}
-                      onClick={() => setFinderWeekday(index + 1)}
+                      onClick={() => {
+                        resetFinderWindow();
+                        setFinderWeekday(index + 1);
+                      }}
                     >
                       周{item}
                     </button>
@@ -3190,7 +3238,10 @@ function SchedulePage({
                     <button
                       key={item.block}
                       className={finderBlock === item.block ? "active" : ""}
-                      onClick={() => setFinderBlock(item.block)}
+                      onClick={() => {
+                        resetFinderWindow();
+                        setFinderBlock(item.block);
+                      }}
                     >
                       {item.short}
                     </button>
@@ -3210,14 +3261,15 @@ function SchedulePage({
           <div>
             {pool.length ? (
               pool.map((course) => {
-                const offerings = data.schedules.filter(
-                  (item) =>
-                    item.term === term &&
-                    item.courseId === course.id &&
-                    (finderMode !== "time" ||
-                      (item.weekday === finderWeekday &&
-                        item.block === finderBlock)),
-                );
+                const courseOfferings = offeringsByCourse.get(course.id) ?? [];
+                const offerings =
+                  finderMode === "time"
+                    ? courseOfferings.filter(
+                        (item) =>
+                          item.weekday === finderWeekday &&
+                          item.block === finderBlock,
+                      )
+                    : courseOfferings;
                 const first = offerings[0];
                 const sectionIds = [
                   ...new Set(
@@ -3272,9 +3324,11 @@ function SchedulePage({
             {pool.length < poolAll.length && (
               <button
                 className="load-more-courses"
-                onClick={() => setVisibleLimit((value) => value + 80)}
+                onClick={() =>
+                  setVisibleWindow({ key: finderKey, limit: visibleLimit + 40 })
+                }
               >
-                再显示 80 门
+                再显示 40 门
                 <small>
                   已显示 {pool.length} / {poolAll.length}
                 </small>

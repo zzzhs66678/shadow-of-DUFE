@@ -166,6 +166,22 @@ test("primary workspaces render immediately without a whole-page reveal", () => 
   assert.doesNotMatch(redAccessStyles, /\.page-wrap\s*\{[^}]*animation:/s);
 });
 
+test("the course finder groups offerings once and bounds mounted cards", async () => {
+  const source = component;
+
+  assert.match(source, /const \[visibleWindow, setVisibleWindow\] = useState\(\{ key: "", limit: 40 \}\)/);
+  assert.match(source, /const offeringsByCourse = useMemo\(\(\) => \{/);
+  assert.match(source, /grouped\.set\(schedule\.courseId, \[schedule\]\)/);
+  assert.match(source, /const courseOfferings = offeringsByCourse\.get\(course\.id\)/);
+  assert.match(source, /visibleWindow\.key === finderKey \? visibleWindow\.limit : 40/);
+  assert.match(source, /function resetFinderWindow\(\) \{[\s\S]*?setVisibleWindow\(\{ key: "", limit: 40 \}\)/);
+  assert.match(source, /setVisibleWindow\(\{ key: finderKey, limit: visibleLimit \+ 40 \}\)/);
+  assert.match(
+    redAccessStyles,
+    /body:has\(\.course-pool\.finder-pool\.open\) \.mobile-nav[\s\S]*?pointer-events: none;[\s\S]*?visibility: hidden;/,
+  );
+});
+
 test("public workspaces share one accessible masthead primitive", () => {
   assert.match(publicMastheadSource, /navigationLabel/);
   assert.match(publicMastheadSource, /aria-current/);
