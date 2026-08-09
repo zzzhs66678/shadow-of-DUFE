@@ -683,42 +683,6 @@ textarea {
   background: var(--journal-red);
 }
 
-.campus-window {
-  background: var(--journal-paper-raised);
-  border: 1px solid var(--journal-ink);
-  border-radius: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
-  margin-top: 72px;
-  min-height: 0;
-}
-
-.campus-window img {
-  filter: none;
-  height: 100%;
-  min-height: 0;
-  object-fit: cover;
-}
-
-.campus-window figcaption {
-  background: var(--journal-red);
-  color: #ffffff;
-  justify-content: space-between;
-  padding: 34px;
-}
-
-.campus-window figcaption span,
-.campus-window figcaption a {
-  color: rgba(255, 255, 255, 0.72);
-  font-family: var(--journal-data);
-}
-
-.campus-window figcaption b {
-  font-family: var(--journal-display);
-  font-size: 29px;
-  line-height: 1.22;
-}
-
 .knowledge-tribute {
   border-radius: 0;
   box-shadow: none;
@@ -1105,25 +1069,6 @@ textarea {
   .week-ahead > div,
   .study-management > div {
     padding-left: 0;
-  }
-
-  .campus-window {
-    display: block;
-    margin-top: 52px;
-  }
-
-  .campus-window img {
-    aspect-ratio: 16 / 10;
-    object-fit: cover;
-  }
-
-  .campus-window figcaption {
-    min-height: 210px;
-    padding: 26px;
-  }
-
-  .campus-window figcaption b {
-    font-size: 26px;
   }
 
   .workspace-heading h1,

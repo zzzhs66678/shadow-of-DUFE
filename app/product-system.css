@@ -1358,11 +1358,6 @@
   grid-row: 1 / span 2;
 }
 
-.campus-window figcaption a,
-.campus-window figcaption span {
-  color: #ffffff;
-}
-
 .tribute-copy > span,
 .knowledge-tribute nav a {
   color: #c9211e;
@@ -1836,7 +1831,6 @@ a:active {
 .timetable-panel,
 .course-pool,
 .room-intents,
-.room-stack,
 .me-grid article,
 .trust-panel {
   border-radius: 22px;
@@ -2036,36 +2030,6 @@ a:active {
   width: 30px;
 }
 
-.campus-window {
-  margin: 62px 0 0;
-  position: relative;
-}
-
-.campus-window img {
-  display: block;
-}
-
-.campus-window figcaption {
-  display: flex;
-  flex-direction: column;
-}
-
-.campus-window figcaption span {
-  font: 700 10px/1 var(--mono);
-  letter-spacing: 0.13em;
-}
-
-.campus-window figcaption b {
-  letter-spacing: -0.045em;
-  margin: 18px 0 34px;
-}
-
-.campus-window figcaption a {
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 10px;
-  text-decoration: none;
-}
-
 .tribute-copy h2 {
   font-family: var(--sans);
   font-weight: 690;
@@ -2187,18 +2151,6 @@ a:active {
 
   .study-management > div button {
     border-radius: 0;
-  }
-
-  .campus-window {
-    border-radius: 20px;
-  }
-
-  .campus-window img {
-    min-height: 0;
-  }
-
-  .campus-window figcaption b {
-    margin: 13px 0 24px;
   }
 
   .campus-gateway {
@@ -2840,7 +2792,6 @@ body:has(.hub-v2) .preload-intro {
 .unified-agenda,
 .week-ahead,
 .study-management,
-.campus-window,
 .knowledge-tribute {
   margin-top: 28px;
 }
@@ -2919,19 +2870,6 @@ body:has(.hub-v2) .preload-intro {
   transform: none;
 }
 
-.campus-window {
-  height: 280px;
-  overflow: hidden;
-}
-
-.campus-window::after {
-  background: rgba(10, 48, 65, 0.48);
-}
-
-.campus-window img {
-  width: 100%;
-}
-
 .knowledge-tribute {
   display: grid;
   gap: 22px;
@@ -2964,7 +2902,6 @@ body:has(.hub-v2) .preload-intro {
 .timetable-panel,
 .course-pool,
 .room-intents,
-.room-stack,
 .me-grid article,
 .trust-panel {
   box-shadow: var(--ui-shadow-sm);
@@ -3939,10 +3876,6 @@ body:has(.hub-v2) .preload-intro {
     min-height: 76px;
   }
 
-  .campus-window {
-    height: 230px;
-  }
-
   .knowledge-tribute {
     gap: 14px;
     grid-template-columns: 76px minmax(0, 1fr);
@@ -4264,10 +4197,6 @@ body:has(.hub-v2) .preload-intro {
 
   .now-card > footer button {
     font-size: 12px;
-  }
-
-  .campus-window {
-    height: 210px;
   }
 
   .floor-rooms-v5 {
@@ -4814,10 +4743,6 @@ body:has(.hub-v2) .preload-intro {
   border-radius: 0;
 }
 
-.campus-window {
-  box-shadow: none;
-}
-
 .command-panel,
 .calendar-editor,
 .account-delete-dialog,
@@ -4938,15 +4863,6 @@ body:has(.hub-v2) .preload-intro {
 .hub-v2 textarea:focus-visible,
 .legal-page a:focus-visible {
   outline-color: rgba(45, 106, 79, 0.42);
-}
-
-.campus-window,
-.campus-gateway {
-  background: #2d6a4f;
-}
-
-.campus-window figcaption span {
-  color: #ffffff;
 }
 /* My · community corridor entry. Kept outside the five-item primary navigation. */
 .community-corridor-entry {

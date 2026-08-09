@@ -286,6 +286,14 @@ test("personal page explains local data, cloud sync, devices, and account contro
   assert.match(component, /userPersonalScope/);
 });
 
+test("retired homepage and room containers leave no dead cascade layers", () => {
+  assert.doesNotMatch(component, /campus-window|room-stack/);
+
+  for (const styles of [productStyles, redAccessStyles, globalStyles]) {
+    assert.doesNotMatch(styles, /\.campus-window|\.room-stack/);
+  }
+});
+
 test("course drawer filters and compares teaching sections", () => {
   assert.match(component, /sectionQuery/);
   assert.match(component, /teacherFilter/);
