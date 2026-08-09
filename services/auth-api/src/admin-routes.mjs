@@ -326,6 +326,119 @@ export function createAdminRequestHandler({
       return true;
     }
 
+    if (url.pathname === "/api/admin/teacher-reviews/candidates") {
+      if (request.method !== "GET") {
+        methodNotAllowed(response, "GET");
+        return true;
+      }
+      const status = url.searchParams.get("status") ?? "pending";
+      const limitValue = url.searchParams.get("limit") ?? "50";
+      const afterCreatedAtValue = url.searchParams.get("afterCreatedAt");
+      const afterId = url.searchParams.get("afterId");
+      const limit = /^\d{1,3}$/u.test(limitValue) ? Number(limitValue) : 0;
+      const afterCreatedAt = afterCreatedAtValue && !Number.isNaN(Date.parse(afterCreatedAtValue))
+        ? new Date(afterCreatedAtValue).toISOString()
+        : null;
+      if (
+        !["pending", "approved", "rejected", "rolled_back"].includes(status) ||
+        limit < 1 || limit > 50 ||
+        Boolean(afterCreatedAtValue) !== Boolean(afterId) ||
+        (afterCreatedAtValue && !afterCreatedAt) ||
+        (afterId && !isUuid(afterId))
+      ) {
+        sendJson(response, 400, { error: "invalid_teacher_review_candidate_query" });
+        return true;
+      }
+      try {
+        const candidates = await store.listAdminTeacherReviewCandidates({
+          actorUserId: session.userId,
+          actorSessionId: session.id,
+          actorElevationTokenHash: elevationTokenHash,
+          status,
+          afterCreatedAt,
+          afterId,
+          limit,
+        });
+        const last = candidates.length === limit ? candidates.at(-1) : null;
+        sendJson(response, 200, {
+          candidates,
+          nextCursor: last ? { createdAt: last.createdAt, id: last.id } : null,
+        });
+      } catch (error) {
+        if (error?.code === "AUTH_ADMIN_FORBIDDEN") {
+          sendJson(response, 403, { error: "admin_mfa_required" }, [clearAdminCookie()]);
+        } else if (error?.code === "TEACHER_REVIEW_QUERY_INVALID") {
+          sendJson(response, 400, { error: "invalid_teacher_review_candidate_query" });
+        } else {
+          throw error;
+        }
+      }
+      return true;
+    }
+
+    const teacherReviewDecisionMatch = url.pathname.match(
+      /^\/api\/admin\/teacher-reviews\/candidates\/([0-9a-f-]{36})\/decision$/iu,
+    );
+    if (teacherReviewDecisionMatch) {
+      if (request.method !== "POST") {
+        methodNotAllowed(response, "POST");
+        return true;
+      }
+      if (!isUuid(teacherReviewDecisionMatch[1])) {
+        sendJson(response, 404, { error: "teacher_review_candidate_not_found" });
+        return true;
+      }
+      const body = await readJsonBody(request);
+      const reason = moderationReason(body?.reason);
+      if (
+        !exactObject(body, new Set(["decision", "reason"]), ["decision", "reason"]) ||
+        !["approve", "reject"].includes(body.decision) ||
+        !reason
+      ) {
+        sendJson(response, 400, { error: "invalid_teacher_review_decision" });
+        return true;
+      }
+      const rateKey = tokenDigest(
+        `teacher-review-moderation:${clientAddress(request)}:${session.userId}:${session.id}`,
+        config.tokenPepper,
+      );
+      if (!(rateLimiters.teacherReviewModeration ?? rateLimiters.write).consume(rateKey)) {
+        response.setHeader("Retry-After", "60");
+        sendJson(response, 429, { error: "teacher_review_moderation_rate_limited" });
+        return true;
+      }
+      try {
+        const candidate = await store.moderateAdminTeacherReviewCandidate({
+          actorUserId: session.userId,
+          actorSessionId: session.id,
+          actorElevationTokenHash: elevationTokenHash,
+          candidateId: teacherReviewDecisionMatch[1],
+          decision: body.decision,
+          reason,
+          requestId,
+          ipHash: tokenDigest(`admin-ip:${clientAddress(request)}`, config.tokenPepper),
+          userAgentHash: tokenDigest(
+            `admin-ua:${String(request.headers["user-agent"] ?? "")}`,
+            config.tokenPepper,
+          ),
+        });
+        sendJson(response, 200, { candidate });
+      } catch (error) {
+        if (error?.code === "AUTH_ADMIN_FORBIDDEN") {
+          sendJson(response, 403, { error: "admin_mfa_required" }, [clearAdminCookie()]);
+        } else if (error?.code === "TEACHER_REVIEW_CANDIDATE_NOT_FOUND") {
+          sendJson(response, 404, { error: "teacher_review_candidate_not_found" });
+        } else if (error?.code === "TEACHER_REVIEW_CANDIDATE_CONFLICT") {
+          sendJson(response, 409, { error: "teacher_review_candidate_conflict" });
+        } else if (error?.code === "TEACHER_REVIEW_DECISION_INVALID") {
+          sendJson(response, 400, { error: "invalid_teacher_review_decision" });
+        } else {
+          throw error;
+        }
+      }
+      return true;
+    }
+
     if (url.pathname === "/api/admin/community/reports") {
       if (request.method !== "GET") {
         methodNotAllowed(response, "GET");

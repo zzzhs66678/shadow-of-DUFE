@@ -431,6 +431,40 @@ test("teacher import foundation separates identities, section textbooks, and pen
   );
 });
 
+test("teacher review moderation requires elevation and immutable one-time decisions", async () => {
+  const migration = await read(
+    "ops/postgres/migrations/0014_teacher_review_moderation.sql",
+  );
+  const routes = await read("services/auth-api/src/admin-routes.mjs");
+  const store = await read("services/auth-api/src/teacher-review-store.mjs");
+  const grants = await read("ops/postgres/run-migrations.sh");
+
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS teacher_review_candidate_decisions/);
+  assert.match(migration, /candidate_id uuid NOT NULL UNIQUE/);
+  assert.match(migration, /teacher_review_candidate_decisions_append_only/);
+  assert.match(migration, /FOR UPDATE OF import_batch, candidate/);
+  assert.match(migration, /administrator_elevation_required/);
+  assert.match(migration, /admin\.teacher_review\.' \|\| p_decision/);
+  assert.match(migration, /rollback_teacher_review_candidate_for_import/);
+  assert.match(routes, /\/api\/admin\/teacher-reviews\/candidates/);
+  assert.match(routes, /teacher_review_candidate_conflict/);
+  assert.match(store, /list_teacher_review_candidates_for_admin/);
+  assert.match(store, /moderate_teacher_review_candidate/);
+  assert.match(grants, /REVOKE ALL PRIVILEGES ON teacher_review_candidate_decisions/);
+  assert.match(
+    grants,
+    /REVOKE EXECUTE ON FUNCTION require_elevated_teacher_review_admin[\s\S]*rollback_teacher_review_candidate_for_import/,
+  );
+  assert.match(
+    grants,
+    /GRANT SELECT, INSERT ON teacher_review_candidates TO %I/,
+  );
+  assert.doesNotMatch(
+    grants,
+    /GRANT SELECT, INSERT, UPDATE ON[^\n]*teacher_review_candidates[^\n]*:'import_user'/,
+  );
+});
+
 test("auth traffic has bounded in-memory burst protection", async () => {
   const limiter = await read("services/auth-api/src/rate-limit.mjs");
   const server = await read("services/auth-api/src/server.mjs");
@@ -440,6 +474,7 @@ test("auth traffic has bounded in-memory burst protection", async () => {
   assert.match(limiter, /communityWrite:[\s\S]*?capacity: 12/);
   assert.match(limiter, /communityReaction:[\s\S]*?capacity: 60/);
   assert.match(limiter, /communityReport:[\s\S]*?capacity: 5/);
+  assert.match(limiter, /teacherReviewModeration:[\s\S]*?capacity: 30/);
   assert.match(limiter, /maxKeys = 10_000/);
   assert.match(limiter, /idleTtlMs/);
   assert.match(server, /rate_limit_exceeded/);

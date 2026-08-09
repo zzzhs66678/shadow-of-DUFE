@@ -137,11 +137,12 @@
 - dry-run 识别 863 行教师候选和 3,321 条历史评价候选；10 组同名教师分属不同学院，姓名和学院不得作为唯一身份。1 行缺教师姓名、另 1 行缺来源键，两行涉及的 6 条评价拒绝自动导入。
 - 1,370 条历史评价含时效性考核陈述、疑似攻击、其他教师或联系方式等至少一项风险。全部历史评价只能先进入私有待审核候选，不关联当前用户、不自动生成五维评分；批准后公开时固定标注“历史整理内容”。
 - 教材计划含 1,143 行，展开为 2,660 条教学班教材关系，覆盖 1,018 门课程。13 门课程存在多教材版本，777 行为“不指定教材”并带占位 ISBN，1 条课程号缺目录匹配、13 条教学班键缺直接匹配。
-- 当前发布分支新增 `0013_teacher_catalog_imports.sql`：教师使用独立 UUID，来源身份由 `(source_system, external_teacher_key)` 映射；教材按学期、课程号、课序号、教师和教材项版本化保存；导入批次、逐行证据和 mutation 可审计，回滚不硬删除。
-- `npm run import:academic:preflight` 可重复生成无评价正文的 JSON 摘要和逐行 CSV 错误报告。M3 与基础设施契约 27/27、全仓 Node 161/161、相关 ESLint 和生产构建通过；嵌入式 PostgreSQL 17.5 已连续两遍执行 `0001`—`0013`，同学院同名双 UUID、来源键冲突拒绝和 pending 候选不可公开约束通过。本机没有原生 PostgreSQL/Docker，运行角色权限、并发连接和升级库数据仍待 staging。当前未部署，教师索引、审核 API 和生产数据写入尚未实现。
+- 当前发布分支新增 `0013_teacher_catalog_imports.sql` 与 `0014_teacher_review_moderation.sql`：教师使用独立 UUID，来源身份由 `(source_system, external_teacher_key)` 映射；教材按教学班版本化；历史候选、一次性管理员决定、公开评价、导入逐行证据和 mutation 分层审计，回滚不硬删除。
+- `npm run import:academic:preflight` 可重复生成无评价正文的 JSON 摘要和逐行 CSV 错误报告。auth-api 68/68、基础设施契约 23/23、全仓 Node 164/164、相关 ESLint 和生产构建通过；嵌入式 PostgreSQL 17.5 已执行 `0001`—`0014` 并验证导入、回滚和历史候选审核事务。本机没有原生 PostgreSQL/Docker，运行角色权限、真实并发连接和升级库数据仍待 staging。当前未部署，教师索引和生产数据写入尚未实现。
 - dry-run 还会生成不可放入 `public/`/`app/` 的私有规范化包。本次包含 861 位完整教师来源身份、3,294 条去重脱敏评价候选和 2,659 条教学班教材；写入前会再次拒绝未脱敏联系方式和异常摘要。
 - `npm run import:academic:write` 使用专用 importer 数据库角色和显式 `IMPORT_ALLOW_APPLY=true` 开关；事务 apply 以 advisory lock、源文件摘要和映射版本幂等，逐行证据与 mutation append-only。回滚按依赖顺序把记录标为 `withdrawn/rolled_back/retired`，不硬删除。
 - 上述真实规模私有包已在嵌入式 PostgreSQL 17.5 完成首次 apply、第二次幂等 no-op 和教材→教师依赖回滚；测试后私有包已删除，生产数据库未写入。原生 PostgreSQL 的角色 ACL 和并发连接仍是 staging 门禁。
+- 管理员候选列表与 approve/reject API 已接入 auth-api：普通用户和未完成短期 MFA 提升的管理员不能读取候选；批准会在同一数据库事务创建公开评价、不可变决定和管理员审计，拒绝不创建公开评价。重复或并发第二次决定返回冲突，审计失败会回滚整次发布。
 - 2026-08-09 生产依赖审计仍被 `vinext@0.0.50` 固定的 `image-size@2.0.2` 两个新披露 high 阻塞；`fast-uri` 与 `nanoid` 已锁到修复版本。审计不满足发布门禁。
 
 ## 当前数据规模

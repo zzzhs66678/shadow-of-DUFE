@@ -1,6 +1,7 @@
 import pg from "pg";
 import { createPersonalStore } from "./personal-store.mjs";
 import { createCommunityStore } from "./community-store.mjs";
+import { createTeacherReviewStore } from "./teacher-review-store.mjs";
 
 const { Pool } = pg;
 
@@ -87,10 +88,12 @@ export function createDatabasePool(config) {
 export function createAuthStore(pool) {
   const personalStore = createPersonalStore(pool);
   const communityStore = createCommunityStore(pool);
+  const teacherReviewStore = createTeacherReviewStore(pool);
 
   return {
     ...personalStore,
     ...communityStore,
+    ...teacherReviewStore,
     async health() {
       await pool.query("SELECT 1");
     },

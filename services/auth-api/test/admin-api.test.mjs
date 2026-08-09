@@ -16,6 +16,7 @@ const adminId = "00000000-0000-4000-8000-000000000001";
 const userId = "00000000-0000-4000-8000-000000000002";
 const reportId = "00000000-0000-4000-8000-000000000003";
 const moderationCaseId = "00000000-0000-4000-8000-000000000004";
+const teacherReviewCandidateId = "00000000-0000-4000-8000-000000000005";
 const adminSecurity = createAdminSecurity({
   activeKeyId,
   keyring,
@@ -67,6 +68,7 @@ function createAdminStore() {
   const audit = [];
   let lastTotpStep = null;
   let sensitiveCalls = 0;
+  let teacherReviewStatus = "pending";
   const target = {
     id: userId,
     username: "student",
@@ -153,6 +155,53 @@ function createAdminStore() {
     async listAdminAudit() {
       sensitiveCalls += 1;
       return structuredClone(audit);
+    },
+    async listAdminTeacherReviewCandidates(input) {
+      sensitiveCalls += 1;
+      if (input.status !== teacherReviewStatus) return [];
+      return [{
+        id: teacherReviewCandidateId,
+        teacher: {
+          id: "00000000-0000-4000-8000-000000000006",
+          displayName: "测试教师",
+          collegeName: "测试学院",
+        },
+        body: "这是一条已经脱敏并等待人工判断的历史评价。",
+        riskFlags: ["time_sensitive_assessment_claim"],
+        status: teacherReviewStatus,
+        moderationReason: null,
+        moderatedAt: null,
+        publicReviewId: null,
+        createdAt: new Date(now).toISOString(),
+      }];
+    },
+    async moderateAdminTeacherReviewCandidate(input) {
+      sensitiveCalls += 1;
+      if (input.candidateId !== teacherReviewCandidateId) {
+        const error = new Error("candidate not found");
+        error.code = "TEACHER_REVIEW_CANDIDATE_NOT_FOUND";
+        throw error;
+      }
+      if (teacherReviewStatus !== "pending") {
+        const error = new Error("candidate conflict");
+        error.code = "TEACHER_REVIEW_CANDIDATE_CONFLICT";
+        throw error;
+      }
+      teacherReviewStatus = input.decision === "approve" ? "approved" : "rejected";
+      const publicReviewId = input.decision === "approve"
+        ? "00000000-0000-4000-8000-000000000007"
+        : null;
+      audit.push({
+        action: `admin.teacher_review.${input.decision}`,
+        candidateId: input.candidateId,
+        reason: input.reason,
+      });
+      return {
+        id: input.candidateId,
+        status: teacherReviewStatus,
+        publicReviewId,
+        moderatedAt: new Date(now).toISOString(),
+      };
     },
     async listCommunityReportQueue(input) {
       sensitiveCalls += 1;
@@ -310,6 +359,11 @@ test("admin routes reject anonymous and ordinary users before sensitive queries"
       { headers: { Cookie: baseCookie(store.tokens.userToken) } },
     );
     assert.equal(community.status, 403);
+    const teacherReviews = await fetch(
+      `${baseUrl}/api/admin/teacher-reviews/candidates`,
+      { headers: { Cookie: baseCookie(store.tokens.userToken) } },
+    );
+    assert.equal(teacherReviews.status, 403);
     assert.equal(store.sensitiveCalls, 0);
   });
 });
@@ -545,6 +599,64 @@ test("community moderation rejects cross-site and mass-assigned actions", async 
     );
     assert.equal(invalid.status, 400);
     assert.equal(store.audit.length, before);
+  });
+});
+
+test("elevated administrators review sanitized teacher candidates once", async () => {
+  await withAdminServer(async ({ baseUrl, store }) => {
+    const cookie = await elevatedCookie(baseUrl, store);
+    const list = await fetch(
+      `${baseUrl}/api/admin/teacher-reviews/candidates?status=pending&limit=50`,
+      { headers: { Cookie: cookie } },
+    );
+    assert.equal(list.status, 200);
+    assert.match(list.headers.get("cache-control"), /no-store/u);
+    const listed = await list.json();
+    assert.equal(listed.candidates[0].id, teacherReviewCandidateId);
+    assert.equal(listed.candidates[0].body.includes("脱敏"), true);
+    assert.equal(listed.nextCursor, null);
+
+    const crossSite = await fetch(
+      `${baseUrl}/api/admin/teacher-reviews/candidates/${teacherReviewCandidateId}/decision`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "https://evil.example",
+          Cookie: cookie,
+        },
+        body: JSON.stringify({ decision: "approve", reason: "人工核对后允许作为历史整理内容公开" }),
+      },
+    );
+    assert.equal(crossSite.status, 403);
+
+    const approve = () => fetch(
+      `${baseUrl}/api/admin/teacher-reviews/candidates/${teacherReviewCandidateId}/decision`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "https://dufesh.cn",
+          Cookie: cookie,
+        },
+        body: JSON.stringify({ decision: "approve", reason: "人工核对后允许作为历史整理内容公开" }),
+      },
+    );
+    const accepted = await approve();
+    assert.equal(accepted.status, 200);
+    const acceptedBody = await accepted.json();
+    assert.equal(acceptedBody.candidate.status, "approved");
+    assert.ok(acceptedBody.candidate.publicReviewId);
+
+    const conflict = await approve();
+    assert.equal(conflict.status, 409);
+    assert.deepEqual(await conflict.json(), {
+      error: "teacher_review_candidate_conflict",
+    });
+    assert.equal(
+      store.audit.filter((event) => event.action === "admin.teacher_review.approve").length,
+      1,
+    );
   });
 });
 

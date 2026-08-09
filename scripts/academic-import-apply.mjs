@@ -631,13 +631,13 @@ export async function rollbackImportBatch(database, batchId) {
 
     for (const mutation of mutations.rows) {
       if (mutation.entity_type === "teacher_review_candidate" && mutation.mutation_type === "created") {
-        await client.query(
-          `UPDATE teacher_review_candidates
-           SET moderation_status = 'rolled_back', moderated_at = now(),
-               moderation_reason = '导入批次执行回滚'
-           WHERE id = $1`,
-          [mutation.entity_id],
+        const rolledBack = await client.query(
+          "SELECT rollback_teacher_review_candidate_for_import($1, $2) AS rolled_back",
+          [mutation.entity_id, batchId],
         );
+        if (!rolledBack.rows[0]?.rolled_back) {
+          throw new Error("历史评价候选不属于当前导入批次");
+        }
         await insertMutation(client, {
           batchId,
           importRowId: mutation.import_row_id,
