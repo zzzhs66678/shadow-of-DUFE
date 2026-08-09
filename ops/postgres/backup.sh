@@ -55,7 +55,10 @@ docker compose -p "$COMPOSE_PROJECT_NAME" exec -T postgres \
 
 docker compose -p "$COMPOSE_PROJECT_NAME" exec -T postgres pg_restore --list < "$tmp_file" >/dev/null
 mv "$tmp_file" "$backup_file"
-sha256sum "$backup_file" > "$checksum_file"
+(
+  cd "$BACKUP_DIR"
+  sha256sum "$(basename "$backup_file")" > "$(basename "$checksum_file")"
+)
 
 uploaded=0
 if [ -n "${OSS_BACKUP_URI:-}" ]; then

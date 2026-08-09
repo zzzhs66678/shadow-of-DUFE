@@ -144,12 +144,31 @@ test("identity foundation keeps OAuth identities, devices, and sessions separate
 
 test("backup and disk protection have bounded local retention", async () => {
   const backup = await read("ops/postgres/backup.sh");
+  const restoreDrill = await read("ops/postgres/restore-drill.sh");
+  const restoreTimer = await read(
+    "deploy/systemd/dufesh-db-restore-drill.timer",
+  );
   const guard = await read("ops/maintenance/disk-guard.sh");
 
   assert.match(backup, /LOCAL_KEEP="\$\{LOCAL_KEEP:-1\}"/);
   assert.match(backup, /MAX_DISK_PERCENT="\$\{MAX_DISK_PERCENT:-85\}"/);
   assert.match(backup, /COMPOSE_PROJECT_NAME="\$\{COMPOSE_PROJECT_NAME:-dufesh\}"/);
   assert.match(backup, /ossutil stat/);
+  assert.match(backup, /sha256sum "\$\(basename "\$backup_file"\)"/);
+  assert.match(restoreDrill, /actual_checksum="\$\(sha256sum "\$backup_file"/);
+  assert.match(restoreDrill, /actual_checksum" != "\$expected_checksum/);
+  assert.match(restoreDrill, /dufesh_restore_drill_/);
+  assert.match(restoreDrill, /--template template0/);
+  assert.match(restoreDrill, /pg_restore/);
+  assert.match(restoreDrill, /--exit-on-error/);
+  assert.match(restoreDrill, /migration_count < 16/);
+  assert.match(restoreDrill, /NOT convalidated/);
+  assert.match(restoreDrill, /api_rate_limit_buckets/);
+  assert.match(restoreDrill, /dropdb[\s\S]*--if-exists "\$drill_database"/);
+  assert.match(restoreDrill, /cleanup\ncreated=0\necho "Restore drill passed/);
+  assert.match(restoreDrill, /RESTORE_DRILL_MAX_SECONDS/);
+  assert.match(restoreTimer, /OnCalendar=Sun/);
+  assert.match(restoreTimer, /Persistent=true/);
   assert.match(guard, /docker builder prune/);
   assert.match(guard, /disk-critical/);
 });
