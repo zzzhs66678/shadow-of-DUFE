@@ -5,10 +5,12 @@ import { createPasswordService } from "./passwords.mjs";
 import { createAvatarProcessor } from "./avatars.mjs";
 import { createAdminSecurity } from "./admin-security.mjs";
 import { createAuthServer } from "./server.mjs";
+import { createApiRateLimiters } from "./rate-limit.mjs";
 
 const config = loadConfig();
 const pool = createDatabasePool(config);
 const store = createAuthStore(pool);
+const rateLimiters = createApiRateLimiters({ store });
 const wechatProvider = createWechatProvider(config);
 const passwordService = createPasswordService();
 const avatarProcessor = createAvatarProcessor();
@@ -26,6 +28,7 @@ const server = createAuthServer({
   passwordService,
   avatarProcessor,
   adminSecurity,
+  rateLimiters,
 });
 
 server.listen(config.port, "0.0.0.0", () => {

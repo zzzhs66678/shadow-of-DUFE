@@ -186,7 +186,9 @@ export function createAdminRequestHandler({
         `admin-mfa:${clientAddress(request)}:${session.userId}:${session.id}`,
         config.tokenPepper,
       );
-      if (!(rateLimiters.adminMfa ?? rateLimiters.write).consume(rateKey)) {
+      if (
+        !(await (rateLimiters.adminMfa ?? rateLimiters.write).consume(rateKey))
+      ) {
         response.setHeader("Retry-After", "60");
         sendJson(response, 429, { error: "admin_mfa_rate_limited" });
         return true;
@@ -402,7 +404,11 @@ export function createAdminRequestHandler({
         `teacher-review-moderation:${clientAddress(request)}:${session.userId}:${session.id}`,
         config.tokenPepper,
       );
-      if (!(rateLimiters.teacherReviewModeration ?? rateLimiters.write).consume(rateKey)) {
+      if (
+        !(await (
+          rateLimiters.teacherReviewModeration ?? rateLimiters.write
+        ).consume(rateKey))
+      ) {
         response.setHeader("Retry-After", "60");
         sendJson(response, 429, { error: "teacher_review_moderation_rate_limited" });
         return true;

@@ -90,14 +90,15 @@ async function optionalSession(request, store, config) {
   return store.getActiveSession(tokenDigest(token, config.tokenPepper));
 }
 
-function writeRateAllowed(request, userId, rateLimiters, config) {
+async function writeRateAllowed(request, userId, rateLimiters, config) {
   const limiter = rateLimiters.teacherReviewWrite ?? rateLimiters.write;
   const userKey = tokenDigest(`teacher-review:user:${userId}`, config.tokenPepper);
   const ipKey = tokenDigest(
     `teacher-review:ip:${clientAddress(request)}`,
     config.tokenPepper,
   );
-  return limiter.consume(userKey) && limiter.consume(ipKey);
+  if (!(await limiter.consume(userKey))) return false;
+  return limiter.consume(ipKey);
 }
 
 function withoutCursor(item) {
@@ -173,7 +174,14 @@ export function createTeacherRequestHandler({ store, config, rateLimiters }) {
         sendJson(response, 200, { review }, { privateResponse: true });
         return true;
       }
-      if (!writeRateAllowed(request, session.userId, rateLimiters, config)) {
+      if (
+        !(await writeRateAllowed(
+          request,
+          session.userId,
+          rateLimiters,
+          config,
+        ))
+      ) {
         response.setHeader("Retry-After", "300");
         sendJson(
           response,

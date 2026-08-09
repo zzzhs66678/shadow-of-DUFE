@@ -101,6 +101,30 @@ export function createAuthStore(pool) {
       await pool.query("SELECT 1");
     },
 
+    async consumeRateLimit({
+      scope,
+      keyDigest,
+      capacity,
+      refillPerSecond,
+    }) {
+      if (!/^[0-9a-f]{64}$/u.test(keyDigest)) {
+        throw new TypeError("rate limit key digest is invalid");
+      }
+      const result = await pool.query(
+        `SELECT consume_api_rate_limit($1, $2, $3, $4) AS allowed`,
+        [
+          scope,
+          Buffer.from(keyDigest, "hex"),
+          capacity,
+          refillPerSecond,
+        ],
+      );
+      if (result.rowCount !== 1 || typeof result.rows[0]?.allowed !== "boolean") {
+        throw new Error("rate limit decision was unavailable");
+      }
+      return result.rows[0].allowed;
+    },
+
     async getOrCreateAnonymousDevice(tokenHash) {
       const existing = await pool.query(
         `SELECT id, public_id, last_seen_at

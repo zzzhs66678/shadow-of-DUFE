@@ -603,9 +603,14 @@ test("user teacher reviews are session-scoped, versioned, and soft-deleted", asy
   assert.match(store, /version = \$10/);
 });
 
-test("auth traffic has bounded in-memory burst protection", async () => {
+test("auth traffic combines bounded burst protection with persistent high-risk quotas", async () => {
   const limiter = await read("services/auth-api/src/rate-limit.mjs");
   const server = await read("services/auth-api/src/server.mjs");
+  const entrypoint = await read("services/auth-api/src/index.mjs");
+  const grants = await read("ops/postgres/run-migrations.sh");
+  const migration = await read(
+    "ops/postgres/migrations/0016_shared_rate_limits.sql",
+  );
 
   assert.match(limiter, /capacity: 2_400/);
   assert.match(limiter, /capacity: 300/);
@@ -616,6 +621,17 @@ test("auth traffic has bounded in-memory burst protection", async () => {
   assert.match(limiter, /teacherReviewWrite:[\s\S]*?capacity: 6/);
   assert.match(limiter, /maxKeys = 10_000/);
   assert.match(limiter, /idleTtlMs/);
+  assert.match(limiter, /createSharedTokenBucket/);
+  assert.match(limiter, /store\.consumeRateLimit/);
+  assert.match(entrypoint, /createApiRateLimiters\(\{ store \}\)/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS api_rate_limit_buckets/);
+  assert.match(migration, /octet_length\(key_digest\) = 32/);
+  assert.match(migration, /FOR UPDATE/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION consume_api_rate_limit/);
+  assert.match(migration, /SECURITY DEFINER/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION consume_api_rate_limit/);
+  assert.match(grants, /REVOKE ALL PRIVILEGES ON api_rate_limit_buckets/);
+  assert.match(grants, /GRANT EXECUTE ON FUNCTION consume_api_rate_limit/);
   assert.match(server, /rate_limit_exceeded/);
   assert.match(server, /Retry-After/);
   assert.match(server, /clientAddress/);

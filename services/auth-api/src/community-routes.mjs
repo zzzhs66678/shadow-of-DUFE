@@ -102,7 +102,7 @@ async function optionalSession(request, store, config) {
   );
 }
 
-function writeRateAllowed(
+async function writeRateAllowed(
   request,
   userId,
   rateLimiters,
@@ -118,7 +118,8 @@ function writeRateAllowed(
     `${limiterName}:ip:${clientAddress(request)}`,
     config.tokenPepper,
   );
-  return limiter.consume(userKey) && limiter.consume(ipKey);
+  if (!(await limiter.consume(userKey))) return false;
+  return limiter.consume(ipKey);
 }
 
 function handleStoreError(error, response) {
@@ -176,13 +177,15 @@ export function createCommunityRequestHandler({ store, config, rateLimiters }) {
         sendJson(response, 401, { error: "authentication_required" });
         return false;
       }
-      if (!writeRateAllowed(
-        request,
-        session.userId,
-        rateLimiters,
-        config,
-        limiterName,
-      )) {
+      if (
+        !(await writeRateAllowed(
+          request,
+          session.userId,
+          rateLimiters,
+          config,
+          limiterName,
+        ))
+      ) {
         response.setHeader("Retry-After", "30");
         sendJson(response, 429, {
           error: limiterName === "communityReport"

@@ -233,7 +233,7 @@ export function createAuthServer({
         `rate:${clientAddress(request)}`,
         config.tokenPepper,
       );
-      if (!limiter.consume(rateKey)) {
+      if (!(await limiter.consume(rateKey))) {
         response.setHeader("Retry-After", "15");
         sendJson(response, 429, { error: "rate_limit_exceeded" });
         return;
@@ -406,7 +406,11 @@ export function createAuthServer({
           `avatar:${clientAddress(request)}:${session.userId}`,
           config.tokenPepper,
         );
-        if (!(rateLimiters.upload ?? rateLimiters.write).consume(uploadRateKey)) {
+        if (
+          !(await (rateLimiters.upload ?? rateLimiters.write).consume(
+            uploadRateKey,
+          ))
+        ) {
           response.setHeader("Retry-After", "300");
           sendJson(response, 429, { error: "avatar_rate_limit_exceeded" });
           return;
@@ -584,7 +588,11 @@ export function createAuthServer({
           `register:${clientAddress(request)}:${registration.value.normalizedUsername}`,
           config.tokenPepper,
         );
-        if (!(rateLimiters.credential ?? rateLimiters.write).consume(credentialRateKey)) {
+        if (
+          !(await (rateLimiters.credential ?? rateLimiters.write).consume(
+            credentialRateKey,
+          ))
+        ) {
           response.setHeader("Retry-After", "60");
           sendJson(response, 429, { error: "credential_rate_limit_exceeded" });
           return;
@@ -688,7 +696,11 @@ export function createAuthServer({
           `login:${clientAddress(request)}:${identifier}`,
           config.tokenPepper,
         );
-        if (!(rateLimiters.credential ?? rateLimiters.write).consume(credentialRateKey)) {
+        if (
+          !(await (rateLimiters.credential ?? rateLimiters.write).consume(
+            credentialRateKey,
+          ))
+        ) {
           response.setHeader("Retry-After", "60");
           sendJson(response, 429, { error: "credential_rate_limit_exceeded" });
           return;
@@ -797,9 +809,9 @@ export function createAuthServer({
           config.tokenPepper,
         );
         if (
-          !(rateLimiters.emailVerification ?? rateLimiters.write).consume(
-            verificationRateKey,
-          )
+          !(await (
+            rateLimiters.emailVerification ?? rateLimiters.write
+          ).consume(verificationRateKey))
         ) {
           response.setHeader("Retry-After", "120");
           sendJson(response, 429, {
@@ -918,7 +930,11 @@ export function createAuthServer({
           `reset:${clientAddress(request)}:${identifier || "invalid"}`,
           config.tokenPepper,
         );
-        if (!(rateLimiters.passwordReset ?? rateLimiters.write).consume(resetRateKey)) {
+        if (
+          !(await (rateLimiters.passwordReset ?? rateLimiters.write).consume(
+            resetRateKey,
+          ))
+        ) {
           response.setHeader("Retry-After", "60");
           sendJson(response, 429, { error: "password_reset_rate_limit_exceeded" });
           return;

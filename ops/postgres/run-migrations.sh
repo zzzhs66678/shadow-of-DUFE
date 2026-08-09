@@ -168,6 +168,14 @@ SELECT format(
     :'runtime_user'
 ) \gexec
 SELECT format(
+    'REVOKE ALL PRIVILEGES ON api_rate_limit_buckets FROM %I',
+    :'runtime_user'
+) \gexec
+SELECT format(
+    'GRANT EXECUTE ON FUNCTION consume_api_rate_limit(text, bytea, double precision, double precision) TO %I',
+    :'runtime_user'
+) \gexec
+SELECT format(
     'REVOKE EXECUTE ON FUNCTION require_elevated_teacher_review_admin(uuid, uuid, text), rollback_teacher_review_candidate_for_import(uuid, uuid) FROM %I',
     :'runtime_user'
 ) \gexec
