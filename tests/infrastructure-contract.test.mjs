@@ -130,6 +130,23 @@ test("PostgreSQL is private, resource-limited, health-checked, and log-rotated",
   assert.match(compose, /max-size: "10m"/);
 });
 
+test("CI runs migrations twice against native PostgreSQL 17 and checks runtime roles", async () => {
+  const workflow = await read(".github/workflows/quality.yml");
+  const integration = await read("tests/postgres-runtime-integration.test.mjs");
+
+  assert.match(workflow, /postgres-integration:/);
+  assert.match(workflow, /image: postgres:17-alpine/);
+  assert.match(workflow, /Apply migrations twice/);
+  assert.match(workflow, /run-migrations\.sh[\s\S]*run-migrations\.sh/);
+  assert.match(workflow, /POSTGRES_INTEGRATION: "true"/);
+  assert.match(integration, /server_version_num/);
+  assert.match(integration, /Array\.from\(\{ length: 20 \}/);
+  assert.match(integration, /api_rate_limit_buckets/);
+  assert.match(integration, /admin_audit_events/);
+  assert.match(integration, /teacher_review_candidate_decisions/);
+  assert.match(integration, /ci-importer-denied/);
+});
+
 test("identity foundation keeps OAuth identities, devices, and sessions separate", async () => {
   const migration = await read("ops/postgres/migrations/0001_identity_foundation.sql");
 

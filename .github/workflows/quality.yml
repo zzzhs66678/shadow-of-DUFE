@@ -9,6 +9,53 @@ permissions:
   contents: read
 
 jobs:
+  postgres-integration:
+    name: postgres-17-integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: dufesh_ci
+          POSTGRES_USER: dufesh_owner
+          POSTGRES_PASSWORD: ci-owner-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dufesh_owner -d dufesh_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      POSTGRES_DB: dufesh_ci
+      POSTGRES_USER: dufesh_owner
+      POSTGRES_PASSWORD: ci-owner-password
+      AUTH_DB_USER: dufesh_runtime_ci
+      AUTH_DB_PASSWORD: ci-runtime-password
+      IMPORT_DB_USER: dufesh_import_ci
+      IMPORT_DB_PASSWORD: ci-import-password
+      POSTGRES_INTEGRATION: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install PostgreSQL client and Node dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+          npm ci --ignore-scripts --no-audit --no-fund
+      - name: Apply migrations twice
+        run: |
+          MIGRATIONS_DIR="$GITHUB_WORKSPACE/ops/postgres/migrations" sh ops/postgres/run-migrations.sh
+          MIGRATIONS_DIR="$GITHUB_WORKSPACE/ops/postgres/migrations" sh ops/postgres/run-migrations.sh
+      - name: Verify PostgreSQL concurrency and role boundaries
+        run: node --test tests/postgres-runtime-integration.test.mjs
+
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 30

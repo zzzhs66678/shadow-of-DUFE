@@ -67,6 +67,7 @@
 - [ ] ESLint、TypeScript/构建、SSR 回归通过。
 - [ ] 主站、auth-api、小影单元与 API 集成测试通过。
 - [ ] 数据库迁移、约束、导入幂等和权限测试通过。
+- [ ] GitHub `postgres-17-integration` 作业从空库执行 `run-migrations.sh` 两遍并通过真实 owner/runtime/importer 连接测试；本地 SKIP 不得作为替代证据。
 - [ ] 用本次私有包在 staging 完成首次 apply、第二次幂等 no-op、错误依赖顺序拒绝和教材→教师回滚；私有包不得进入镜像、Git、静态目录或备份公开层。
 - [ ] 关键路径浏览器 E2E 通过：注册→资料→跨设备→教师→评价→回复→通知→举报→管理员处理。
 - [ ] 课表中的教师姓名先进入索引消歧；只有持有稳定 `teacher_id` 的数据才能直达详情，不能用同名首条记录代替。

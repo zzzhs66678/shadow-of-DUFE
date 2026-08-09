@@ -428,6 +428,12 @@
 - 恢复后检查至少 16 个迁移记录、公共 schema 无未验证约束，并确认账号、会话、个人课表、社区、教师和共享限流关键表存在；输出不含凭据的行数摘要。退出陷阱只删除生成的临时库，恢复超过默认 900 秒 RTO 也判失败。新增每周日 systemd service/timer，参数只提供无真实值示例。
 - 基础设施契约 28/28 和 `git diff --check` 通过；当前 Windows 开发机没有 `sh`、Docker、PostgreSQL 或 WSL，因此脚本尚未真实执行，不能把源码契约标记为恢复成功。SEC-009 仍因首次真实演练和异地备份凭据保持部分修复，本切片未部署。
 
+## M8/M9 已实现待 CI 验证切片：原生 PostgreSQL 17 门禁
+
+- GitHub quality workflow 新增独立 `postgres-17-integration` 作业，启动官方 `postgres:17-alpine` 健康服务、安装 PostgreSQL 客户端和锁定依赖，从空库运行仓库迁移器两次；第二次仍须通过 checksum 与幂等检查。
+- 原生测试分别用 owner、auth runtime 和 importer 建立真实连接：要求服务端版本至少 17、迁移恰为 16 个；20 个 runtime 并发争抢容量 5 的共享桶只能放行 5 个，关闭连接池后仍拒绝同一摘要，不同摘要/作用域独立。runtime 必须不能直读限流表或 UPDATE 管理审计，importer 必须不能读取账号、会话、审核决定或执行共享限流函数。
+- 本地基础设施契约 29/29、集成测试加载 1 项明确 SKIP、相关 ESLint 和 `git diff --check` 通过。当前尚未推送，不能宣称 GitHub PostgreSQL 作业已成功；作业首次全绿后才可更新 SEC-003/006/013 的原生证据，本切片未部署。
+
 ## 下一步
 
 1. 在可用 PostgreSQL 17 环境验证 `0001`—`0016` 空库、升级、重复迁移、共享限流并发/重启、邮箱/TOTP/恢复码并发重放、社区证据快照、教师同名隔离、导入/审核/用户评价并发和 migrator/runtime/importer 权限，并补两个普通用户与一个管理员的真实浏览器 E2E。
