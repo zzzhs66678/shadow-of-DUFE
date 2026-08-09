@@ -63,9 +63,6 @@ body,
 }
 
 body {
-  background-image:
-    linear-gradient(rgba(23, 24, 22, 0.018) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(23, 24, 22, 0.012) 1px, transparent 1px);
   background-size: 28px 28px;
 }
 
@@ -86,7 +83,6 @@ textarea {
 
 .hub-topbar {
   align-items: stretch;
-  background: rgba(244, 244, 239, 0.96);
   border-bottom: 1px solid var(--journal-ink);
   box-shadow: none;
   display: grid;
@@ -115,10 +111,8 @@ textarea {
   background: var(--journal-red);
   bottom: -1px;
   content: "";
-  height: 5px;
   left: 0;
   position: absolute;
-  width: 56px;
 }
 
 .brand-button::before {
@@ -206,7 +200,6 @@ textarea {
 .term-switch {
   background: var(--journal-paper-raised);
   border: 1px solid var(--journal-ink);
-  border-radius: 0;
   min-height: 38px;
 }
 
@@ -285,12 +278,7 @@ textarea {
 
 .focus-head.focus-head-v5 {
   align-items: start;
-  border-bottom: 1px solid var(--journal-ink);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.72fr);
-  min-height: 330px;
-  overflow: hidden;
-  padding: 12px 0 34px;
   position: relative;
 }
 
@@ -313,11 +301,8 @@ textarea {
 
 .focus-head h1 {
   font-family: var(--journal-display) !important;
-  font-size: clamp(66px, 8vw, 112px);
   font-weight: 800;
-  letter-spacing: -0.09em;
   line-height: 0.9;
-  margin: 20px 0 18px;
 }
 
 .focus-head > p {
@@ -456,8 +441,6 @@ textarea {
 .campus-pins {
   background: transparent;
   border-bottom: 1px solid var(--journal-line);
-  gap: 0;
-  margin: 0;
   min-height: 62px;
 }
 
@@ -471,7 +454,6 @@ textarea {
   border-left: 1px solid var(--journal-line);
   color: #3f433f;
   margin-left: 0;
-  padding: 0 20px;
 }
 
 .campus-pins a:hover {
@@ -486,9 +468,7 @@ textarea {
 
 .focus-setup {
   background: transparent;
-  border: 0;
   border-bottom: 1px solid var(--journal-ink);
-  border-radius: 0;
   color: var(--journal-muted);
   margin: 0;
   min-height: 62px;
@@ -506,20 +486,15 @@ textarea {
 .today-command-deck {
   align-items: stretch;
   display: grid;
-  gap: 0;
   grid-template-areas:
     "main agenda"
     "side agenda";
-  grid-template-columns: minmax(0, 1.75fr) minmax(300px, 0.72fr);
   grid-template-rows: minmax(390px, auto) auto;
-  margin-top: 30px;
 }
 
 .now-card {
   background: var(--journal-paper-raised);
   border: 1px solid var(--journal-ink);
-  border-radius: 0;
-  box-shadow: none;
   grid-area: main;
   min-height: 390px;
   padding: clamp(28px, 4vw, 52px);
@@ -530,10 +505,7 @@ textarea {
   background: var(--journal-red);
   content: "";
   height: 7px;
-  left: -1px;
   position: absolute;
-  top: -1px;
-  width: 30%;
 }
 
 .now-card header {
@@ -591,7 +563,6 @@ textarea {
 }
 
 .now-card > footer button {
-  border-radius: 0;
   height: 44px;
   padding: 0 22px;
   width: auto;
@@ -640,11 +611,7 @@ textarea {
 }
 
 .agenda-glance {
-  background: var(--journal-ink);
   border: 1px solid var(--journal-ink);
-  border-left: 0;
-  border-radius: 0;
-  color: #ffffff;
   grid-area: agenda;
   min-height: 100%;
   padding: 30px;
@@ -665,12 +632,7 @@ textarea {
 }
 
 .agenda-glance > div > button {
-  border-bottom-color: rgba(255, 255, 255, 0.18);
   color: #ffffff;
-}
-
-.agenda-glance > div > button:hover {
-  background: rgba(255, 255, 255, 0.07);
 }
 
 .agenda-glance > div > button time,
@@ -719,7 +681,6 @@ textarea {
 
 .study-management button i {
   background: var(--journal-red);
-  border-radius: 0;
 }
 
 .campus-window {
@@ -759,9 +720,6 @@ textarea {
 }
 
 .knowledge-tribute {
-  background: var(--journal-paper-raised);
-  border: 1px solid var(--journal-ink);
-  border-top: 0;
   border-radius: 0;
   box-shadow: none;
 }
@@ -774,7 +732,6 @@ textarea {
 
 .knowledge-tribute > nav .scihub-link {
   background: var(--journal-red);
-  border-radius: 0;
 }
 
 .catalog-workspace,
@@ -960,10 +917,6 @@ textarea {
     padding-left: 0;
   }
 
-  .focus-head.focus-head-v5 {
-    grid-template-columns: minmax(0, 1fr) 300px;
-  }
-
   .time-orbit {
     right: -90px;
   }
@@ -997,19 +950,7 @@ textarea {
   }
 
   .focus-head.focus-head-v5 {
-    display: block;
-    min-height: 320px;
     padding-bottom: 24px;
-  }
-
-  .focus-head h1 {
-    font-size: clamp(52px, 17vw, 68px);
-    margin: 14px 0 10px;
-    max-width: 75%;
-  }
-
-  .focus-head > p {
-    max-width: 58%;
   }
 
   .focus-head > button {
@@ -1075,7 +1016,6 @@ textarea {
     align-items: stretch;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    margin-top: 0;
   }
 
   .campus-pins > span {
@@ -1084,7 +1024,6 @@ textarea {
 
   .campus-pins a {
     justify-content: center;
-    padding: 0 7px;
   }
 
   .campus-pins a:first-of-type {
@@ -1858,14 +1797,6 @@ body {
   border-radius: 999px;
 }
 
-.focus-head.focus-head-v5 {
-  border-bottom: 0;
-  column-gap: clamp(44px, 7vw, 96px);
-  grid-template-columns: minmax(0, 0.92fr) minmax(390px, 0.78fr);
-  min-height: min(700px, calc(100vh - 104px));
-  padding: 34px 0 66px;
-}
-
 .focus-head.focus-head-v5::before {
   background: var(--journal-red);
   border-radius: 50%;
@@ -1877,16 +1808,8 @@ body {
   width: 9px;
 }
 
-.focus-head h1 {
-  font-size: clamp(72px, 8.6vw, 126px);
-  letter-spacing: -0.105em;
-  margin: clamp(72px, 13vh, 118px) 0 30px;
-  max-width: 670px;
-}
-
 .focus-head > p {
   border-top: 1px solid var(--journal-ink);
-  max-width: 380px;
   padding-top: 18px;
 }
 
@@ -2091,7 +2014,6 @@ body {
 .today-command-deck {
   gap: 14px;
   grid-template-columns: minmax(0, 1.62fr) minmax(300px, 0.72fr);
-  margin-top: 54px;
 }
 
 .now-card {
@@ -2515,10 +2437,7 @@ body {
 
 @media (max-width: 760px) {
   .focus-head.focus-head-v5 {
-    display: grid;
     grid-template-columns: 1fr;
-    min-height: 0;
-    padding: 14px 0 32px;
   }
 
   .focus-head.focus-head-v5::before {
@@ -2526,13 +2445,7 @@ body {
   }
 
   .focus-head h1 {
-    font-size: clamp(54px, 17vw, 72px);
-    margin: 44px 0 18px;
     max-width: 100%;
-  }
-
-  .focus-head > p {
-    max-width: 72%;
   }
 
   .campus-time-corridor {
@@ -2586,7 +2499,6 @@ body {
       "agenda";
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto;
-    margin-top: 30px;
   }
 
   .now-card {

@@ -45,50 +45,128 @@ export function findEarlierExactDuplicates(root) {
   return [...groups.values()].flatMap((rules) => rules.slice(0, -1));
 }
 
-export async function auditStylesheet(file, { fix = false } = {}) {
-  const source = await readFile(file, "utf8");
-  const root = postcss.parse(source, { from: file });
-  const duplicates = findEarlierExactDuplicates(root);
-  const findings = duplicates.map((rule) => ({
-    line: rule.source?.start?.line ?? 0,
-    selector: rule.selector,
-  }));
+function contextAndSelector(rule) {
+  return `${ancestorContext(rule)}\n---\n${rule.selector}`;
+}
 
-  if (fix && duplicates.length > 0) {
-    for (const rule of duplicates) {
-      rule.remove();
+function effectiveDeclarations(rule) {
+  const declarations = new Map();
+
+  for (const node of rule.nodes) {
+    if (node.type !== "decl") continue;
+    if (node.prop.startsWith("--")) continue;
+
+    const current = declarations.get(node.prop);
+    if (!current || node.important || !current.important) {
+      declarations.set(node.prop, node);
     }
-    await writeFile(file, root.toString(), "utf8");
   }
 
-  return findings;
+  return declarations;
+}
+
+export function findEarlierShadowedDeclarations(stylesheets) {
+  const laterDeclarations = new Map();
+  const shadowed = [];
+
+  for (let sheetIndex = stylesheets.length - 1; sheetIndex >= 0; sheetIndex -= 1) {
+    const rules = [];
+    stylesheets[sheetIndex].root.walkRules((rule) => rules.push(rule));
+
+    for (let ruleIndex = rules.length - 1; ruleIndex >= 0; ruleIndex -= 1) {
+      const rule = rules[ruleIndex];
+      const key = contextAndSelector(rule);
+      const laterByProperty = laterDeclarations.get(key) ?? new Map();
+
+      for (const node of rule.nodes) {
+        if (node.type !== "decl") continue;
+        if (node.prop.startsWith("--")) continue;
+
+        const later = laterByProperty.get(node.prop);
+        if (later && (!node.important || later.important)) {
+          shadowed.push(node);
+        }
+      }
+
+      for (const [property, declaration] of effectiveDeclarations(rule)) {
+        const later = laterByProperty.get(property);
+        if (!later || (declaration.important && !later.important)) {
+          laterByProperty.set(property, declaration);
+        }
+      }
+
+      laterDeclarations.set(key, laterByProperty);
+    }
+  }
+
+  return shadowed;
+}
+
+async function loadStylesheets(files) {
+  return Promise.all(
+    files.map(async (file) => ({
+      file,
+      root: postcss.parse(await readFile(file, "utf8"), { from: file }),
+    })),
+  );
+}
+
+export async function auditGlobalStylesheets(files, { fix = false } = {}) {
+  const stylesheets = await loadStylesheets(files);
+  const duplicateRules = stylesheets.flatMap(({ root }) =>
+    findEarlierExactDuplicates(root),
+  );
+
+  if (fix) {
+    for (const rule of duplicateRules) {
+      rule.remove();
+    }
+  }
+
+  const shadowedDeclarations = findEarlierShadowedDeclarations(stylesheets);
+
+  if (fix) {
+    const affectedRules = new Set(shadowedDeclarations.map((node) => node.parent));
+    for (const declaration of shadowedDeclarations) {
+      declaration.remove();
+    }
+    for (const rule of affectedRules) {
+      if (rule && rule.nodes.every((node) => node.type === "comment")) {
+        rule.remove();
+      }
+    }
+    await Promise.all(
+      stylesheets.map(({ file, root }) => writeFile(file, root.toString(), "utf8")),
+    );
+  }
+
+  return { duplicateRules, shadowedDeclarations };
 }
 
 async function main() {
   const fix = process.argv.includes("--fix");
-  let duplicateCount = 0;
+  const { duplicateRules, shadowedDeclarations } = await auditGlobalStylesheets(
+    GLOBAL_STYLESHEETS,
+    { fix },
+  );
+  const findingCount = duplicateRules.length + shadowedDeclarations.length;
 
-  for (const file of GLOBAL_STYLESHEETS) {
-    const findings = await auditStylesheet(file, { fix });
-    duplicateCount += findings.length;
-
-    for (const finding of findings) {
-      console.log(`${file}:${finding.line} ${finding.selector.replaceAll("\n", " ")}`);
-    }
-  }
-
-  if (duplicateCount === 0) {
-    console.log("Global CSS cascade audit passed: no context-exact duplicate rules.");
+  if (findingCount === 0) {
+    console.log(
+      "Global CSS cascade audit passed: no context-exact duplicate rules or exactly shadowed declarations.",
+    );
     return;
   }
 
   if (fix) {
-    console.log(`Removed ${duplicateCount} earlier context-exact duplicate rules.`);
+    console.log(
+      `Removed ${duplicateRules.length} earlier context-exact duplicate rules and ${shadowedDeclarations.length} exactly shadowed declarations.`,
+    );
     return;
   }
 
   console.error(
-    `Global CSS cascade audit failed: ${duplicateCount} earlier context-exact duplicate rules. Run npm run audit:css -- --fix.`,
+    `Global CSS cascade audit failed: ${duplicateRules.length} duplicate rules and ${shadowedDeclarations.length} exactly shadowed declarations. Run npm run audit:css -- --fix.`,
   );
   process.exitCode = 1;
 }
