@@ -4,6 +4,7 @@ import {
   contentHash,
   minimalAuditRecord,
 } from "./security.mjs";
+import { toPublicTaskError } from "./public-errors.mjs";
 
 const READ_TASKS = new Set([
   "library.get_status",
@@ -89,10 +90,7 @@ export class XiaoyingExecutor {
         type: typeof task?.type === "string" ? task.type : "unknown",
         status: "failed",
         completedAt: new Date(this.clock()).toISOString(),
-        error: {
-          code: this.#errorCode(error),
-          message: error instanceof Error ? error.message : "未知错误",
-        },
+        error: toPublicTaskError(this.#errorCode(error)),
       };
     }
 

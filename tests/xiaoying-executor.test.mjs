@@ -16,6 +16,10 @@ import { DemoLibraryAdapter } from "../xiaoying-executor/src/demo-library-adapte
 import { XiaoyingExecutor } from "../xiaoying-executor/src/executor.mjs";
 import { XiaoyingLocalStore } from "../xiaoying-executor/src/local-store.mjs";
 import { PairingService } from "../xiaoying-executor/src/pairing-service.mjs";
+import {
+  toPublicHttpError,
+  toPublicTaskError,
+} from "../xiaoying-executor/src/public-errors.mjs";
 import { SeatWatchRunner } from "../xiaoying-executor/src/seat-watch-runner.mjs";
 import { ScheduledReservationRunner } from "../xiaoying-executor/src/scheduled-reservation-runner.mjs";
 import { ReservationGuardRunner } from "../xiaoying-executor/src/reservation-guard-runner.mjs";
@@ -121,6 +125,21 @@ test("production HTTP surface isolates cookies, paths, origins, and invite burst
       headers: { cookie: sessionCookie },
     });
     assert.equal(currentUser.status, 200);
+
+    const malformedSecret = "private-provider-token";
+    const malformed = await fetch(`http://127.0.0.1:${port}/v1/preferences`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        cookie: sessionCookie,
+        origin: "https://dufesh.cn",
+      },
+      body: `{${malformedSecret}`,
+    });
+    const malformedBody = await malformed.json();
+    assert.equal(malformed.status, 400);
+    assert.equal(malformedBody.code, "INVALID_REQUEST");
+    assert.equal(JSON.stringify(malformedBody).includes(malformedSecret), false);
 
     const missingDeleteOrigin = await fetch(
       `http://127.0.0.1:${port}/v1/me`,
@@ -250,6 +269,37 @@ test("X0 executor exposes only the narrow read surface", async () => {
   assert.equal(favorites.data.seats.length, 2);
   assert.equal(forbidden.status, "failed");
   assert.equal(forbidden.error.code, "TASK_NOT_ALLOWED");
+});
+
+test("public error boundaries never return raw exception messages", async () => {
+  const secret = "private-session-cookie";
+  const internal = toPublicHttpError(new Error(secret));
+  const invalid = toPublicHttpError(
+    Object.assign(new Error(`invalid ${secret}`), { statusCode: 400 }),
+  );
+  const taskError = toPublicTaskError("UNRECOGNIZED_INTERNAL_CODE");
+
+  assert.deepEqual(internal, {
+    status: 500,
+    code: "INTERNAL_ERROR",
+    message: "服务暂时无法处理请求，请稍后重试",
+  });
+  assert.equal(invalid.code, "INVALID_REQUEST");
+  assert.equal(JSON.stringify([internal, invalid, taskError]).includes(secret), false);
+
+  const executor = new XiaoyingExecutor({
+    libraryAdapter: {
+      async getStatus() {
+        throw new Error(`upstream failed with ${secret}`);
+      },
+    },
+    clock: () => baseTime,
+  });
+  const result = await executor.execute(task("library.get_status"));
+  assert.equal(result.error.code, "TASK_FAILED");
+  assert.equal(result.error.message, "任务执行失败，请稍后重试");
+  assert.equal(JSON.stringify(result).includes(secret), false);
+  assert.equal(JSON.stringify(executor.getAuditLog()).includes(secret), false);
 });
 
 test("reservation requires a fresh preview and explicit confirmation", async () => {

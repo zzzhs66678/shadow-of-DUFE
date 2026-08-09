@@ -11,7 +11,8 @@ import { DemoLibraryAdapter } from "../src/demo-library-adapter.mjs";
 import { XiaoyingExecutor } from "../src/executor.mjs";
 import { XiaoyingLocalStore } from "../src/local-store.mjs";
 import { loadOrCreateMasterKey } from "../src/secret-vault.mjs";
-import { PairingError, PairingService } from "../src/pairing-service.mjs";
+import { PairingService } from "../src/pairing-service.mjs";
+import { toPublicHttpError } from "../src/public-errors.mjs";
 import { SeatWatchRunner } from "../src/seat-watch-runner.mjs";
 import { ScheduledReservationRunner } from "../src/scheduled-reservation-runner.mjs";
 import { ReservationGuardRunner } from "../src/reservation-guard-runner.mjs";
@@ -257,10 +258,20 @@ async function readJson(request, maxBytes = 64 * 1024) {
   let size = 0;
   for await (const chunk of request) {
     size += chunk.length;
-    if (size > maxBytes) throw new Error("请求内容过大");
+    if (size > maxBytes) {
+      const error = new Error("请求内容过大");
+      error.statusCode = 413;
+      throw error;
+    }
     chunks.push(chunk);
   }
-  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  } catch {
+    const error = new Error("请求 JSON 格式无效");
+    error.statusCode = 400;
+    throw error;
+  }
 }
 
 const rateLimits = new Map();
@@ -717,9 +728,10 @@ const server = createServer(async (request, response) => {
     }
     return sendJson(response, 404, { error: "not_found" });
   } catch (error) {
-    return sendJson(response, Number(error?.statusCode) || 400, {
-      error: error instanceof Error ? error.message : "请求无法处理",
-      ...(error instanceof PairingError ? { code: error.code } : {}),
+    const publicError = toPublicHttpError(error, { fallbackStatus: 400 });
+    return sendJson(response, publicError.status, {
+      error: publicError.message,
+      code: publicError.code,
     });
   }
 });
