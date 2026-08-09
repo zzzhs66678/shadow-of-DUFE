@@ -678,6 +678,7 @@ test("Xiaoying is isolated behind a private, resource-bounded service", async ()
   const compose = await read("docker-compose.yml");
   const caddy = await read("deploy/Caddyfile");
   const server = await read("xiaoying-executor/bin/server.mjs");
+  const store = await read("xiaoying-executor/src/local-store.mjs");
   const dockerfile = await read("xiaoying-executor/Dockerfile");
 
   assert.match(compose, /xiaoying:/);
@@ -691,6 +692,11 @@ test("Xiaoying is isolated behind a private, resource-bounded service", async ()
   assert.match(server, /XIAOYING_MASTER_KEY/);
   assert.match(server, /sameOriginRequest/);
   assert.match(server, /withinRateLimit/);
+  assert.doesNotMatch(server, /const rateLimits = new Map/);
+  assert.match(server, /forwarded\.at\(-1\)/);
+  assert.match(store, /CREATE TABLE IF NOT EXISTS public_rate_limits/);
+  assert.match(store, /createHmac\("sha256", this\.masterKey\)/);
+  assert.match(store, /BEGIN IMMEDIATE/);
   assert.match(server, /__Secure-dufesh_xiaoying_session/);
   assert.match(dockerfile, /USER node/);
 });

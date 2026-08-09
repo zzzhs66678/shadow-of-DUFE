@@ -1,5 +1,6 @@
 import {
   createHash,
+  createHmac,
   randomBytes,
   randomUUID,
   scryptSync,
@@ -62,6 +63,80 @@ export class XiaoyingLocalStore {
 
   close() {
     this.db.close();
+  }
+
+  consumePublicRateLimit({ scope, key, limit, windowMs }) {
+    if (!/^[a-z][a-z0-9._-]{0,63}$/u.test(scope)) {
+      throw new TypeError("public rate limit scope is invalid");
+    }
+    if (typeof key !== "string" || key.length < 1 || key.length > 512) {
+      throw new TypeError("public rate limit key is invalid");
+    }
+    if (!Number.isInteger(limit) || limit < 1 || limit > 10_000) {
+      throw new TypeError("public rate limit allowance is invalid");
+    }
+    if (!Number.isInteger(windowMs) || windowMs < 1_000 || windowMs > DAY_MS) {
+      throw new TypeError("public rate limit window is invalid");
+    }
+
+    const now = this.clock();
+    const keyDigest = createHmac("sha256", this.masterKey)
+      .update(`${scope}\0${key}`)
+      .digest("hex");
+    let allowed = false;
+
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const current = this.db
+        .prepare(
+          `SELECT request_count, window_expires_at
+           FROM public_rate_limits
+           WHERE scope = ? AND key_digest = ?`,
+        )
+        .get(scope, keyDigest);
+
+      if (!current || current.window_expires_at <= now) {
+        this.db
+          .prepare(
+            `INSERT INTO public_rate_limits (
+               scope, key_digest, request_count, window_expires_at, last_seen_at
+             ) VALUES (?, ?, 1, ?, ?)
+             ON CONFLICT(scope, key_digest) DO UPDATE SET
+               request_count = 1,
+               window_expires_at = excluded.window_expires_at,
+               last_seen_at = excluded.last_seen_at`,
+          )
+          .run(scope, keyDigest, now + windowMs, now);
+        allowed = true;
+      } else {
+        const consumed = this.db
+          .prepare(
+            `UPDATE public_rate_limits
+             SET request_count = request_count + 1, last_seen_at = ?
+             WHERE scope = ? AND key_digest = ? AND request_count < ?`,
+          )
+          .run(now, scope, keyDigest, limit);
+        if (consumed.changes === 0) {
+          this.db
+            .prepare(
+              `UPDATE public_rate_limits
+               SET last_seen_at = ?
+               WHERE scope = ? AND key_digest = ?`,
+            )
+            .run(now, scope, keyDigest);
+        }
+        allowed = consumed.changes === 1;
+      }
+
+      this.db
+        .prepare("DELETE FROM public_rate_limits WHERE last_seen_at < ?")
+        .run(now - DAY_MS);
+      this.db.exec("COMMIT");
+      return allowed;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
   }
 
   unlockVip({ inviteCode, displayName }) {
@@ -1484,6 +1559,18 @@ export class XiaoyingLocalStore {
         enabled INTEGER NOT NULL DEFAULT 1,
         created_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS public_rate_limits (
+        scope TEXT NOT NULL,
+        key_digest TEXT NOT NULL,
+        request_count INTEGER NOT NULL,
+        window_expires_at INTEGER NOT NULL,
+        last_seen_at INTEGER NOT NULL,
+        PRIMARY KEY (scope, key_digest),
+        CHECK (length(key_digest) = 64),
+        CHECK (request_count >= 1)
+      );
+      CREATE INDEX IF NOT EXISTS idx_public_rate_limits_last_seen
+        ON public_rate_limits(last_seen_at);
       CREATE TABLE IF NOT EXISTS vip_entitlements (
         user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
         source TEXT NOT NULL,

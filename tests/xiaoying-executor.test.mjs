@@ -683,6 +683,66 @@ test("default invite allowance survives restart and code rotation resets it safe
   }
 });
 
+test("public rate limits survive restart without storing raw network identifiers", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "xiaoying-public-limit-"));
+  const databasePath = join(directory, "xiaoying.sqlite");
+  const masterKey = Buffer.alloc(32, 29);
+  let now = baseTime;
+  let store = new XiaoyingLocalStore({
+    databasePath,
+    masterKey,
+    defaultInviteCode: "bounded-rate-limit",
+    defaultInviteMaxUses: 20,
+    clock: () => now,
+  });
+  const input = {
+    scope: "invite",
+    key: "203.0.113.42",
+    limit: 2,
+    windowMs: 15 * 60_000,
+  };
+
+  try {
+    assert.equal(store.consumePublicRateLimit(input), true);
+    assert.equal(store.consumePublicRateLimit(input), true);
+    assert.equal(store.consumePublicRateLimit(input), false);
+    const stored = store.db
+      .prepare(
+        `SELECT key_digest, request_count
+         FROM public_rate_limits
+         WHERE scope = 'invite'`,
+      )
+      .get();
+    assert.equal(stored.key_digest.length, 64);
+    assert.equal(stored.key_digest.includes(input.key), false);
+    assert.equal(stored.request_count, 2);
+
+    store.close();
+    store = new XiaoyingLocalStore({
+      databasePath,
+      masterKey,
+      defaultInviteCode: "bounded-rate-limit",
+      defaultInviteMaxUses: 20,
+      clock: () => now,
+    });
+    assert.equal(store.consumePublicRateLimit(input), false);
+    assert.equal(
+      store.consumePublicRateLimit({ ...input, key: "203.0.113.43" }),
+      true,
+    );
+    assert.equal(
+      store.consumePublicRateLimit({ ...input, scope: "public-pairing" }),
+      true,
+    );
+
+    now += input.windowMs;
+    assert.equal(store.consumePublicRateLimit(input), true);
+  } finally {
+    store.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("per-user model key is encrypted and API summaries never expose plaintext", () => {
   const masterKey = Buffer.alloc(32, 9);
   const store = new XiaoyingLocalStore({

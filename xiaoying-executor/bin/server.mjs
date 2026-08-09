@@ -322,25 +322,21 @@ async function readJson(request, maxBytes = 64 * 1024) {
   }
 }
 
-const rateLimits = new Map();
-
 function requestIp(request) {
   const forwarded = String(request.headers["x-forwarded-for"] ?? "")
-    .split(",", 1)[0]
-    .trim();
-  return forwarded || request.socket.remoteAddress || "unknown";
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return forwarded.at(-1) || request.socket.remoteAddress || "unknown";
 }
 
 function withinRateLimit(request, bucket, limit, windowMs) {
-  const now = Date.now();
-  const key = `${bucket}:${requestIp(request)}`;
-  const current = rateLimits.get(key);
-  if (!current || current.resetAt <= now) {
-    rateLimits.set(key, { count: 1, resetAt: now + windowMs });
-    return true;
-  }
-  current.count += 1;
-  return current.count <= limit;
+  return store.consumePublicRateLimit({
+    scope: bucket,
+    key: requestIp(request),
+    limit,
+    windowMs,
+  });
 }
 
 function sameOriginRequest(request) {
