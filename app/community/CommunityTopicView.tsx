@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { DialogBackdrop } from "../DialogBackdrop";
 import {
   authorName,
   communityErrorMessage,
@@ -324,13 +325,13 @@ export function CommunityTopicView({ topicId }: { topicId: string }) {
       </section>
 
       {editingComment && (
-        <div className={styles.modalBackdrop} onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setEditingComment(null); }}>
+        <DialogBackdrop onDismiss={closeEditComment} dismissDisabled={Boolean(busy)}>
           <form ref={editCommentRef} className={styles.reportSheet} role="dialog" aria-modal="true" aria-labelledby="edit-comment-title" onSubmit={saveComment}>
             <span>修改回复</span><h2 id="edit-comment-title">编辑这条回复</h2>
             <textarea value={editCommentBody} onChange={(event) => setEditCommentBody(event.target.value)} maxLength={3000} rows={8} autoFocus />
             <div><button type="button" onClick={() => setEditingComment(null)}>取消</button><button disabled={busy === `comment-edit:${editingComment.id}` || !editCommentBody.trim()}>保存更改</button></div>
           </form>
-        </div>
+        </DialogBackdrop>
       )}
 
       <NotificationsPanel open={notificationsOpen} onClose={closeNotifications} unread={unread} onUnreadChange={setUnread} />

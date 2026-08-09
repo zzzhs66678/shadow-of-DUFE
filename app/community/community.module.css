@@ -212,9 +212,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .replies .commentNode i { height: 11px; width: 11px; }
 .replies .commentNode span { display: none; }
 
-.modalBackdrop,
 .panelBackdrop { background: rgba(16, 17, 15, .58); inset: 0; position: fixed; z-index: 100; }
-.modalBackdrop { align-items: center; display: flex; justify-content: center; padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom)); }
 .reportSheet { background: var(--paper); border: 1px solid var(--ink); box-shadow: 17px 18px 0 rgba(0, 0, 0, .18); max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); max-width: 560px; overscroll-behavior: contain; overflow-y: auto; padding: clamp(26px, 4vw, 46px); width: 100%; }
 .reportSheet > span { color: var(--red); font: 700 9px/1 var(--mono); letter-spacing: .13em; }
 .reportSheet h2 { font: 500 33px/1.25 var(--serif); margin: 14px 0; }
@@ -305,7 +303,6 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   .replies .commentNode { left: -28px; }
   .commentEntry > header,
   .commentUnavailable > header { align-items: flex-start; flex-direction: column; gap: 9px; }
-  .modalBackdrop { align-items: flex-end; padding: 0; }
   .reportSheet { border-bottom: 0; border-left: 0; border-right: 0; box-shadow: none; max-height: 92vh; max-height: 92dvh; max-width: none; padding-bottom: max(26px, env(safe-area-inset-bottom)); }
   .notificationsPanel { border-left: 0; max-width: none; width: 100%; }
   .notificationsPanel li[data-unread="true"]::before { left: -12px; }

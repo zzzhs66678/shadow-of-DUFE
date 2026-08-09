@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { DialogBackdrop } from "../DialogBackdrop";
 import { useModalFocus } from "../use-modal-focus";
 import styles from "./admin.module.css";
 
@@ -244,7 +245,7 @@ export function ModerationDesk({
       )}
 
       {selected && (
-        <div className={styles.moderationBackdrop} onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) closeSelected(); }}>
+        <DialogBackdrop onDismiss={closeSelected} dismissDisabled={Boolean(busy)} priority="critical">
           <form ref={caseRef} className={styles.caseSheet} role="dialog" aria-modal="true" aria-labelledby="case-title" onSubmit={selected.caseId ? applyAction : openCase}>
             <header><div><span>{selected.caseId ? "审核中案件" : "待入案举报"}</span><h2 id="case-title">{selected.evidenceTitle || selected.targetLabel || "社区举报"}</h2></div><button type="button" onClick={closeSelected} disabled={Boolean(busy)} aria-label="关闭案卷">×</button></header>
             <dl>
@@ -267,7 +268,7 @@ export function ModerationDesk({
             {feedback && <p className={styles.caseFeedback} role="status">{feedback}</p>}
             <footer><button type="button" onClick={closeSelected} disabled={Boolean(busy)}>取消</button><button disabled={Boolean(busy) || (selected.caseId ? actionReason.trim().length < 8 : caseReason.trim().length < 8)}>{busy ? "正在写入审计" : selected.caseId ? actionLabels[action] : "建立审核案件"}</button></footer>
           </form>
-        </div>
+        </DialogBackdrop>
       )}
     </section>
   );

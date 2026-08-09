@@ -38,8 +38,20 @@ const publicMastheadStyles = await readFile(
   new URL("../app/public-masthead.module.css", import.meta.url),
   "utf8",
 );
+const dialogBackdropSource = await readFile(
+  new URL("../app/DialogBackdrop.tsx", import.meta.url),
+  "utf8",
+);
+const dialogBackdropStyles = await readFile(
+  new URL("../app/dialog-backdrop.module.css", import.meta.url),
+  "utf8",
+);
 const communitySource = await readFile(
   new URL("../app/community/CommunityShared.tsx", import.meta.url),
+  "utf8",
+);
+const communityTopicSource = await readFile(
+  new URL("../app/community/CommunityTopicView.tsx", import.meta.url),
   "utf8",
 );
 const communityStyles = await readFile(
@@ -48,6 +60,14 @@ const communityStyles = await readFile(
 );
 const adminStyles = await readFile(
   new URL("../app/admin/admin.module.css", import.meta.url),
+  "utf8",
+);
+const adminSource = await readFile(
+  new URL("../app/admin/AdminConsole.tsx", import.meta.url),
+  "utf8",
+);
+const moderationSource = await readFile(
+  new URL("../app/admin/ModerationDesk.tsx", import.meta.url),
   "utf8",
 );
 
@@ -87,6 +107,23 @@ test("public workspaces share one accessible masthead primitive", () => {
     assert.doesNotMatch(styles, /\.siteHeader/);
     assert.doesNotMatch(styles, /\.wordmark/);
   }
+});
+
+test("community and admin dialogs share one dismissible responsive backdrop", () => {
+  assert.match(dialogBackdropSource, /event\.target === event\.currentTarget/);
+  assert.match(dialogBackdropSource, /dismissDisabled/);
+  assert.match(dialogBackdropStyles, /env\(safe-area-inset-top\)/);
+  assert.match(dialogBackdropStyles, /env\(safe-area-inset-bottom\)/);
+  assert.match(dialogBackdropStyles, /@media \(max-width: 680px\)/);
+
+  for (const source of [communitySource, communityTopicSource, adminSource, moderationSource]) {
+    assert.match(source, /import \{ DialogBackdrop \}/);
+    assert.match(source, /<DialogBackdrop/);
+  }
+  assert.match(adminSource, /useModalFocus<HTMLFormElement>/);
+  assert.match(adminSource, /ref=\{actionDialogRef\}/);
+  assert.doesNotMatch(communityStyles, /\.modalBackdrop/);
+  assert.doesNotMatch(adminStyles, /\.(?:modalBackdrop|moderationBackdrop)/);
 });
 
 test("personal activities default to cinnabar while legacy blue renders as charcoal", () => {

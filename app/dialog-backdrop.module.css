@@ -1,0 +1,22 @@
+.backdrop {
+  align-items: center;
+  background: rgba(16, 17, 15, .58);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
+  position: fixed;
+  z-index: 100;
+}
+
+.critical {
+  background: rgba(16, 17, 15, .62);
+  z-index: 120;
+}
+
+@media (max-width: 680px) {
+  .backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+}

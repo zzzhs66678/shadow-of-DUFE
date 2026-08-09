@@ -2,6 +2,8 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { DialogBackdrop } from "../DialogBackdrop";
+import { useModalFocus } from "../use-modal-focus";
 import styles from "./admin.module.css";
 import { ModerationDesk } from "./ModerationDesk";
 
@@ -140,6 +142,8 @@ export function AdminConsole() {
   const [busy, setBusy] = useState("");
   const [target, setTarget] = useState<AdminUser | null>(null);
   const [reason, setReason] = useState("");
+  const closeUserAction = useCallback(() => setTarget(null), []);
+  const actionDialogRef = useModalFocus<HTMLFormElement>(Boolean(target), closeUserAction, Boolean(busy));
 
   const loadAudit = useCallback(async () => {
     const payload = await requestJson<{ events: AuditEvent[] }>("/api/admin/audit");
@@ -513,13 +517,11 @@ export function AdminConsole() {
       )}
 
       {target && (
-        <div className={styles.modalBackdrop} onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setTarget(null); }}>
+        <DialogBackdrop onDismiss={closeUserAction} dismissDisabled={Boolean(busy)}>
           <form
+            ref={actionDialogRef}
             className={styles.actionSheet}
             onSubmit={changeStatus}
-            onKeyDown={(event) => {
-              if (event.key === "Escape" && !busy) setTarget(null);
-            }}
             role="dialog"
             aria-modal="true"
             aria-labelledby="admin-action-title"
@@ -530,11 +532,11 @@ export function AdminConsole() {
             <label htmlFor="admin-action-reason">处置原因（至少 8 个字）</label>
             <textarea id="admin-action-reason" value={reason} onChange={(event) => setReason(event.target.value)} maxLength={500} rows={4} autoFocus />
             <div>
-              <button type="button" onClick={() => setTarget(null)} disabled={Boolean(busy)}>取消</button>
+              <button type="button" onClick={closeUserAction} disabled={Boolean(busy)}>取消</button>
               <button disabled={reason.trim().length < 8 || Boolean(busy)}>{busy ? "正在写入记录" : target.status === "active" ? "确认停用" : "确认恢复"}</button>
             </div>
           </form>
-        </div>
+        </DialogBackdrop>
       )}
     </main>
   );

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { DialogBackdrop } from "../DialogBackdrop";
 import { useModalFocus } from "../use-modal-focus";
 import { PublicMasthead } from "../PublicMasthead";
 import {
@@ -118,7 +119,7 @@ export function ReportDialog({
   }
 
   return (
-    <div className={styles.modalBackdrop} onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) resetAndClose(); }}>
+    <DialogBackdrop onDismiss={resetAndClose} dismissDisabled={busy}>
       <form
         ref={dialogRef}
         className={styles.reportSheet}
@@ -126,7 +127,6 @@ export function ReportDialog({
         aria-modal="true"
         aria-labelledby="community-report-title"
         onSubmit={submit}
-        onKeyDown={(event) => { if (event.key === "Escape" && !busy) resetAndClose(); }}
       >
         <span>社区安全</span>
         <h2 id="community-report-title">举报“{target.label}”</h2>
@@ -147,7 +147,7 @@ export function ReportDialog({
           <button disabled={busy || (detail.trim().length > 0 && detail.trim().length < 8) || (reasonCode === "other" && detail.trim().length < 8)}>{busy ? "正在提交" : "提交举报"}</button>
         </div>
       </form>
-    </div>
+    </DialogBackdrop>
   );
 }
 
