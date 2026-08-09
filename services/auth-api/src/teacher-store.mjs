@@ -1,5 +1,30 @@
+import { createHash } from "node:crypto";
+
 function iso(value) {
   return value ? new Date(value).toISOString() : null;
+}
+
+async function withTransaction(pool, callback) {
+  const client = typeof pool.connect === "function" ? await pool.connect() : pool;
+  try {
+    await client.query("BEGIN");
+    const result = await callback(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw error;
+  } finally {
+    if (client !== pool && typeof client.release === "function") client.release();
+  }
+}
+
+function domainError(code, details = {}) {
+  return Object.assign(new Error(code), { code, ...details });
+}
+
+function contentDigest(body) {
+  return createHash("sha256").update(body, "utf8").digest("hex");
 }
 
 function numberOrNull(value) {
@@ -33,6 +58,16 @@ function mapReview(row) {
       materialCompleteness: Number(row.material_completeness_rating),
     } : null,
     publishedAt: iso(row.published_at),
+  };
+}
+
+function mapOwnReview(row) {
+  if (!row) return null;
+  return {
+    ...mapReview(row),
+    status: row.status,
+    version: Number(row.version),
+    updatedAt: iso(row.updated_at),
   };
 }
 
@@ -121,7 +156,7 @@ export function createTeacherStore(pool) {
          GROUP BY teacher.id`,
         [teacherId],
       );
-      if (teacher.rowCount === 0) return null;
+      if (teacher.rows.length === 0) return null;
 
       const [sections, textbooks] = await Promise.all([
         pool.query(
@@ -209,6 +244,137 @@ export function createTeacherStore(pool) {
         ...mapReview(row),
         cursor: { publishedAt: iso(row.published_at), id: String(row.id) },
       }));
+    },
+
+    async getUserTeacherReview({ teacherId, userId }) {
+      const result = await pool.query(
+        `SELECT id, source_type, author_label, body,
+                course_organization_rating, content_clarity_rating,
+                assessment_explanation_rating, classroom_interaction_rating,
+                material_completeness_rating, status, version, published_at, updated_at
+         FROM teacher_reviews
+         WHERE teacher_id = $1
+           AND author_user_id = $2
+           AND source_type = 'user'
+           AND status <> 'deleted'
+         LIMIT 1`,
+        [teacherId, userId],
+      );
+      return mapOwnReview(result.rows[0]);
+    },
+
+    async saveUserTeacherReview({ teacherId, userId, body, ratings, expectedVersion }) {
+      return withTransaction(pool, async (client) => {
+        const access = await client.query(
+          `SELECT users.id AS user_id, teacher.id AS teacher_id
+           FROM app_users AS users
+           INNER JOIN teachers AS teacher
+             ON teacher.id = $2
+            AND teacher.identity_status IN ('pending', 'active')
+           WHERE users.id = $1 AND users.status = 'active'
+           FOR UPDATE OF users, teacher`,
+          [userId, teacherId],
+        );
+        if (access.rows.length === 0) throw domainError("TEACHER_REVIEW_TARGET_NOT_FOUND");
+
+        const values = [
+          teacherId,
+          userId,
+          body,
+          ratings.courseOrganization,
+          ratings.contentClarity,
+          ratings.assessmentExplanation,
+          ratings.classroomInteraction,
+          ratings.materialCompleteness,
+          contentDigest(body),
+        ];
+        let result;
+        if (expectedVersion === null) {
+          result = await client.query(
+            `INSERT INTO teacher_reviews (
+               teacher_id, author_user_id, source_type, author_label, body,
+               course_organization_rating, content_clarity_rating,
+               assessment_explanation_rating, classroom_interaction_rating,
+               material_completeness_rating, content_sha256
+             ) VALUES ($1, $2, 'user', '已注册用户', $3, $4, $5, $6, $7, $8, $9)
+             ON CONFLICT (teacher_id, author_user_id)
+               WHERE source_type = 'user' AND status <> 'deleted'
+             DO NOTHING
+             RETURNING id, source_type, author_label, body,
+                       course_organization_rating, content_clarity_rating,
+                       assessment_explanation_rating, classroom_interaction_rating,
+                       material_completeness_rating, status, version, published_at, updated_at`,
+            values,
+          );
+        } else {
+          result = await client.query(
+            `UPDATE teacher_reviews
+             SET body = $3,
+                 course_organization_rating = $4,
+                 content_clarity_rating = $5,
+                 assessment_explanation_rating = $6,
+                 classroom_interaction_rating = $7,
+                 material_completeness_rating = $8,
+                 content_sha256 = $9
+             WHERE teacher_id = $1
+               AND author_user_id = $2
+               AND source_type = 'user'
+               AND status <> 'deleted'
+               AND version = $10
+             RETURNING id, source_type, author_label, body,
+                       course_organization_rating, content_clarity_rating,
+                       assessment_explanation_rating, classroom_interaction_rating,
+                       material_completeness_rating, status, version, published_at, updated_at`,
+            [...values, expectedVersion],
+          );
+        }
+        if (result.rows.length > 0) return mapOwnReview(result.rows[0]);
+
+        const current = await client.query(
+          `SELECT version FROM teacher_reviews
+           WHERE teacher_id = $1 AND author_user_id = $2
+             AND source_type = 'user' AND status <> 'deleted'
+           LIMIT 1`,
+          [teacherId, userId],
+        );
+        throw domainError("TEACHER_REVIEW_VERSION_CONFLICT", {
+          currentVersion: current.rows[0] ? Number(current.rows[0].version) : null,
+        });
+      });
+    },
+
+    async deleteUserTeacherReview({ teacherId, userId, expectedVersion }) {
+      return withTransaction(pool, async (client) => {
+        const result = await client.query(
+          `UPDATE teacher_reviews
+           SET status = 'deleted'
+           WHERE teacher_id = $1
+             AND author_user_id = $2
+             AND source_type = 'user'
+             AND status <> 'deleted'
+             AND version = $3
+           RETURNING id, status, version`,
+          [teacherId, userId, expectedVersion],
+        );
+        if (result.rows.length > 0) {
+          return {
+            id: String(result.rows[0].id),
+            status: result.rows[0].status,
+            version: Number(result.rows[0].version),
+          };
+        }
+        const current = await client.query(
+          `SELECT version FROM teacher_reviews
+           WHERE teacher_id = $1 AND author_user_id = $2
+             AND source_type = 'user' AND status <> 'deleted'
+           LIMIT 1`,
+          [teacherId, userId],
+        );
+        if (!current.rows[0]) throw domainError("TEACHER_REVIEW_NOT_FOUND");
+        throw domainError("TEACHER_REVIEW_VERSION_CONFLICT", {
+          currentVersion: Number(current.rows[0].version),
+        });
+      });
     },
   };
 }

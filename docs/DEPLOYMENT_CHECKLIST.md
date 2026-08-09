@@ -28,6 +28,7 @@
 - [ ] 在 PostgreSQL 17 验证 `0012_community_report_evidence.sql` 空库/升级/重复迁移、旧举报回填和快照不可变触发器；编辑或删除目标后审核证据仍保持举报时内容。
 - [ ] 在 PostgreSQL 17 验证 `0013_teacher_catalog_imports.sql` 空库/升级/重复迁移、同名教师隔离、来源键冲突、历史候选默认私有、同教学班多教材、重复/并发 apply、版本回滚和后续批次依赖拒绝。
 - [ ] 在 PostgreSQL 17 验证 `0014_teacher_review_moderation.sql` 重复迁移、候选决定 append-only、approve/reject 并发、审计故障回滚和审核/批次回滚竞态。
+- [ ] 在 PostgreSQL 17 验证 `0015_teacher_user_reviews.sql` 空库/升级/重复迁移、每用户每教师活动评价唯一性、正文摘要与评分触发器、版本冲突、软删除重建，以及账号注销撤下评价且不被触发器阻断。
 - [ ] 验证 auth runtime 对 `data_import_batches`、`data_import_rows`、`data_import_mutations`、`teacher_review_candidates` 和决定表无直接权限，只能执行审核白名单函数，并不能写教师来源身份或教学班教材事实。
 - [ ] 验证 importer 不能 UPDATE 候选、批准/拒绝、写公开评价或管理员审计，只能执行专用未批准候选回滚函数。
 - [ ] 验证 auth runtime 无法 UPDATE/DELETE/TRUNCATE `community_content_edits` 与 `community_moderation_actions`，但仍可按设计追加记录。
@@ -45,6 +46,7 @@
 - [ ] 静态资料和上传目录只授予所需读写权限，路径遍历测试通过。
 - [ ] `/api/materials` 数量与发布清单一致，随机抽样列表、详情、预览、下载、404/410 与 403 状态；旧 `/resources/files/*` 有效链接保持兼容。
 - [ ] `/api/teachers` 索引、详情和评价分页在真实数据上通过；同名不同学院不合并，私有候选/来源摘要/内部状态不出现在响应，未发布评价不可见，历史整理评价不参与五维均分。
+- [ ] 使用两个真实普通账号验证 `/api/teachers/:teacher_id/my-review` 创建、读取、编辑冲突、删除、重新创建和跨账号隔离；跨站、匿名、额外字段、缺失五维评分和超限正文均被拒绝，账号注销后公开评价立即撤下。
 - [ ] `/api/community/topics` 列表、详情和评论游标读取通过；匿名/登录个性化、双向屏蔽、删除主题 410、删除评论墓碑及无效游标均符合契约。
 - [ ] 社区主题/评论发布、编辑和软删除通过真实账号验收；跨站请求、匿名请求、非作者、受制裁用户、双向屏蔽、额外字段、超长正文、旧版本和第三层回复均被拒绝或安全展平。
 - [ ] 主题/评论点赞、收藏、拉黑和举报在真实 PostgreSQL 上保持幂等；重复请求、并发请求、自我拉黑/举报、被屏蔽目标、已删除目标和专项限流均符合契约。
@@ -104,6 +106,6 @@
 - 微信开放平台正式 AppID/AppSecret 与最终审核状态：未提供，本地不需要等待；生产微信入口受此阻塞。
 - 独立 staging 环境与凭据：尚未确认，未擅自创建付费资源。
 - 邮件发送服务凭据：尚未提供；密码注册可先本地验证，生产验证/重置邮件受此阻塞。
-- 当前开发机未安装 `sh`、Docker/PostgreSQL；`0006_credential_auth.sql`—`0014_teacher_review_moderation.sql` 的空库、升级库、重复执行，以及 Linux musl 原生 Argon2id/Sharp 镜像验证必须在 staging 或具备 Docker 的 CI 完成。邮箱令牌、管理员 TOTP/恢复码并发消费、社区举报证据/可逆治理并发、教师导入与审核并发、`AUTH_DB_USER`/`IMPORT_DB_USER` 权限矩阵和 `run-migrations.sh` 实际执行仍需真实 PostgreSQL 集成测试。
+- 当前开发机未安装 `sh`、Docker/PostgreSQL；`0006_credential_auth.sql`—`0015_teacher_user_reviews.sql` 的空库、升级库、重复执行，以及 Linux musl 原生 Argon2id/Sharp 镜像验证必须在 staging 或具备 Docker 的 CI 完成。邮箱令牌、管理员 TOTP/恢复码并发消费、社区举报证据/可逆治理并发、教师导入/审核/用户评价并发、`AUTH_DB_USER`/`IMPORT_DB_USER` 权限矩阵和 `run-migrations.sh` 实际执行仍需真实 PostgreSQL 集成测试。
 - 主站生产依赖审计仍被 `vinext@0.0.50 → image-size@2.0.2` 的 2 个 high 阻塞；上游发布兼容修复或完成安全替代/隔离前不得放行生产发布。
 - 异地对象存储/备份凭据：尚未提供；本地适配器和恢复流程继续开发，生产异地副本受此阻塞。

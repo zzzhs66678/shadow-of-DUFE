@@ -466,6 +466,28 @@ test("teacher review moderation requires elevation and immutable one-time decisi
   );
 });
 
+test("user teacher reviews are session-scoped, versioned, and soft-deleted", async () => {
+  const migration = await read(
+    "ops/postgres/migrations/0015_teacher_user_reviews.sql",
+  );
+  const routes = await read("services/auth-api/src/teacher-routes.mjs");
+  const contract = await read("services/auth-api/src/teacher-review-contract.mjs");
+  const store = await read("services/auth-api/src/teacher-store.mjs");
+
+  assert.match(migration, /teacher_reviews_one_active_user_review_uidx/);
+  assert.match(migration, /WHERE source_type = 'user' AND status <> 'deleted'/);
+  assert.match(migration, /teacher review content digest mismatch/);
+  assert.match(migration, /legacy teacher review evidence is immutable/);
+  assert.match(routes, /my-review/);
+  assert.match(routes, /trustedOrigin/);
+  assert.match(routes, /teacherReviewWrite/);
+  assert.match(contract, /hasOnlyKeys/);
+  assert.match(contract, /normalized\.length < 20/);
+  assert.match(store, /author_user_id = \$2/);
+  assert.match(store, /status = 'deleted'/);
+  assert.match(store, /version = \$10/);
+});
+
 test("auth traffic has bounded in-memory burst protection", async () => {
   const limiter = await read("services/auth-api/src/rate-limit.mjs");
   const server = await read("services/auth-api/src/server.mjs");
@@ -476,6 +498,7 @@ test("auth traffic has bounded in-memory burst protection", async () => {
   assert.match(limiter, /communityReaction:[\s\S]*?capacity: 60/);
   assert.match(limiter, /communityReport:[\s\S]*?capacity: 5/);
   assert.match(limiter, /teacherReviewModeration:[\s\S]*?capacity: 30/);
+  assert.match(limiter, /teacherReviewWrite:[\s\S]*?capacity: 6/);
   assert.match(limiter, /maxKeys = 10_000/);
   assert.match(limiter, /idleTtlMs/);
   assert.match(server, /rate_limit_exceeded/);

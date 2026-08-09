@@ -202,7 +202,7 @@ export function createAuthServer({
     config,
     rateLimiters,
   });
-  const handleTeacherRequest = createTeacherRequestHandler({ store });
+  const handleTeacherRequest = createTeacherRequestHandler({ store, config, rateLimiters });
 
   return createServer(async (request, response) => {
     try {

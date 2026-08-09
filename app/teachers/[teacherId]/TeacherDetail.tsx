@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import { PublicMasthead } from "../../PublicMasthead";
 import styles from "../teachers.module.css";
 
@@ -24,6 +24,12 @@ type TeacherReview = {
   ratings: Record<RatingKey, number> | null;
   publishedAt: string;
 };
+type OwnTeacherReview = Omit<TeacherReview, "ratings"> & {
+  ratings: Record<RatingKey, number>;
+  status: "published" | "hidden";
+  version: number;
+  updatedAt: string;
+};
 
 const ratingLabels: Array<[RatingKey, string]> = [
   ["courseOrganization", "课程组织"],
@@ -42,6 +48,20 @@ export function TeacherDetail({ teacherId }: { teacherId: string }) {
   const [reviews, setReviews] = useState<TeacherReview[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "missing" | "error">("loading");
+  const [accountStatus, setAccountStatus] = useState<"loading" | "guest" | "ready" | "error">("loading");
+  const [ownReview, setOwnReview] = useState<OwnTeacherReview | null>(null);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [draftBody, setDraftBody] = useState("");
+  const [draftRatings, setDraftRatings] = useState<Record<RatingKey, number>>({
+    courseOrganization: 0,
+    contentClarity: 0,
+    assessmentExplanation: 0,
+    classroomInteraction: 0,
+    materialCompleteness: 0,
+  });
+  const [reviewAction, setReviewAction] = useState<"idle" | "saving" | "deleting">("idle");
+  const [reviewNotice, setReviewNotice] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [revision, setRevision] = useState(0);
 
   useEffect(() => {
@@ -49,9 +69,10 @@ export function TeacherDetail({ teacherId }: { teacherId: string }) {
     async function load() {
       setStatus("loading");
       try {
-        const [detailResponse, reviewResponse] = await Promise.all([
+        const [detailResponse, reviewResponse, ownReviewResponse] = await Promise.all([
           fetch(`/api/teachers/${teacherId}`, { signal: controller.signal, headers: { Accept: "application/json" } }),
           fetch(`/api/teachers/${teacherId}/reviews?limit=20`, { signal: controller.signal, headers: { Accept: "application/json" } }),
+          fetch(`/api/teachers/${teacherId}/my-review`, { signal: controller.signal, headers: { Accept: "application/json" } }),
         ]);
         if (detailResponse.status === 404) {
           setStatus("missing");
@@ -62,6 +83,20 @@ export function TeacherDetail({ teacherId }: { teacherId: string }) {
         const reviewPayload = await reviewResponse.json() as { items: TeacherReview[]; nextCursor: string | null };
         setReviews(reviewPayload.items);
         setNextCursor(reviewPayload.nextCursor);
+        if (ownReviewResponse.status === 401) {
+          setAccountStatus("guest");
+          setOwnReview(null);
+        } else if (ownReviewResponse.ok) {
+          const ownPayload = await ownReviewResponse.json() as { review: OwnTeacherReview | null };
+          setOwnReview(ownPayload.review);
+          setAccountStatus("ready");
+          if (ownPayload.review) {
+            setDraftBody(ownPayload.review.body);
+            setDraftRatings(ownPayload.review.ratings);
+          }
+        } else {
+          setAccountStatus("error");
+        }
         setStatus("ready");
       } catch (error) {
         if ((error as Error).name !== "AbortError") setStatus("error");
@@ -81,6 +116,102 @@ export function TeacherDetail({ teacherId }: { teacherId: string }) {
     const payload = await response.json() as { items: TeacherReview[]; nextCursor: string | null };
     setReviews((current) => [...current, ...payload.items]);
     setNextCursor(payload.nextCursor);
+  }
+
+  function openComposer() {
+    if (ownReview) {
+      setDraftBody(ownReview.body);
+      setDraftRatings(ownReview.ratings);
+    }
+    setReviewNotice("");
+    setConfirmDelete(false);
+    setComposerOpen(true);
+  }
+
+  async function saveReview(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (draftBody.normalize("NFKC").trim().length < 20) {
+      setReviewNotice("请至少写 20 个字，说明具体的课堂体验。");
+      return;
+    }
+    if (Object.values(draftRatings).some((rating) => rating < 1 || rating > 5)) {
+      setReviewNotice("请完成五个教学维度的评分。");
+      return;
+    }
+    setReviewAction("saving");
+    setReviewNotice("");
+    const payload: { body: string; ratings: Record<RatingKey, number>; expectedVersion?: number } = {
+      body: draftBody,
+      ratings: draftRatings,
+    };
+    if (ownReview) payload.expectedVersion = ownReview.version;
+    try {
+      const response = await fetch(`/api/teachers/${teacherId}/my-review`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (response.status === 401) {
+        setAccountStatus("guest");
+        setReviewNotice("登录状态已失效，请重新登录后再提交。");
+        return;
+      }
+      if (response.status === 409) {
+        setReviewNotice("这份评价已经在另一处更新。页面将读取最新版本，请核对后再保存。");
+        window.setTimeout(() => setRevision((value) => value + 1), 900);
+        return;
+      }
+      if (!response.ok) throw new Error("teacher_review_save_failed");
+      const saved = (await response.json()) as { review: OwnTeacherReview };
+      setOwnReview(saved.review);
+      setDraftBody(saved.review.body);
+      setDraftRatings(saved.review.ratings);
+      setComposerOpen(false);
+      setReviewNotice(saved.review.status === "published"
+        ? "你的评价已保存并公开。"
+        : "修改已保存；这份评价当前仍未公开。");
+      setRevision((value) => value + 1);
+    } catch {
+      setReviewNotice("评价暂时没有保存，请保留当前内容后重试。");
+    } finally {
+      setReviewAction("idle");
+    }
+  }
+
+  async function deleteReview() {
+    if (!ownReview) return;
+    setReviewAction("deleting");
+    setReviewNotice("");
+    try {
+      const response = await fetch(`/api/teachers/${teacherId}/my-review`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ version: ownReview.version }),
+      });
+      if (response.status === 409) {
+        setReviewNotice("这份评价已经变化，页面将读取最新版本。");
+        window.setTimeout(() => setRevision((value) => value + 1), 900);
+        return;
+      }
+      if (!response.ok) throw new Error("teacher_review_delete_failed");
+      setOwnReview(null);
+      setDraftBody("");
+      setDraftRatings({
+        courseOrganization: 0,
+        contentClarity: 0,
+        assessmentExplanation: 0,
+        classroomInteraction: 0,
+        materialCompleteness: 0,
+      });
+      setComposerOpen(false);
+      setConfirmDelete(false);
+      setReviewNotice("你的评价已删除。");
+      setRevision((value) => value + 1);
+    } catch {
+      setReviewNotice("评价暂时无法删除，请稍后再试。");
+    } finally {
+      setReviewAction("idle");
+    }
   }
 
   if (status === "missing") {
@@ -159,6 +290,51 @@ export function TeacherDetail({ teacherId }: { teacherId: string }) {
       <section className={styles.reviews} aria-labelledby="teacher-reviews-title">
         <header><span>已公开内容</span><h2 id="teacher-reviews-title">评价</h2><p>历史整理内容经过人工审核后才会出现，并且不会冒充当前学生。</p></header>
         <div>
+          <aside className={styles.reviewContribution} aria-label="我的教师评价">
+            {accountStatus === "loading" && <p>正在确认是否可以写评价…</p>}
+            {accountStatus === "guest" && (
+              <div><b>登录后写下真实的课堂体验</b><p>每位登录用户对同一位教师保留一份评价，可以之后修改或删除。</p><Link href="/?view=me">去登录或创建账号</Link></div>
+            )}
+            {accountStatus === "error" && <p role="status">暂时无法读取你的评价，公开内容仍可正常浏览。</p>}
+            {accountStatus === "ready" && !composerOpen && (
+              <div>
+                <b>{ownReview?.status === "hidden" ? "这份评价当前未公开" : ownReview ? "你的评价已经公开" : "你上过这位老师的课吗？"}</b>
+                <p>{ownReview?.status === "hidden" ? "可以修改或删除，但修改不会自动恢复公开。" : ownReview ? "可以继续修改，公开页会显示最新版本。" : "只写与教学有关、自己实际经历过的内容。"}</p>
+                <button type="button" onClick={openComposer}>{ownReview ? "修改我的评价" : "写一份评价"}</button>
+              </div>
+            )}
+            {accountStatus === "ready" && composerOpen && (
+              <form onSubmit={(event) => void saveReview(event)}>
+                <header><b>{ownReview ? "修改我的评价" : "写一份评价"}</b><button type="button" onClick={() => setComposerOpen(false)} disabled={reviewAction !== "idle"}>收起</button></header>
+                <div className={styles.ratingEditor}>
+                  {ratingLabels.map(([key, label]) => (
+                    <fieldset key={key}>
+                      <legend>{label}</legend>
+                      <div>
+                        {[1, 2, 3, 4, 5].map((rating) => (
+                          <label key={rating}>
+                            <input type="radio" name={key} value={rating} checked={draftRatings[key] === rating} onChange={() => setDraftRatings((current) => ({ ...current, [key]: rating }))} />
+                            <span>{rating}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                  ))}
+                </div>
+                <label className={styles.reviewBodyField}>
+                  <span>具体说说课堂组织、讲解、考核或资料</span>
+                  <textarea value={draftBody} onChange={(event) => setDraftBody(event.target.value)} minLength={20} maxLength={3000} rows={6} placeholder="例如：课堂如何组织、哪些讲解方式有效、考核说明是否清楚……" />
+                  <small>{draftBody.normalize("NFKC").trim().length} / 3000</small>
+                </label>
+                <div className={styles.reviewActions}>
+                  <button type="submit" disabled={reviewAction !== "idle"}>{reviewAction === "saving" ? "正在保存" : "保存并公开"}</button>
+                  {ownReview && !confirmDelete && <button type="button" onClick={() => setConfirmDelete(true)} disabled={reviewAction !== "idle"}>删除我的评价</button>}
+                  {ownReview && confirmDelete && <><span>删除后公开页将不再显示。</span><button type="button" onClick={() => void deleteReview()} disabled={reviewAction !== "idle"}>{reviewAction === "deleting" ? "正在删除" : "确认删除"}</button><button type="button" onClick={() => setConfirmDelete(false)} disabled={reviewAction !== "idle"}>取消</button></>}
+                </div>
+              </form>
+            )}
+            {reviewNotice && <p className={styles.reviewNotice} role="status">{reviewNotice}</p>}
+          </aside>
           {reviews.length ? reviews.map((review) => (
             <article key={review.id}>
               <div><b>{review.authorLabel}</b><time dateTime={review.publishedAt}>{new Date(review.publishedAt).toLocaleDateString("zh-CN")}</time></div>

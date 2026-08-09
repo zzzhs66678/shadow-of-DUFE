@@ -134,5 +134,11 @@ export function createApiRateLimiters() {
       maxKeys: 10_000,
       idleTtlMs: 2 * 60 * 60_000,
     }),
+    teacherReviewWrite: createTokenBucket({
+      capacity: 6,
+      refillPerSecond: 1 / 300,
+      maxKeys: 30_000,
+      idleTtlMs: 6 * 60 * 60_000,
+    }),
   };
 }

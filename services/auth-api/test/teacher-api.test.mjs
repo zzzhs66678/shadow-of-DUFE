@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createAuthServer } from "../src/server.mjs";
+import { createOpaqueToken, tokenDigest } from "../src/tokens.mjs";
 
 const teacherId = "00000000-0000-4000-8000-000000000201";
 const reviewId = "00000000-0000-4000-8000-000000000202";
+const userId = "00000000-0000-4000-8000-000000000203";
 
 const config = {
   tokenPepper: "teacher-api-test-pepper-that-is-at-least-thirty-two-characters",
@@ -25,6 +27,8 @@ const config = {
 
 function createStore() {
   let calls = 0;
+  let ownReview = null;
+  const sessionToken = createOpaqueToken();
   const summary = {
     id: teacherId,
     displayName: "测试教师",
@@ -34,8 +38,15 @@ function createStore() {
     updatedAt: "2026-08-09T00:00:00.000Z",
   };
   return {
+    sessionToken,
     get calls() { return calls; },
     async health() {},
+    async getActiveSession(hash) {
+      calls += 1;
+      return hash === tokenDigest(sessionToken, config.tokenPepper)
+        ? { id: "teacher-session", userId, role: "user" }
+        : null;
+    },
     async listPublicTeachers(input) {
       calls += 1;
       assert.equal(input.limit, 30);
@@ -71,6 +82,34 @@ function createStore() {
         publishedAt: "2026-08-09T00:00:00.000Z",
         cursor: { publishedAt: "2026-08-09T00:00:00.000Z", id: reviewId },
       }];
+    },
+    async getUserTeacherReview(input) {
+      calls += 1;
+      assert.deepEqual(input, { teacherId, userId });
+      return ownReview;
+    },
+    async saveUserTeacherReview(input) {
+      calls += 1;
+      assert.equal(input.teacherId, teacherId);
+      assert.equal(input.userId, userId);
+      ownReview = {
+        id: reviewId,
+        sourceType: "user",
+        authorLabel: "已注册用户",
+        body: input.body,
+        ratings: input.ratings,
+        status: "published",
+        version: input.expectedVersion === null ? 1 : input.expectedVersion + 1,
+        publishedAt: "2026-08-09T00:00:00.000Z",
+        updatedAt: "2026-08-09T00:00:00.000Z",
+      };
+      return ownReview;
+    },
+    async deleteUserTeacherReview(input) {
+      calls += 1;
+      assert.equal(input.expectedVersion, ownReview.version);
+      ownReview = null;
+      return { id: reviewId, status: "deleted", version: input.expectedVersion + 1 };
     },
   };
 }
@@ -130,5 +169,98 @@ test("teacher routes reject malformed filters before data access", async () => {
     );
     assert.equal(invalidCursor.status, 400);
     assert.equal(store.calls, 0);
+  });
+});
+
+test("signed-in users create, edit, and delete only their teacher review resource", async () => {
+  await withServer(async (baseUrl, store) => {
+    const headers = {
+      "Content-Type": "application/json",
+      Cookie: `${config.sessionCookie}=${store.sessionToken}`,
+      Origin: "https://dufesh.cn",
+    };
+    const ratings = {
+      courseOrganization: 5,
+      contentClarity: 4,
+      assessmentExplanation: 4,
+      classroomInteraction: 3,
+      materialCompleteness: 5,
+    };
+
+    const crossSite = await fetch(`${baseUrl}/api/teachers/${teacherId}/my-review`, {
+      method: "PUT",
+      headers: { ...headers, Origin: "https://attacker.example" },
+      body: JSON.stringify({ body: "这是一条足够完整的跨站评价内容，不应进入数据层。", ratings }),
+    });
+    assert.equal(crossSite.status, 403);
+
+    const created = await fetch(`${baseUrl}/api/teachers/${teacherId}/my-review`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({ body: "课程结构清楚，课堂示例能帮助理解概念之间的关系。", ratings }),
+    });
+    assert.equal(created.status, 201);
+    assert.match(created.headers.get("cache-control"), /no-store/u);
+    const createdBody = await created.json();
+    assert.equal(createdBody.review.version, 1);
+
+    const mine = await fetch(`${baseUrl}/api/teachers/${teacherId}/my-review`, {
+      headers: { Cookie: `${config.sessionCookie}=${store.sessionToken}` },
+    });
+    assert.equal(mine.status, 200);
+    assert.equal((await mine.json()).review.body, "课程结构清楚,课堂示例能帮助理解概念之间的关系。");
+
+    const updated = await fetch(`${baseUrl}/api/teachers/${teacherId}/my-review`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({
+        body: "课程结构清楚，更新后的评价补充了作业反馈与课堂节奏。",
+        ratings,
+        expectedVersion: 1,
+      }),
+    });
+    assert.equal(updated.status, 200);
+    assert.equal((await updated.json()).review.version, 2);
+
+    const removed = await fetch(`${baseUrl}/api/teachers/${teacherId}/my-review`, {
+      method: "DELETE",
+      headers,
+      body: JSON.stringify({ version: 2 }),
+    });
+    assert.equal(removed.status, 200);
+    assert.equal((await removed.json()).review.status, "deleted");
+  });
+});
+
+test("teacher review input rejects mass assignment and unauthenticated writes", async () => {
+  await withServer(async (baseUrl, store) => {
+    const ratings = {
+      courseOrganization: 5,
+      contentClarity: 4,
+      assessmentExplanation: 4,
+      classroomInteraction: 3,
+      materialCompleteness: 5,
+    };
+    const anonymous = await fetch(`${baseUrl}/api/teachers/${teacherId}/my-review`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Origin: "https://dufesh.cn" },
+      body: JSON.stringify({ body: "这条匿名评价不会被接受，因为没有有效登录会话。", ratings }),
+    });
+    assert.equal(anonymous.status, 401);
+
+    const massAssigned = await fetch(`${baseUrl}/api/teachers/${teacherId}/my-review`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: `${config.sessionCookie}=${store.sessionToken}`,
+        Origin: "https://dufesh.cn",
+      },
+      body: JSON.stringify({
+        body: "这条评价字段本身有效，但额外尝试指定发布状态。",
+        ratings,
+        status: "published",
+      }),
+    });
+    assert.equal(massAssigned.status, 400);
   });
 });

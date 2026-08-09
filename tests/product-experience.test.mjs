@@ -89,10 +89,16 @@ test("teacher directory disambiguates identities without taking over the daily w
   assert.match(teacherDetailSource, /历史整理内容不参与均分/);
   assert.match(teacherDetailSource, /同一课程的不同教学班可能使用不同教材/);
   assert.match(teacherDetailSource, /历史整理内容经过人工审核后才会出现/);
+  assert.match(teacherDetailSource, /\/my-review/);
+  assert.match(teacherDetailSource, /每位登录用户对同一位教师保留一份评价/);
+  assert.match(teacherDetailSource, /<fieldset/);
+  assert.match(teacherDetailSource, /expectedVersion/);
+  assert.match(teacherDetailSource, /删除后公开页将不再显示/);
   assert.match(component, /href=\{`\/teachers\?q=\$\{encodeURIComponent\(schedule\.teacher\)\}`\}/);
   assert.doesNotMatch(component, /href=\{`\/teachers\/\$\{[^}]*teacher/);
   assert.match(teacherStyles, /min-height:\s*44px/);
   assert.match(teacherStyles, /@media \(max-width:\s*820px\)/);
+  assert.match(teacherStyles, /\.ratingEditor label span[\s\S]*min-height:\s*44px/);
 });
 
 test("today page keeps the one-glance command deck", () => {
