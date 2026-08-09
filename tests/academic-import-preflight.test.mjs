@@ -38,6 +38,8 @@ test("legacy review preflight redacts contact data and always requires moderatio
   const candidate = report.results.find((row) => row.importType === "teacher_review_candidate");
   assert.equal(candidate.disposition, "warning");
   assert.ok(candidate.errorCodes.includes("legacy_review_requires_moderation"));
+  assert.equal(report.bundle.reviewCandidates.length, 1);
+  assert.equal(report.bundle.reviewCandidates[0].sanitizedBody.includes("abcdef"), false);
 });
 
 test("textbook preflight preserves placeholders and section-level variants", () => {
@@ -76,4 +78,6 @@ test("textbook preflight preserves placeholders and section-level variants", () 
   assert.equal(report.facts.invalidPublicationDateRows, 1);
   const sectionRows = report.results.filter((row) => row.importType === "teaching_section_textbook");
   assert.ok(sectionRows.every((row) => row.errorCodes.includes("course_has_multiple_textbook_variants")));
+  assert.equal(report.bundle.textbooks.length, 2);
+  assert.equal(report.bundle.textbooks[0].termKey, "fall");
 });

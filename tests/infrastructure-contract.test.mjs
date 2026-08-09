@@ -417,6 +417,18 @@ test("teacher import foundation separates identities, section textbooks, and pen
     migrations,
     /REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON teachers, teacher_source_identities, teacher_aliases, teacher_course_sections, teaching_section_textbooks/,
   );
+  assert.match(migrations, /IMPORT_DB_USER/);
+  assert.match(migrations, /IMPORT_DB_PASSWORD/);
+  assert.match(migrations, /ALTER ROLE %I PASSWORD %L NOSUPERUSER[\s\S]*NOINHERIT/);
+  assert.match(
+    migrations,
+    /GRANT SELECT, INSERT ON data_import_rows, data_import_mutations/,
+  );
+  assert.match(migrations, /GRANT SELECT ON teacher_reviews/);
+  assert.doesNotMatch(
+    migrations,
+    /ALL TABLES IN SCHEMA public TO %I',\s*:'import_user'/,
+  );
 });
 
 test("auth traffic has bounded in-memory burst protection", async () => {

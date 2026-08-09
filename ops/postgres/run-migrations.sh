@@ -8,6 +8,8 @@ MIGRATIONS_DIR="${MIGRATIONS_DIR:-/opt/dufesh-postgres/migrations}"
 : "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}"
 : "${AUTH_DB_USER:?AUTH_DB_USER is required}"
 : "${AUTH_DB_PASSWORD:?AUTH_DB_PASSWORD is required}"
+: "${IMPORT_DB_USER:?IMPORT_DB_USER is required}"
+: "${IMPORT_DB_PASSWORD:?IMPORT_DB_PASSWORD is required}"
 
 export PGPASSWORD="$POSTGRES_PASSWORD"
 
@@ -80,7 +82,9 @@ psql \
   --dbname "$POSTGRES_DB" \
   --set ON_ERROR_STOP=1 \
   --variable "runtime_user=$AUTH_DB_USER" \
-  --variable "runtime_password=$AUTH_DB_PASSWORD" <<'SQL'
+  --variable "runtime_password=$AUTH_DB_PASSWORD" \
+  --variable "import_user=$IMPORT_DB_USER" \
+  --variable "import_password=$IMPORT_DB_PASSWORD" <<'SQL'
 SELECT format('CREATE ROLE %I LOGIN', :'runtime_user')
 WHERE NOT EXISTS (
     SELECT 1 FROM pg_roles WHERE rolname = :'runtime_user'
@@ -158,6 +162,39 @@ SELECT format(
 SELECT format(
     'REVOKE ALL PRIVILEGES ON schema_migrations FROM %I',
     :'runtime_user'
+) \gexec
+
+SELECT format('CREATE ROLE %I LOGIN', :'import_user')
+WHERE NOT EXISTS (
+    SELECT 1 FROM pg_roles WHERE rolname = :'import_user'
+) \gexec
+SELECT format(
+    'ALTER ROLE %I PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS NOINHERIT',
+    :'import_user',
+    :'import_password'
+) \gexec
+SELECT format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), :'import_user') \gexec
+SELECT format('GRANT USAGE ON SCHEMA public TO %I', :'import_user') \gexec
+SELECT format(
+    'GRANT SELECT, INSERT, UPDATE ON data_import_batches TO %I',
+    :'import_user'
+) \gexec
+SELECT format(
+    'GRANT SELECT, INSERT ON data_import_rows, data_import_mutations TO %I',
+    :'import_user'
+) \gexec
+SELECT format(
+    'GRANT SELECT, INSERT, UPDATE ON teachers, teacher_source_identities, teacher_aliases, teacher_course_sections, teaching_section_textbooks, teacher_review_candidates TO %I',
+    :'import_user'
+) \gexec
+SELECT format('GRANT SELECT ON teacher_reviews TO %I', :'import_user') \gexec
+SELECT format(
+    'GRANT USAGE, SELECT ON SEQUENCE data_import_mutations_id_seq TO %I',
+    :'import_user'
+) \gexec
+SELECT format(
+    'REVOKE ALL PRIVILEGES ON schema_migrations FROM %I',
+    :'import_user'
 ) \gexec
 SQL
 

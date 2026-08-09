@@ -15,7 +15,7 @@
 
 - 教师候选行 863 条，历史评价候选 3,321 条。
 - 发现 10 组跨学院同名教师；每一组必须依赖来源教师键映射到独立 UUID，不能按姓名合并。
-- 1 行缺教师姓名和稳定来源键；该行及其 6 条评价候选均拒绝自动导入。
+- 2 行身份字段不完整：1 行缺教师姓名，另 1 行缺稳定来源键；两行涉及的 6 条评价候选均拒绝自动导入。
 - 1,370 条评价候选至少包含一项内容风险：1,264 条时效性考核/给分陈述、88 条疑似人身攻击、63 条涉及其他教师、7 条疑似联系方式，另有 1 条超过 500 字。
 - 全部 3,321 条历史评价均只进入私有 `pending` 候选；联系方式先脱敏，五维评分不从历史文本自动推断。管理员明确批准后，才可生成标注“历史整理内容”的公开评价。
 
@@ -35,10 +35,27 @@
 4. 教材事实按版本新增，旧版本标记 `superseded/withdrawn`；回滚不依靠硬删除。
 5. 当前完成预检、数据库迁移代码和嵌入式 PostgreSQL 17.5 空库/重复迁移；尚未在原生 staging 执行 apply、并发幂等、运行角色权限和业务回滚演练，也没有发布或部署任何教师评价。
 
+## 私有导入包验证
+
+- 从本次两份正式源文件生成 861 条完整教师来源身份、3,294 条去重且已脱敏的历史评价候选、2,659 条可保存的教学班教材；2 行不完整教师身份、其 6 条评价、21 条同教师重复评价和 1 条缺目录课程没有进入可写记录。
+- 私有包约 3.48MB，只保存在临时非公开目录；真实规模已在嵌入式 PostgreSQL 17.5 完成首次 apply、第二次幂等 no-op 和依赖顺序回滚，随后临时包被删除。
+- 测试库首次形成 861 个独立教师 UUID、3,294 条 `pending` 候选和 2,659 条教学班教材；回滚后分别变为 861 个 `retired`、3,294 个 `rolled_back` 和 2,659 个 `withdrawn`，两批 mutation 全程保留。
+
 ## 可复现命令
 
 ```powershell
 npm run import:academic:preflight -- --teacher "<教师评价.xlsx>" --textbook "<教材计划.xlsx>" --course-data "public/data/course-data.json" --out "<输出目录>"
 ```
 
-命令生成 `preflight-summary.json` 和可用 Excel 打开的 `preflight-errors.csv`。CSV 只包含工作表、行列、处置状态、稳定错误码和实体键，不包含评价正文，并防止公式注入。
+命令生成 `preflight-summary.json`、可用 Excel 打开的 `preflight-errors.csv` 和权限受限的 `private-import-bundle.json`。CSV 只包含工作表、行列、处置状态、稳定错误码和实体键，不包含评价正文，并防止公式注入；私有包包含脱敏候选正文，只能保存在非公开目录，不得提交 Git 或放入 `public/`。
+
+数据库写入必须使用专用 importer 角色，并显式开启写入开关：
+
+```powershell
+$env:IMPORT_ALLOW_APPLY = "true"
+$env:IMPORT_DATABASE_URL = "postgresql://<importer>@<staging-host>/<database>"
+npm run import:academic:write -- apply --bundle "<私有导入包>"
+npm run import:academic:write -- rollback --batch "<批次 UUID>"
+```
+
+上述命令尚未对生产环境执行；生产数据库禁止用 owner 或 auth runtime 代替 importer 角色。

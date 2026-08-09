@@ -160,13 +160,20 @@ function extractSectionNo(sectionId, courseId) {
 
 export function analyzeTeacherWorkbook(rows) {
   const results = [];
+  const teacherRecords = [];
+  const reviewCandidateRecords = [];
   const parsed = rows.slice(1).map((row, index) => ({
     sourceRow: index + 2,
     externalKey: valueAt(row, 0),
     college: valueAt(row, 1),
     name: valueAt(row, 2),
-    reviews: row.slice(3).map(normalizeText),
-  })).filter((row) => row.externalKey || row.college || row.name || row.reviews.some(Boolean));
+    reviews: row.slice(3).map((value) => ({
+      raw: String(value ?? ""),
+      normalized: normalizeText(value),
+    })),
+  })).filter(
+    (row) => row.externalKey || row.college || row.name || row.reviews.some((review) => review.normalized),
+  );
 
   const knownNames = [...new Set(parsed.map((row) => row.name).filter(Boolean))];
   const nameColleges = new Map();
@@ -203,8 +210,21 @@ export function analyzeTeacherWorkbook(rows) {
       errorCodes: identityErrors,
       entityKey: row.externalKey || `row:${row.sourceRow}`,
     });
+    const identityRejected = identityErrors.some(
+      (code) => code.endsWith("missing") || code.endsWith("duplicate"),
+    );
+    if (!identityRejected) {
+      teacherRecords.push({
+        sourceLocator: `做在这个表!C${row.sourceRow}`,
+        externalTeacherKey: row.externalKey,
+        displayName: row.name,
+        collegeName: row.college,
+        sourceDigest: sha256([row.externalKey, row.name, row.college].join("\u0000")),
+      });
+    }
 
-    row.reviews.forEach((body, reviewIndex) => {
+    row.reviews.forEach((review, reviewIndex) => {
+      const body = review.normalized;
       if (!body) return;
       reviewCandidates += 1;
       const classified = classifyReview(body, row.name, knownNames);
@@ -229,11 +249,28 @@ export function analyzeTeacherWorkbook(rows) {
         errorCodes: errors,
         entityKey: `${row.externalKey || `row:${row.sourceRow}`}#${reviewIndex + 4}`,
       });
+      if (
+        !identityRejected &&
+        !duplicate &&
+        !classified.riskFlags.includes("over_3000_chars")
+      ) {
+        reviewCandidateRecords.push({
+          sourceLocator: `做在这个表!${String.fromCharCode(68 + reviewIndex)}${row.sourceRow}`,
+          sourceRow: row.sourceRow,
+          sourceColumn: reviewIndex + 4,
+          externalTeacherKey: row.externalKey,
+          sanitizedBody: classified.sanitized,
+          originalBodySha256: sha256(review.raw),
+          normalizedBodySha256: sha256(classified.normalized.toLocaleLowerCase("zh-CN")),
+          riskFlags: classified.riskFlags,
+        });
+      }
     });
   }
 
   return {
     results,
+    bundle: { teachers: teacherRecords, reviewCandidates: reviewCandidateRecords },
     facts: {
       teacherRows: parsed.length,
       reviewCandidates,
@@ -245,8 +282,9 @@ export function analyzeTeacherWorkbook(rows) {
   };
 }
 
-export function analyzeTextbookWorkbook(planRows, joinedRows, courseData) {
+export function analyzeTextbookWorkbook(planRows, joinedRows, courseData, teacherRecords = []) {
   const results = [];
+  const textbookRecords = [];
   const courses = new Map(courseData.courses.map((course) => [normalizeText(course.id), course]));
   const scheduleKeys = new Set(
     courseData.schedules.map((schedule) => {
@@ -269,6 +307,20 @@ export function analyzeTextbookWorkbook(planRows, joinedRows, courseData) {
     isbn: valueAt(row, 7),
     publicationDate: valueAt(row, 9),
   })).filter((row) => row.courseId || row.courseName || row.title);
+  const officialByCourseTeacherTitle = new Map();
+  for (const row of official) {
+    for (const teacherName of row.teachers) {
+      const key = [row.courseId, teacherName, normalizeText(row.title).toLocaleLowerCase("zh-CN")].join("\u0000");
+      if (!officialByCourseTeacherTitle.has(key)) officialByCourseTeacherTitle.set(key, []);
+      officialByCourseTeacherTitle.get(key).push(row);
+    }
+  }
+  const externalTeacherKeyByPair = new Map(
+    teacherRecords.map((teacher) => [
+      teacherPair(teacher.collegeName, teacher.displayName),
+      teacher.externalTeacherKey,
+    ]),
+  );
 
   let placeholderIsbnRows = 0;
   let invalidPublicationDateRows = 0;
@@ -352,10 +404,69 @@ export function analyzeTextbookWorkbook(planRows, joinedRows, courseData) {
       errorCodes: errors,
       entityKey: `${termKey}|${row.courseId}|${row.sectionNo}|${row.teacherName}`,
     });
+    if (!rejected) {
+      const officialKey = [
+        row.courseId,
+        row.teacherName,
+        normalizeText(row.title).toLocaleLowerCase("zh-CN"),
+      ].join("\u0000");
+      const officialMatches = officialByCourseTeacherTitle.get(officialKey) ?? [];
+      const officialSignatures = new Map(
+        officialMatches.map((candidate) => [
+          [candidate.isbn, candidate.publicationDate].join("\u0000"),
+          candidate,
+        ]),
+      );
+      const officialMatch = officialSignatures.size === 1
+        ? [...officialSignatures.values()][0]
+        : null;
+      const workbookDate = parsePublicationDate(row.publicationDate);
+      const officialDate = officialMatch
+        ? parsePublicationDate(officialMatch.publicationDate)
+        : { raw: null, date: null, status: "missing" };
+      const publicationDate = workbookDate.status === "valid" ? workbookDate : officialDate;
+      const isbn = officialMatch?.isbn ?? "";
+      const externalTeacherKey = externalTeacherKeyByPair.get(
+        teacherPair(row.teacherCollege, row.teacherName),
+      ) ?? null;
+      const needsReview = errors.length > 0 || !externalTeacherKey || officialSignatures.size > 1;
+      const selectionStatus = row.title.startsWith("不指定教材")
+        ? "not_specified"
+        : needsReview ? "needs_review" : "specified";
+      const materialPayload = {
+        title: row.title || null,
+        author: row.author || null,
+        publisher: row.publisher || null,
+        publicationDate: publicationDate.date,
+        publicationDateRaw: publicationDate.raw,
+        edition: row.edition || null,
+        printing: row.printing || null,
+        isbn: isbn || null,
+        isbnStatus: classifyIsbn(isbn),
+      };
+      textbookRecords.push({
+        sourceLocator: `Sheet1!A${row.sourceRow}:Y${row.sourceRow}`,
+        sourceRow: row.sourceRow,
+        termKey,
+        courseId: row.courseId,
+        courseTitle: row.courseName,
+        sectionNo: row.sectionNo,
+        teacherName: row.teacherName,
+        teacherCollege: row.teacherCollege,
+        externalTeacherKey,
+        materialKind: "book",
+        selectionStatus,
+        position: 1,
+        recordStatus: needsReview ? "needs_review" : "current",
+        materialSha256: sha256(JSON.stringify(materialPayload)),
+        ...materialPayload,
+      });
+    }
   }
 
   return {
     results,
+    bundle: { textbooks: textbookRecords },
     facts: {
       officialPlanRows: official.length,
       joinedSectionRows: joined.length,
@@ -394,6 +505,16 @@ async function assertWorkbookSize(filePath) {
   }
 }
 
+function assertPrivateOutputDirectory(outputDirectory) {
+  const resolved = path.resolve(outputDirectory);
+  for (const publicRoot of [path.resolve("public"), path.resolve("app")]) {
+    if (resolved === publicRoot || resolved.startsWith(`${publicRoot}${path.sep}`)) {
+      throw new Error("私有导入包不能写入公开页面或静态资源目录");
+    }
+  }
+  return resolved;
+}
+
 export async function runPreflight(options) {
   await Promise.all([
     assertWorkbookSize(options.teacher),
@@ -411,6 +532,7 @@ export async function runPreflight(options) {
     requireSheet(textbookWorkbook, "00"),
     requireSheet(textbookWorkbook, "Sheet1"),
     courseData,
+    teacher.bundle.teachers,
   );
   const results = [...teacher.results, ...textbook.results];
   const summary = {
@@ -431,10 +553,21 @@ export async function runPreflight(options) {
       legacyReviewsPubliclyPublished: false,
     },
   };
-  await fs.mkdir(options.out, { recursive: true });
+  const privateBundle = {
+    schemaVersion: 1,
+    mappingVersion: MAPPING_VERSION,
+    private: true,
+    sources: summary.sources,
+    teachers: teacher.bundle.teachers,
+    reviewCandidates: teacher.bundle.reviewCandidates,
+    textbooks: textbook.bundle.textbooks,
+  };
+  const outputDirectory = assertPrivateOutputDirectory(options.out);
+  await fs.mkdir(outputDirectory, { recursive: true });
   await Promise.all([
-    fs.writeFile(path.join(options.out, "preflight-summary.json"), `${JSON.stringify(summary, null, 2)}\n`, "utf8"),
-    fs.writeFile(path.join(options.out, "preflight-errors.csv"), toCsv(results), "utf8"),
+    fs.writeFile(path.join(outputDirectory, "preflight-summary.json"), `${JSON.stringify(summary, null, 2)}\n`, { encoding: "utf8", mode: 0o600 }),
+    fs.writeFile(path.join(outputDirectory, "preflight-errors.csv"), toCsv(results), { encoding: "utf8", mode: 0o600 }),
+    fs.writeFile(path.join(outputDirectory, "private-import-bundle.json"), `${JSON.stringify(privateBundle)}\n`, { encoding: "utf8", mode: 0o600 }),
   ]);
   return summary;
 }
