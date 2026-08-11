@@ -79,7 +79,7 @@ npm audit --omit=dev --audit-level=high
 - `xiaoying-executor/xiaoying.env.example` → `/srv/apps/dufesh/shared/config/xiaoying.env`
 - `ops/postgres/backup.env.example` → `/srv/apps/dufesh/shared/config/backup.env`
 
-模板中的密码、pepper、MFA 密钥、小影主密钥和邀请码故意留空；未替换时相应服务或迁移必须失败关闭。各数据库角色使用互不相同的随机密码。`AUTH_WECHAT_MODE` 在真实微信适配和凭据就绪前保持 `disabled`，不得把 mock 当作正式登录。
+模板中的密码、pepper、MFA 密钥、小影主密钥和邀请码故意留空；未替换时相应服务或迁移必须失败关闭。各数据库角色使用互不相同的随机密码。`AUTH_WECHAT_MODE` 在真实微信适配和凭据就绪前保持 `disabled`，不得把 mock 当作正式登录。启用账号邮件时把对应投递模式设为 `smtp`，并配置 `AUTH_SMTP_HOST`、端口、安全模式、账号、密码和纯邮箱发件地址；465 使用隐式 TLS，587 仍强制 STARTTLS。
 
 密钥可在管理员本机生成，不把命令输出写入 shell 历史或聊天记录：
 

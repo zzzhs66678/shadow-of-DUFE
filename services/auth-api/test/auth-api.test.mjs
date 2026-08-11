@@ -435,9 +435,10 @@ function createFakeStore() {
   };
 }
 
-async function withServer(callback) {
+async function withServer(callback, options = {}) {
   const store = createFakeStore();
-  const wechatProvider = createMockWechatProvider(config);
+  const runtimeConfig = { ...config, ...(options.config ?? {}) };
+  const wechatProvider = createMockWechatProvider(runtimeConfig);
   const passwordService = {
     async hash(password) {
       return `test-hash:${password}`;
@@ -449,10 +450,11 @@ async function withServer(callback) {
   const avatarProcessor = createAvatarProcessor();
   const server = createAuthServer({
     store,
-    config,
+    config: runtimeConfig,
     wechatProvider,
     passwordService,
     avatarProcessor,
+    mailDelivery: options.mailDelivery,
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
@@ -560,6 +562,117 @@ test("production configuration requires database and token secrets", () => {
       }),
     /AUTH_EMAIL_VERIFICATION_MODE=response is forbidden in production/u,
   );
+  assert.throws(
+    () =>
+      loadConfig({
+        NODE_ENV: "production",
+        AUTH_TOKEN_PEPPER: config.tokenPepper,
+        POSTGRES_PASSWORD: "database-secret",
+        AUTH_PASSWORD_RESET_MODE: "smtp",
+      }),
+    /AUTH_SMTP_HOST/u,
+  );
+  const smtp = loadConfig({
+    NODE_ENV: "production",
+    AUTH_TOKEN_PEPPER: config.tokenPepper,
+    POSTGRES_PASSWORD: "database-secret",
+    AUTH_PASSWORD_RESET_MODE: "smtp",
+    AUTH_EMAIL_VERIFICATION_MODE: "smtp",
+    AUTH_SMTP_HOST: "smtp.example.com",
+    AUTH_SMTP_SECURE: "false",
+    AUTH_SMTP_USER: "mailer",
+    AUTH_SMTP_PASSWORD: "smtp-secret",
+    AUTH_EMAIL_FROM: "no-reply@dufesh.cn",
+  });
+  assert.deepEqual(smtp.smtp, {
+    host: "smtp.example.com",
+    port: 587,
+    secure: false,
+    user: "mailer",
+    password: "smtp-secret",
+    from: "no-reply@dufesh.cn",
+  });
+});
+
+test("SMTP mode delivers reset and verification tokens without returning them", async () => {
+  const deliveries = [];
+  let resetDeliveryComplete = false;
+  let releaseResetDelivery;
+  const mailDelivery = {
+    async sendPasswordReset(input) {
+      deliveries.push({ type: "reset", ...input });
+      await new Promise((resolve) => {
+        releaseResetDelivery = resolve;
+      });
+      resetDeliveryComplete = true;
+    },
+    async sendEmailVerification(input) {
+      deliveries.push({ type: "verify", ...input });
+    },
+  };
+
+  await withServer(
+    async ({ baseUrl }) => {
+      const headers = {
+        Origin: "https://dufesh.cn",
+        "Content-Type": "application/json",
+      };
+      const registration = await fetch(`${baseUrl}/api/auth/register`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          username: "smtp-student",
+          email: "smtp-student@example.com",
+          password: "PaperHarbor!2026",
+        }),
+      });
+      assert.equal(registration.status, 201);
+      const cookie = registration.headers
+        .getSetCookie()
+        .map((value) => value.split(";", 1)[0])
+        .join("; ");
+
+      const reset = await fetch(`${baseUrl}/api/auth/password/reset/request`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ identifier: "smtp-student@example.com" }),
+      });
+      assert.equal(reset.status, 202);
+      assert.deepEqual(await reset.json(), { ok: true });
+      assert.equal(
+        resetDeliveryComplete,
+        false,
+        "password reset response must not wait for the SMTP network",
+      );
+      releaseResetDelivery();
+
+      const verification = await fetch(
+        `${baseUrl}/api/auth/email/verification/request`,
+        {
+          method: "POST",
+          headers: { Origin: "https://dufesh.cn", Cookie: cookie },
+        },
+      );
+      assert.equal(verification.status, 202);
+      assert.deepEqual(await verification.json(), { ok: true });
+    },
+    {
+      config: {
+        passwordResetMode: "smtp",
+        emailVerificationMode: "smtp",
+      },
+      mailDelivery,
+    },
+  );
+
+  assert.deepEqual(deliveries.map(({ type, to }) => ({ type, to })), [
+    { type: "reset", to: "smtp-student@example.com" },
+    { type: "verify", to: "smtp-student@example.com" },
+  ]);
+  for (const delivery of deliveries) {
+    assert.equal(isOpaqueToken(delivery.token), true);
+    assert.ok(delivery.expiresAt instanceof Date);
+  }
 });
 
 test("anonymous device cookie is stable and an invalid session is cleared", async () => {

@@ -43,6 +43,18 @@ function adminKeyring(value, activeKeyId) {
   return parsed;
 }
 
+function plainEmailAddress(value, name) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (
+    normalized.length > 254 ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(normalized) ||
+    /[\r\n]/u.test(normalized)
+  ) {
+    throw new Error(`${name} must be a plain email address`);
+  }
+  return normalized;
+}
+
 export function loadConfig(env = process.env) {
   const nodeEnv = env.NODE_ENV || "development";
   const tokenPepper = env.AUTH_TOKEN_PEPPER ?? "";
@@ -87,8 +99,10 @@ export function loadConfig(env = process.env) {
   const passwordResetMode =
     env.AUTH_PASSWORD_RESET_MODE ||
     (nodeEnv === "production" ? "disabled" : "response");
-  if (!["disabled", "response"].includes(passwordResetMode)) {
-    throw new Error("AUTH_PASSWORD_RESET_MODE must be disabled or response");
+  if (!["disabled", "response", "smtp"].includes(passwordResetMode)) {
+    throw new Error(
+      "AUTH_PASSWORD_RESET_MODE must be disabled, response, or smtp",
+    );
   }
   if (nodeEnv === "production" && passwordResetMode === "response") {
     throw new Error(
@@ -99,15 +113,47 @@ export function loadConfig(env = process.env) {
   const emailVerificationMode =
     env.AUTH_EMAIL_VERIFICATION_MODE ||
     (nodeEnv === "production" ? "disabled" : "response");
-  if (!["disabled", "response"].includes(emailVerificationMode)) {
+  if (!["disabled", "response", "smtp"].includes(emailVerificationMode)) {
     throw new Error(
-      "AUTH_EMAIL_VERIFICATION_MODE must be disabled or response",
+      "AUTH_EMAIL_VERIFICATION_MODE must be disabled, response, or smtp",
     );
   }
   if (nodeEnv === "production" && emailVerificationMode === "response") {
     throw new Error(
       "AUTH_EMAIL_VERIFICATION_MODE=response is forbidden in production",
     );
+  }
+
+  const smtpRequired =
+    passwordResetMode === "smtp" || emailVerificationMode === "smtp";
+  let smtp = null;
+  if (smtpRequired) {
+    const host = String(env.AUTH_SMTP_HOST ?? "").trim().toLowerCase();
+    const secure = booleanValue(
+      env.AUTH_SMTP_SECURE,
+      true,
+      "AUTH_SMTP_SECURE",
+    );
+    const user = String(env.AUTH_SMTP_USER ?? "").trim();
+    const password = String(env.AUTH_SMTP_PASSWORD ?? "");
+    if (!/^[a-z0-9.-]+$/u.test(host) || !host.includes(".")) {
+      throw new Error("AUTH_SMTP_HOST must be a DNS hostname");
+    }
+    if (!user || !password) {
+      throw new Error("AUTH_SMTP_USER and AUTH_SMTP_PASSWORD are required");
+    }
+    smtp = {
+      host,
+      port: positiveInteger(
+        env.AUTH_SMTP_PORT,
+        secure ? 465 : 587,
+        "AUTH_SMTP_PORT",
+      ),
+      secure,
+      user,
+      password,
+      from: plainEmailAddress(env.AUTH_EMAIL_FROM, "AUTH_EMAIL_FROM"),
+    };
   }
 
   const adminEnabled = booleanValue(
@@ -208,6 +254,7 @@ export function loadConfig(env = process.env) {
       ),
       900,
     ),
+    smtp,
     wechatMode,
     mockLoginSecret,
   };

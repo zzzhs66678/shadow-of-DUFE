@@ -40,7 +40,7 @@ test("production environment templates fail closed without real secrets", async 
     .join("\n");
 
   for (const [entries, keys] of [
-    [auth, ["AUTH_TOKEN_PEPPER", "AUTH_ADMIN_RECOVERY_PEPPER", "AUTH_MOCK_LOGIN_SECRET"]],
+    [auth, ["AUTH_TOKEN_PEPPER", "AUTH_ADMIN_RECOVERY_PEPPER", "AUTH_MOCK_LOGIN_SECRET", "AUTH_SMTP_PASSWORD"]],
     [postgres, ["POSTGRES_PASSWORD", "MIGRATION_DB_PASSWORD", "AUTH_DB_PASSWORD", "IMPORT_DB_PASSWORD", "BACKUP_DB_PASSWORD"]],
     [xiaoying, ["XIAOYING_MASTER_KEY", "XIAOYING_DEFAULT_INVITE_CODE"]],
   ]) {

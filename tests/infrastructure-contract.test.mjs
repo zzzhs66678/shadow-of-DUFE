@@ -224,6 +224,7 @@ test("CI builds and smoke-tests every production Linux image", async () => {
   assert.match(workflow, /docker build[\s\S]*--tag dufesh-auth-api:ci/);
   assert.match(workflow, /docker build[\s\S]*--tag dufesh-xiaoying:ci/);
   assert.match(workflow, /import\('\@node-rs\/argon2'\)/);
+  assert.match(workflow, /import\('nodemailer'\)/);
   assert.match(workflow, /import\('sharp'\)/);
   assert.match(workflow, /ls image-size --all/);
   assert.match(workflow, /manifest\.version !== '2\.0\.3-dufesh\.0'/);

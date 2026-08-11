@@ -39,7 +39,7 @@ jobs:
           done
           docker run --rm --entrypoint node dufesh-auth-api:ci \
             --input-type=module \
-            --eval "await Promise.all([import('@node-rs/argon2'), import('sharp'), import('pg')]); console.log('auth native dependencies loaded')"
+            --eval "await Promise.all([import('@node-rs/argon2'), import('nodemailer'), import('sharp'), import('pg')]); console.log('auth runtime dependencies loaded')"
           docker run --rm --entrypoint node dufesh-xiaoying:ci \
             --input-type=module \
             --eval "await import('qrcode'); console.log('xiaoying runtime dependencies loaded')"

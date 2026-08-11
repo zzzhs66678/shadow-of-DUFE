@@ -4877,6 +4877,8 @@ function MePage({
         const messages: Record<string, string> = {
           email_verification_delivery_unavailable:
             "暂时无法发送验证邮件，请稍后再试。",
+          email_verification_delivery_failed:
+            "验证邮件没有发出，请稍后再试。",
           email_verification_rate_limit_exceeded:
             "验证邮件请求太频繁，请稍后再试。",
           email_verification_unavailable:

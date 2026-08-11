@@ -185,9 +185,17 @@ export function createAuthServer({
   wechatProvider,
   passwordService,
   avatarProcessor,
+  mailDelivery,
   adminSecurity,
   rateLimiters = createApiRateLimiters(),
 }) {
+  if (
+    (config.passwordResetMode === "smtp" ||
+      config.emailVerificationMode === "smtp") &&
+    !mailDelivery
+  ) {
+    throw new Error("SMTP delivery mode requires a mail delivery adapter");
+  }
   const dummyPasswordHash = passwordService
     ? passwordService.hash("not-a-real-user-password-9f24")
     : Promise.resolve("");
@@ -269,7 +277,7 @@ export function createAuthServer({
                 passwordResetAvailable:
                   config.passwordResetMode !== "disabled",
                 emailVerificationAvailable:
-                  config.emailVerificationMode === "response",
+                  (config.emailVerificationMode ?? "disabled") !== "disabled",
                 wechatAvailable: config.wechatMode === "wechat",
               },
             },
@@ -296,7 +304,7 @@ export function createAuthServer({
                 passwordResetAvailable:
                   config.passwordResetMode !== "disabled",
                 emailVerificationAvailable:
-                  config.emailVerificationMode === "response",
+                  (config.emailVerificationMode ?? "disabled") !== "disabled",
                 wechatAvailable: config.wechatMode === "wechat",
               },
             },
@@ -334,7 +342,7 @@ export function createAuthServer({
               passwordResetAvailable:
                 config.passwordResetMode !== "disabled",
               emailVerificationAvailable:
-                config.emailVerificationMode === "response",
+                (config.emailVerificationMode ?? "disabled") !== "disabled",
               wechatAvailable: config.wechatMode === "wechat",
             },
           },
@@ -820,17 +828,38 @@ export function createAuthServer({
           return;
         }
         const verificationToken = createOpaqueToken();
+        const verificationExpiresAt = new Date(
+          Date.now() +
+            (config.emailVerificationTtlSeconds ?? 86_400) * 1_000,
+        );
         const created = await store.createEmailVerification({
           userId: session.userId,
           tokenHash: tokenDigest(verificationToken, config.tokenPepper),
-          expiresAt: new Date(
-            Date.now() +
-              (config.emailVerificationTtlSeconds ?? 86_400) * 1_000,
-          ),
+          expiresAt: verificationExpiresAt,
         });
         if (!created) {
           sendJson(response, 409, { error: "email_verification_unavailable" });
           return;
+        }
+        if (config.emailVerificationMode === "smtp") {
+          if (!mailDelivery) {
+            sendJson(response, 503, {
+              error: "email_verification_delivery_unavailable",
+            });
+            return;
+          }
+          try {
+            await mailDelivery.sendEmailVerification({
+              to: session.email,
+              token: verificationToken,
+              expiresAt: verificationExpiresAt,
+            });
+          } catch {
+            sendJson(response, 503, {
+              error: "email_verification_delivery_failed",
+            });
+            return;
+          }
         }
         sendJson(response, 202, {
           ok: true,
@@ -946,15 +975,27 @@ export function createAuthServer({
         let debugToken;
         if (principal?.status === "active") {
           const resetToken = createOpaqueToken();
+          const resetExpiresAt = new Date(
+            Date.now() + config.passwordResetTtlSeconds * 1000,
+          );
           await store.createPasswordReset({
             userId: principal.id,
             tokenHash: tokenDigest(resetToken, config.tokenPepper),
-            expiresAt: new Date(
-              Date.now() + config.passwordResetTtlSeconds * 1000,
-            ),
+            expiresAt: resetExpiresAt,
           });
           if (config.passwordResetMode === "response") {
             debugToken = resetToken;
+          } else if (config.passwordResetMode === "smtp" && mailDelivery) {
+            void mailDelivery
+              .sendPasswordReset({
+                to: principal.email,
+                token: resetToken,
+                expiresAt: resetExpiresAt,
+              })
+              .catch(() => {
+                // Keep the anti-enumeration response and timing independent from
+                // SMTP. Staging monitors delivery without logging account data.
+              });
           }
         }
         sendJson(response, 202, {
