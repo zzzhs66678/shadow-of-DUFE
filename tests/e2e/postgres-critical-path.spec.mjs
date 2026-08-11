@@ -190,6 +190,7 @@ test("users and an administrator complete the release browser path", async ({
         .check();
     }
     const reviewBody = "课堂结构清楚，考核说明完整，课程资料与教学进度能够互相对应。";
+    const publishedReviewBody = reviewBody.normalize("NFKC");
     await secondOwner.getByLabel(/具体说说课堂组织/u).fill(reviewBody);
     await secondOwner.getByRole("button", { name: "保存并公开" }).click();
     await expect(secondOwner.getByText("你的评价已保存并公开。")).toBeVisible();
@@ -205,9 +206,9 @@ test("users and an administrator complete the release browser path", async ({
     }, teacher.id);
     expect(publishedReviews.status).toBe(200);
     expect(publishedReviews.payload.items).toEqual(
-      expect.arrayContaining([expect.objectContaining({ body: reviewBody })]),
+      expect.arrayContaining([expect.objectContaining({ body: publishedReviewBody })]),
     );
-    await expect(secondOwner.getByText(reviewBody)).toBeVisible();
+    await expect(secondOwner.getByText(publishedReviewBody)).toBeVisible();
 
     await administrator.goto("/admin");
     await expect(
