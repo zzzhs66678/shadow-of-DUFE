@@ -49,11 +49,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes postgresql-client
           npm ci --ignore-scripts --no-audit --no-fund
+          npm ci --prefix services/auth-api --ignore-scripts --no-audit --no-fund
       - name: Apply migrations twice
         run: |
           MIGRATIONS_DIR="$GITHUB_WORKSPACE/ops/postgres/migrations" sh ops/postgres/run-migrations.sh
           MIGRATIONS_DIR="$GITHUB_WORKSPACE/ops/postgres/migrations" sh ops/postgres/run-migrations.sh
-      - name: Verify PostgreSQL concurrency and role boundaries
+      - name: Verify PostgreSQL roles and real auth/community flows
         run: node --test tests/postgres-runtime-integration.test.mjs
 
   verify:

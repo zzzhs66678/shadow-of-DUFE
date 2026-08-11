@@ -1,6 +1,6 @@
 # 东财之影：当前状态
 
-最后更新：2026-08-09
+最后更新：2026-08-11
 
 ## 产品
 
@@ -157,6 +157,12 @@
 - 教师详情页已接入本人评价的创建、编辑、版本冲突刷新和二次确认删除；历史整理评价继续显示空评分且不能冒充注册用户评分。表单在桌面与 390px 手机实机浏览器复核，无横向溢出。验证结果为 auth-api 72/72、全仓 Node 172/172、构建后渲染 4/4、CSS 审计、相关 ESLint、生产构建和 `git diff --check` 通过。
 - 仓库级 TypeScript 门禁现已通过并加入 CI：社区举报异步闭包显式捕获已判空目标，资料详情使用明确实体类型，测试导入通过 `allowImportingTsExtensions` 与既有 no-emit 配置匹配；Cloudflare 使用与 Wrangler 兼容的官方 Worker 类型和可选 D1 绑定声明。未使用 `any`、`@ts-ignore` 或排除目录绕过错误。
 - 2026-08-09 核对 GitHub 两项高危通告后确认 `image-size<=2.0.2` 尚无官方修复。当前发布分支用根依赖和 npm override 把 vinext 去重到仓库内 `image-size@2.0.3-dufesh.0` 失败关闭包：不包含图片解析器，任何尺寸探测立即拒绝；`app/` 禁止本地图片 import 和图片 metadata 文件，现有校园图片继续使用 public URL 与显式尺寸。全新目录 `npm ci`、恶意 ICNS/JXL/HEIF 拒绝、生产构建和浏览器 58/58 均通过，主站生产审计为 0；待 Linux PR CI/staging 复核后方可满足发布门禁。
+
+## 当前原生 PostgreSQL CI 门禁
+
+- quality workflow 已定义独立 PostgreSQL 17 作业：从空库连续执行 `0001`—`0016` 两次，使用真实 owner、auth runtime 和 importer 连接核对服务版本、迁移摘要/幂等、共享限流并发与重启持久性，以及基础角色拒绝边界。
+- 同一作业已接入真实 auth-api 依赖和 HTTP server，不使用内存假 store：随机创建两个普通账号，核对 Argon2id 注册、持久会话、普通用户访问管理员接口 403、账号 A 发布主题、账号 B 无法改写 A 的主题、B 回复后 A 收到并读取消通知。
+- 当前 Windows 开发机没有 PostgreSQL/Docker/WSL，因此这两个原生集成测试只能本地明确 SKIP；auth-api 72/72、基础设施契约 29/29、集成文件加载 2 项 SKIP、相关 ESLint 和 `git diff --check` 已通过。分支尚未推送，不能把已编码的 CI 作业记为运行成功，也不能替代管理员、浏览器、完整 ACL/并发和 staging 验收。本轮未部署。
 
 ## 当前无障碍门禁
 

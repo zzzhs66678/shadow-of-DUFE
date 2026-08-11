@@ -1,6 +1,6 @@
 # 东财之影部署检查表
 
-最后更新：2026-08-09
+最后更新：2026-08-11
 
 当前结论：**尚不具备生产部署条件。本轮未部署。** 只有全部“生产前门禁”通过，且没有不可接受的高危项，才允许进入人工生产发布审批。
 
@@ -67,7 +67,7 @@
 - [ ] ESLint、TypeScript/构建、SSR 回归通过。
 - [ ] 主站、auth-api、小影单元与 API 集成测试通过。
 - [ ] 数据库迁移、约束、导入幂等和权限测试通过。
-- [ ] GitHub `postgres-17-integration` 作业从空库执行 `run-migrations.sh` 两遍并通过真实 owner/runtime/importer 连接测试；本地 SKIP 不得作为替代证据。
+- [ ] GitHub `postgres-17-integration` 作业从空库执行 `run-migrations.sh` 两遍，通过真实 owner/runtime/importer 连接测试，并用两个真实注册账号走通会话、普通用户后台拒绝、主题、跨账号改写隔离、回复和通知已读；本地 SKIP 不得作为替代证据。
 - [ ] 用本次私有包在 staging 完成首次 apply、第二次幂等 no-op、错误依赖顺序拒绝和教材→教师回滚；私有包不得进入镜像、Git、静态目录或备份公开层。
 - [ ] 关键路径浏览器 E2E 通过：注册→资料→跨设备→教师→评价→回复→通知→举报→管理员处理。
 - [ ] 课表中的教师姓名先进入索引消歧；只有持有稳定 `teacher_id` 的数据才能直达详情，不能用同名首条记录代替。
@@ -112,7 +112,7 @@
 - 微信开放平台正式 AppID/AppSecret 与最终审核状态：未提供，本地不需要等待；生产微信入口受此阻塞。
 - 独立 staging 环境与凭据：尚未确认，未擅自创建付费资源。
 - 邮件发送服务凭据：尚未提供；密码注册可先本地验证，生产验证/重置邮件受此阻塞。
-- 当前开发机未安装 `sh`、Docker/PostgreSQL 或 WSL；`0006_credential_auth.sql`—`0016_shared_rate_limits.sql` 的空库、升级库、重复执行，以及 Linux musl 原生 Argon2id/Sharp 镜像验证必须在 staging 或具备 Docker 的 CI 完成。邮箱令牌、管理员 TOTP/恢复码并发消费、社区举报证据/可逆治理并发、教师导入/审核/用户评价并发、共享限流、`AUTH_DB_USER`/`IMPORT_DB_USER` 权限矩阵、`run-migrations.sh` 与首次隔离恢复演练实际执行仍需真实 PostgreSQL 集成测试。
+- 当前开发机未安装 `sh`、Docker/PostgreSQL 或 WSL；`0006_credential_auth.sql`—`0016_shared_rate_limits.sql` 的空库、升级库、重复执行，以及 Linux musl 原生 Argon2id/Sharp 镜像验证必须在 staging 或具备 Docker 的 CI 完成。仓库原生作业已经编码迁移双执行、基础 ACL/共享限流和两个真实普通账号的 auth/community HTTP 闭环，但尚未推送运行；邮箱令牌、管理员 TOTP/恢复码并发消费、社区举报证据/可逆治理并发、教师导入/审核/用户评价并发、完整权限矩阵、`run-migrations.sh` 与首次隔离恢复演练仍需真实执行。
 - 主站已用仓库内失败关闭包隔离 vinext 的 `image-size@2.0.2`，干净本地 `npm ci` 后生产依赖审计为 0；仍须由 Linux PR CI 与 staging 镜像复核实际去重、构建和审计，未复核前不得放行生产发布。
 - 本地 `npm run typecheck`、主仓 Node 91/91、个人存储/同步 9/9、auth-api 72/72、构建后渲染 4/4、CSS 审计和相关 ESLint 已通过；渲染 4 项已包含在主仓 91 项中，不重复计数。quality workflow 已加入 TypeScript 步骤；仍须由 Pull Request CI 在 Linux 上复核后才能勾选生产前质量门禁。
 - 异地对象存储/备份凭据：尚未提供；本地适配器和恢复流程继续开发，生产异地副本受此阻塞。
