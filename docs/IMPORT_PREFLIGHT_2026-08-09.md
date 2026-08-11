@@ -54,8 +54,10 @@ npm run import:academic:preflight -- --teacher "<教师评价.xlsx>" --textbook 
 ```powershell
 $env:IMPORT_ALLOW_APPLY = "true"
 $env:IMPORT_DATABASE_URL = "postgresql://<importer>@<staging-host>/<database>"
-npm run import:academic:write -- apply --bundle "<私有导入包>"
+npm run import:academic:write -- apply --bundle "<私有导入包>" --course-data "<带顶层 catalogId 的已发布课程目录.json>"
 npm run import:academic:write -- rollback --batch "<批次 UUID>"
 ```
+
+当私有包的 `courseSections` 非空时，`--course-data` 是强制参数。目录 JSON 必须包含顶层稳定 `catalogId` 和带稳定 `id` 的 `schedules`；导入器会在开启任何批次前确认包内所有 `catalogId` 与目录一致、所有 `scheduleId` 在该目录中真实存在。缺少顶层 `catalogId` 的旧课程 JSON 会被拒绝，不能通过课程名、教师名或相似日程猜测关联。省略或使用空 `courseSections` 的旧包不受此要求阻塞。
 
 上述命令尚未对生产环境执行；生产数据库禁止用 owner 或 auth runtime 代替 importer 角色。

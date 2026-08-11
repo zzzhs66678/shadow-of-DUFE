@@ -12,7 +12,7 @@
 ## 当前技术状态
 
 - 前端：React + TypeScript + vinext。
-- 课程数据由 Excel 离线生成完整 `public/data/course-data.json`，并同步生成首页轻量 `public/data/course-core.json`；两份文件来自同一生成器，课程、教学班和上课时段的事实关系不变。
+- 课程数据由 Excel 离线生成完整 `public/data/course-data.json`，并同步生成首页轻量 `public/data/course-core.json`；两份文件来自同一生成器并携带同一个由最终 schedule 事实确定的 `catalogId`，课程、教学班、上课时段及既有 ID 关系不变。
 - 未登录用户的个人档案、课表、日程和作业继续保存在浏览器 `localStorage`。账号中心、首次上传、后台同步和多设备冲突处理已经部署；正式微信登录仍在审核，因此普通用户暂时还不能启用云同步。
 - 主站账号数据库底座已于 2026-07-30 部署为 PostgreSQL 17，运行在现有 ECS 的 Docker 私有网络中，不映射主机或公网 5432 端口。
 - PostgreSQL 使用独立持久化数据卷，当前限制为 384MB 内存、50 个数据库连接、15 秒语句超时、3 秒锁超时和 30 秒空闲事务超时；慢于 500ms 的查询写入受轮转保护的容器日志。
@@ -157,7 +157,8 @@
 - 1,370 条历史评价含时效性考核陈述、疑似攻击、其他教师或联系方式等至少一项风险。全部历史评价只能先进入私有待审核候选，不关联当前用户、不自动生成五维评分；批准后公开时固定标注“历史整理内容”。
 - 教材计划含 1,143 行，展开为 2,660 条教学班教材关系，覆盖 1,018 门课程。13 门课程存在多教材版本，777 行为“不指定教材”并带占位 ISBN，1 条课程号缺目录匹配、13 条教学班键缺直接匹配。
 - 当前发布分支新增 `0013_teacher_catalog_imports.sql` 与 `0014_teacher_review_moderation.sql`：教师使用独立 UUID，来源身份由 `(source_system, external_teacher_key)` 映射；教材按教学班版本化；历史候选、一次性管理员决定、公开评价、导入逐行证据和 mutation 分层审计，回滚不硬删除。
-- 当前发布分支新增 `0018_academic_import_state_guards.sql`：同一 `term/course/section/teacher/position` 教材槽位最多只有一条 `current/needs_review`，迁移会把存量重复活动记录按更新时间确定性降为 `superseded`。不同来源批次在写入前按排序后的槽位键取得事务级 advisory lock；活动匹配不再读取旧 `superseded`，因此 A→B→A 会形成三条可审计版本并让最新 A 唯一生效。教师批次回滚后重导会复用原 UUID、恢复 `pending/current` 状态，并记录可再次回滚的 `restored` mutation；同一来源教师键若姓名或学院快照变化则整批失败关闭，不静默改写身份。本地 PGlite、导入、预检、基础设施与审核 42/42 通过；真实不同来源并发已进入 PG17 CI，用新 runner 结果前不宣称原生通过，未部署。
+- 当前发布分支新增 `0018_academic_import_state_guards.sql`：同一 `term/course/section/teacher/position` 教材槽位最多只有一条 `current/needs_review`，迁移会把存量重复活动记录按更新时间确定性降为 `superseded`。不同来源批次在写入前按排序后的槽位键取得事务级 advisory lock；活动匹配不再读取旧 `superseded`，因此 A→B→A 会形成三条可审计版本并让最新 A 唯一生效。教师批次回滚后重导会复用原 UUID、恢复 `pending/current` 状态，并记录可再次回滚的 `restored` mutation；同一来源教师键若姓名或学院快照变化则整批失败关闭，不静默改写身份。PR #10 run `31470482243` 已通过 18 个迁移、不同来源并发、版本循环、回滚重导和隔离恢复；未部署。
+- 当前发布分支新增 `0019_course_schedule_teacher_overlay.sql`：数据库只保存 `catalog_id + schedule_id + teacher_id` 的可撤回身份覆盖及导入证据，不复制课程名、周次、节次、教室等课程事实；同一 schedule 明确支持 0、1 或多位教师。私有包只能提交稳定来源教师键，非空覆盖还必须同时提供已发布课程目录，并在任何数据库事务前验证 `catalogId` 一致和 schedule 真实存在；缺目录、目录不匹配、未知 schedule 或来源键均失败关闭。runtime 只读，importer 仅有查询/插入/更新权限，覆盖支持幂等、差量替换和逆序回滚。本地全仓 Node 242 项中 239 通过、3 项原生 PostgreSQL 明确 SKIP，TypeScript、ESLint、生产构建和定向测试通过；0019 的 PG17/ACL/恢复演练仍待新 CI，未部署。
 - `npm run import:academic:preflight` 可重复生成无评价正文的 JSON 摘要和逐行 CSV 错误报告。嵌入式 PostgreSQL 17.5 已执行 `0001`—`0014` 并验证导入、回滚和历史候选审核事务。本机没有原生 PostgreSQL/Docker，运行角色权限、真实并发连接和升级库数据仍待 staging。当前未部署，生产数据未写入。
 - dry-run 还会生成不可放入 `public/`/`app/` 的私有规范化包。本次包含 861 位完整教师来源身份、3,294 条去重脱敏评价候选和 2,659 条教学班教材；写入前会再次拒绝未脱敏联系方式和异常摘要。
 - 教材 dry-run 不再用 `(学院, 姓名) → 来源教师键` 的单值 Map 覆盖同名记录：每个组合保留全部候选键，只有恰好一个时才关联；同学院同名出现多个来源键时逐行标记 `teacher_source_identity_ambiguous`，教材保持 `needs_review` 且 `externalTeacherKey=null`，不会猜测教师。相关预检与导入 8/8 通过，本轮未部署。
@@ -166,7 +167,7 @@
 - 管理员候选列表与 approve/reject API 已接入 auth-api：普通用户和未完成短期 MFA 提升的管理员不能读取候选；批准会在同一数据库事务创建公开评价、不可变决定和管理员审计，拒绝不创建公开评价。重复或并发第二次决定返回冲突，审计失败会回滚整次发布。
 - 当前发布分支已把历史评价候选接入 `/admin` 可视化复核台：完成短期 MFA 提升的管理员可按待审核、已公开、已拒绝和已回滚状态分页读取候选，查看教师、学院、脱敏正文和风险标记，并填写不少于 8 字的依据执行批准或拒绝。界面只调用真实管理 API，批准后公开内容固定标注“历史整理内容”，冲突、限流和提升会话失效均有明确降级；本地类型检查、生产构建、全仓 Node 回归和界面契约已通过，真实 PostgreSQL 浏览器批准链已加入 CI 用例但本轮尚未取得新 runner 结果，未部署。
 - 独立 `/teachers` 与 `/teachers/:teacher_id` 已实现：公开 API 只返回可见教师、当前/待核对教学班、按教学班保存的教材和已发布评价；历史整理评价不进入五维评分均值，也不返回私有候选、来源摘要或内部身份状态。索引按姓名、学院和稳定 UUID 保持同名教师分离，并使用有界 keyset 游标。
-- 课表及课程教学班中的教师姓名现在进入 `/teachers?q=姓名` 做检索和学院消歧；课程数据尚未携带稳定 `teacher_id` 时不会按姓名猜测详情。教师索引和详情已在桌面与 390px 手机实机浏览器复核，无横向溢出。
+- 课表卡、选课教学班和教学班对比中的教师入口现在以 `catalogId + scheduleId` 在用户点击时查询 `/api/teachers/by-schedule`；只有唯一确认的稳定 UUID 才直达教师详情，0 位、多位、接口异常或离线都回退 `/teachers?q=姓名` 做学院消歧，绝不取第一条猜测。今日学习台首屏不会请求该接口；完整/轻量课程目录 ID 不一致时拒绝混用。现有 5,870 个 schedule ID 和 4,986 个 section ID 未改变，轻量核心为 633,665 字节。
 - 当前发布分支新增 `0015_teacher_user_reviews.sql` 和登录态私有资源 `/api/teachers/:teacher_id/my-review`。每个活动用户对同一教师最多保留一条未删除评价；正文经 NFKC 规范化后必须为 20—3000 字，五项评分都必须是 1—5 的整数。作者只从服务端会话取得，写请求要求可信 Origin、精确字段、专项账号/IP 限流和乐观版本；删除为软删除，账号注销会撤下公开评价并去标识化，不阻断注销。
 - 教师详情页已接入本人评价的创建、编辑、版本冲突刷新和二次确认删除；历史整理评价继续显示空评分且不能冒充注册用户评分。表单在桌面与 390px 手机实机浏览器复核，无横向溢出。验证结果为 auth-api 72/72、全仓 Node 172/172、构建后渲染 4/4、CSS 审计、相关 ESLint、生产构建和 `git diff --check` 通过。
 - 仓库级 TypeScript 门禁现已通过并加入 CI：社区举报异步闭包显式捕获已判空目标，资料详情使用明确实体类型，测试导入通过 `allowImportingTsExtensions` 与既有 no-emit 配置匹配；Cloudflare 使用与 Wrangler 兼容的官方 Worker 类型和可选 D1 绑定声明。未使用 `any`、`@ts-ignore` 或排除目录绕过错误。
@@ -174,13 +175,13 @@
 
 ## 当前原生 PostgreSQL CI 门禁
 
-- quality workflow 的独立 PostgreSQL 17 作业已从空库连续执行 `0001`—`0017` 两次，使用真实 owner、schema owner、migrator、auth runtime、importer 和 backup 连接核对服务版本、迁移摘要/幂等、共享限流并发与重启持久性。ACL 矩阵逐项核对 runtime 对公开教师/用户评价/社区写入的必要权限、导入证据和审核决定的拒绝、社区编辑/治理/全局审计的只追加边界，以及 importer 对批次/逐行证据/教师事实的最小写权限、账号/会话/公开评价/审核决定/管理员审计的拒绝和仅可执行专用回滚函数；importer 与 backup 均保持 `NOINHERIT` 且无高权限角色属性。该作业已在 PR #10 run `31466722843` 通过。
+- quality workflow 的独立 PostgreSQL 17 作业已从空库连续执行 `0001`—`0018` 两次，使用真实 owner、schema owner、migrator、auth runtime、importer 和 backup 连接核对服务版本、迁移摘要/幂等、共享限流并发与重启持久性。ACL 矩阵逐项核对 runtime 对公开教师/用户评价/社区写入的必要权限、导入证据和审核决定的拒绝、社区编辑/治理/全局审计的只追加边界，以及 importer 对批次/逐行证据/教师事实的最小写权限、账号/会话/公开评价/审核决定/管理员审计的拒绝和仅可执行专用回滚函数；importer 与 backup 均保持 `NOINHERIT` 且无高权限角色属性。该作业已在 PR #10 run `31470482243` 通过；新增 0019 尚待下一轮 CI。
 - 同一作业已接入真实 auth-api 依赖和 HTTP server，不使用内存假 store：随机创建两个普通账号与一个管理员候选，核对 Argon2id 注册、持久会话、普通用户访问管理员接口 403；同一邮箱验证令牌并发确认只能成功一次。账号 A 发布主题、账号 B 无法改写 A 的主题，B 回复后 A 收到并读取消通知。账号 A 的个人快照会真实写入、同 mutation 重放去重、旧 revision 冲突，账号 B 保持独立 revision 0；A 对真实教师记录创建评价，B 读取不到 A 的私有资源，两个同版本并发更新只能成功一个。管理员候选再通过真实 bootstrap 事务升为管理员，旧会话被撤销；两个新基础会话并发提交同一 TOTP 只能成功一个，同一恢复码并发提交也只能成功一个；成功的 TOTP 提升会话随后读取举报证据、入案、隐藏主题并从 append-only 管理审计读取同一动作。
 - 教师原生场景使用两位同显示名、同规范化姓名但学院和稳定 `teacher_id` 不同的记录；公开索引保留两项和各自学院，详情按 UUID 精确命中。给其中一位创建/并发更新评价后，另一位的公开评价和同一账号私有评价仍为空。该用例已在真实 PostgreSQL 17 CI 通过。
 - 原生作业另有独立 importer 并发场景：同一私有包的两次并发 apply 复用同一教师/教材 batch，分别只有一次真实应用；同一候选并发批准只留下一份决定和公开评价。另一批次的批准与导入回滚并发只允许完整的 approved/applied 或 rolled_back/rolled_back 终态，决策、公开评价和批次状态不交叉。该用例已在真实 PostgreSQL 17 CI 通过。
 - 举报证据不只依赖应用权限：原生测试会让数据库 owner 直接尝试改写 `community_reports.evidence_body`，不可变触发器仍必须拒绝。治理完成后，主题作者通过真实账号注销 API 删除账号；测试要求 `app_users` 记录归零，但举报时正文/作者标签快照和 `admin.community.hide` 审计仍存在，确保注销不被触发器阻断，也不抹掉去标识化治理依据。
 - 同一原生场景在正常隐藏前故意让 `admin.community.hide` 全局审计插入失败：真实管理员 API 对外返回通用 `503 {"error":"service_unavailable"}`，主题状态/版本、举报与案件状态、治理动作、全局审计以及原通知正文全部保持调用前状态；故障触发器移除后隐藏成功。该失败关闭与整事务回滚用例已在真实 PostgreSQL 17 CI 通过。
-- PostgreSQL 17 作业在应用/权限场景之后现场执行 `pg_dump` 生成 custom-format 备份和独立 SHA-256，调用生产同一 `restore-drill.sh` 的 `native` 运行模式恢复到唯一临时数据库，检查 17 个迁移、无未验证约束、关键表和 120 秒 CI RTO，再显式删库并确认没有 `dufesh_restore_drill_*` 残留。该隔离恢复演练已在 PR #10 CI 通过；生产默认 Docker Compose 模式、生产备份文件和异地副本仍须 staging/生产验证。
+- PostgreSQL 17 作业在应用/权限场景之后现场执行 `pg_dump` 生成 custom-format 备份和独立 SHA-256，调用生产同一 `restore-drill.sh` 的 `native` 运行模式恢复到唯一临时数据库，检查 18 个迁移、无未验证约束、关键表和 120 秒 CI RTO，再显式删库并确认没有 `dufesh_restore_drill_*` 残留。该隔离恢复演练已在 PR #10 run `31470482243` 通过；0019 已把门槛提升为 19，须由下一轮 CI 复验。生产默认 Docker Compose 模式、生产备份文件和异地副本仍须 staging/生产验证。
 - 当前 Windows 开发机没有 PostgreSQL/Docker/WSL，因此三项原生集成测试在本地明确 SKIP；远端 PR #10 已用 PostgreSQL 17 和 Ubuntu runner 提供真实执行证据。run `31466722843` 的原生数据库、浏览器、Linux 镜像、CodeQL 和秘密扫描全部通过；这不替代独立 staging、真实外部服务或生产发布审批。本轮未部署。
 - quality workflow 的独立 `linux-production-images` 作业已在 Ubuntu 上从三份真实生产 Dockerfile 构建主站、auth-api 和小影镜像，检查最终运行用户均为 `node`，在 auth-api Alpine 镜像内实际加载 Argon2id/Sharp/PG，在小影镜像加载运行依赖，在主站镜像核对失败关闭 `image-size@2.0.3-dufesh.0` 并启动生产网关接受 HTTP 请求。Dockerfile 的 `NODE_IMAGE` 参数只为 CI 选择官方 `node:22-alpine`，生产默认 DaoCloud 镜像不变。PR #10 run `31466722843` 已通过该 Linux/musl 门禁；staging 仍须记录正式镜像摘要并验证回滚。
 - 当前发布分支新增独立只读 PostgreSQL backup 登录角色：只可读取 public 表/序列，不能写数据、执行 public 函数或持有高权角色属性；生产 `backup.sh` 和 PG17 CI 的现场 `pg_dump` 都改用该账号，不再使用 owner 凭据。该角色、真实 custom-format 备份与隔离恢复已在 PostgreSQL 17 CI 通过；服务器上线前仍必须在 600 权限 `postgres.env` 增加独立随机密码并用生产备份复验。

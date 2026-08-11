@@ -6,6 +6,13 @@ import { fileURLToPath } from "node:url";
 
 const TEACHER_SOURCE_SYSTEM = "dufe_teacher_review_workbook";
 const UNSANITIZED_CONTACT = /(?:1[3-9]\d{9}|(?:qq|QQ|微信|vx|手机号|电话)\s*[:：]?\s*[A-Za-z0-9_-]{5,})/;
+const STABLE_COURSE_KEY = /^[A-Za-z0-9:_-]+$/u;
+const COURSE_SECTION_KEYS = [
+  "catalogId",
+  "externalTeacherKeys",
+  "scheduleId",
+  "sourceLocator",
+];
 
 function assertDigest(value, label) {
   if (!/^[0-9a-f]{64}$/.test(String(value ?? ""))) {
@@ -28,7 +35,8 @@ function assertPrivateBundle(bundle) {
   if (
     bundle.teachers.length > 10_000 ||
     bundle.reviewCandidates.length > 50_000 ||
-    bundle.textbooks.length > 100_000
+    bundle.textbooks.length > 100_000 ||
+    (bundle.courseSections?.length ?? 0) > 100_000
   ) {
     throw new Error("导入包记录数超过安全上限");
   }
@@ -43,6 +51,119 @@ function assertPrivateBundle(bundle) {
     }
     assertDigest(candidate.originalBodySha256, "评价原文摘要");
     assertDigest(candidate.normalizedBodySha256, "评价规范化摘要");
+  }
+  if (bundle.courseSections !== undefined && !Array.isArray(bundle.courseSections)) {
+    throw new Error("导入包 courseSections 必须是数组");
+  }
+  if (bundle.courseSections?.length || bundle.sources?.courseSections) {
+    assertDigest(bundle.sources?.courseSections?.sha256, "课程教师覆盖源文件摘要");
+  }
+  const scopes = new Set();
+  const locators = new Set();
+  for (const [index, section] of (bundle.courseSections ?? []).entries()) {
+    if (!section || typeof section !== "object" || Array.isArray(section)) {
+      throw new Error(`courseSections[${index}] 必须是对象`);
+    }
+    const keys = Object.keys(section).sort();
+    if (keys.join("|") !== COURSE_SECTION_KEYS.join("|")) {
+      throw new Error(`courseSections[${index}] 含未授权字段或缺少字段`);
+    }
+    if (
+      typeof section.catalogId !== "string" ||
+      section.catalogId.length < 1 ||
+      section.catalogId.length > 80 ||
+      !STABLE_COURSE_KEY.test(section.catalogId)
+    ) {
+      throw new Error(`courseSections[${index}].catalogId 无效`);
+    }
+    if (
+      typeof section.scheduleId !== "string" ||
+      section.scheduleId.length < 1 ||
+      section.scheduleId.length > 160 ||
+      !STABLE_COURSE_KEY.test(section.scheduleId)
+    ) {
+      throw new Error(`courseSections[${index}].scheduleId 无效`);
+    }
+    if (
+      typeof section.sourceLocator !== "string" ||
+      section.sourceLocator.length < 3 ||
+      section.sourceLocator.length > 180
+    ) {
+      throw new Error(`courseSections[${index}].sourceLocator 无效`);
+    }
+    parseLocator(section.sourceLocator, "courseSections");
+    if (
+      !Array.isArray(section.externalTeacherKeys) ||
+      section.externalTeacherKeys.length > 20 ||
+      section.externalTeacherKeys.some(
+        (key) => typeof key !== "string" || key.length < 1 || key.length > 500 || key !== key.trim(),
+      ) ||
+      new Set(section.externalTeacherKeys).size !== section.externalTeacherKeys.length
+    ) {
+      throw new Error(`courseSections[${index}].externalTeacherKeys 无效`);
+    }
+    const scope = courseScheduleScopeKey(section);
+    if (scopes.has(scope)) throw new Error(`courseSections 存在重复日程：${section.scheduleId}`);
+    if (locators.has(section.sourceLocator)) {
+      throw new Error(`courseSections 存在重复源定位：${section.sourceLocator}`);
+    }
+    scopes.add(scope);
+    locators.add(section.sourceLocator);
+  }
+}
+
+export function parseCourseCatalog(courseCatalog) {
+  if (!courseCatalog || typeof courseCatalog !== "object" || Array.isArray(courseCatalog)) {
+    throw new Error("课程目录必须是对象");
+  }
+  if (
+    typeof courseCatalog.catalogId !== "string" ||
+    courseCatalog.catalogId.length < 1 ||
+    courseCatalog.catalogId.length > 80 ||
+    !STABLE_COURSE_KEY.test(courseCatalog.catalogId)
+  ) {
+    throw new Error("课程目录缺少有效的 catalogId");
+  }
+  if (!Array.isArray(courseCatalog.schedules) || courseCatalog.schedules.length > 100_000) {
+    throw new Error("课程目录 schedules 无效或超过安全上限");
+  }
+
+  const scheduleIds = new Set();
+  for (const [index, schedule] of courseCatalog.schedules.entries()) {
+    if (!schedule || typeof schedule !== "object" || Array.isArray(schedule)) {
+      throw new Error(`课程目录 schedules[${index}] 必须是对象`);
+    }
+    if (
+      typeof schedule.id !== "string" ||
+      schedule.id.length < 1 ||
+      schedule.id.length > 160 ||
+      !STABLE_COURSE_KEY.test(schedule.id)
+    ) {
+      throw new Error(`课程目录 schedules[${index}].id 无效`);
+    }
+    if (scheduleIds.has(schedule.id)) {
+      throw new Error(`课程目录存在重复 scheduleId：${schedule.id}`);
+    }
+    scheduleIds.add(schedule.id);
+  }
+  return { catalogId: courseCatalog.catalogId, scheduleIds };
+}
+
+function assertCourseSectionsExist(bundle, courseCatalog) {
+  if (!(bundle.courseSections?.length > 0)) return;
+  if (!courseCatalog) {
+    throw new Error("非空 courseSections 必须提供带 catalogId 的课程目录");
+  }
+  const parsedCatalog = parseCourseCatalog(courseCatalog);
+  for (const section of bundle.courseSections) {
+    if (section.catalogId !== parsedCatalog.catalogId) {
+      throw new Error(
+        `courseSections catalogId 与课程目录不一致：${section.catalogId} != ${parsedCatalog.catalogId}`,
+      );
+    }
+    if (!parsedCatalog.scheduleIds.has(section.scheduleId)) {
+      throw new Error(`课程目录中不存在 scheduleId：${section.scheduleId}`);
+    }
   }
 }
 
@@ -72,6 +193,13 @@ async function lockTextbookScope(client, scopeKey) {
   await client.query(
     "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
     [`teaching_section_textbook_scope:${scopeKey}`],
+  );
+}
+
+async function lockCourseScheduleScope(client, scopeKey) {
+  await client.query(
+    "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+    [`course_schedule_teacher_scope:${scopeKey}`],
   );
 }
 
@@ -450,6 +578,18 @@ function textbookScopeKey(record, teacherId) {
   ]);
 }
 
+function courseScheduleScopeKey(record) {
+  return JSON.stringify([record.catalogId, record.scheduleId]);
+}
+
+function courseScheduleContentSha256(record) {
+  return crypto.createHash("sha256").update(JSON.stringify({
+    catalogId: record.catalogId,
+    scheduleId: record.scheduleId,
+    externalTeacherKeys: [...record.externalTeacherKeys].sort(),
+  }), "utf8").digest("hex");
+}
+
 async function applyTextbookBatch(database, bundle) {
   const source = bundle.sources.textbook;
   return withTransaction(database, async (client) => {
@@ -641,18 +781,182 @@ async function applyTextbookBatch(database, bundle) {
   });
 }
 
-export async function applyPrivateBundle(database, bundle) {
+async function applyCourseSectionBatch(database, bundle) {
+  const source = bundle.sources.courseSections;
+  return withTransaction(database, async (client) => {
+    await lockImport(client, "course_schedule_teachers", source.sha256, bundle.mappingVersion);
+    const existingBatchId = await findAppliedBatch(
+      client,
+      "course_schedule_teachers",
+      source.sha256,
+      bundle.mappingVersion,
+    );
+    if (existingBatchId) return { batchId: existingBatchId, idempotent: true };
+
+    const records = bundle.courseSections ?? [];
+    const externalKeys = [...new Set(records.flatMap((record) => record.externalTeacherKeys))];
+    const mappingRows = externalKeys.length
+      ? await client.query(
+        `SELECT external_teacher_key, teacher_id
+         FROM teacher_source_identities
+         WHERE source_system = $1 AND mapping_status = 'current'
+           AND external_teacher_key = ANY($2::text[])`,
+        [TEACHER_SOURCE_SYSTEM, externalKeys],
+      )
+      : { rows: [] };
+    const teacherIds = new Map(
+      mappingRows.rows.map((row) => [row.external_teacher_key, row.teacher_id]),
+    );
+    const missingKeys = externalKeys.filter((key) => !teacherIds.has(key));
+    if (missingKeys.length) {
+      throw new Error(`课程日程缺少显式教师映射：${missingKeys.join(",")}`);
+    }
+
+    const resolved = records.map((record) => {
+      const desiredTeacherIds = record.externalTeacherKeys.map((key) => teacherIds.get(key));
+      if (new Set(desiredTeacherIds).size !== desiredTeacherIds.length) {
+        throw new Error(`课程日程多个外部键指向同一教师：${record.scheduleId}`);
+      }
+      return {
+        record,
+        desiredTeacherIds,
+        scopeKey: courseScheduleScopeKey(record),
+      };
+    });
+    const scopeKeys = [...new Set(resolved.map((item) => item.scopeKey))].sort();
+    for (const scopeKey of scopeKeys) await lockCourseScheduleScope(client, scopeKey);
+
+    const currentRows = records.length
+      ? await client.query(
+        `SELECT link.id, link.catalog_id, link.schedule_id, link.teacher_id
+         FROM course_schedule_teachers AS link
+         INNER JOIN unnest($1::text[], $2::text[])
+           AS requested(catalog_id, schedule_id)
+           ON requested.catalog_id = link.catalog_id
+          AND requested.schedule_id = link.schedule_id
+         WHERE link.record_status = 'current'`,
+        [
+          records.map((record) => record.catalogId),
+          records.map((record) => record.scheduleId),
+        ],
+      )
+      : { rows: [] };
+    const currentByScope = new Map();
+    for (const row of currentRows.rows) {
+      const scopeKey = courseScheduleScopeKey({
+        catalogId: row.catalog_id,
+        scheduleId: row.schedule_id,
+      });
+      const links = currentByScope.get(scopeKey) ?? [];
+      links.push(row);
+      currentByScope.set(scopeKey, links);
+    }
+
+    const batchId = await createBatch(
+      client,
+      "course_schedule_teachers",
+      source,
+      bundle.mappingVersion,
+    );
+    let accepted = 0;
+    for (const { record, desiredTeacherIds, scopeKey } of resolved) {
+      const current = currentByScope.get(scopeKey) ?? [];
+      const desired = new Set(desiredTeacherIds);
+      const currentIds = new Set(current.map((row) => row.teacher_id));
+      const removed = current.filter((row) => !desired.has(row.teacher_id));
+      const created = desiredTeacherIds
+        .filter((teacherId) => !currentIds.has(teacherId))
+        .map((teacherId) => ({ id: crypto.randomUUID(), teacherId }));
+      const changed = removed.length > 0 || created.length > 0;
+      const importRowId = crypto.randomUUID();
+      const locator = parseLocator(record.sourceLocator, "courseSections");
+      const firstEntityId = removed[0]?.id ?? created[0]?.id ?? null;
+      await insertImportRow(client, {
+        id: importRowId,
+        batchId,
+        sourceSheet: locator.sheet,
+        sourceRow: locator.row,
+        sourceColumn: locator.column,
+        sourceLocator: record.sourceLocator,
+        sourceKey: `${record.catalogId}|${record.scheduleId}`,
+        contentSha256: courseScheduleContentSha256(record),
+        disposition: changed ? "applied" : "accepted",
+        sanitizedPayload: {
+          catalogId: record.catalogId,
+          scheduleId: record.scheduleId,
+          teacherCount: desiredTeacherIds.length,
+        },
+        appliedEntityType: changed ? "course_schedule_teacher" : null,
+        appliedEntityId: firstEntityId,
+      });
+
+      for (const link of removed) {
+        await client.query(
+          `UPDATE course_schedule_teachers
+           SET record_status = 'withdrawn'
+           WHERE id = $1 AND record_status = 'current'`,
+          [link.id],
+        );
+        await insertMutation(client, {
+          batchId,
+          importRowId,
+          entityType: "course_schedule_teacher",
+          entityId: link.id,
+          mutationType: "withdrawn",
+        });
+      }
+      for (const link of created) {
+        await client.query(
+          `INSERT INTO course_schedule_teachers (
+             id, catalog_id, schedule_id, teacher_id,
+             source_batch_id, source_row_id
+           ) VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            link.id,
+            record.catalogId,
+            record.scheduleId,
+            link.teacherId,
+            batchId,
+            importRowId,
+          ],
+        );
+        await insertMutation(client, {
+          batchId,
+          importRowId,
+          entityType: "course_schedule_teacher",
+          entityId: link.id,
+          mutationType: "created",
+        });
+      }
+      accepted += 1;
+    }
+
+    await finishBatch(client, batchId, {
+      rowCount: accepted,
+      accepted,
+      warning: 0,
+      rejected: 0,
+    });
+    return { batchId, idempotent: false, accepted, warning: 0 };
+  });
+}
+
+export async function applyPrivateBundle(database, bundle, courseCatalog = null) {
   assertPrivateBundle(bundle);
+  assertCourseSectionsExist(bundle, courseCatalog);
   const teacherBatch = await applyTeacherBatch(database, bundle);
   const textbookBatch = await applyTextbookBatch(database, bundle);
-  return { teacherBatch, textbookBatch };
+  const courseSectionBatch = bundle.sources?.courseSections
+    ? await applyCourseSectionBatch(database, bundle)
+    : null;
+  return { teacherBatch, textbookBatch, courseSectionBatch };
 }
 
 export async function rollbackImportBatch(database, batchId) {
   if (!/^[0-9a-f-]{36}$/i.test(String(batchId))) throw new Error("无效批次 UUID");
   return withTransaction(database, async (client) => {
     const batch = await client.query(
-      "SELECT id, import_type, status FROM data_import_batches WHERE id = $1 FOR UPDATE",
+      "SELECT id, import_type, status, created_at FROM data_import_batches WHERE id = $1 FOR UPDATE",
       [batchId],
     );
     if (!batch.rows[0]) throw new Error("导入批次不存在");
@@ -680,13 +984,45 @@ export async function rollbackImportBatch(database, batchId) {
       .map((row) => row.entity_id);
     if (teacherIds.length) {
       const dependent = await client.query(
-        `SELECT 1 FROM teaching_section_textbooks
-         WHERE teacher_id = ANY($1::uuid[]) AND record_status <> 'withdrawn'
-           AND source_batch_id <> $2
+        `SELECT 1
+         FROM (
+           SELECT teacher_id, source_batch_id
+           FROM teaching_section_textbooks
+           WHERE record_status <> 'withdrawn'
+           UNION ALL
+           SELECT teacher_id, source_batch_id
+           FROM course_schedule_teachers
+           WHERE record_status = 'current'
+         ) AS dependency
+         WHERE teacher_id = ANY($1::uuid[]) AND source_batch_id <> $2
          LIMIT 1`,
         [teacherIds, batchId],
       );
-      if (dependent.rows[0]) throw new Error("后续教材批次依赖本批教师，必须先回滚后续批次");
+      if (dependent.rows[0]) throw new Error("后续教材批次依赖本批教师，或课程教师覆盖批次仍引用本批教师；必须先回滚后续批次");
+    }
+
+    const courseLinkIds = mutations.rows
+      .filter((row) => row.entity_type === "course_schedule_teacher")
+      .map((row) => row.entity_id);
+    if (courseLinkIds.length) {
+      const laterCourseBatch = await client.query(
+        `SELECT 1
+         FROM course_schedule_teachers AS target
+         INNER JOIN course_schedule_teachers AS active
+           ON active.catalog_id = target.catalog_id
+          AND active.schedule_id = target.schedule_id
+          AND active.record_status = 'current'
+         INNER JOIN data_import_batches AS active_batch
+           ON active_batch.id = active.source_batch_id
+         WHERE target.id = ANY($1::uuid[])
+           AND active.source_batch_id <> $2
+           AND active_batch.created_at > $3
+         LIMIT 1`,
+        [courseLinkIds, batchId, batch.rows[0].created_at],
+      );
+      if (laterCourseBatch.rows[0]) {
+        throw new Error("课程教师覆盖存在后续批次，必须按逆序回滚");
+      }
     }
 
     for (const mutation of mutations.rows) {
@@ -704,6 +1040,34 @@ export async function rollbackImportBatch(database, batchId) {
           entityType: mutation.entity_type,
           entityId: mutation.entity_id,
           mutationType: "withdrawn",
+        });
+      } else if (mutation.entity_type === "course_schedule_teacher" && mutation.mutation_type === "created") {
+        await client.query(
+          `UPDATE course_schedule_teachers
+           SET record_status = 'withdrawn'
+           WHERE id = $1 AND record_status = 'current'`,
+          [mutation.entity_id],
+        );
+        await insertMutation(client, {
+          batchId,
+          importRowId: mutation.import_row_id,
+          entityType: mutation.entity_type,
+          entityId: mutation.entity_id,
+          mutationType: "withdrawn",
+        });
+      } else if (mutation.entity_type === "course_schedule_teacher" && mutation.mutation_type === "withdrawn") {
+        await client.query(
+          `UPDATE course_schedule_teachers
+           SET record_status = 'current'
+           WHERE id = $1 AND record_status = 'withdrawn'`,
+          [mutation.entity_id],
+        );
+        await insertMutation(client, {
+          batchId,
+          importRowId: mutation.import_row_id,
+          entityType: mutation.entity_type,
+          entityId: mutation.entity_id,
+          mutationType: "restored",
         });
       } else if (mutation.entity_type === "teaching_section_textbook" && mutation.mutation_type === "created") {
         await client.query(
@@ -802,6 +1166,28 @@ function parseArguments(argv) {
 }
 
 async function runCli() {
+  const args = parseArguments(process.argv.slice(2));
+  let bundle = null;
+  let courseCatalog = null;
+  if (args.command === "apply") {
+    if (!args.bundle) throw new Error("apply 缺少 --bundle");
+    bundle = JSON.parse(await fs.readFile(path.resolve(args.bundle), "utf8"));
+    if (bundle.courseSections?.length && !args["course-data"]) {
+      throw new Error("非空 courseSections 必须提供 --course-data <published-json>");
+    }
+    if (args["course-data"]) {
+      courseCatalog = JSON.parse(
+        await fs.readFile(path.resolve(args["course-data"]), "utf8"),
+      );
+    }
+    assertPrivateBundle(bundle);
+    assertCourseSectionsExist(bundle, courseCatalog);
+  } else if (args.command === "rollback") {
+    if (!args.batch) throw new Error("rollback 缺少 --batch");
+  } else {
+    throw new Error("命令必须是 apply 或 rollback");
+  }
+
   if (process.env.IMPORT_ALLOW_APPLY !== "true") {
     throw new Error("必须显式设置 IMPORT_ALLOW_APPLY=true 才能执行数据库写入");
   }
@@ -824,17 +1210,10 @@ async function runCli() {
     statement_timeout: 30_000,
   });
   try {
-    const args = parseArguments(process.argv.slice(2));
     if (args.command === "apply") {
-      if (!args.bundle) throw new Error("apply 缺少 --bundle");
-      const bundle = JSON.parse(await fs.readFile(path.resolve(args.bundle), "utf8"));
-      return await applyPrivateBundle(database, bundle);
+      return await applyPrivateBundle(database, bundle, courseCatalog);
     }
-    if (args.command === "rollback") {
-      if (!args.batch) throw new Error("rollback 缺少 --batch");
-      return await rollbackImportBatch(database, args.batch);
-    }
-    throw new Error("命令必须是 apply 或 rollback");
+    return await rollbackImportBatch(database, args.batch);
   } finally {
     await database.end();
   }

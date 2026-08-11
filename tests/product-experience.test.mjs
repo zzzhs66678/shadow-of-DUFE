@@ -102,6 +102,10 @@ const teacherStyles = await readFile(
   new URL("../app/teachers/teachers.module.css", import.meta.url),
   "utf8",
 );
+const teacherRecordLinkSource = await readFile(
+  new URL("../app/TeacherRecordLink.tsx", import.meta.url),
+  "utf8",
+);
 
 test("teacher directory disambiguates identities without taking over the daily workspace", () => {
   assert.match(teacherExplorerSource, /同名教师会按学院分别展示/);
@@ -114,8 +118,10 @@ test("teacher directory disambiguates identities without taking over the daily w
   assert.match(teacherDetailSource, /<fieldset/);
   assert.match(teacherDetailSource, /expectedVersion/);
   assert.match(teacherDetailSource, /删除后公开页将不再显示/);
-  assert.match(component, /href=\{`\/teachers\?q=\$\{encodeURIComponent\(schedule\.teacher\)\}`\}/);
-  assert.doesNotMatch(component, /href=\{`\/teachers\/\$\{[^}]*teacher/);
+  assert.match(component, /<TeacherRecordLink/);
+  assert.match(teacherRecordLinkSource, /href=\{fallbackHref\}/);
+  assert.match(teacherRecordLinkSource, /resolveTeacherScheduleHref/);
+  assert.doesNotMatch(teacherRecordLinkSource, /useEffect/);
   assert.match(teacherStyles, /min-height:\s*44px/);
   assert.match(teacherStyles, /@media \(max-width:\s*820px\)/);
   assert.match(teacherStyles, /\.ratingEditor label span[\s\S]*min-height:\s*44px/);

@@ -5,6 +5,7 @@ import {
   parseWeeks,
   splitMeetingLocations,
 } from "./course-schedule-logic.mjs";
+import { createCourseCatalogId } from "./course-catalog-id.mjs";
 import { buildCourseCorePayload } from "./course-core-data.mjs";
 
 const root = resolve(import.meta.dirname, "..");
@@ -215,11 +216,12 @@ for (const config of Object.values(termConfig)) {
       const building = parseVenue(location);
       const periods = parsePeriods(timeText);
       if (targetBuilding) roomScheduleRows += 1;
+      const scheduleId =
+        meetingIndex === 0
+          ? legacyId
+          : `${legacyId}-m${meetingIndex + 1}`;
       schedules.push({
-        id:
-          meetingIndex === 0
-            ? legacyId
-            : `${legacyId}-m${meetingIndex + 1}`,
+        id: scheduleId,
         sectionId,
         meetingIndex: meetingIndex + 1,
         sourceRow,
@@ -249,6 +251,7 @@ const colleges = [...new Set(majors.map((major) => major.college))]
   }));
 
 const payload = {
+  catalogId: createCourseCatalogId(schedules),
   generatedAt: new Date().toISOString(),
   source: "专业课程按上下学期拆分.xlsx",
   disclaimer:

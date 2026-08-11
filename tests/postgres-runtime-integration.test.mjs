@@ -23,6 +23,7 @@ import {
   rollbackImportBatch,
 } from "../scripts/academic-import-apply.mjs";
 import { createTeacherReviewStore } from "../services/auth-api/src/teacher-review-store.mjs";
+import { createTeacherStore } from "../services/auth-api/src/teacher-store.mjs";
 
 const enabled = process.env.POSTGRES_INTEGRATION === "true";
 const { Pool } = pg;
@@ -163,6 +164,42 @@ function integrationTextbookBundle(label, sourceRevision, materialRevision = sou
   return bundle;
 }
 
+function integrationCourseScheduleBundle(label, revision, mode = "multi") {
+  const bundle = integrationAcademicBundle(label);
+  const secondTeacherKey = `ci-teacher-${label}-second`;
+  bundle.reviewCandidates = [];
+  bundle.teachers.push({
+    sourceLocator: "教师评价!C3",
+    externalTeacherKey: secondTeacherKey,
+    displayName: `第二位并发导入教师-${label}`,
+    collegeName: `并发测试学院-${label}`,
+    sourceDigest: sha256(`teacher-row:${label}:second`),
+  });
+  bundle.sources.courseSections = {
+    filename: `ci-course-sections-${label}-${revision}.json`,
+    sha256: sha256(`course-sections:${label}:${revision}`),
+  };
+  const externalTeacherKeys = mode === "zero"
+    ? []
+    : mode === "one"
+      ? [secondTeacherKey]
+      : [bundle.teachers[0].externalTeacherKey, secondTeacherKey];
+  bundle.courseSections = [{
+    sourceLocator: "courseSections!A2",
+    catalogId: `CI-SCHEDULE-${label}`,
+    scheduleId: `fall-CI-${label}-01-1`,
+    externalTeacherKeys,
+  }];
+  return bundle;
+}
+
+function integrationCourseCatalog(bundle) {
+  return {
+    catalogId: bundle.courseSections[0].catalogId,
+    schedules: [{ id: bundle.courseSections[0].scheduleId }],
+  };
+}
+
 function cookieHeader(response) {
   return response.headers
     .getSetCookie()
@@ -202,7 +239,7 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
     const migrations = await owner.query(
       "SELECT count(*)::integer AS count FROM schema_migrations",
     );
-    assert.equal(migrations.rows[0].count, 18);
+    assert.equal(migrations.rows[0].count, 19);
 
     await denied(migrator, "SELECT * FROM app_users LIMIT 1");
     const migrationRole = await migrator.query(
@@ -357,6 +394,8 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
       ["teachers", "SELECT", true],
       ["teachers", "INSERT", false],
       ["teacher_source_identities", "UPDATE", false],
+      ["course_schedule_teachers", "SELECT", true],
+      ["course_schedule_teachers", "INSERT", false],
       ["teacher_reviews", "SELECT", true],
       ["teacher_reviews", "INSERT", true],
       ["teacher_reviews", "UPDATE", true],
@@ -417,6 +456,10 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
       ["teacher_review_candidates", "SELECT", true],
       ["teacher_review_candidates", "INSERT", true],
       ["teacher_review_candidates", "UPDATE", false],
+      ["course_schedule_teachers", "SELECT", true],
+      ["course_schedule_teachers", "INSERT", true],
+      ["course_schedule_teachers", "UPDATE", true],
+      ["course_schedule_teachers", "DELETE", false],
       ["teacher_review_candidate_decisions", "SELECT", false],
       ["teacher_reviews", "SELECT", true],
       ["teacher_reviews", "INSERT", false],
@@ -469,6 +512,7 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
       ["admin_audit_events", "SELECT", true],
       ["community_topics", "SELECT", true],
       ["teachers", "SELECT", true],
+      ["course_schedule_teachers", "SELECT", true],
       ["app_users", "INSERT", false],
       ["app_users", "UPDATE", false],
       ["app_users", "DELETE", false],
@@ -526,6 +570,7 @@ test("academic import and review moderation serialize on PostgreSQL", {
   const elevationHash = `ci-elevation-${randomUUID()}`;
   const label = randomUUID().slice(0, 8);
   const reviewStore = createTeacherReviewStore(runtime);
+  const teacherStore = createTeacherStore(runtime);
   const adminInput = (extra) => ({
     actorUserId: adminId,
     actorSessionId: sessionId,
@@ -767,6 +812,71 @@ test("academic import and review moderation serialize on PostgreSQL", {
       identity_status: "pending",
       mapping_status: "current",
     });
+
+    const scheduleLabel = `schedule-${label}`;
+    const scheduleMulti = integrationCourseScheduleBundle(
+      scheduleLabel,
+      "multi-v1",
+      "multi",
+    );
+    const courseCatalog = integrationCourseCatalog(scheduleMulti);
+    const multiResult = await applyPrivateBundle(importer, scheduleMulti, courseCatalog);
+    assert.equal(multiResult.courseSectionBatch.idempotent, false);
+    assert.equal(
+      (await teacherStore.listPublicTeachersBySchedule({
+        catalogId: scheduleMulti.courseSections[0].catalogId,
+        scheduleId: scheduleMulti.courseSections[0].scheduleId,
+      })).length,
+      2,
+    );
+    assert.equal(
+      (await applyPrivateBundle(importer, scheduleMulti, courseCatalog)).courseSectionBatch.idempotent,
+      true,
+    );
+
+    const scheduleZero = integrationCourseScheduleBundle(
+      scheduleLabel,
+      "zero-v2",
+      "zero",
+    );
+    const zeroResult = await applyPrivateBundle(importer, scheduleZero, courseCatalog);
+    assert.deepEqual(
+      await teacherStore.listPublicTeachersBySchedule({
+        catalogId: scheduleZero.courseSections[0].catalogId,
+        scheduleId: scheduleZero.courseSections[0].scheduleId,
+      }),
+      [],
+    );
+    await rollbackImportBatch(importer, zeroResult.courseSectionBatch.batchId);
+    assert.equal(
+      (await teacherStore.listPublicTeachersBySchedule({
+        catalogId: scheduleMulti.courseSections[0].catalogId,
+        scheduleId: scheduleMulti.courseSections[0].scheduleId,
+      })).length,
+      2,
+    );
+
+    const scheduleOne = integrationCourseScheduleBundle(
+      scheduleLabel,
+      "one-v3",
+      "one",
+    );
+    const oneResult = await applyPrivateBundle(importer, scheduleOne, courseCatalog);
+    assert.equal(
+      (await teacherStore.listPublicTeachersBySchedule({
+        catalogId: scheduleOne.courseSections[0].catalogId,
+        scheduleId: scheduleOne.courseSections[0].scheduleId,
+      })).length,
+      1,
+    );
+    await rollbackImportBatch(importer, oneResult.courseSectionBatch.batchId);
+    assert.equal(
+      (await teacherStore.listPublicTeachersBySchedule({
+        catalogId: scheduleMulti.courseSections[0].catalogId,
+        scheduleId: scheduleMulti.courseSections[0].scheduleId,
+      })).length,
+      2,
+    );
   } finally {
     await Promise.allSettled([owner.end(), runtime.end(), importer.end()]);
   }

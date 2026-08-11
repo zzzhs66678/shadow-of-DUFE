@@ -7,6 +7,7 @@ import { createOpaqueToken, tokenDigest } from "../src/tokens.mjs";
 const teacherId = "00000000-0000-4000-8000-000000000201";
 const reviewId = "00000000-0000-4000-8000-000000000202";
 const userId = "00000000-0000-4000-8000-000000000203";
+const secondTeacherId = "00000000-0000-4000-8000-000000000204";
 
 const config = {
   tokenPepper: "teacher-api-test-pepper-that-is-at-least-thirty-two-characters",
@@ -54,6 +55,16 @@ function createStore() {
         ...summary,
         cursor: { normalizedName: "测试教师", normalizedCollege: "测试学院", id: teacherId },
       }];
+    },
+    async listPublicTeachersBySchedule(input) {
+      calls += 1;
+      assert.equal(input.catalogId, "C1");
+      if (input.scheduleId === "fall-C1-01-empty") return [];
+      assert.equal(input.scheduleId, "fall-C1-01-1");
+      return [
+        summary,
+        { ...summary, id: secondTeacherId, displayName: "第二位教师" },
+      ];
     },
     async getPublicTeacherDetail(id) {
       calls += 1;
@@ -158,6 +169,26 @@ test("teacher index and detail expose only public catalog facts", async () => {
   });
 });
 
+test("teacher schedule lookup returns zero or multiple explicit teacher UUIDs", async () => {
+  await withServer(async (baseUrl) => {
+    const multiple = await fetch(
+      `${baseUrl}/api/teachers/by-schedule?catalogId=C1&scheduleId=fall-C1-01-1`,
+    );
+    assert.equal(multiple.status, 200);
+    assert.match(multiple.headers.get("cache-control"), /max-age=60/u);
+    assert.deepEqual(
+      (await multiple.json()).items.map((teacher) => teacher.id),
+      [teacherId, secondTeacherId],
+    );
+
+    const empty = await fetch(
+      `${baseUrl}/api/teachers/by-schedule?catalogId=C1&scheduleId=fall-C1-01-empty`,
+    );
+    assert.equal(empty.status, 200);
+    assert.deepEqual(await empty.json(), { items: [] });
+  });
+});
+
 test("teacher routes reject malformed filters before data access", async () => {
   await withServer(async (baseUrl, store) => {
     const invalidQuery = await fetch(`${baseUrl}/api/teachers?limit=99`);
@@ -168,6 +199,14 @@ test("teacher routes reject malformed filters before data access", async () => {
       `${baseUrl}/api/teachers/${teacherId}/reviews?after=not-valid%21`,
     );
     assert.equal(invalidCursor.status, 400);
+    const missingSchedule = await fetch(
+      `${baseUrl}/api/teachers/by-schedule?catalogId=C1`,
+    );
+    assert.equal(missingSchedule.status, 400);
+    const extraFilter = await fetch(
+      `${baseUrl}/api/teachers/by-schedule?catalogId=C1&scheduleId=fall-C1-01-1&teacherName=guess`,
+    );
+    assert.equal(extraFilter.status, 400);
     assert.equal(store.calls, 0);
   });
 });

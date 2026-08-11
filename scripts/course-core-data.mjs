@@ -21,6 +21,7 @@ export function buildCourseCorePayload(courseData) {
 
   return {
     version: 1,
+    catalogId: courseData.catalogId,
     generatedAt: courseData.generatedAt,
     source: courseData.source,
     disclaimer: courseData.disclaimer,

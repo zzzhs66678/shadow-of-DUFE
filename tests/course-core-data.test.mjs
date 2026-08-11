@@ -46,6 +46,8 @@ test("course core preserves every schedule identity and home field", async () =>
   );
 
   assert.equal(core.version, 1);
+  assert.match(core.catalogId, /^course-v1:[0-9a-f]{64}$/u);
+  assert.equal(core.catalogId, full.catalogId);
   assert.equal(courseTitles.size, full.courses.length);
   assert.equal(decoded.size, full.schedules.length);
   for (const schedule of full.schedules) {
@@ -62,4 +64,14 @@ test("course core preserves every schedule identity and home field", async () =>
       room: schedule.room,
     });
   }
+});
+
+test("full catalog replacement requires the same validated catalog identity", async () => {
+  const source = await readFile(
+    new URL("../app/DufeHubV2.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /COURSE_CATALOG_ID\.test\(payload\.catalogId\)/u);
+  assert.match(source, /payload\.catalogId !== initialData\.catalogId/u);
+  assert.match(source, /throw new Error\("course catalog identity mismatch"\)/u);
 });
