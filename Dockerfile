@@ -5,6 +5,7 @@ FROM ${NODE_IMAGE} AS dependencies
 WORKDIR /app
 
 COPY package.json package-lock.json ./
+COPY vendor/image-size-disabled ./vendor/image-size-disabled
 RUN npm ci --ignore-scripts --no-audit --no-fund
 
 FROM dependencies AS build
@@ -23,6 +24,7 @@ ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 
 COPY package.json package-lock.json ./
+COPY vendor/image-size-disabled ./vendor/image-size-disabled
 RUN npm ci --omit=dev --omit=optional --ignore-scripts --no-audit --no-fund \
     && npm cache clean --force
 
