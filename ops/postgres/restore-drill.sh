@@ -9,6 +9,7 @@ COMPOSE_DIR="${COMPOSE_DIR:-$APP_ROOT/current}"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-dufesh}"
 RESTORE_DRILL_MAX_SECONDS="${RESTORE_DRILL_MAX_SECONDS:-900}"
 RESTORE_DRILL_MAX_BACKUP_AGE_HOURS="${RESTORE_DRILL_MAX_BACKUP_AGE_HOURS:-30}"
+RESTORE_DRILL_MODE="${RESTORE_DRILL_MODE:-docker}"
 
 if [ ! -r "$ENV_FILE" ]; then
   echo "PostgreSQL environment file is missing: $ENV_FILE" >&2
@@ -21,6 +22,23 @@ set +a
 
 : "${POSTGRES_DB:?POSTGRES_DB is required}"
 : "${POSTGRES_USER:?POSTGRES_USER is required}"
+
+case "$RESTORE_DRILL_MODE" in
+  docker|native) ;;
+  *) echo "RESTORE_DRILL_MODE must be docker or native." >&2; exit 1 ;;
+esac
+if [ "$RESTORE_DRILL_MODE" = "native" ]; then
+  PGPASSWORD="${PGPASSWORD:-${POSTGRES_PASSWORD:-}}"
+  export PGPASSWORD
+fi
+
+run_postgres() {
+  if [ "$RESTORE_DRILL_MODE" = "native" ]; then
+    "$@"
+  else
+    docker compose -p "$COMPOSE_PROJECT_NAME" exec -T postgres "$@"
+  fi
+}
 
 case "$RESTORE_DRILL_MAX_SECONDS" in
   ''|*[!0-9]*) echo "RESTORE_DRILL_MAX_SECONDS must be a positive integer." >&2; exit 1 ;;
@@ -88,29 +106,32 @@ fi
 created=0
 cleanup() {
   if [ "$created" -eq 1 ]; then
-    docker compose -p "$COMPOSE_PROJECT_NAME" exec -T postgres \
-      dropdb --username "$POSTGRES_USER" --if-exists "$drill_database" >/dev/null
+    run_postgres dropdb --username "$POSTGRES_USER" \
+      --maintenance-db "$POSTGRES_DB" \
+      --if-exists "$drill_database" >/dev/null
   fi
 }
 trap cleanup EXIT INT TERM
 
 started_at="$(date +%s)"
-cd "$COMPOSE_DIR"
+if [ "$RESTORE_DRILL_MODE" = "docker" ]; then
+  cd "$COMPOSE_DIR"
+fi
 
-docker compose -p "$COMPOSE_PROJECT_NAME" exec -T postgres \
-  createdb --username "$POSTGRES_USER" --template template0 "$drill_database"
+run_postgres createdb \
+  --username "$POSTGRES_USER" \
+  --maintenance-db "$POSTGRES_DB" \
+  --template template0 "$drill_database"
 created=1
 
-docker compose -p "$COMPOSE_PROJECT_NAME" exec -T postgres \
-  pg_restore \
+run_postgres pg_restore \
     --username "$POSTGRES_USER" \
     --dbname "$drill_database" \
     --exit-on-error \
     --no-owner \
     --no-privileges < "$backup_file"
 
-docker compose -p "$COMPOSE_PROJECT_NAME" exec -T postgres \
-  psql \
+run_postgres psql \
     --username "$POSTGRES_USER" \
     --dbname "$drill_database" \
     --set ON_ERROR_STOP=1 \

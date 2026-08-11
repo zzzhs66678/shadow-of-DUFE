@@ -47,7 +47,16 @@ jobs:
       - name: Install PostgreSQL client and Node dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes postgresql-client
+          sudo apt-get install --yes ca-certificates curl
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl --fail --silent --show-error \
+            --output /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client-17
           npm ci --ignore-scripts --no-audit --no-fund
           npm ci --prefix services/auth-api --ignore-scripts --no-audit --no-fund
       - name: Apply migrations twice
@@ -56,6 +65,37 @@ jobs:
           MIGRATIONS_DIR="$GITHUB_WORKSPACE/ops/postgres/migrations" sh ops/postgres/run-migrations.sh
       - name: Verify PostgreSQL roles and real auth/community flows
         run: node --test tests/postgres-runtime-integration.test.mjs
+      - name: Run isolated backup restore drill
+        run: |
+          drill_dir="$RUNNER_TEMP/postgres-restore-drill"
+          backup_file="$drill_dir/${POSTGRES_DB}-ci.dump"
+          env_file="$drill_dir/postgres.env"
+          mkdir -p "$drill_dir"
+          PGPASSWORD="$POSTGRES_PASSWORD" pg_dump \
+            --host "$PGHOST" \
+            --port "$PGPORT" \
+            --username "$POSTGRES_USER" \
+            --dbname "$POSTGRES_DB" \
+            --format custom \
+            --compress 9 \
+            --no-owner \
+            --no-privileges \
+            --file "$backup_file"
+          (cd "$drill_dir" && sha256sum "$(basename "$backup_file")" > "$(basename "$backup_file").sha256")
+          printf 'POSTGRES_DB=%s\nPOSTGRES_USER=%s\nPOSTGRES_PASSWORD=%s\nPGHOST=%s\nPGPORT=%s\n' \
+            "$POSTGRES_DB" "$POSTGRES_USER" "$POSTGRES_PASSWORD" "$PGHOST" "$PGPORT" > "$env_file"
+          chmod 600 "$env_file"
+          DUFESH_POSTGRES_ENV_FILE="$env_file" \
+            BACKUP_DIR="$drill_dir" \
+            RESTORE_DRILL_MODE=native \
+            RESTORE_DRILL_MAX_SECONDS=120 \
+            sh ops/postgres/restore-drill.sh "$backup_file"
+          remaining="$(PGPASSWORD="$POSTGRES_PASSWORD" psql \
+            --host "$PGHOST" --port "$PGPORT" \
+            --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
+            --tuples-only --no-align \
+            --command "SELECT count(*) FROM pg_database WHERE datname LIKE 'dufesh_restore_drill_%'")"
+          test "$remaining" = "0"
 
   verify:
     runs-on: ubuntu-latest

@@ -139,6 +139,8 @@ test("CI runs migrations twice against native PostgreSQL 17 and checks runtime r
   assert.match(workflow, /Apply migrations twice/);
   assert.match(workflow, /run-migrations\.sh[\s\S]*run-migrations\.sh/);
   assert.match(workflow, /POSTGRES_INTEGRATION: "true"/);
+  assert.match(workflow, /Run isolated backup restore drill/);
+  assert.match(workflow, /RESTORE_DRILL_MODE=native/);
   assert.match(integration, /server_version_num/);
   assert.match(integration, /Array\.from\(\{ length: 20 \}/);
   assert.match(integration, /api_rate_limit_buckets/);
@@ -176,6 +178,7 @@ test("backup and disk protection have bounded local retention", async () => {
   assert.match(restoreDrill, /actual_checksum" != "\$expected_checksum/);
   assert.match(restoreDrill, /dufesh_restore_drill_/);
   assert.match(restoreDrill, /--template template0/);
+  assert.match(restoreDrill, /--maintenance-db "\$POSTGRES_DB"/);
   assert.match(restoreDrill, /pg_restore/);
   assert.match(restoreDrill, /--exit-on-error/);
   assert.match(restoreDrill, /migration_count < 16/);
@@ -184,6 +187,8 @@ test("backup and disk protection have bounded local retention", async () => {
   assert.match(restoreDrill, /dropdb[\s\S]*--if-exists "\$drill_database"/);
   assert.match(restoreDrill, /cleanup\ncreated=0\necho "Restore drill passed/);
   assert.match(restoreDrill, /RESTORE_DRILL_MAX_SECONDS/);
+  assert.match(restoreDrill, /RESTORE_DRILL_MODE="\$\{RESTORE_DRILL_MODE:-docker\}"/);
+  assert.match(restoreDrill, /run_postgres\(\)/);
   assert.match(restoreTimer, /OnCalendar=Sun/);
   assert.match(restoreTimer, /Persistent=true/);
   assert.match(guard, /docker builder prune/);
