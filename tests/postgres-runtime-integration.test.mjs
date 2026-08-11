@@ -1254,7 +1254,7 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
       const rolledBackModeration = await fixtureOwner.query(
         `SELECT
            topics.status AS topic_status,
-           topics.version AS topic_version,
+           topics.version::integer AS topic_version,
            cases.status AS case_status,
            reports.status AS report_status,
            (SELECT count(*)::integer
