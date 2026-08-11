@@ -545,6 +545,11 @@
 - 教师 apply→rollback→reapply 复用原 UUID并恢复 `pending/current`，恢复本身作为 mutation 可再次回滚。已有来源键若姓名或学院发生变化则返回显式 `teacher_source_identity_conflict` 并回滚，不继续使用陈旧或被静默改写的身份。
 - PGlite 真实 SQL 验证首次回滚、重导、再次回滚、A→B→A 和唯一索引拒绝双 current；相关导入、预检、基础设施与审核 42/42、ESLint 和 `git diff --check` 通过。PG17 用例新增不同来源同槽并发、版本循环和教师重导，当前本机 3 项明确 SKIP，必须由 PR CI 真正执行。本切片未部署。
 
+## M3 已验证切片：同学院同名教师预检失败关闭
+
+- 教材预检把原来的单值 `(学院, 姓名) → externalTeacherKey` 改为候选集合。只有集合恰好一项时才写入来源教师键；同学院同名对应两个或更多来源键时增加 `teacher_source_identity_ambiguous`，教材进入 `needs_review` 且不绑定任何教师 UUID。
+- 这一步只消除现有静默误配，不冒充课程侧稳定 `teacher_id` 已贯通；课程教学班到来源教师键的显式确认映射仍是下一阶段。预检与导入回归 8/8、相关 ESLint 和 `git diff --check` 通过；本切片未部署。
+
 ## M4/M5 已验证切片：社区分享与低干扰今日入口
 
 - 主题页新增真实系统分享操作；支持 Web Share 时打开系统面板，否则复制当前稳定地址，再以短期只读文本节点兼容旧浏览器。取消系统分享保持安静，所有复制方式失败时提供可执行的地址栏说明。

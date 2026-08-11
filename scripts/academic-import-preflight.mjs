@@ -315,12 +315,14 @@ export function analyzeTextbookWorkbook(planRows, joinedRows, courseData, teache
       officialByCourseTeacherTitle.get(key).push(row);
     }
   }
-  const externalTeacherKeyByPair = new Map(
-    teacherRecords.map((teacher) => [
-      teacherPair(teacher.collegeName, teacher.displayName),
-      teacher.externalTeacherKey,
-    ]),
-  );
+  const externalTeacherKeysByPair = new Map();
+  for (const teacher of teacherRecords) {
+    const pair = teacherPair(teacher.collegeName, teacher.displayName);
+    if (!externalTeacherKeysByPair.has(pair)) {
+      externalTeacherKeysByPair.set(pair, new Set());
+    }
+    externalTeacherKeysByPair.get(pair).add(teacher.externalTeacherKey);
+  }
 
   let placeholderIsbnRows = 0;
   let invalidPublicationDateRows = 0;
@@ -389,6 +391,12 @@ export function analyzeTextbookWorkbook(planRows, joinedRows, courseData, teache
       errors.push("teaching_section_not_in_site_schedule");
     }
     if (!row.teacherCollege) errors.push("teacher_college_missing");
+    const matchedTeacherKeys = externalTeacherKeysByPair.get(
+      teacherPair(row.teacherCollege, row.teacherName),
+    ) ?? new Set();
+    if (matchedTeacherKeys.size > 1) {
+      errors.push("teacher_source_identity_ambiguous");
+    }
     if ((variantsByCourse.get(row.courseId)?.size ?? 0) > 1) {
       errors.push("course_has_multiple_textbook_variants");
     }
@@ -426,9 +434,9 @@ export function analyzeTextbookWorkbook(planRows, joinedRows, courseData, teache
         : { raw: null, date: null, status: "missing" };
       const publicationDate = workbookDate.status === "valid" ? workbookDate : officialDate;
       const isbn = officialMatch?.isbn ?? "";
-      const externalTeacherKey = externalTeacherKeyByPair.get(
-        teacherPair(row.teacherCollege, row.teacherName),
-      ) ?? null;
+      const externalTeacherKey = matchedTeacherKeys.size === 1
+        ? [...matchedTeacherKeys][0]
+        : null;
       const needsReview = errors.length > 0 || !externalTeacherKey || officialSignatures.size > 1;
       const selectionStatus = row.title.startsWith("不指定教材")
         ? "not_specified"
