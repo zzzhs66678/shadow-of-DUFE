@@ -10,6 +10,8 @@ MIGRATIONS_DIR="${MIGRATIONS_DIR:-/opt/dufesh-postgres/migrations}"
 : "${AUTH_DB_PASSWORD:?AUTH_DB_PASSWORD is required}"
 : "${IMPORT_DB_USER:?IMPORT_DB_USER is required}"
 : "${IMPORT_DB_PASSWORD:?IMPORT_DB_PASSWORD is required}"
+: "${BACKUP_DB_USER:?BACKUP_DB_USER is required}"
+: "${BACKUP_DB_PASSWORD:?BACKUP_DB_PASSWORD is required}"
 
 export PGPASSWORD="$POSTGRES_PASSWORD"
 
@@ -84,7 +86,9 @@ psql \
   --variable "runtime_user=$AUTH_DB_USER" \
   --variable "runtime_password=$AUTH_DB_PASSWORD" \
   --variable "import_user=$IMPORT_DB_USER" \
-  --variable "import_password=$IMPORT_DB_PASSWORD" <<'SQL'
+  --variable "import_password=$IMPORT_DB_PASSWORD" \
+  --variable "backup_user=$BACKUP_DB_USER" \
+  --variable "backup_password=$BACKUP_DB_PASSWORD" <<'SQL'
 SELECT format('CREATE ROLE %I LOGIN', :'runtime_user')
 WHERE NOT EXISTS (
     SELECT 1 FROM pg_roles WHERE rolname = :'runtime_user'
@@ -95,6 +99,11 @@ SELECT format(
     :'runtime_user',
     :'runtime_password'
 ) \gexec
+SELECT format('REVOKE %I FROM %I', granted_role.rolname, :'runtime_user')
+FROM pg_auth_members AS membership
+INNER JOIN pg_roles AS member_role ON member_role.oid = membership.member
+INNER JOIN pg_roles AS granted_role ON granted_role.oid = membership.roleid
+WHERE member_role.rolname = :'runtime_user' \gexec
 
 SELECT format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), :'runtime_user') \gexec
 SELECT format('GRANT USAGE ON SCHEMA public TO %I', :'runtime_user') \gexec
@@ -193,6 +202,11 @@ SELECT format(
     :'import_user',
     :'import_password'
 ) \gexec
+SELECT format('REVOKE %I FROM %I', granted_role.rolname, :'import_user')
+FROM pg_auth_members AS membership
+INNER JOIN pg_roles AS member_role ON member_role.oid = membership.member
+INNER JOIN pg_roles AS granted_role ON granted_role.oid = membership.roleid
+WHERE member_role.rolname = :'import_user' \gexec
 SELECT format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), :'import_user') \gexec
 SELECT format('GRANT USAGE ON SCHEMA public TO %I', :'import_user') \gexec
 SELECT format(
@@ -220,6 +234,38 @@ SELECT format(
 SELECT format(
     'GRANT EXECUTE ON FUNCTION rollback_teacher_review_candidate_for_import(uuid, uuid) TO %I',
     :'import_user'
+) \gexec
+
+SELECT format('CREATE ROLE %I LOGIN', :'backup_user')
+WHERE NOT EXISTS (
+    SELECT 1 FROM pg_roles WHERE rolname = :'backup_user'
+) \gexec
+SELECT format(
+    'ALTER ROLE %I PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS NOINHERIT',
+    :'backup_user',
+    :'backup_password'
+) \gexec
+SELECT format('REVOKE %I FROM %I', granted_role.rolname, :'backup_user')
+FROM pg_auth_members AS membership
+INNER JOIN pg_roles AS member_role ON member_role.oid = membership.member
+INNER JOIN pg_roles AS granted_role ON granted_role.oid = membership.roleid
+WHERE member_role.rolname = :'backup_user' \gexec
+SELECT format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), :'backup_user') \gexec
+SELECT format('GRANT USAGE ON SCHEMA public TO %I', :'backup_user') \gexec
+SELECT format('REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM %I', :'backup_user') \gexec
+SELECT format('REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM %I', :'backup_user') \gexec
+SELECT format('REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM %I', :'backup_user') \gexec
+REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+SELECT format('GRANT SELECT ON ALL TABLES IN SCHEMA public TO %I', :'backup_user') \gexec
+SELECT format('GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO %I', :'backup_user') \gexec
+SELECT format(
+    'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO %I',
+    :'backup_user'
+) \gexec
+SELECT format(
+    'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON SEQUENCES TO %I',
+    :'backup_user'
 ) \gexec
 SQL
 

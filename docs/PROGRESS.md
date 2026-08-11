@@ -449,6 +449,12 @@
 - 三个 Dockerfile 保留生产默认的 DaoCloud Node 22 Alpine 基础镜像，同时通过统一 `NODE_IMAGE` 构建参数允许 CI 显式使用官方 `node:22-alpine`，避免镜像源网络差异改变生产默认值。门禁逐一检查最终镜像运行用户必须为 `node`；auth-api 镜像实际加载 musl 架构下的 Argon2id、Sharp 与 PostgreSQL 驱动，小影加载运行依赖，主站核对失败关闭的 `image-size@2.0.3-dufesh.0` 依赖树并启动真实生产网关接受 HTTP 请求。
 - 本地基础设施契约 30/30、相关 ESLint 和 `git diff --check` 通过。当前 Windows 没有 Docker，三个镜像尚未在本机或 GitHub runner 构建，不能把已编码的作业记为 Linux/musl 验证通过；首次 CI 全绿后才能勾选部署检查表的镜像构建与原生依赖项目，本切片未部署。
 
+## M9 已实现待 CI 验证切片：PostgreSQL 只读备份角色
+
+- `run-migrations.sh` 新增必填 `BACKUP_DB_USER/BACKUP_DB_PASSWORD`，创建 `NOINHERIT`、无 superuser/createdb/createrole/bypassrls 的独立登录角色。该角色只获得 public schema 使用权和全部现有/未来表、序列的 SELECT；脚本先清除其直接权限，并撤销 public schema 全部函数的 PUBLIC 默认执行权，再保留 runtime 与 importer 已显式授予的函数白名单。
+- 生产 `backup.sh` 的 `pg_dump` 已从 `POSTGRES_USER` 切换为独立 backup 账号，并只把密码作为单次 `docker compose exec -e PGPASSWORD=...` 环境传入。PG17 CI 的现场 custom-format 备份也改由 backup 账号创建；原生 ACL 矩阵要求它能读取迁移、账号凭据、审计、社区和教师表以形成完整灾备，但不能 INSERT/UPDATE/DELETE/TRUNCATE，也不能执行限流、审核或 importer 回滚函数。
+- 本地基础设施契约 30/30、原生测试文件 3 项明确 SKIP、相关 ESLint 与 `git diff --check` 通过。本机无 PostgreSQL/Docker，不能宣称该角色已成功完成真实 `pg_dump`；部署前必须先向 600 权限的服务器 `postgres.env` 增加新随机凭据，再由首次 PG17 CI/staging 备份与恢复门禁证明。migrator 与 owner 的对象所有权分离仍是下一切片，本切片未部署。
+
 ## 下一步
 
 1. 首次运行现有 Linux 镜像、PostgreSQL 17 与隔离恢复 CI 门禁；随后补 migrator/backup 权限边界，再完成两个普通用户与一个管理员的浏览器 E2E。

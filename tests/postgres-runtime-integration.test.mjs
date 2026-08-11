@@ -152,6 +152,7 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
     process.env.AUTH_DB_PASSWORD,
   );
   const importer = poolFor(process.env.IMPORT_DB_USER, process.env.IMPORT_DB_PASSWORD);
+  const backup = poolFor(process.env.BACKUP_DB_USER, process.env.BACKUP_DB_PASSWORD);
   const digestA = Buffer.alloc(32, 0x41);
   const digestB = Buffer.alloc(32, 0x42);
 
@@ -309,7 +310,11 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
       await assertFunctionPrivilege(importer, functionName, expected);
     }
     const importerRole = await importer.query(
-      `SELECT rolinherit, rolsuper, rolcreaterole, rolcreatedb, rolbypassrls
+      `SELECT rolinherit, rolsuper, rolcreaterole, rolcreatedb, rolreplication,
+              rolbypassrls,
+              (SELECT count(*)::integer
+               FROM pg_auth_members
+               WHERE member = current_user::regrole) AS membership_count
        FROM pg_roles
        WHERE rolname = current_user`,
     );
@@ -318,7 +323,50 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
       rolsuper: false,
       rolcreaterole: false,
       rolcreatedb: false,
+      rolreplication: false,
       rolbypassrls: false,
+      membership_count: 0,
+    });
+
+    for (const [table, privilege, expected] of [
+      ["schema_migrations", "SELECT", true],
+      ["app_users", "SELECT", true],
+      ["password_credentials", "SELECT", true],
+      ["admin_audit_events", "SELECT", true],
+      ["community_topics", "SELECT", true],
+      ["teachers", "SELECT", true],
+      ["app_users", "INSERT", false],
+      ["app_users", "UPDATE", false],
+      ["app_users", "DELETE", false],
+      ["app_users", "TRUNCATE", false],
+      ["admin_audit_events", "INSERT", false],
+    ]) {
+      await assertTablePrivilege(backup, table, privilege, expected);
+    }
+    for (const functionName of [
+      "consume_api_rate_limit(text,bytea,double precision,double precision)",
+      "rollback_teacher_review_candidate_for_import(uuid,uuid)",
+      "moderate_teacher_review_candidate(uuid,uuid,text,uuid,text,text,uuid,text,text)",
+    ]) {
+      await assertFunctionPrivilege(backup, functionName, false);
+    }
+    const backupRole = await backup.query(
+      `SELECT rolinherit, rolsuper, rolcreaterole, rolcreatedb, rolreplication,
+              rolbypassrls,
+              (SELECT count(*)::integer
+               FROM pg_auth_members
+               WHERE member = current_user::regrole) AS membership_count
+       FROM pg_roles
+       WHERE rolname = current_user`,
+    );
+    assert.deepEqual(backupRole.rows[0], {
+      rolinherit: false,
+      rolsuper: false,
+      rolcreaterole: false,
+      rolcreatedb: false,
+      rolreplication: false,
+      rolbypassrls: false,
+      membership_count: 0,
     });
   } finally {
     await Promise.allSettled([
@@ -326,6 +374,7 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
       runtime.end(),
       aclRuntime.end(),
       importer.end(),
+      backup.end(),
     ]);
   }
 });

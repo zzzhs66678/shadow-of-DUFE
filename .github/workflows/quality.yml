@@ -87,6 +87,8 @@ jobs:
       AUTH_DB_PASSWORD: ci-runtime-password
       IMPORT_DB_USER: dufesh_import_ci
       IMPORT_DB_PASSWORD: ci-import-password
+      BACKUP_DB_USER: dufesh_backup_ci
+      BACKUP_DB_PASSWORD: ci-backup-password
       POSTGRES_INTEGRATION: "true"
     steps:
       - uses: actions/checkout@v4
@@ -121,10 +123,10 @@ jobs:
           backup_file="$drill_dir/${POSTGRES_DB}-ci.dump"
           env_file="$drill_dir/postgres.env"
           mkdir -p "$drill_dir"
-          PGPASSWORD="$POSTGRES_PASSWORD" pg_dump \
+          PGPASSWORD="$BACKUP_DB_PASSWORD" pg_dump \
             --host "$PGHOST" \
             --port "$PGPORT" \
-            --username "$POSTGRES_USER" \
+            --username "$BACKUP_DB_USER" \
             --dbname "$POSTGRES_DB" \
             --format custom \
             --compress 9 \

@@ -24,7 +24,8 @@ fi
 set +a
 
 : "${POSTGRES_DB:?POSTGRES_DB is required}"
-: "${POSTGRES_USER:?POSTGRES_USER is required}"
+: "${BACKUP_DB_USER:?BACKUP_DB_USER is required}"
+: "${BACKUP_DB_PASSWORD:?BACKUP_DB_PASSWORD is required}"
 
 disk_percent="$(df -P "$APP_ROOT" | awk 'NR == 2 {gsub("%", "", $5); print $5}')"
 if [ "$disk_percent" -ge "$MAX_DISK_PERCENT" ]; then
@@ -44,9 +45,10 @@ cleanup_tmp() {
 trap cleanup_tmp EXIT INT TERM
 
 cd "$COMPOSE_DIR"
-docker compose -p "$COMPOSE_PROJECT_NAME" exec -T postgres \
+docker compose -p "$COMPOSE_PROJECT_NAME" exec -T \
+  -e PGPASSWORD="$BACKUP_DB_PASSWORD" postgres \
   pg_dump \
-    --username "$POSTGRES_USER" \
+    --username "$BACKUP_DB_USER" \
     --dbname "$POSTGRES_DB" \
     --format=custom \
     --compress=9 \

@@ -153,6 +153,9 @@ test("CI runs migrations twice against native PostgreSQL 17 and checks runtime r
   assert.match(integration, /isolatedSameNameReviews/);
   assert.match(integration, /academic import and review moderation serialize/);
   assert.match(integration, /moderationRollbackRace/);
+  assert.match(workflow, /BACKUP_DB_USER: dufesh_backup_ci/);
+  assert.match(workflow, /PGPASSWORD="\$BACKUP_DB_PASSWORD" pg_dump/);
+  assert.match(integration, /const backup = poolFor/);
 });
 
 test("CI builds and smoke-tests every production Linux image", async () => {
@@ -197,6 +200,7 @@ test("identity foundation keeps OAuth identities, devices, and sessions separate
 
 test("backup and disk protection have bounded local retention", async () => {
   const backup = await read("ops/postgres/backup.sh");
+  const migrations = await read("ops/postgres/run-migrations.sh");
   const restoreDrill = await read("ops/postgres/restore-drill.sh");
   const restoreTimer = await read(
     "deploy/systemd/dufesh-db-restore-drill.timer",
@@ -208,6 +212,14 @@ test("backup and disk protection have bounded local retention", async () => {
   assert.match(backup, /COMPOSE_PROJECT_NAME="\$\{COMPOSE_PROJECT_NAME:-dufesh\}"/);
   assert.match(backup, /ossutil stat/);
   assert.match(backup, /sha256sum "\$\(basename "\$backup_file"\)"/);
+  assert.match(backup, /BACKUP_DB_USER/);
+  assert.match(backup, /-e PGPASSWORD="\$BACKUP_DB_PASSWORD" postgres/);
+  assert.match(backup, /--username "\$BACKUP_DB_USER"/);
+  assert.doesNotMatch(backup, /--username "\$POSTGRES_USER"/);
+  assert.match(migrations, /CREATE ROLE %I LOGIN', :'backup_user'/);
+  assert.match(migrations, /GRANT SELECT ON ALL TABLES IN SCHEMA public/);
+  assert.match(migrations, /REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC/);
+  assert.match(migrations, /WHERE member_role\.rolname = :'backup_user'/);
   assert.match(restoreDrill, /actual_checksum="\$\(sha256sum "\$backup_file"/);
   assert.match(restoreDrill, /actual_checksum" != "\$expected_checksum/);
   assert.match(restoreDrill, /dufesh_restore_drill_/);

@@ -24,6 +24,7 @@
 - [ ] 大索引和回填不在单个长事务中阻塞生产业务。
 - [ ] teacher/material/community 导入先 dry-run，保存批次报告和回滚标识。
 - [ ] 数据库 owner、migrator、runtime、backup 角色按最小权限分离。
+- [ ] 为 backup 生成独立长随机 `BACKUP_DB_USER/BACKUP_DB_PASSWORD` 写入 600 权限 `postgres.env`；用该角色完成 custom-format `pg_dump`，并验证可完整恢复，同时不能写表或执行 public 函数。
 - [ ] 为 importer 生成独立长随机密码并配置 `IMPORT_DB_USER/IMPORT_DB_PASSWORD`；确认该角色 `NOINHERIT`，不能读取账号、凭据、会话、MFA、OAuth 或头像表。
 - [ ] 在 PostgreSQL 17 验证 `0010_community_foundation.sql` 空库/升级库迁移、两级回复触发器、软删除引用、通知/互动去重和开放举报部分唯一索引。
 - [ ] 在 PostgreSQL 17 验证 `0011_community_read_paths.sql` 重复执行和查询计划；软删除根评论仍使用墓碑索引分页并保留回复线程。
