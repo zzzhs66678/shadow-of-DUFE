@@ -42,6 +42,22 @@ async function denied(pool, statement) {
   );
 }
 
+async function assertTablePrivilege(pool, table, privilege, expected) {
+  const result = await pool.query(
+    `SELECT has_table_privilege(current_user, $1, $2) AS allowed`,
+    [table, privilege],
+  );
+  assert.equal(result.rows[0].allowed, expected, `${table} ${privilege}`);
+}
+
+async function assertFunctionPrivilege(pool, functionName, expected) {
+  const result = await pool.query(
+    `SELECT has_function_privilege(current_user, $1, 'EXECUTE') AS allowed`,
+    [functionName],
+  );
+  assert.equal(result.rows[0].allowed, expected, functionName);
+}
+
 function integrationConfig() {
   const mfaKey = Buffer.alloc(32, 0x44).toString("base64");
   return loadConfig({
@@ -85,6 +101,10 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
 }, async () => {
   const owner = poolFor(process.env.POSTGRES_USER, process.env.POSTGRES_PASSWORD);
   const runtime = poolFor(process.env.AUTH_DB_USER, process.env.AUTH_DB_PASSWORD);
+  const aclRuntime = poolFor(
+    process.env.AUTH_DB_USER,
+    process.env.AUTH_DB_PASSWORD,
+  );
   const importer = poolFor(process.env.IMPORT_DB_USER, process.env.IMPORT_DB_PASSWORD);
   const digestA = Buffer.alloc(32, 0x41);
   const digestB = Buffer.alloc(32, 0x42);
@@ -156,8 +176,111 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
          1
        )`,
     );
+
+    for (const [table, privilege, expected] of [
+      ["teachers", "SELECT", true],
+      ["teachers", "INSERT", false],
+      ["teacher_source_identities", "UPDATE", false],
+      ["teacher_reviews", "SELECT", true],
+      ["teacher_reviews", "INSERT", true],
+      ["teacher_reviews", "UPDATE", true],
+      ["teacher_reviews", "DELETE", false],
+      ["teacher_review_candidates", "SELECT", false],
+      ["teacher_review_candidate_decisions", "SELECT", false],
+      ["data_import_batches", "SELECT", false],
+      ["data_import_rows", "SELECT", false],
+      ["data_import_mutations", "SELECT", false],
+      ["admin_audit_events", "INSERT", true],
+      ["admin_audit_events", "UPDATE", false],
+      ["admin_audit_events", "DELETE", false],
+      ["admin_audit_events", "TRUNCATE", false],
+      ["community_content_edits", "INSERT", true],
+      ["community_content_edits", "UPDATE", false],
+      ["community_content_edits", "DELETE", false],
+      ["community_content_edits", "TRUNCATE", false],
+      ["community_moderation_actions", "INSERT", true],
+      ["community_moderation_actions", "DELETE", false],
+      ["community_moderation_actions", "TRUNCATE", false],
+      ["community_topics", "UPDATE", true],
+      ["community_topics", "DELETE", false],
+      ["community_topics", "TRUNCATE", false],
+      ["community_comments", "DELETE", false],
+      ["community_comments", "TRUNCATE", false],
+    ]) {
+      await assertTablePrivilege(aclRuntime, table, privilege, expected);
+    }
+    for (const [functionName, expected] of [
+      [
+        "list_teacher_review_candidates_for_admin(uuid,uuid,text,text,timestamptz,uuid,integer)",
+        true,
+      ],
+      [
+        "moderate_teacher_review_candidate(uuid,uuid,text,uuid,text,text,uuid,text,text)",
+        true,
+      ],
+      ["require_elevated_teacher_review_admin(uuid,uuid,text)", false],
+      ["rollback_teacher_review_candidate_for_import(uuid,uuid)", false],
+    ]) {
+      await assertFunctionPrivilege(aclRuntime, functionName, expected);
+    }
+
+    for (const [table, privilege, expected] of [
+      ["data_import_batches", "SELECT", true],
+      ["data_import_batches", "INSERT", true],
+      ["data_import_batches", "UPDATE", true],
+      ["data_import_batches", "DELETE", false],
+      ["data_import_rows", "SELECT", true],
+      ["data_import_rows", "INSERT", true],
+      ["data_import_rows", "UPDATE", false],
+      ["data_import_mutations", "INSERT", true],
+      ["teacher_review_candidates", "SELECT", true],
+      ["teacher_review_candidates", "INSERT", true],
+      ["teacher_review_candidates", "UPDATE", false],
+      ["teacher_review_candidate_decisions", "SELECT", false],
+      ["teacher_reviews", "SELECT", true],
+      ["teacher_reviews", "INSERT", false],
+      ["app_users", "SELECT", false],
+      ["user_sessions", "SELECT", false],
+      ["admin_audit_events", "INSERT", false],
+    ]) {
+      await assertTablePrivilege(importer, table, privilege, expected);
+    }
+    for (const [functionName, expected] of [
+      ["rollback_teacher_review_candidate_for_import(uuid,uuid)", true],
+      [
+        "list_teacher_review_candidates_for_admin(uuid,uuid,text,text,timestamptz,uuid,integer)",
+        false,
+      ],
+      [
+        "moderate_teacher_review_candidate(uuid,uuid,text,uuid,text,text,uuid,text,text)",
+        false,
+      ],
+      [
+        "consume_api_rate_limit(text,bytea,double precision,double precision)",
+        false,
+      ],
+    ]) {
+      await assertFunctionPrivilege(importer, functionName, expected);
+    }
+    const importerRole = await importer.query(
+      `SELECT rolinherit, rolsuper, rolcreaterole, rolcreatedb, rolbypassrls
+       FROM pg_roles
+       WHERE rolname = current_user`,
+    );
+    assert.deepEqual(importerRole.rows[0], {
+      rolinherit: false,
+      rolsuper: false,
+      rolcreaterole: false,
+      rolcreatedb: false,
+      rolbypassrls: false,
+    });
   } finally {
-    await Promise.allSettled([owner.end(), runtime.end(), importer.end()]);
+    await Promise.allSettled([
+      owner.end(),
+      runtime.end(),
+      aclRuntime.end(),
+      importer.end(),
+    ]);
   }
 });
 

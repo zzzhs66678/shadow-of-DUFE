@@ -31,10 +31,10 @@
 - [ ] 在 PostgreSQL 17 验证 `0013_teacher_catalog_imports.sql` 空库/升级/重复迁移、同名教师隔离、来源键冲突、历史候选默认私有、同教学班多教材、重复/并发 apply、版本回滚和后续批次依赖拒绝。
 - [ ] 在 PostgreSQL 17 验证 `0014_teacher_review_moderation.sql` 重复迁移、候选决定 append-only、approve/reject 并发、审计故障回滚和审核/批次回滚竞态。
 - [ ] 在 PostgreSQL 17 验证 `0015_teacher_user_reviews.sql` 空库/升级/重复迁移、每用户每教师活动评价唯一性、正文摘要与评分触发器、版本冲突、软删除重建，以及账号注销撤下评价且不被触发器阻断。
-- [ ] 验证 auth runtime 对 `data_import_batches`、`data_import_rows`、`data_import_mutations`、`teacher_review_candidates` 和决定表无直接权限，只能执行审核白名单函数，并不能写教师来源身份或教学班教材事实。
-- [ ] 验证 importer 不能 UPDATE 候选、批准/拒绝、写公开评价或管理员审计，只能执行专用未批准候选回滚函数。
-- [ ] 验证 auth runtime 无法 UPDATE/DELETE/TRUNCATE `community_content_edits` 与 `community_moderation_actions`，但仍可按设计追加记录。
-- [ ] 验证 auth runtime 无法硬删除或截断 `community_topics`/`community_comments`；软删除后通知、回复引用和降级页仍可读取。
+- [ ] 原生 CI 验证 auth runtime 对 `data_import_batches`、`data_import_rows`、`data_import_mutations`、`teacher_review_candidates` 和决定表无直接权限，只能执行审核白名单函数，并不能写教师来源身份或教学班教材事实；首次实际全绿前不勾选。
+- [ ] 原生 CI 验证 importer 不能 UPDATE 候选、批准/拒绝、写公开评价或管理员审计，只能执行专用未批准候选回滚函数，且保持 `NOINHERIT`/无高权属性；首次实际全绿前不勾选。
+- [ ] 原生 CI 验证 auth runtime 无法 UPDATE/DELETE/TRUNCATE `community_content_edits` 与 `community_moderation_actions`，但仍可按设计追加记录；首次实际全绿前不勾选。
+- [ ] 原生 CI 验证 auth runtime 无法硬删除或截断 `community_topics`/`community_comments`；软删除后通知、回复引用和降级页仍可读取；首次实际全绿前不勾选。
 - [ ] 用做过编辑、举报、审核与被制裁的测试账号验证注销不会被外键/不可变触发器阻断，且去标识化审计证据仍保留。
 - [ ] 应用回滚只回滚运行镜像，不运行旧版本迁移器；每次发布和回滚后查询 ACL，防止旧的广泛授权恢复审计表变更权限。
 
