@@ -23,6 +23,7 @@ type MaterialDetail = {
   downloadUrl: string;
   previewUrl: string;
   previewable: boolean;
+  catalogedAt: string;
 };
 
 function materialById(materialId: string) {
@@ -33,6 +34,17 @@ function fileSize(bytes: number) {
   return bytes < 1024 * 1024
     ? `${Math.max(1, Math.round(bytes / 1024))} KB`
     : `${(bytes / 1024 / 1024).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+}
+
+function catalogDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "未标注";
+  return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "Asia/Shanghai",
+  }).format(date);
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -70,6 +82,7 @@ export default async function MaterialDetailPage({ params }: PageProps) {
             <div><dt>教师</dt><dd>{material.teachers.length ? material.teachers.join(" / ") : "未标注"}</dd></div>
             <div><dt>文件</dt><dd>{material.kind} · {material.extension.replace(".", "").toUpperCase()} · {fileSize(material.sizeBytes)}</dd></div>
             <div><dt>适用范围</dt><dd>{material.terms.map((item) => item === "fall" ? "上学期" : "下学期").join(" / ") || "未标注"}{material.years.length ? ` · 大${material.years.map((item) => "一二三四"[item - 1]).join(" / 大")}` : ""}</dd></div>
+            <div><dt>站内收录</dt><dd>{catalogDate(material.catalogedAt)}<small>这是本站整理入库时间，不等同于原文件发布时间。</small></dd></div>
           </dl>
           <MaterialAvailability downloadUrl={material.downloadUrl} previewUrl={material.previewUrl} previewable={material.previewable} />
         </div>
