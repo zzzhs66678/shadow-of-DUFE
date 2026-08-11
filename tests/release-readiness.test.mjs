@@ -78,14 +78,14 @@ test("delivery report preserves all fourteen required status sections", async ()
     assert.match(report, new RegExp(`^## ${section}\\. `, "mu"));
   }
   for (const state of [
-    "已完成并本地验证",
-    "已实现待环境验证",
+    "已完成并验证",
+    "已实现待 staging",
     "外部阻塞",
-    "尚未实现",
+    "尚未完成",
   ]) {
     assert.match(report, new RegExp(state, "u"));
   }
   assert.match(report, /本发布分支未部署/u);
-  assert.match(report, /未推送、未创建 Pull Request/u);
+  assert.match(report, /已推送并创建 Draft PR #10/u);
   assert.match(readme, /docs\/FINAL_DELIVERY_REPORT\.md/);
 });

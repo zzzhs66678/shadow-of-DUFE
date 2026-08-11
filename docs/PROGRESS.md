@@ -5,7 +5,7 @@
 ## 当前状态
 
 - 分支：`codex/release-upgrade`
-- 当前里程碑：M8/M9 自动化与部署准备。M7 的本地安全切片继续收口；M6 的移动端、无障碍、请求时序、结果窗口和本地性能切片已完成，真实 Web Vitals 保留为 staging 门禁。原生 PostgreSQL 17 CI 已覆盖迁移幂等、基础 ACL/共享限流以及两个真实普通账号的 auth/community HTTP 闭环，但作业尚未推送运行，不能作为已通过证据。
+- 当前里程碑：M9/M10 staging 与发布审查准备。PR #10 的 quality run `31466722843` 已全绿，真实 PostgreSQL 17、完整账号浏览器关键路径、三套 Linux 生产镜像、CodeQL、全历史 Gitleaks 和隔离恢复演练均有 runner 证据。M6 的真实 Web Vitals、外部服务、既有库升级与不可变回滚继续保留为 staging/生产审批门禁。
 - 已完成提交：`bdfc6d3` 视觉基线、`91a296e` 发布计划、`c16fe40` 账号本地数据隔离、`9d108c4` 凭据认证、`b6514b4` 账号资料管理、`1d46813` 安全头像处理、`9da33ac` 管理员安全底座、`5315960` 管理员 RBAC/API、`d7fc830` 管理员值守台、`ef8675e` 邮箱验证、`7f815f0` 资料检索 API、`3bffd6e` 独立资料档案、`4337290` 社区数据底座、`324c59c` 社区公开读取 API、`452efd0` 社区主题/评论写入、`7e8994e` 社区互动与举报、`89abc3a` 社区通知闭环、`437bc36` 管理员社区治理。
 - 生产状态：本轮代码未部署；正式站仍运行既有版本。
 - 用户未纳入版本控制的 `Website_Information_Form.doc`、`public/images/dufe-campus-timeprint-v1.webp` 与 `待上传资料/` 保持原样。
@@ -23,16 +23,16 @@
 | 里程碑 | 状态 | 已有证据 | 下一步 |
 |---|---|---|---|
 | M0 审计与计划 | 已验证 | 仓库、页面、技术栈、部署、工作簿、多角色审计、基线测试与五份执行文档已提交 | 已完成 |
-| M1 账号/同步/管理 | 进行中 | 账号本地数据分区；凭据注册登录；Argon2id；失败锁定；一次性重置；资料白名单更新；安全头像；邮箱验证令牌闭环；TLS SMTP 正式投递适配器；管理员 TOTP/恢复码/独立提升 Cookie/管理 API/值守台/审计；运行角色配置；auth-api CI | 在 PostgreSQL 17 复核迁移/权限/并发，以真实 SMTP 凭据验收到达率；校园账号验证待上游能力 |
+| M1 账号/同步/管理 | 已实现并通过 CI，待外部凭据 | 账号本地数据分区；凭据注册登录；Argon2id；失败锁定；一次性重置；资料白名单更新；安全头像；邮箱验证令牌闭环；TLS SMTP 正式投递适配器；管理员 TOTP/恢复码/独立提升 Cookie/管理 API/值守台/审计；PG17 真实账号与浏览器链通过 | 以真实 SMTP 凭据验收到达率；校园账号验证待上游能力 |
 | M2 资料检索 | 已实现并本地验证 | 457 条资料实体、独立 API/页面/详情、URL 搜索状态、直接预览下载、异常状态、键盘与 390px 手机路径 | staging 挂载真实资料卷后抽样预览/下载与多宽度 E2E |
-| M3 教师/导入 | 已实现并本地验证 | 完整版工作簿 dry-run、私有规范化导入包、稳定教师来源身份、教学班教材版本、事务 apply/幂等/依赖回滚、管理员候选审核、公开教师 API、索引/详情、课表检索入口和登录用户五维评价均已本地验证；源表和生产库未写入 | 在原生 PostgreSQL 17 验证 ACL/并发并做两个普通用户与一个管理员的真实账号 E2E |
-| M4 社区/通知/审核 | 已实现并本地验证 | 普通用户读写、互动、屏蔽、举报、通知、独立社区页面，以及管理员入案、不可变证据、内容/用户治理、系统公告、作者通知、双审计与工作台已实现；最新主仓 131 项中 128 通过、3 项 PG 明确 SKIP，auth-api 82/82 | 在真实 PG17 验证迁移/事务/权限，并用两个用户和一个管理员完成 staging E2E |
+| M3 教师/导入 | 已实现并通过 CI，待 staging 私有导入 | 完整版工作簿 dry-run、私有规范化导入包、稳定教师来源身份、教学班教材版本、事务 apply/幂等/依赖回滚、管理员候选审核、同名教师隔离、公开教师 API、索引/详情和登录用户五维评价已通过 PG17/浏览器门禁；源表和生产库未写入 | 在隔离 staging 使用最终私有包复验 dry-run、apply、审核与回滚 |
+| M4 社区/通知/审核 | 已实现并通过 CI | 普通用户读写、互动、屏蔽、举报、通知、管理员入案、不可变证据、治理、系统公告、双审计与整事务故障回滚已通过 PG17 和真实账号浏览器链 | staging 复核真实代理、监控和长会话；通用附件仍不在当前已验收闭环内 |
 | M5 设计/文案 | 已实现并本地验证 | 统一 `--dufe-*` 色彩事实；资料/社区/后台接入同一纸墨朱金松针；首页移除致敬区；账号、资料、社区文案收紧；70 条等价规则和 1,262 条被后层必然覆盖的普通声明已安全裁剪并加入自动审计；无代码生产者的旧首页摄影/空教室容器级联已清除；公共 Masthead、响应式弹层/按钮和表单原语均已建立，账号、资料筛选与后台案卷已接入但保留各自构图 | 视觉问题随 M6 多宽度/无障碍验收修复；差异化历史规则只在有页面证据时调整 |
 | M6 移动/无障碍/性能 | 本地实现完成，待 staging 指标 | 8 个核心页面桌面/手机 axe 16/16；五主视图在 320/360/375/390/414/768、667/844 横屏共 40/40；整页 520ms 入场已移除；首屏课程数据由 3.22MB 降至 633,576 字节，完整索引按需加载；课程选择器按课程预分组并以 40 门为窗口；首页无校园图片/字体请求；生产网关已验证 JS/CSS 水合、数据读取与源码拒绝，合并浏览器门禁 58/58 | 在 staging 实测 LCP/INP/CLS，并以真实登录态复核长会话和服务端列表游标 |
-| M7 安全 | 进行中 | 初始威胁模型与问题清单完成；SEC-007、008、010、012、014、015 已修复或完成发布配置；生产账号邮件强制 TLS 并保持重置防枚举；主站、auth-api、小影生产依赖本地均为 0，相关失败关闭路径有回归 | 继续处理外部协议与 staging 验收；SEC-004 HTTPS 能力待人工核对上游，SEC-010/015 待 Linux staging 复核 |
-| M8 全量测试 | 进行中 | 现有回归基线、8 个核心页面 Playwright + axe 门禁；原生 PG17 作业已加入邮箱/TOTP/恢复码单次并发消费、个人同步幂等/冲突/隔离、教师评价跨账号隔离/乐观并发、社区通知、管理员治理/审计 HTTP 流程 | 首次运行 CI，并补导入/审核、其余并发竞态与浏览器关键路径 |
-| M9 部署准备 | 进行中 | 既有 Docker/Caddy/原子发布流程；原生 PG17 空库双迁移/ACL 作业与隔离恢复演练脚本已实现 | 首次运行 CI/恢复演练，完成 staging、镜像和回滚验收 |
-| M10 PR/交付 | 未实现 | 独立功能分支已建立 | 全部里程碑后推送与建 PR |
+| M7 安全 | 已实现并通过 CI，待 staging 外部边界 | 初始威胁模型与问题清单完成；生产依赖 high/critical 0；PG ACL/共享限流/审计回滚、Linux 镜像、CodeQL 与全历史秘密扫描通过 | 复核生产代理、服务器权限、外部协议、真实备份与全部 P0/P1 的 staging 关闭条件 |
+| M8 全量测试 | 已验证 | verify、PG17 原生 HTTP/并发/ACL、真实账号浏览器 E2E、Linux 镜像、CodeQL 与 Gitleaks 在 PR #10 run `31466722843` 全绿 | 只在代码变化后继续维持门禁，不用本地 SKIP 替代远端证据 |
+| M9 部署准备 | 已实现并通过 CI，待 staging | 三套生产 Dockerfile、不可变标签合同、空库双迁移、角色 ACL、现场 `pg_dump` 与隔离恢复演练通过 | 完成独立 staging、既有库升级副本、正式镜像摘要、真实备份与回滚验收 |
+| M10 PR/交付 | 进行中 | 分支已推送，Draft PR #10 已创建且当前 CI 全绿；14 项交付报告和发布检查表已建立 | 等待人工审查、staging 证据和明确生产发布审批后再合并/发布 |
 
 ## M0 基线证据
 
@@ -67,7 +67,7 @@
 - 注册和登录每次签发新会话；一次性重置令牌只存 HMAC 摘要、30 分钟过期、原子消费，重置成功撤销全部旧会话。开发模式可以把一次性码返回给本地测试；生产配置禁止该模式。
 - “我的”页已有登录、创建账号、密码强度说明和重置状态；微信入口降为审核状态，不冒充可用。390×844 与 1440×900 浏览器检查均无页面级横向溢出，桌面首轮发现并修复了全站 footer 样式污染认证面板的问题。
 - 验证：auth-api 16/16，包含真实 Argon2id、注册/冲突、统一失败、锁定、登录、单次重置与旧会话撤销；auth-api 生产依赖 high/critical 0；相关源码 ESLint 通过；主站构建与 SSR 2/2 通过。
-- 未验证：当前机器无 Docker/PostgreSQL，`0006` 尚未在 PostgreSQL 17 空库、升级库和重复执行中运行；生产重置邮件缺发送服务凭据。本切片未部署。
+- 当时未验证：本地机器无 Docker/PostgreSQL；此后 `0006` 已随 17 个迁移在 PR #10 的 PostgreSQL 17 空库双执行中通过。既有库升级副本仍待 staging，生产重置邮件仍缺发送服务凭据。本切片未部署。
 
 ## M1 已验证切片：账号公开资料底座
 
@@ -117,7 +117,7 @@
 - 停用确认明确说明全部既有会话会撤销；恢复确认明确说明旧会话不会复活。操作入口仅对会话角色为 admin 的用户显示，但直接访问仍由服务端 401/403/MFA 三层检查。
 - 页面 metadata 与 robots 均禁止抓取；本地开发新增同源 auth/admin API 代理，可用 `AUTH_API_DEV_TARGET` 指向独立认证服务。源码 ESLint、基础设施/体验测试和生产构建通过。
 - 浏览器视觉复核：桌面完整值守簿、390px 手机值守簿、390px MFA 入口及停用确认层均已检查；复核使用本机临时只读模拟响应，只证明渲染和交互状态，不替代真实管理员、Cookie 与 PostgreSQL E2E。
-- 验证：auth-api 31/31，包含普通用户 403 且敏感 store 0 调用、严格 Cookie、跨会话拒绝、TOTP 重放、恢复码单次使用、恶意 Origin、独立限流、脱敏列表、禁用/会话撤销/审计闭环；全部 58 项仓库回归、ESLint、主站构建与 auth-api 生产依赖审计通过。真实 PostgreSQL 事务并发、角色权限与 shell 脚本因本机缺少环境尚未验证，真实账号浏览器 E2E 尚未完成，本切片未部署。
+- 当时验证：auth-api 31/31，包含普通用户 403、严格 Cookie、跨会话拒绝、TOTP 重放、恢复码单次使用、恶意 Origin、限流、脱敏列表、禁用/会话撤销/审计闭环；此后真实 PostgreSQL 事务并发、角色权限和真实账号浏览器 E2E 已在 PR #10 通过。本切片未部署。
 
 ## M2 已验证切片：资料检索数据契约与只读 API
 
@@ -447,7 +447,7 @@
 
 - 新增 `ops/postgres/restore-drill.sh`：默认选择最新本地 custom-format 备份，先校验独立 SHA-256 与 30 小时新鲜度，再以固定前缀、UTC 时间和 PID 创建唯一 `template0` 临时数据库，使用 `pg_restore --exit-on-error` 完整恢复。
 - 恢复后检查至少 17 个迁移记录、公共 schema 无未验证约束，并确认账号、会话、个人课表、社区、系统公告、教师和共享限流关键表存在；输出不含凭据的行数摘要。退出陷阱只删除生成的临时库，恢复超过默认 900 秒 RTO 也判失败。新增每周日 systemd service/timer，参数只提供无真实值示例。
-- 基础设施契约 28/28 和 `git diff --check` 通过；当前 Windows 开发机没有 `sh`、Docker、PostgreSQL 或 WSL，因此脚本尚未真实执行，不能把源码契约标记为恢复成功。SEC-009 仍因首次真实演练和异地备份凭据保持部分修复，本切片未部署。
+- 基础设施契约 28/28 和 `git diff --check` 通过；当前 Windows 开发机仍没有 `sh`、Docker、PostgreSQL 或 WSL，但此后同一脚本的 native 路径已在 PR #10 以现场备份真实执行并完成零残留恢复。SEC-009 仍因生产真实备份和异地备份凭据保持部分修复，本切片未部署。
 
 ## M8/M9 已实现待 CI 验证切片：原生 PostgreSQL 17 门禁
 
@@ -456,25 +456,25 @@
 - 原生作业现在还会安装 auth-api 锁定依赖并启动真实 HTTP server：两个随机普通账号和一个管理员候选通过 Argon2id 注册并取得数据库会话；普通用户访问管理员会话接口得到 403；账号 A 发布主题、账号 B 的跨账号改写不生效、B 回复后 A 收到并读取消通知。管理员候选通过真实 bootstrap 事务提升并撤销旧会话，重新登录后以真实 TOTP 创建绑定基础会话的短期提升 Cookie，再读取 B 对主题的不可变举报证据、入案、隐藏内容并核对全局 append-only 审计。测试使用真实 `createAuthStore`、运行角色连接、持久限流和 community/admin store，不注入内存假 store。
 - 同一真实 HTTP 场景新增个人云同步与教师评价：账号 A 首次写入 revision 1，同 mutation 原样重试命中持久幂等记录，新 mutation 携带旧 revision 得到 409；账号 B 的快照仍为 revision 0。测试以 owner 仅插入一个最小公开教师事实，后续评价全部走 runtime API；A 创建评价后 B 的私有资源为 null，两个 `expectedVersion=1` 并发更新恰好一个 200、一个 409，公开列表仍只有一条活动评价。
 - 教师场景现在使用两位显示名和规范化姓名完全相同、但学院与稳定 UUID 不同的教师：公开索引必须同时返回两项并保留各自学院，两个详情 URL 必须命中各自 UUID；账号 A 给甲教师提交并并发更新评价后，乙教师的公开评价列表和 A 的私有评价资源都仍为空。该用例已编码但本机仍因无 PostgreSQL 明确 SKIP，不能作为同名隔离已经原生通过的证据。
-- 新增独立真实 importer/runtime/owner 并发场景：同一私有导入包同时 apply 两次时，教师与教材批次都必须只有一次真实应用、另一次命中同一 batch 的幂等结果；同一历史评价候选同时批准两次只能产生一份决定、一份公开评价和一次成功。另一独立批次让管理员批准与 importer 回滚并发争用同一 batch/candidate 锁，只接受“批次 applied + 候选 approved + 单份决定/评价”或“批次/candidate 均 rolled_back + 零决定/评价”两种完整状态，禁止混合提交。该测试已编码但本机 3 项原生用例均明确 SKIP，尚未取得真实 PG17 证据。
+- 新增独立真实 importer/runtime/owner 并发场景：同一私有导入包同时 apply 两次时，教师与教材批次都只有一次真实应用、另一次命中同一 batch 的幂等结果；同一历史评价候选同时批准两次只产生一份决定、一份公开评价和一次成功。另一独立批次让管理员批准与 importer 回滚并发争用同一 batch/candidate 锁，只接受两种完整终态。该测试在本机仍明确 SKIP，但已在 PR #10 真实 PG17 作业通过。
 - 一次性凭据也进入真实数据库并发门禁：同一邮箱验证令牌同时确认两次得到一个 200、一个 400，随后会话读取到已验证状态；管理员 bootstrap 后建立两个新基础会话，同一 TOTP 并发提升只允许一个会话成功，同一恢复码在同一会话并发消费也只有一个成功。当前只声明测试已编码，本机 SKIP 和未运行 CI 不作为原生并发通过证据。
 - 原生角色测试从少量拒绝查询扩展为显式 ACL 矩阵：runtime 只能按产品需要读教师事实并写用户评价，不能写教师来源身份或直读导入/候选/决定，社区编辑历史、治理动作和全局管理员审计只能追加，主题/评论不能硬删除；审核白名单函数可执行，但底层提权检查和 importer 回滚函数不可直接调用。importer 只能维护导入批次、逐行证据、教师事实和私有候选，只读公开评价，不能读账号/会话、写公开评价/候选决定/管理员审计或调用审核/限流函数，只保留专用未批准候选回滚函数；角色属性锁定为 `NOINHERIT`、非 superuser/createdb/createrole/bypassrls。
-- 社区证据与注销不变量已加入同一原生场景：报告创建后，使用数据库 owner 直接改 `evidence_body` 仍必须被不可变触发器以异常拒绝；治理隐藏并写审计后，内容作者从真实注销 API 删除账号，随后原生查询必须确认用户行归零、举报正文/作者标签快照未变、`admin.community.hide` 审计仍存在。该测试已编码但尚未在真实 PG17 作业运行。
-- 治理事务故障回滚也已加入原生场景：在案件进入复核后，由 owner 临时安装只拦截 `admin.community.hide` 的审计写入故障触发器，再通过真实提升会话调用隐藏 API。接口必须返回 500，且主题仍为 `published`/version 1、案件与举报仍为 `reviewing`、治理动作和全局审计均为 0、原回复通知正文未被脱敏；移除故障触发器后同一案件再正常隐藏。该用例证明内容、通知、案件、举报与双审计处于同一事务，但目前仅已编码并本地加载为 SKIP，尚未获得真实 PG17 通过证据。
-- 原生 PG17 作业新增完整恢复演练步骤：固定安装 PostgreSQL 17 客户端，现场生成无 owner/ACL 的 custom-format 备份和 basename SHA-256；`restore-drill.sh` 新增显式 `native` 模式以复用同一校验/恢复/清理逻辑，生产默认 `docker` 模式不变。CI 以 120 秒 RTO 恢复到唯一临时库，核对迁移、约束、关键表和行数摘要，脚本成功后再查询 `pg_database` 确认无演练库残留。该作业尚未推送运行，SEC-009 仍不能关闭，异地副本也仍受凭据阻塞。
-- 本地 auth-api 72/72、基础设施契约 30/30、集成测试加载 3 项明确 SKIP、相关 ESLint 和 `git diff --check` 通过。当前 Windows 没有 PostgreSQL，且分支尚未推送，不能宣称 GitHub PostgreSQL 作业或该真实 HTTP 流程已经成功；首次全绿后才可更新 SEC-002/003/006/011/013 的原生证据，本切片未部署。
+- 社区证据与注销不变量已加入同一原生场景：报告创建后，使用数据库 owner 直接改 `evidence_body` 被不可变触发器拒绝；治理隐藏并写审计后，内容作者从真实注销 API 删除账号，原生查询确认用户行归零、举报正文/作者标签快照未变、`admin.community.hide` 审计仍存在。该测试已在 PR #10 的真实 PG17 作业通过。
+- 治理事务故障回滚也已加入原生场景：在案件进入复核后，由 owner 临时安装只拦截 `admin.community.hide` 的审计写入故障触发器，再通过真实提升会话调用隐藏 API。接口对外返回通用 `503 {"error":"service_unavailable"}`，且主题仍为 `published`/version 1、案件与举报仍为 `reviewing`、治理动作和全局审计均为 0、原回复通知正文未被脱敏；移除故障触发器后同一案件再正常隐藏。该用例证明内容、通知、案件、举报与双审计处于同一事务，并已在 PR #10 的真实 PG17 作业通过。
+- 原生 PG17 作业新增完整恢复演练步骤：固定安装 PostgreSQL 17 客户端，现场生成无 owner/ACL 的 custom-format 备份和 basename SHA-256；`restore-drill.sh` 的 `native` 模式以 120 秒 RTO 恢复到唯一临时库，核对迁移、约束、关键表和行数摘要并确认无演练库残留。该作业已在 PR #10 通过；SEC-009 仍因生产真实备份和异地副本保持部分修复。
+- 本地 auth-api、基础设施契约、相关 ESLint 和差异检查通过；Windows 本机的三项原生测试继续明确 SKIP，远端 PR #10 已用 PostgreSQL 17 提供真实 HTTP、ACL、并发和恢复证据。本切片未部署。
 
 ## M9 已实现待 CI 验证切片：生产 Linux 镜像门禁
 
 - quality workflow 新增独立 `linux-production-images` 作业，在 Ubuntu runner 分别从根目录、`services/auth-api` 和 `xiaoying-executor` 的真实生产 Dockerfile 构建主站、账号 API 与小影镜像，不复用宿主机 `node_modules`，也不以普通 Node 构建替代容器构建。
 - 三个 Dockerfile 保留生产默认的 DaoCloud Node 22 Alpine 基础镜像，同时通过统一 `NODE_IMAGE` 构建参数允许 CI 显式使用官方 `node:22-alpine`，避免镜像源网络差异改变生产默认值。门禁逐一检查最终镜像运行用户必须为 `node`；auth-api 镜像实际加载 musl 架构下的 Argon2id、Sharp 与 PostgreSQL 驱动，小影加载运行依赖，主站核对失败关闭的 `image-size@2.0.3-dufesh.0` 依赖树并启动真实生产网关接受 HTTP 请求。
-- 本地基础设施契约 30/30、相关 ESLint 和 `git diff --check` 通过。当前 Windows 没有 Docker，三个镜像尚未在本机或 GitHub runner 构建，不能把已编码的作业记为 Linux/musl 验证通过；首次 CI 全绿后才能勾选部署检查表的镜像构建与原生依赖项目，本切片未部署。
+- 本地基础设施契约、相关 ESLint 和 `git diff --check` 通过。当前 Windows 没有 Docker，但三个镜像已在 PR #10 的 Ubuntu runner 从真实生产 Dockerfile 构建并通过 Linux/musl 门禁；正式 staging 摘要与回滚仍待验证。本切片未部署。
 
 ## M9 已实现待 CI 验证切片：PostgreSQL 只读备份角色
 
 - `run-migrations.sh` 新增必填 `BACKUP_DB_USER/BACKUP_DB_PASSWORD`，创建 `NOINHERIT`、无 superuser/createdb/createrole/bypassrls 的独立登录角色。该角色只获得 public schema 使用权和全部现有/未来表、序列的 SELECT；脚本先清除其直接权限，并撤销 public schema 全部函数的 PUBLIC 默认执行权，再保留 runtime 与 importer 已显式授予的函数白名单。
 - 生产 `backup.sh` 的 `pg_dump` 已从 `POSTGRES_USER` 切换为独立 backup 账号，并只把密码作为单次 `docker compose exec -e PGPASSWORD=...` 环境传入。PG17 CI 的现场 custom-format 备份也改由 backup 账号创建；原生 ACL 矩阵要求它能读取迁移、账号凭据、审计、社区和教师表以形成完整灾备，但不能 INSERT/UPDATE/DELETE/TRUNCATE，也不能执行限流、审核或 importer 回滚函数。
-- 本地基础设施契约 30/30、原生测试文件 3 项明确 SKIP、相关 ESLint 与 `git diff --check` 通过。本机无 PostgreSQL/Docker，不能宣称该角色已成功完成真实 `pg_dump`；部署前必须先向 600 权限的服务器 `postgres.env` 增加新随机凭据，再由首次 PG17 CI/staging 备份与恢复门禁证明。本切片未部署。
+- 本地基础设施契约、原生测试文件加载、相关 ESLint 与 `git diff --check` 通过；backup 角色已在 PR #10 的真实 PG17 作业成功完成 `pg_dump` 和隔离恢复。部署前仍须向 600 权限的服务器 `postgres.env` 增加独立随机凭据，并用生产真实备份复验。本切片未部署。
 
 ## M9 已实现待 CI 验证切片：PostgreSQL schema owner 与 migrator 分离
 
@@ -487,13 +487,13 @@
 - 新增独立 `playwright.postgres.config.ts`，只收集串行的 PostgreSQL 关键路径，不复用公开页面的离线降级浏览器套件。quality workflow 在同一 PG17 作业中启动真实 auth-api 与主站开发代理，并只在同源 `/api/auth/health` 同时穿过主站和认证服务后运行 Chromium。
 - 用例通过可访问名称操作真实页面：两个普通用户和一个管理员候选分别完成密码注册；账号 A 编辑显示名并上传由 Sharp 服务端裁切的 PNG 头像，独立第二浏览器登录后必须读取更新后的云端显示名和头像。第二浏览器再搜索“开课导学”并打开真实资料详情，以 owner 仅插入一条最小 CI 教师事实后，从教师索引进入稳定 UUID 详情、完成五个教学维度和正文评价并看到公开结果。
 - 社区链路由账号 A 发布主题、账号 B 打开稳定链接回复并举报，A 从通知面板读取回复正文和回复者。管理员候选初始化前打开 `/admin` 必须看到权限拒绝；随后测试使用现有运维 bootstrap 数据路径配置加密 TOTP 并撤销旧会话，再从页面重新登录、提交实时 TOTP，进入值守台并读取真实账号概览和举报证据，依次完成入案、隐藏、删除结案，最后由 A 打开原链接确认降级页。
-- 测试不伪造 Cookie、会话、头像、社区响应或管理员角色；只有建立 CI 教师事实和运维专属 bootstrap 走数据库夹具，其余动作均通过浏览器页面和同一 PostgreSQL runtime API。扩展过程中修复管理员隐藏后仍保留旧 `hide` 动作的状态错误：刷新案卷后会切换到服务端返回的首个合法动作，再允许继续结案。Playwright `--list` 成功收集 1 项，本地产品与基础设施契约 52/52、TypeScript、相关 ESLint、YAML 和 `git diff --check` 通过。本机没有 PostgreSQL/Docker，完整浏览器场景尚未实际运行，不能作为发布门禁已通过的证据，本切片未部署。
+- 测试不伪造 Cookie、会话、头像、社区响应或管理员角色；只有建立 CI 教师事实和运维专属 bootstrap 走数据库夹具，其余动作均通过浏览器页面和同一 PostgreSQL runtime API。完整浏览器场景已在 PR #10 的 PostgreSQL 17 作业通过；本机无 PostgreSQL/Docker 的事实不再阻止记录远端证据。本切片未部署。
 
 ## M7/M9 已实现待 CI 验证切片：CI 供应链与全历史密钥扫描
 
 - quality workflow 的 checkout、setup-node、CodeQL 和 Gitleaks 全部锁定到已核对发布版本的完整 40 位提交 SHA，并保留可读版本注释；不再使用会随标签移动的 `@v*` 引用。checkout 全部关闭凭据持久化，CodeQL 作业显式只获得源码读取、包读取和安全结果写入权限。
 - 新增独立 `full-history-secret-scan` 作业：以 `fetch-depth: 0` 检出完整历史后执行 Gitleaks，关闭 PR 评论与制品上传，避免秘密扫描获得不必要的写入面。Actions 采用 Node 24 运行时版本，要求 GitHub runner 至少为 2.327.1；当前 GitHub 托管 runner 满足该前提。
-- 基础设施契约锁定完整 SHA、Action 数量、全历史检出、零凭据持久化、Gitleaks 只读行为和 CodeQL 权限，32/32 通过；workflow YAML、`git diff --check` 通过。Gitleaks 和 CodeQL 尚未在 GitHub runner 实际执行，不能把秘密扫描或静态分析标记为已通过，本切片未部署。
+- 基础设施契约锁定完整 SHA、Action 数量、全历史检出、零凭据持久化、Gitleaks 只读行为和 CodeQL 权限并通过；PR #10 的 Gitleaks 与 CodeQL runner 作业均已成功。本切片未部署。
 
 ## M7/M10 已验证切片：生产环境模板失败关闭
 
@@ -511,7 +511,15 @@
 
 - 新增 `docs/FINAL_DELIVERY_REPORT.md`，严格按总任务书最终回复的 14 项顺序记录架构、方案、六个工作流、文件、迁移、账号/后台、社区、视觉、测试、安全、移动性能、部署健康、Git 和阻塞项。
 - 报告不把本地静态合同、三项 PostgreSQL SKIP、旧正式站或未运行 CI 写成新版本生产证据。2026-08-11 只读探测既有正式站：首页和 auth 健康为 200，新 `/api/materials?limit=1` 为 404，进一步确认本发布分支尚未部署。
-- 发布合同新增第 4 项：要求报告长期保留全部 14 个章节、四类状态、未部署和未推送/PR 事实；4/4 与相关 ESLint、`git diff --check` 通过。本切片仅为可审查交付状态，不代表 Definition of Done 已满足。
+- 发布合同新增第 4 项：要求报告长期保留全部 14 个章节、状态边界、未部署事实，以及当前分支/PR 的真实发布状态；相关测试、ESLint 与 `git diff --check` 通过。本切片仅为可审查交付状态，不代表生产 Definition of Done 已满足。
+
+## M8/M9/M10 已验证切片：PR #10 发布候选门禁
+
+- 2026-08-11，Draft PR #10（`codex/release-upgrade`）的 quality run `31466722843` 全绿：`verify`、`postgres-17-integration`、`linux-production-images`、`codeql` 和 `full-history-secret-scan` 全部成功。
+- `postgres-17-integration` 从 PostgreSQL 17 空库执行 17 个迁移两遍，验证 schema owner/migrator/runtime/importer/backup ACL、共享限流、注册登录、同步、教师同名隔离与五维评价、社区通知与治理、一次性凭据并发、审计故障失败关闭、导入/审核竞态，并以只读 backup 角色现场备份后完成隔离恢复和零残留检查。
+- `Authenticated browser critical path` 通过真实页面和同一 PostgreSQL runtime API 完成三个账号注册、资料与头像跨设备、资料搜索、稳定教师详情与评价、主题/回复/通知/举报、普通用户管理员拒绝、bootstrap/TOTP 和隐藏/删除结案；未伪造 Cookie、业务响应或管理员角色。
+- `linux-production-images` 从三份生产 Dockerfile 构建镜像并验证非 root、Alpine 原生模块、失败关闭 `image-size` 与主站生产网关；CodeQL 和完整历史 Gitleaks 同时通过。
+- 当前剩余工作不是继续补造本地通过数字，而是独立 staging 的既有库升级、真实 SMTP/微信/OSS、真实教师教材私有包、Web Vitals/代理/监控、不可变镜像摘要与回滚演练，以及 PR 人工审查和明确生产发布审批。本轮未部署。
 
 ## M1/M7 已验证切片：生产账号邮件 SMTP 适配器
 
@@ -521,7 +529,7 @@
 
 ## 下一步
 
-1. 首次运行现有 Linux 镜像、PostgreSQL 17、完整发布浏览器路径与隔离恢复 CI 门禁；取得全绿后逐项记录原生证据并修复 runner 暴露的问题。
+1. 在独立 staging 验证既有数据库升级副本、正式镜像摘要、受限环境文件权限、生产备份与上一不可变版本回滚；PR CI 必须持续全绿。
 2. 生产邮件适配器已完成；取得 SMTP 凭据后在 staging 验证投递、退信与日志。校园账号验证仍待上游能力，保持失败关闭。
 3. M6 本地切片已完成；具备 staging 条件后实测 LCP、INP、CLS，并以真实登录态复核长会话、服务端列表游标和校园照片解码。
-4. M3 本地实现已完成；在原生 PostgreSQL 17 验证 importer ACL、公开读取、评价提交/编辑/删除、账号注销撤下、审核/回滚并发锁和完整回滚。未审核历史正文仍不得公开。
+4. M3 的原生 PostgreSQL ACL、同名隔离、评价与导入/审核并发已通过；在 staging 使用最终私有包验证 dry-run、apply、人工审核和回滚。未审核历史正文仍不得公开。
