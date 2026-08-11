@@ -10,6 +10,7 @@
 - [ ] `POSTGRES_PASSWORD`、`AUTH_TOKEN_PEPPER`、`AUTH_ADMIN_MFA_KEYS`、`AUTH_ADMIN_RECOVERY_PEPPER`、邮件凭据、微信 AppSecret、上传存储密钥和小影主密钥只存在于受限环境文件或密钥管理服务。
 - [ ] 小影正式环境同时设置至少 12 位随机 `XIAOYING_DEFAULT_INVITE_CODE` 与 1—500 的 `XIAOYING_DEFAULT_INVITE_MAX_USES`；使用前复核本批计划人数，轮换时确认旧码立即失效。
 - [ ] `.env.example` 列全变量但不含真实值；服务器环境文件权限为 600。
+  - 四份分域模板已由环境合同确认覆盖 auth/小影源码读取变量，秘密均为空且无可用占位值；仍须在发布主机核对生成后的四个文件确为 600。
 - [ ] 微信 AppID/AppSecret 与审核状态真实可用；若缺失，正式 UI 只提供已验证的降级登录。
 - [ ] 对象存储/头像存储凭据真实可用；若未开通，使用经过验证的本地受限存储适配器并记录容量边界。
 - [ ] 管理员初始化通过一次性命令完成，不在仓库保存固定密码或 Token。

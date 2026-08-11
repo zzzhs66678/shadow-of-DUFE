@@ -474,6 +474,12 @@
 - 新增独立 `full-history-secret-scan` 作业：以 `fetch-depth: 0` 检出完整历史后执行 Gitleaks，关闭 PR 评论与制品上传，避免秘密扫描获得不必要的写入面。Actions 采用 Node 24 运行时版本，要求 GitHub runner 至少为 2.327.1；当前 GitHub 托管 runner 满足该前提。
 - 基础设施契约锁定完整 SHA、Action 数量、全历史检出、零凭据持久化、Gitleaks 只读行为和 CodeQL 权限，32/32 通过；workflow YAML、`git diff --check` 通过。Gitleaks 和 CodeQL 尚未在 GitHub runner 实际执行，不能把秘密扫描或静态分析标记为已通过，本切片未部署。
 
+## M7/M10 已验证切片：生产环境模板失败关闭
+
+- auth、PostgreSQL 与小影示例中可被照抄的 `replace-with-*` 秘密全部改为空值；token pepper、数据库密码、小影主密钥和邀请码未配置时，现有服务或迁移会失败关闭。管理员默认关闭且 MFA keyring 为空，正式 auth 模板把微信模式从 mock 改为 disabled；README 明确四份模板、服务器目标路径、600 权限和互异随机密钥要求。
+- 新增环境合同自动提取 auth 与小影源码读取的环境变量，并要求每个变量由对应模板或 Compose 明确持有；同时锁定秘密空值、无公开占位字符串、微信 mock 默认关闭和 workflow 实际执行该测试。小影删除从未能绕过后续本地会话检查的遗留 `XIAOYING_EXECUTOR_TOKEN`，匿名 API 统一返回 `vip_required`。
+- 环境合同 3/3、基础设施合同 32/32、小影 35/35、相关 ESLint、workflow YAML 与 `git diff --check` 通过。模板事实已验证，但服务器真实环境文件的值和 600 权限仍只能在 staging/发布主机核对，本切片未部署。
+
 ## 下一步
 
 1. 首次运行现有 Linux 镜像、PostgreSQL 17、完整发布浏览器路径与隔离恢复 CI 门禁；取得全绿后逐项记录原生证据并修复 runner 暴露的问题。

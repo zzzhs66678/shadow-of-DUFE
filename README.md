@@ -69,3 +69,22 @@ npm audit --omit=dev --audit-level=high
 4. 切换 release 后检查 HTTPS、健康接口、安全响应头和容器日志。
 
 不得提交密码、Cookie、SSH 私钥、AppSecret、邀请码、验证码、主密钥或本地数据库。
+
+### 生产环境文件
+
+仓库不提供可直接上线的默认密钥。先从以下四份无秘密模板创建服务器文件，并把每份权限设为 `600`：
+
+- `ops/postgres/postgres.env.example` → `/srv/apps/dufesh/shared/config/postgres.env`
+- `services/auth-api/auth.env.example` → `/srv/apps/dufesh/shared/config/auth.env`
+- `xiaoying-executor/xiaoying.env.example` → `/srv/apps/dufesh/shared/config/xiaoying.env`
+- `ops/postgres/backup.env.example` → `/srv/apps/dufesh/shared/config/backup.env`
+
+模板中的密码、pepper、MFA 密钥、小影主密钥和邀请码故意留空；未替换时相应服务或迁移必须失败关闭。各数据库角色使用互不相同的随机密码。`AUTH_WECHAT_MODE` 在真实微信适配和凭据就绪前保持 `disabled`，不得把 mock 当作正式登录。
+
+密钥可在管理员本机生成，不把命令输出写入 shell 历史或聊天记录：
+
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
+```
+
+首次发布按 `docs/DEPLOYMENT_CHECKLIST.md` 逐项验证迁移、角色权限、管理员 TOTP、备份恢复、健康检查和回滚；不要仅因容器成功启动就放行。

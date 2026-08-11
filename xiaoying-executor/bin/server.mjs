@@ -22,7 +22,6 @@ import { loadTraceIntProtocolConfig } from "../src/traceint-protocol-config.mjs"
 
 const host = process.env.XIAOYING_EXECUTOR_HOST ?? "127.0.0.1";
 const port = Number.parseInt(process.env.XIAOYING_EXECUTOR_PORT ?? "43120", 10);
-const bearerToken = process.env.XIAOYING_EXECUTOR_TOKEN ?? "";
 const isProduction = process.env.NODE_ENV === "production";
 const defaultInviteCode =
   process.env.XIAOYING_DEFAULT_INVITE_CODE ?? (isProduction ? "" : "fjbadguy");
@@ -286,12 +285,6 @@ function clearSessionCookie(response) {
   );
 }
 
-function legacyBearerAuthorized(request) {
-  return Boolean(
-    bearerToken && request.headers.authorization === `Bearer ${bearerToken}`,
-  );
-}
-
 async function readJson(request, maxBytes = 64 * 1024) {
   const contentType = String(request.headers["content-type"] ?? "")
     .split(";", 1)[0]
@@ -474,11 +467,8 @@ const server = createServer(async (request, response) => {
       return sendJson(response, 200, { deleted: true });
     }
 
-    if (!user && !legacyBearerAuthorized(request)) {
-      return sendJson(response, 401, { error: "vip_required" });
-    }
     if (!user) {
-      return sendJson(response, 401, { error: "local_session_required" });
+      return sendJson(response, 401, { error: "vip_required" });
     }
 
     if (request.method === "PUT" && requestUrl.pathname === "/v1/me/model-key") {
