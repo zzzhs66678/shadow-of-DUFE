@@ -790,6 +790,116 @@ test("notification reads and mutations remain scoped to the recipient", async ()
   assert.match(calls[1].sql, /recipient_user_id = \$2::uuid/u);
 });
 
+test("system announcements recheck elevation and atomically fan out once", async () => {
+  const adminId = "00000000-0000-4000-8000-000000000001";
+  const announcementId = "00000000-0000-4000-8000-000000000091";
+  const createdAt = new Date("2026-08-11T08:00:00Z");
+  const calls = [];
+  let stored = null;
+  const client = {
+    async query(sql, values) {
+      calls.push({ sql, values });
+      if (sql.includes("JOIN admin_elevated_sessions")) {
+        return {
+          rowCount: 1,
+          rows: [{ role: "admin", status: "active", actor_label: "值守员" }],
+        };
+      }
+      if (sql.includes("FROM community_announcements") && sql.includes("WHERE id")) {
+        return { rowCount: stored ? 1 : 0, rows: stored ? [stored] : [] };
+      }
+      if (sql.includes("INSERT INTO community_notifications")) {
+        return { rowCount: 3, rows: [] };
+      }
+      if (sql.includes("INSERT INTO community_announcements")) {
+        stored = {
+          id: announcementId,
+          title: values[1],
+          body: values[2],
+          fallback_path: values[3],
+          audience: "all_active",
+          delivery_count: values[4],
+          created_by_admin_user_id: adminId,
+          created_by_label: values[6],
+          created_at: createdAt,
+        };
+        return { rowCount: 1, rows: [stored] };
+      }
+      return { rowCount: 1, rows: [] };
+    },
+    release() {},
+  };
+  const store = createCommunityStore({ async connect() { return client; } });
+  const input = {
+    actorUserId: adminId,
+    actorSessionId: "00000000-0000-4000-8000-000000000071",
+    actorElevationTokenHash: "elevation-hash",
+    mutationId: announcementId,
+    title: "选课服务维护提醒",
+    body: "今晚二十三时起短暂停止同步，请提前保存。",
+    fallbackPath: "/community?from=announcement",
+    requestId: "00000000-0000-4000-8000-000000000081",
+    ipHash: "ip-hash",
+    userAgentHash: "ua-hash",
+  };
+  const created = await store.publishCommunityAnnouncement(input);
+  assert.equal(created.deliveryCount, 3);
+  assert.equal(created.duplicate, false);
+  assert.ok(calls.some(({ sql }) => sql.includes("pg_advisory_xact_lock")));
+  assert.ok(calls.some(({ sql }) => sql.includes("users.status = 'active'")));
+  assert.ok(calls.some(({ sql }) => sql.includes("actor_user_id, actor_role")));
+  assert.equal(calls.at(-1).sql, "COMMIT");
+
+  const deliveredBeforeRetry = calls.filter(({ sql }) =>
+    sql.includes("INSERT INTO community_notifications")
+  ).length;
+  const retried = await store.publishCommunityAnnouncement(input);
+  assert.equal(retried.duplicate, true);
+  assert.equal(
+    calls.filter(({ sql }) => sql.includes("INSERT INTO community_notifications")).length,
+    deliveredBeforeRetry,
+  );
+  assert.equal(
+    calls.filter(({ sql }) => sql.includes("INSERT INTO admin_audit_events")).length,
+    1,
+  );
+});
+
+test("system announcement delivery stops when administrator elevation is revoked", async () => {
+  const calls = [];
+  const client = {
+    async query(sql, values) {
+      calls.push({ sql, values });
+      if (sql.includes("JOIN admin_elevated_sessions")) {
+        return { rowCount: 0, rows: [] };
+      }
+      return { rowCount: 0, rows: [] };
+    },
+    release() {},
+  };
+  const store = createCommunityStore({ async connect() { return client; } });
+  await assert.rejects(
+    store.publishCommunityAnnouncement({
+      actorUserId: "00000000-0000-4000-8000-000000000001",
+      actorSessionId: "00000000-0000-4000-8000-000000000071",
+      actorElevationTokenHash: "revoked",
+      mutationId: "00000000-0000-4000-8000-000000000091",
+      title: "选课服务维护提醒",
+      body: "今晚二十三时起短暂停止同步，请提前保存。",
+      fallbackPath: "/community",
+      requestId: "00000000-0000-4000-8000-000000000081",
+      ipHash: "ip-hash",
+      userAgentHash: "ua-hash",
+    }),
+    (error) => error.code === "AUTH_ADMIN_FORBIDDEN",
+  );
+  assert.equal(
+    calls.some(({ sql }) => sql.includes("INSERT INTO community_notifications")),
+    false,
+  );
+  assert.equal(calls.at(-1).sql, "ROLLBACK");
+});
+
 test("soft-deleting a reply redacts its notification preview in the same transaction", async () => {
   const calls = [];
   const client = {

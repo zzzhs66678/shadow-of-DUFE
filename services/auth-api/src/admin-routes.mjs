@@ -93,6 +93,33 @@ function moderationReason(value) {
   return reason;
 }
 
+function announcementText(value, minimum, maximum) {
+  if (typeof value !== "string") return null;
+  const normalized = value.normalize("NFKC").trim();
+  if (
+    normalized.length < minimum ||
+    normalized.length > maximum ||
+    /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(normalized)
+  ) {
+    return null;
+  }
+  return normalized;
+}
+
+function announcementPath(value) {
+  const normalized = announcementText(value, 1, 500);
+  if (
+    !normalized ||
+    !normalized.startsWith("/") ||
+    normalized.startsWith("//") ||
+    normalized.includes("\\") ||
+    normalized.includes("://")
+  ) {
+    return null;
+  }
+  return normalized;
+}
+
 export function createAdminRequestHandler({
   store,
   config,
@@ -325,6 +352,92 @@ export function createAdminRequestHandler({
       sendJson(response, 200, {
         events: await store.listAdminAudit({ limit: 50 }),
       });
+      return true;
+    }
+
+    if (url.pathname === "/api/admin/community/announcements") {
+      if (request.method === "GET") {
+        sendJson(response, 200, {
+          announcements: await store.listAdminCommunityAnnouncements({
+            limit: 10,
+          }),
+        });
+        return true;
+      }
+      if (request.method !== "POST") {
+        methodNotAllowed(response, "GET, POST");
+        return true;
+      }
+      const body = await readJsonBody(request);
+      const title = announcementText(body?.title, 4, 160);
+      const announcementBody = announcementText(body?.body, 1, 500);
+      const fallbackPath = announcementPath(body?.fallbackPath);
+      if (
+        !exactObject(
+          body,
+          new Set(["mutationId", "title", "body", "fallbackPath"]),
+          ["mutationId", "title", "body", "fallbackPath"],
+        ) ||
+        !isUuid(body.mutationId) ||
+        !title ||
+        !announcementBody ||
+        !fallbackPath
+      ) {
+        sendJson(response, 400, { error: "invalid_community_announcement" });
+        return true;
+      }
+      const rateKey = tokenDigest(
+        `admin-announcement:${clientAddress(request)}:${session.userId}:${session.id}`,
+        config.tokenPepper,
+      );
+      if (
+        !(await (
+          rateLimiters.adminAnnouncement ?? rateLimiters.write
+        ).consume(rateKey))
+      ) {
+        response.setHeader("Retry-After", "600");
+        sendJson(response, 429, {
+          error: "community_announcement_rate_limited",
+        });
+        return true;
+      }
+      try {
+        const announcement = await store.publishCommunityAnnouncement({
+          actorUserId: session.userId,
+          actorSessionId: session.id,
+          actorElevationTokenHash: elevationTokenHash,
+          mutationId: body.mutationId,
+          title,
+          body: announcementBody,
+          fallbackPath,
+          requestId,
+          ipHash: tokenDigest(
+            `admin-ip:${clientAddress(request)}`,
+            config.tokenPepper,
+          ),
+          userAgentHash: tokenDigest(
+            `admin-ua:${String(request.headers["user-agent"] ?? "")}`,
+            config.tokenPepper,
+          ),
+        });
+        sendJson(response, announcement.duplicate ? 200 : 201, {
+          announcement,
+        });
+      } catch (error) {
+        if (error?.code === "AUTH_ADMIN_FORBIDDEN") {
+          sendJson(response, 403, { error: "admin_mfa_required" }, [
+            clearAdminCookie(),
+          ]);
+        } else if (
+          error?.code === "COMMUNITY_ANNOUNCEMENT_MUTATION_CONFLICT"
+        ) {
+          sendJson(response, 409, {
+            error: "community_announcement_mutation_conflict",
+          });
+        } else {
+          throw error;
+        }
+      }
       return true;
     }
 

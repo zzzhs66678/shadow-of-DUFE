@@ -17,6 +17,7 @@ const userId = "00000000-0000-4000-8000-000000000002";
 const reportId = "00000000-0000-4000-8000-000000000003";
 const moderationCaseId = "00000000-0000-4000-8000-000000000004";
 const teacherReviewCandidateId = "00000000-0000-4000-8000-000000000005";
+const announcementId = "00000000-0000-4000-8000-000000000008";
 const adminSecurity = createAdminSecurity({
   activeKeyId,
   keyring,
@@ -69,6 +70,7 @@ function createAdminStore() {
   let lastTotpStep = null;
   let sensitiveCalls = 0;
   let teacherReviewStatus = "pending";
+  const announcements = [];
   const target = {
     id: userId,
     username: "student",
@@ -155,6 +157,42 @@ function createAdminStore() {
     async listAdminAudit() {
       sensitiveCalls += 1;
       return structuredClone(audit);
+    },
+    async listAdminCommunityAnnouncements() {
+      sensitiveCalls += 1;
+      return structuredClone(announcements);
+    },
+    async publishCommunityAnnouncement(input) {
+      sensitiveCalls += 1;
+      const existing = announcements.find((item) => item.id === input.mutationId);
+      if (existing) {
+        if (
+          existing.title !== input.title ||
+          existing.body !== input.body ||
+          existing.fallbackPath !== input.fallbackPath
+        ) {
+          const error = new Error("announcement mutation conflict");
+          error.code = "COMMUNITY_ANNOUNCEMENT_MUTATION_CONFLICT";
+          throw error;
+        }
+        return { ...structuredClone(existing), duplicate: true };
+      }
+      const announcement = {
+        id: input.mutationId,
+        title: input.title,
+        body: input.body,
+        fallbackPath: input.fallbackPath,
+        audience: "all_active",
+        deliveryCount: 2,
+        createdByLabel: "值守员",
+        createdAt: new Date(now).toISOString(),
+      };
+      announcements.unshift(announcement);
+      audit.push({
+        action: "admin.community.announcement_published",
+        targetId: input.mutationId,
+      });
+      return { ...structuredClone(announcement), duplicate: false };
     },
     async listAdminTeacherReviewCandidates(input) {
       sensitiveCalls += 1;
@@ -562,6 +600,62 @@ test("elevated administrators open and resolve community cases with audit", asyn
   });
 });
 
+test("system announcements require strict input and retry without duplicate delivery", async () => {
+  await withAdminServer(async ({ baseUrl, store }) => {
+    const cookie = await elevatedCookie(baseUrl, store);
+    const request = (body, origin = "https://dufesh.cn") =>
+      fetch(`${baseUrl}/api/admin/community/announcements`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: origin,
+          Cookie: cookie,
+        },
+        body: JSON.stringify(body),
+      });
+    const payload = {
+      mutationId: announcementId,
+      title: "  选课服务维护提醒  ",
+      body: "  今晚二十三时起短暂停止同步，请提前保存。  ",
+      fallbackPath: "/community?from=announcement",
+    };
+
+    const crossSite = await request(payload, "https://evil.example");
+    assert.equal(crossSite.status, 403);
+    const invalid = await request({ ...payload, role: "admin" });
+    assert.equal(invalid.status, 400);
+
+    const created = await request(payload);
+    assert.equal(created.status, 201);
+    const createdBody = await created.json();
+    assert.equal(createdBody.announcement.title, "选课服务维护提醒");
+    assert.equal(createdBody.announcement.deliveryCount, 2);
+    assert.equal(createdBody.announcement.duplicate, false);
+
+    const retried = await request({
+      ...payload,
+      title: "选课服务维护提醒",
+      body: "今晚二十三时起短暂停止同步，请提前保存。",
+    });
+    assert.equal(retried.status, 200);
+    assert.equal((await retried.json()).announcement.duplicate, true);
+    assert.equal(
+      store.audit.filter(
+        (event) => event.action === "admin.community.announcement_published",
+      ).length,
+      1,
+    );
+
+    const listed = await fetch(
+      `${baseUrl}/api/admin/community/announcements`,
+      { headers: { Cookie: cookie } },
+    );
+    assert.equal(listed.status, 200);
+    assert.match(listed.headers.get("cache-control"), /no-store/u);
+    assert.equal((await listed.json()).announcements.length, 1);
+  });
+});
+
 test("community moderation rejects cross-site and mass-assigned actions", async () => {
   await withAdminServer(async ({ baseUrl, store }) => {
     const cookie = await elevatedCookie(baseUrl, store);
@@ -686,6 +780,47 @@ test("MFA elevation has an independent, injectable rate limit", async () => {
         adminMfa: createTokenBucket({
           capacity: 1,
           refillPerSecond: 1 / 60,
+        }),
+      },
+    },
+  );
+});
+
+test("system announcement publishing has an independent persistent-ready rate limit", async () => {
+  const permissive = () => createTokenBucket({ capacity: 100, refillPerSecond: 1 });
+  await withAdminServer(
+    async ({ baseUrl, store }) => {
+      const cookie = await elevatedCookie(baseUrl, store);
+      const publish = (mutationId) => fetch(
+        `${baseUrl}/api/admin/community/announcements`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Origin: "https://dufesh.cn",
+            Cookie: cookie,
+          },
+          body: JSON.stringify({
+            mutationId,
+            title: "系统维护提醒",
+            body: "请提前保存当前修改。",
+            fallbackPath: "/community",
+          }),
+        },
+      );
+      assert.equal((await publish(announcementId)).status, 201);
+      const limited = await publish("00000000-0000-4000-8000-000000000009");
+      assert.equal(limited.status, 429);
+      assert.equal(limited.headers.get("retry-after"), "600");
+    },
+    {
+      rateLimiters: {
+        read: permissive(),
+        write: permissive(),
+        adminMfa: permissive(),
+        adminAnnouncement: createTokenBucket({
+          capacity: 1,
+          refillPerSecond: 1 / 600,
         }),
       },
     },

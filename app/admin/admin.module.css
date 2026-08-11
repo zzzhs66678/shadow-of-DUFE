@@ -267,6 +267,37 @@
 .caseField > input { background: rgba(255,255,255,.28); font: 11px/1.7 var(--sans); padding-inline: 8px; }
 .caseFeedback { border-left: 2px solid var(--admin-red); color: var(--admin-red-deep); font-size: 10px; padding-left: 10px; }
 
+.announcementDesk { border-bottom: 1px solid var(--admin-ink); margin-top: 64px; padding: 0 0 46px; }
+.announcementDesk > header { align-items: end; display: flex; gap: 32px; justify-content: space-between; }
+.announcementDesk > header span { color: var(--admin-red); font: 700 10px/1 var(--mono); letter-spacing: .14em; }
+.announcementDesk > header h2 { font: 500 32px/1.2 var(--serif); margin: 10px 0 0; }
+.announcementDesk > header p { color: var(--admin-muted); font-size: 10px; line-height: 1.7; margin: 10px 0 0; max-width: 620px; }
+.announcementDesk > header > b { border-bottom: 1px solid var(--admin-red); color: var(--admin-red); font: 700 9px/1 var(--mono); padding-bottom: 7px; white-space: nowrap; }
+.announcementFeedback { border-left: 3px solid var(--admin-red); color: var(--admin-red-deep); font-size: 10px; margin: 24px 0 0; padding: 8px 12px; }
+.announcementLayout { display: grid; gap: clamp(34px, 6vw, 86px); grid-template-columns: minmax(0, 1.4fr) minmax(260px, .6fr); margin-top: 30px; }
+.announcementComposer { display: grid; gap: 20px; }
+.announcementComposer .caseField { margin: 0; }
+.announcementComposer textarea { resize: vertical; }
+.announcementPreviewButton { background: var(--admin-ink); border: 1px solid var(--admin-ink); color: var(--admin-paper); justify-self: start; min-height: 46px; padding: 0 28px; }
+.announcementPreviewButton:disabled { opacity: .4; }
+.announcementHistory { border-left: 1px solid var(--admin-line); padding-left: 28px; }
+.announcementHistory h3 { font: 500 20px/1.2 var(--serif); margin: 0 0 8px; }
+.announcementHistory > p { color: var(--admin-muted); font-size: 10px; line-height: 1.7; margin-top: 24px; }
+.announcementHistory ol { list-style: none; margin: 0; padding: 0; }
+.announcementHistory li { border-bottom: 1px solid var(--admin-line); padding: 18px 0; }
+.announcementHistory time,
+.announcementHistory small { color: var(--admin-muted); display: block; font: 8px/1.4 var(--mono); }
+.announcementHistory b { display: block; font-size: 11px; line-height: 1.5; margin: 8px 0; }
+.announcementSheet { background: var(--admin-paper); border: 1px solid var(--admin-ink); box-shadow: 18px 18px 0 rgba(0,0,0,.18); max-height: calc(100dvh - 40px); max-width: 660px; overflow-y: auto; padding: clamp(28px, 4vw, 48px); width: 100%; }
+.announcementSheet > span { color: var(--admin-red); font: 700 10px/1 var(--mono); letter-spacing: .13em; }
+.announcementSheet h2 { font: 500 34px/1.25 var(--serif); margin: 14px 0 20px; overflow-wrap: anywhere; }
+.announcementPreviewBody { background: rgba(255,255,255,.35); border-left: 3px solid var(--admin-red); font: 13px/1.9 var(--serif); margin: 0; padding: 18px 20px; white-space: pre-wrap; }
+.announcementSheet dl { border-bottom: 1px solid var(--admin-line); border-top: 1px solid var(--admin-line); margin: 26px 0; }
+.announcementSheet dl > div { display: flex; gap: 20px; justify-content: space-between; padding: 11px 6px; }
+.announcementSheet dl > div + div { border-top: 1px solid var(--admin-line); }
+.announcementSheet dt { color: var(--admin-muted); font-size: 9px; }
+.announcementSheet dd { font: 600 9px/1.4 var(--mono); margin: 0; overflow-wrap: anywhere; text-align: right; }
+
 @media (max-width: 720px) {
   .moderationDesk > header { align-items: stretch; flex-direction: column; }
   .moderationDesk > header nav button { flex: 1; }
@@ -278,4 +309,9 @@
   .caseSheet { border-bottom: 0; border-left: 0; border-right: 0; box-shadow: none; max-height: 92vh; max-height: 92dvh; padding-bottom: max(26px, env(safe-area-inset-bottom)); }
   .caseSheet dl { grid-template-columns: 1fr; }
   .caseSheet dl > div:nth-child(odd) { border-right: 0; }
+  .announcementDesk > header { align-items: start; flex-direction: column; }
+  .announcementLayout { grid-template-columns: 1fr; }
+  .announcementHistory { border-left: 0; border-top: 1px solid var(--admin-line); padding: 24px 0 0; }
+  .announcementPreviewButton { min-height: 48px; width: 100%; }
+  .announcementSheet { border-bottom: 0; border-left: 0; border-right: 0; box-shadow: none; max-height: 92dvh; padding-bottom: max(26px, env(safe-area-inset-bottom)); }
 }

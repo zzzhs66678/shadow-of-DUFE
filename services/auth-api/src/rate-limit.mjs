@@ -175,6 +175,13 @@ export function createApiRateLimiters({ store } = {}) {
       maxKeys: 10_000,
       idleTtlMs: 2 * 60 * 60_000,
     }),
+    adminAnnouncement: persistentOrLocal(store, {
+      scope: "admin-announcement",
+      capacity: 5,
+      refillPerSecond: 1 / 600,
+      maxKeys: 10_000,
+      idleTtlMs: 6 * 60 * 60_000,
+    }),
     teacherReviewModeration: persistentOrLocal(store, {
       scope: "teacher-review-moderation",
       capacity: 30,

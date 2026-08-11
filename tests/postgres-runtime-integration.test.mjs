@@ -167,7 +167,7 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
     const migrations = await owner.query(
       "SELECT count(*)::integer AS count FROM schema_migrations",
     );
-    assert.equal(migrations.rows[0].count, 16);
+    assert.equal(migrations.rows[0].count, 17);
 
     await denied(migrator, "SELECT * FROM app_users LIMIT 1");
     const migrationRole = await migrator.query(
@@ -345,6 +345,11 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
       ["community_topics", "TRUNCATE", false],
       ["community_comments", "DELETE", false],
       ["community_comments", "TRUNCATE", false],
+      ["community_announcements", "SELECT", true],
+      ["community_announcements", "INSERT", true],
+      ["community_announcements", "UPDATE", false],
+      ["community_announcements", "DELETE", false],
+      ["community_announcements", "TRUNCATE", false],
     ]) {
       await assertTablePrivilege(aclRuntime, table, privilege, expected);
     }

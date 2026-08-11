@@ -116,6 +116,7 @@
 - [ ] 发布窗口、负责人、观察窗口和回滚触发条件明确。
 - [ ] 先执行向后兼容迁移，再切换应用软链接/镜像；不执行未审批的破坏性 contract。
 - [ ] 发布后检查首页、注册登录、同步、资料、社区、通知、管理员、健康接口、安全头和日志。
+- [ ] 在 staging 用批准的测试文案发布一次系统公告，核对活动测试账号收件数、通知正文/降级路径、相同 mutation 重试不重复、冲突重试返回 409、全局审计和 `0017` 不可变权限；生产未确认文案与窗口前不得发送。
 - [ ] 回滚使用上一不可变 release；数据库仅使用预先验证的前滚/兼容策略，不临时删除生产数据。
   - `docs/OPERATIONS_RUNBOOK.md` 已给出受限目标检查、原子软链接和对应镜像标签顺序；首次 Linux staging 演练前不得勾选。
 - [ ] 完成观察后在 `docs/RELEASES.md` 增加简短正式发布记录。
@@ -125,7 +126,7 @@
 - 微信开放平台正式 AppID/AppSecret 与最终审核状态：未提供，本地不需要等待；生产微信入口受此阻塞。
 - 独立 staging 环境与凭据：尚未确认，未擅自创建付费资源。
 - 邮件发送服务凭据：尚未提供；失败关闭 SMTP 适配器和本地投递契约已实现，生产验证/重置邮件的真实服务商投递仍受此阻塞。
-- 当前开发机未安装 `sh`、Docker/PostgreSQL 或 WSL；`0006_credential_auth.sql`—`0016_shared_rate_limits.sql` 的空库、升级库、重复执行，以及 Linux musl 原生 Argon2id/Sharp 镜像验证必须在 staging 或具备 Docker 的 CI 完成。仓库原生作业已经编码迁移双执行、ACL/共享限流、完整真实账号浏览器路径和现场备份恢复，但尚未推送运行；教师导入/审核的其余并发、migrator/backup 权限、Linux 镜像与首次隔离恢复仍需真实执行。
+- 当前开发机未安装 `sh`、Docker/PostgreSQL 或 WSL；`0006_credential_auth.sql`—`0017_community_announcements.sql` 的空库、升级库、重复执行，以及 Linux musl 原生 Argon2id/Sharp 镜像验证必须在 staging 或具备 Docker 的 CI 完成。仓库原生作业已经编码迁移双执行、ACL/共享限流、完整真实账号浏览器路径和现场备份恢复，但尚未推送运行；公告原子扇出、教师导入/审核的其余并发、migrator/backup 权限、Linux 镜像与首次隔离恢复仍需真实执行。
 - 主站已用仓库内失败关闭包隔离 vinext 的 `image-size@2.0.2`，干净本地 `npm ci` 后生产依赖审计为 0；仍须由 Linux PR CI 与 staging 镜像复核实际去重、构建和审计，未复核前不得放行生产发布。
-- 本地 `npm run typecheck`、主仓 Node 130 项中 127 通过且 3 项 PostgreSQL 明确 SKIP、个人存储/同步 9/9、auth-api 78/78、构建后渲染 4/4、CSS 审计和全仓 ESLint 已通过；渲染 4 项已包含在主仓 130 项中，不重复计数。quality workflow 已加入 TypeScript 步骤；仍须由 Pull Request CI 在 Linux 上复核后才能勾选生产前质量门禁。
+- 本地 `npm run typecheck`、主仓 Node 131 项中 128 通过且 3 项 PostgreSQL 明确 SKIP、个人存储/同步 9/9、auth-api 82/82、构建后渲染 4/4、CSS 审计和全仓 ESLint 已通过；渲染 4 项已包含在主仓 131 项中，不重复计数。quality workflow 已加入 TypeScript 步骤；仍须由 Pull Request CI 在 Linux 上复核后才能勾选生产前质量门禁。
 - 异地对象存储/备份凭据：尚未提供；本地适配器和恢复流程继续开发，生产异地副本受此阻塞。

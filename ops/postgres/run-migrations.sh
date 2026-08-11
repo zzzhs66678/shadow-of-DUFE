@@ -231,6 +231,10 @@ SELECT format(
     :'runtime_user'
 ) \gexec
 SELECT format(
+    'REVOKE UPDATE, DELETE, TRUNCATE ON community_announcements FROM %I',
+    :'runtime_user'
+) \gexec
+SELECT format(
     'REVOKE DELETE, TRUNCATE ON community_reports, community_moderation_cases, community_user_sanctions FROM %I',
     :'runtime_user'
 ) \gexec

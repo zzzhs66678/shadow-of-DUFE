@@ -70,6 +70,19 @@ function mapProfileComment(row) {
   };
 }
 
+function mapAnnouncement(row) {
+  return {
+    id: String(row.id),
+    title: row.title,
+    body: row.body,
+    fallbackPath: row.fallback_path,
+    audience: row.audience,
+    deliveryCount: Number(row.delivery_count),
+    createdByLabel: row.created_by_label,
+    createdAt: iso(row.created_at),
+  };
+}
+
 function communityError(code, details = {}) {
   return Object.assign(new Error(code), { code, ...details });
 }
@@ -697,6 +710,102 @@ const topicSelect = `
 
 export function createCommunityStore(pool) {
   return {
+    async listAdminCommunityAnnouncements({ limit = 10 } = {}) {
+      const result = await pool.query(
+        `SELECT
+           id, title, body, fallback_path, audience, delivery_count,
+           created_by_label, created_at
+         FROM community_announcements
+         ORDER BY created_at DESC, id DESC
+         LIMIT $1`,
+        [limit],
+      );
+      return result.rows.map(mapAnnouncement);
+    },
+
+    async publishCommunityAnnouncement(input) {
+      return withTransaction(pool, async (client) => {
+        const actor = await assertElevatedAdmin(client, input);
+        await client.query(
+          `SELECT pg_advisory_xact_lock(
+             hashtextextended($1::uuid::text, 0)
+           )`,
+          [input.mutationId],
+        );
+        const existing = await client.query(
+          `SELECT
+             id, title, body, fallback_path, audience, delivery_count,
+             created_by_admin_user_id, created_by_label, created_at
+           FROM community_announcements
+           WHERE id = $1::uuid`,
+          [input.mutationId],
+        );
+        if (existing.rowCount === 1) {
+          const row = existing.rows[0];
+          if (
+            String(row.created_by_admin_user_id) !== String(input.actorUserId) ||
+            row.title !== input.title ||
+            row.body !== input.body ||
+            row.fallback_path !== input.fallbackPath
+          ) {
+            throw communityError("COMMUNITY_ANNOUNCEMENT_MUTATION_CONFLICT");
+          }
+          return { ...mapAnnouncement(row), duplicate: true };
+        }
+
+        const deliveries = await client.query(
+          `INSERT INTO community_notifications (
+             recipient_user_id, actor_user_id, notification_type,
+             topic_id, comment_id, title, body, fallback_path, dedupe_key
+           )
+           SELECT
+             users.id, NULL, 'system_announcement', NULL, NULL,
+             $2, $3, $4, 'announcement:' || $1::uuid::text
+           FROM app_users AS users
+           WHERE users.status = 'active'
+           ON CONFLICT (recipient_user_id, dedupe_key) DO NOTHING`,
+          [
+            input.mutationId,
+            input.title,
+            input.body,
+            input.fallbackPath,
+          ],
+        );
+        const announcement = await client.query(
+          `INSERT INTO community_announcements (
+             id, title, body, fallback_path, audience, delivery_count,
+             created_by_admin_user_id, created_by_label
+           ) VALUES (
+             $1::uuid, $2, $3, $4, 'all_active', $5, $6::uuid, $7
+           )
+           RETURNING
+             id, title, body, fallback_path, audience, delivery_count,
+             created_by_label, created_at`,
+          [
+            input.mutationId,
+            input.title,
+            input.body,
+            input.fallbackPath,
+            deliveries.rowCount,
+            input.actorUserId,
+            actor.actor_label,
+          ],
+        );
+        await insertAdminAudit(
+          client,
+          input,
+          "admin.community.announcement_published",
+          "community_announcement",
+          input.mutationId,
+          {
+            deliveryCount: deliveries.rowCount,
+            fallbackPath: input.fallbackPath,
+          },
+        );
+        return { ...mapAnnouncement(announcement.rows[0]), duplicate: false };
+      });
+    },
+
     async getCommunityUserProfile({ userId, viewerUserId = null }) {
       const result = await pool.query(
         `SELECT

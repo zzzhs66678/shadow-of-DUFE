@@ -20,7 +20,7 @@
 
 ## 3. 每个工作流实际完成的功能
 
-1. 账号与后台：用户名/邮箱/Argon2id 注册登录、资料、头像、验证令牌、设备、同步、注销、RBAC、TOTP、恢复码、用户管理与 append-only 审计。
+1. 账号与后台：用户名/邮箱/Argon2id 注册登录、资料、头像、验证令牌、设备、同步、注销、RBAC、TOTP、恢复码、用户管理、系统公告与 append-only 审计。
 2. 资料：独立 `/materials` 列表/详情和公开只读 API，按课程、教师、标题、标签、类型、学期与年份检索，预览/下载不进入选班。
 3. 教师与导入：稳定 `teacher_id`、来源键/别名/学院/教学班/教材、私有批次证据、dry-run、幂等 apply、依赖回滚、历史候选审核和五维用户评价。
 4. 社区：主题、两级评论、点赞、收藏、拉黑、举报、通知、游标分页、软删除、证据快照、治理案件、内容/账号动作与双审计事务。
@@ -32,13 +32,13 @@
 - 产品与页面：`app/DufeHubV2.tsx`、`app/materials/`、`app/teachers/`、`app/community/`、`app/admin/`。
 - 视觉原语：`app/globals.css`、`app/product-system.css`、`app/red-access-system.css`、`app/FormField.tsx`、`app/DialogBackdrop.tsx`、`app/PublicMasthead.tsx`。
 - 服务端：`services/auth-api/src/`、`xiaoying-executor/bin/server.mjs`、`xiaoying-executor/src/`。
-- 数据与迁移：`ops/postgres/migrations/0001_identity_foundation.sql` 至 `0016_shared_rate_limits.sql`、`scripts/academic-import-*.mjs`。
+- 数据与迁移：`ops/postgres/migrations/0001_identity_foundation.sql` 至 `0017_community_announcements.sql`、`scripts/academic-import-*.mjs`。
 - 验证与发布：`.github/workflows/quality.yml`、`tests/`、`playwright.config.ts`、`playwright.postgres.config.ts`、`docker-compose.yml`、`server.mjs`。
 - 运维文档：`README.md`、`docs/SECURITY_REVIEW.md`、`docs/DEPLOYMENT_CHECKLIST.md`、`docs/OPERATIONS_RUNBOOK.md`。
 
 ## 5. 数据库迁移和数据模型
 
-- 16 个顺序 SQL 迁移覆盖身份、匿名设备、OAuth 事务、个人云数据、幂等同步、凭据、头像、管理员、邮箱验证、社区、举报证据、教师/教材导入、审核、用户评价与共享限流。
+- 17 个顺序 SQL 迁移覆盖身份、匿名设备、OAuth 事务、个人云数据、幂等同步、凭据、头像、管理员、邮箱验证、社区、举报证据、教师/教材导入、审核、用户评价、共享限流与不可变系统公告。
 - schema owner、migrator、runtime、importer、backup 分离；迁移摘要不可改写，审计/证据表限制更新删除，业务删除采用墓碑或去标识化。
 - Course—Section—Meeting 三层课程事实保持不变；周次集合保留差异。教师姓名不是唯一键，教材绑定学期和教学班。
 - `已实现待环境验证`：CI 会从 PG17 空库执行迁移两次、跑 ACL/并发/回滚/真实 HTTP，并现场备份恢复；本机三项 PG 测试明确 SKIP，尚无 runner 通过证据。
@@ -58,6 +58,7 @@
 - 管理员治理按服务端 `allowedActions` 执行，隐藏/删除、制裁/解除和结案有状态矩阵；业务变更、通知、社区审计和全局审计原子提交。
 - `已完成并本地验证`：作者徽章进入稳定 UUID 公开档案，主题与回复分别有界分页；只显示活动账号的公开身份和 `published + public` 内容，双向屏蔽、停用、注销与仅链接内容不会从档案旁路泄露。
 - `已完成并本地验证`：社区列表同时提供时间序和真实热议序；热议只使用赞同、公开回复与 14 天新鲜度，快照游标固定单轮排名时点，不建立用户等级、画像或虚构榜单。
+- `已完成并本地验证`：管理员可在短期 MFA 后预览并发布系统公告；不可变主记录、全部活动账号通知、实际投递数和受限全局审计原子提交，同一 UUID 重试不会重复投递。
 - `已实现待环境验证`：真实 PG17 的并发、审计故障回滚、作者注销保留证据与完整浏览器链均已编码但尚未实跑。
 
 ## 8. 视觉系统和文案改造说明
@@ -69,7 +70,7 @@
 
 ## 9. 已执行的测试及结果
 
-- 最新本地总回归：主仓 Node 130 项中 127 通过、3 项 PostgreSQL 明确 SKIP；个人存储/同步 9/9；auth-api 78/78；小影 35/35。
+- 最新本地总回归：主仓 Node 131 项中 128 通过、3 项 PostgreSQL 明确 SKIP；个人存储/同步 9/9；auth-api 82/82；小影 35/35。
 - TypeScript、全仓 ESLint、CSS 级联审计、Compose/workflow YAML 与 `git diff --check` 通过。
 - 既有生产浏览器门禁最近通过 58/58，覆盖桌面、320/360/375/390/414/768、横屏、axe、无横向溢出、按需课程索引与有界列表。
 - `已实现待环境验证`：PG17 浏览器关键路径可被 Playwright 收集为 1 项，但未实际运行；Linux Docker、CodeQL、Gitleaks 和恢复演练同样待首次 GitHub runner。
@@ -98,7 +99,7 @@
 ## 13. Git 分支、commit 和 Pull Request 信息
 
 - 远程：`origin = https://github.com/zzzhs66678/shadow-of-DUFE.git`。
-- 当前分支：`codex/release-upgrade`；报告生成前的最新实现提交为 `db7d41c`，完整交付范围使用 `origin/main..HEAD` 查看；当前已有 70+ 个本地提交、183+ 个文件变化。
+- 当前分支：`codex/release-upgrade`；最新实现提交以当前 `git log -1` 为准，完整交付范围使用 `origin/main..HEAD` 查看；当前已有 70+ 个本地提交、183+ 个文件变化。
 - 提交按里程碑拆分，最近包括 PG17/浏览器 CI、供应链密钥扫描、失败关闭环境模板与不可变镜像运维手册。
 - 当前状态：**未推送、未创建 Pull Request**。没有强推、改写历史或触碰用户未纳管文件。
 

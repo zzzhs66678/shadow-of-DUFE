@@ -211,6 +211,8 @@ test("community and admin dialogs share one dismissible responsive backdrop", ()
   assert.match(dialogBackdropStyles, /env\(safe-area-inset-bottom\)/);
   assert.match(dialogBackdropStyles, /@media \(max-width: 680px\)/);
   assert.match(dialogBackdropSource, /export function DialogActions/);
+  assert.match(dialogBackdropStyles, /\.actions \{[\s\S]*background: transparent/);
+  assert.match(dialogBackdropStyles, /\.actions \{[\s\S]*color: inherit/);
   assert.match(dialogBackdropStyles, /\.actions button[\s\S]*min-height: 44px/);
   assert.match(dialogBackdropStyles, /\.actions button:last-child[\s\S]*--dufe-red/);
   assert.match(dialogBackdropStyles, /\.actions button:disabled/);

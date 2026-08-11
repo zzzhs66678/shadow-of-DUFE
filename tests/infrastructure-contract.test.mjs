@@ -282,9 +282,10 @@ test("backup and disk protection have bounded local retention", async () => {
   assert.match(restoreDrill, /--maintenance-db "\$POSTGRES_DB"/);
   assert.match(restoreDrill, /pg_restore/);
   assert.match(restoreDrill, /--exit-on-error/);
-  assert.match(restoreDrill, /migration_count < 16/);
+  assert.match(restoreDrill, /migration_count < 17/);
   assert.match(restoreDrill, /NOT convalidated/);
   assert.match(restoreDrill, /api_rate_limit_buckets/);
+  assert.match(restoreDrill, /community_announcements/);
   assert.match(restoreDrill, /dropdb[\s\S]*--if-exists "\$drill_database"/);
   assert.match(restoreDrill, /cleanup\ncreated=0\necho "Restore drill passed/);
   assert.match(restoreDrill, /RESTORE_DRILL_MAX_SECONDS/);
@@ -591,6 +592,36 @@ test("community notifications and moderation preserve dedupe, fallback, and immu
   );
 });
 
+test("administrator announcements are immutable, idempotent, bounded, and auditable", async () => {
+  const migration = await read(
+    "ops/postgres/migrations/0017_community_announcements.sql",
+  );
+  const migrations = await read("ops/postgres/run-migrations.sh");
+  const routes = await read("services/auth-api/src/admin-routes.mjs");
+  const store = await read("services/auth-api/src/community-store.mjs");
+  const console = await read("app/admin/AnnouncementDesk.tsx");
+
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS community_announcements/);
+  assert.match(migration, /BEFORE UPDATE OR DELETE OR TRUNCATE/);
+  assert.match(migration, /delivery_count integer NOT NULL/);
+  assert.match(
+    migrations,
+    /REVOKE UPDATE, DELETE, TRUNCATE ON community_announcements/,
+  );
+  assert.match(routes, /\/api\/admin\/community\/announcements/);
+  assert.match(routes, /adminAnnouncement/);
+  assert.match(routes, /exactObject/);
+  assert.match(store, /JOIN admin_elevated_sessions/);
+  assert.match(store, /pg_advisory_xact_lock/);
+  assert.match(store, /'system_announcement'/);
+  assert.match(store, /users\.status = 'active'/);
+  assert.match(store, /'announcement:' \|\| \$1::uuid::text/);
+  assert.match(store, /admin\.community\.announcement_published/);
+  assert.match(console, /预览投递/);
+  assert.match(console, /全部活跃账号/);
+  assert.doesNotMatch(console, /dangerouslySetInnerHTML/);
+});
+
 test("community read paths preserve deleted thread anchors and use the auth proxy", async () => {
   const migration = await read(
     "ops/postgres/migrations/0011_community_read_paths.sql",
@@ -761,6 +792,7 @@ test("auth traffic combines bounded burst protection with persistent high-risk q
   assert.match(limiter, /communityReport:[\s\S]*?capacity: 5/);
   assert.match(limiter, /teacherReviewModeration:[\s\S]*?capacity: 30/);
   assert.match(limiter, /teacherReviewWrite:[\s\S]*?capacity: 6/);
+  assert.match(limiter, /adminAnnouncement:[\s\S]*?capacity: 5/);
   assert.match(limiter, /maxKeys = 10_000/);
   assert.match(limiter, /idleTtlMs/);
   assert.match(limiter, /createSharedTokenBucket/);

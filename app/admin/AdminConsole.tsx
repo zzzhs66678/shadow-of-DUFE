@@ -7,6 +7,7 @@ import { FormField } from "../FormField";
 import { useModalFocus } from "../use-modal-focus";
 import styles from "./admin.module.css";
 import { ModerationDesk } from "./ModerationDesk";
+import { AnnouncementDesk } from "./AnnouncementDesk";
 
 type AccessState = {
   role: "admin";
@@ -73,6 +74,7 @@ const actionLabels: Record<string, string> = {
   "admin.community.ban": "社区账号已封禁",
   "admin.community.unban": "社区账号制裁已解除",
   "admin.community.dismiss": "社区举报已驳回",
+  "admin.community.announcement_published": "系统公告已发布",
 };
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -149,6 +151,10 @@ export function AdminConsole() {
   const loadAudit = useCallback(async () => {
     const payload = await requestJson<{ events: AuditEvent[] }>("/api/admin/audit");
     setAudit(payload.events);
+  }, []);
+
+  const handleMfaExpired = useCallback(() => {
+    setScreen("elevation");
   }, []);
 
   const loadDashboard = useCallback(async (search = "") => {
@@ -440,7 +446,12 @@ export function AdminConsole() {
           {feedback && <div className={styles.feedback} role="status">{feedback}</div>}
 
           <ModerationDesk
-            onMfaExpired={() => setScreen("elevation")}
+            onMfaExpired={handleMfaExpired}
+            onAuditChanged={loadAudit}
+          />
+
+          <AnnouncementDesk
+            onMfaExpired={handleMfaExpired}
             onAuditChanged={loadAudit}
           />
 
