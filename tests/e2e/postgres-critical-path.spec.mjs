@@ -193,6 +193,20 @@ test("users and an administrator complete the release browser path", async ({
     await secondOwner.getByLabel(/具体说说课堂组织/u).fill(reviewBody);
     await secondOwner.getByRole("button", { name: "保存并公开" }).click();
     await expect(secondOwner.getByText("你的评价已保存并公开。")).toBeVisible();
+    const publishedReviews = await secondOwner.evaluate(async (teacherId) => {
+      const response = await fetch(`/api/teachers/${teacherId}/reviews?limit=20`, {
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+      });
+      return {
+        status: response.status,
+        payload: await response.json(),
+      };
+    }, teacher.id);
+    expect(publishedReviews.status).toBe(200);
+    expect(publishedReviews.payload.items).toEqual(
+      expect.arrayContaining([expect.objectContaining({ body: reviewBody })]),
+    );
     await expect(secondOwner.getByText(reviewBody)).toBeVisible();
 
     await administrator.goto("/admin");
