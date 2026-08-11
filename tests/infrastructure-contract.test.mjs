@@ -779,6 +779,8 @@ test("user teacher reviews are session-scoped, versioned, and soft-deleted", asy
   assert.match(store, /author_user_id = \$2/);
   assert.match(store, /status = 'deleted'/);
   assert.match(store, /version = \$10/);
+  assert.match(store, /FOR UPDATE OF users/);
+  assert.doesNotMatch(store, /FOR UPDATE OF users, teacher/);
 });
 
 test("auth traffic combines bounded burst protection with persistent high-risk quotas", async () => {

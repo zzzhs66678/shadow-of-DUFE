@@ -173,13 +173,15 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
     const migrationRole = await migrator.query(
       `SELECT roles.rolinherit, roles.rolsuper, roles.rolcreaterole,
               roles.rolcreatedb, roles.rolreplication, roles.rolbypassrls,
-              array_agg(granted.rolname ORDER BY granted.rolname)
-                FILTER (WHERE granted.rolname IS NOT NULL) AS memberships
+              ARRAY(
+                SELECT granted.rolname
+                FROM pg_auth_members AS membership
+                INNER JOIN pg_roles AS granted ON granted.oid = membership.roleid
+                WHERE membership.member = roles.oid
+                ORDER BY granted.rolname
+              ) AS memberships
        FROM pg_roles AS roles
-       LEFT JOIN pg_auth_members AS membership ON membership.member = roles.oid
-       LEFT JOIN pg_roles AS granted ON granted.oid = membership.roleid
-       WHERE roles.rolname = current_user
-       GROUP BY roles.oid`,
+       WHERE roles.rolname = current_user`,
     );
     assert.deepEqual(migrationRole.rows[0], {
       rolinherit: false,
