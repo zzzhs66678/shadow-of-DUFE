@@ -183,8 +183,14 @@ test("CI drives the authenticated browser critical path through PostgreSQL", asy
   assert.match(suite, /getAdminBootstrapTarget/);
   assert.match(suite, /bootstrapAdmin/);
   assert.match(suite, /codeForStep/);
+  assert.match(suite, /setInputFiles/);
+  assert.match(suite, /\/materials/);
+  assert.match(suite, /\/teachers\?q=/);
+  assert.match(suite, /保存并公开/);
   assert.match(suite, /举报主题/);
   assert.match(suite, /通知/);
+  assert.match(suite, /建立审核案件/);
+  assert.match(suite, /删除内容并结案/);
 });
 
 test("CI builds and smoke-tests every production Linux image", async () => {

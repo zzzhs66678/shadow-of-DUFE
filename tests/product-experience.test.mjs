@@ -224,6 +224,14 @@ test("community and admin dialogs share one dismissible responsive backdrop", ()
   assert.doesNotMatch(adminStyles, /\.(?:actionSheet|caseSheet) (?:button|> footer)/);
 });
 
+test("an open moderation case always resets to a server-allowed next action", () => {
+  assert.match(moderationSource, /const updated = reviewing\?\.find/);
+  assert.match(
+    moderationSource,
+    /if \(updated\) setAction\(updated\.allowedActions\[0\] \?\? "warn"\)/,
+  );
+});
+
 test("editorial forms share one paper-and-ink field primitive", () => {
   assert.match(formFieldSource, /labelRow/);
   assert.match(formFieldSource, /counter/);

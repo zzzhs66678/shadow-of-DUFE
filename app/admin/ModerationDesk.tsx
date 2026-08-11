@@ -199,6 +199,7 @@ export function ModerationDesk({
         refreshFailures.push("审计列表");
       }
       setSelected(reviewing === null ? null : updated);
+      if (updated) setAction(updated.allowedActions[0] ?? "warn");
       setFeedback(refreshFailures.length > 0
         ? `处置已经生效，但${refreshFailures.join("和")}刷新失败；请勿重复操作，稍后刷新页面。`
         : payload.case.status === "reviewing"
