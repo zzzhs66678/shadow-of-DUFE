@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import pg from "pg";
 import sharp from "sharp";
 
@@ -83,6 +83,13 @@ async function seedTeacher() {
   const id = randomUUID();
   const displayName = `浏览器验收教师-${suffix}`;
   const collegeName = `浏览器验收学院-${suffix}`;
+  const candidateBody = `历史课堂资料衔接清楚，课程安排稳定，复核样本 ${suffix}。`;
+  const sourceSha256 = createHash("sha256")
+    .update(`browser-import-${suffix}`)
+    .digest("hex");
+  const bodySha256 = createHash("sha256")
+    .update(candidateBody.normalize("NFKC"))
+    .digest("hex");
   const pool = new Pool({
     host: process.env.PGHOST,
     port: Number.parseInt(process.env.PGPORT ?? "5432", 10),
@@ -105,7 +112,36 @@ async function seedTeacher() {
         collegeName.toLocaleLowerCase("zh-CN"),
       ],
     );
-    return { id, displayName, collegeName };
+    const batch = await pool.query(
+      `INSERT INTO data_import_batches (
+         import_type, source_filename, source_sha256, mapping_version,
+         status, dry_run, row_count, accepted_count, applied_at
+       ) VALUES (
+         'teacher_reviews', $1, $2, 'browser-e2e-v1',
+         'applied', false, 1, 1, now()
+       ) RETURNING id`,
+      [`browser-review-${suffix}.xlsx`, sourceSha256],
+    );
+    const importRow = await pool.query(
+      `INSERT INTO data_import_rows (
+         batch_id, source_sheet, source_row, source_column,
+         source_locator, content_sha256, disposition, sanitized_payload
+       ) VALUES ($1::uuid, 'E2E', 2, 3, 'E2E!C2', $2, 'accepted', $3::jsonb)
+       RETURNING id`,
+      [
+        batch.rows[0].id,
+        bodySha256,
+        JSON.stringify({ teacherName: displayName, review: candidateBody }),
+      ],
+    );
+    await pool.query(
+      `INSERT INTO teacher_review_candidates (
+         teacher_id, import_row_id, sanitized_body,
+         original_body_sha256, normalized_body_sha256, risk_flags
+       ) VALUES ($1::uuid, $2::uuid, $3, $4, $4, '{}')`,
+      [id, importRow.rows[0].id, candidateBody, bodySha256],
+    );
+    return { id, displayName, collegeName, candidateBody };
   } finally {
     await pool.end();
   }
@@ -277,6 +313,30 @@ test("users and an administrator complete the release browser path", async ({
     await expect(
       administrator.getByRole("heading", { name: "举报案卷" }),
     ).toBeVisible();
+    await expect(
+      administrator.getByRole("heading", { name: "教师评价复核" }),
+    ).toBeVisible();
+    await administrator
+      .getByRole("button", { name: new RegExp(teacher.displayName, "u") })
+      .click();
+    const teacherReviewDialog = administrator.getByRole("dialog", {
+      name: teacher.displayName,
+    });
+    await teacherReviewDialog
+      .getByLabel(/决定依据/u)
+      .fill("正文不含身份线索或攻击表达，允许作为历史整理内容公开。");
+    await teacherReviewDialog
+      .getByRole("button", { name: "确认公开" })
+      .click();
+    await expect(teacherReviewDialog).toBeHidden();
+    await expect(
+      administrator.getByText(/历史评价已作为“历史整理内容”公开/u),
+    ).toBeVisible();
+
+    await secondOwner.goto(`/teachers/${teacher.id}`);
+    await expect(secondOwner.getByText(teacher.candidateBody)).toBeVisible();
+    await expect(secondOwner.getByText("历史整理内容", { exact: true })).toBeVisible();
+
     await administrator
       .getByRole("button", { name: new RegExp(topicTitle, "u") })
       .click();

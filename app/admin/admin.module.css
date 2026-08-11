@@ -227,6 +227,8 @@
 .moderationDesk > header nav button { background: transparent; border: 1px solid var(--admin-line); min-height: 42px; padding: 0 18px; }
 .moderationDesk > header nav button + button { border-left: 0; }
 .moderationDesk > header nav button[aria-pressed="true"] { background: var(--admin-ink); color: var(--admin-paper); }
+.teacherReviewTabs { flex-wrap: wrap; justify-content: flex-end; }
+.teacherReviewTabs button { white-space: nowrap; }
 .moderationFeedback { border-left: 3px solid var(--admin-red); color: var(--admin-red-deep); font-size: 10px; margin: 22px 0 0; padding: 8px 12px; }
 .moderationState { color: var(--admin-muted); font-size: 11px; margin: 30px 0 0; }
 .moderationState button { background: transparent; border: 0; border-bottom: 1px solid var(--admin-red); color: var(--admin-red); margin-left: 12px; }
@@ -243,6 +245,7 @@
 .reportQueue button:hover b,
 .reportQueue button:focus-visible b { color: var(--admin-red-deep); }
 .reportQueue button:focus-visible { outline: 2px solid var(--admin-red); outline-offset: -2px; }
+.queueMore { background: transparent; border: 1px solid var(--admin-ink); display: block; margin: 26px auto 0; min-height: 44px; padding: 0 24px; }
 
 .caseSheet { background: var(--admin-paper); border: 1px solid var(--admin-ink); box-shadow: 18px 18px 0 rgba(0,0,0,.18); max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); max-width: 720px; overscroll-behavior: contain; overflow-y: auto; padding: clamp(26px, 4vw, 46px); width: 100%; }
 .caseSheet > header { align-items: start; display: flex; justify-content: space-between; }
