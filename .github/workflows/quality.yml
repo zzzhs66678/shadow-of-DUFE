@@ -233,6 +233,7 @@ jobs:
           node --test tests/performance-budget.test.mjs
           node --test tests/infrastructure-contract.test.mjs
           node --test tests/environment-contract.test.mjs
+          node --test tests/release-readiness.test.mjs
           node --test tests/personal-storage.test.ts tests/personal-sync.test.ts
           npm test --prefix services/auth-api
           npm run test:xiaoying
