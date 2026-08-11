@@ -166,6 +166,10 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
   timeout: 45_000,
 }, async () => {
   const config = integrationConfig();
+  const fixtureOwner = poolFor(
+    process.env.POSTGRES_USER,
+    process.env.POSTGRES_PASSWORD,
+  );
   const store = createAuthStore(createDatabasePool(config));
   const adminSecurity = createAdminSecurity({
     activeKeyId: config.adminMfaActiveKeyId,
@@ -186,6 +190,7 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
   const address = server.address();
   const baseUrl = `http://127.0.0.1:${address.port}`;
   const suffix = randomUUID().slice(0, 8);
+  const teacherId = randomUUID();
   const requestHeaders = {
     "Content-Type": "application/json",
     Origin: "https://dufesh.cn",
@@ -212,6 +217,20 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
   }
 
   try {
+    await fixtureOwner.query(
+      `INSERT INTO teachers (
+         id, display_name, normalized_name, college_name,
+         normalized_college, identity_status
+       ) VALUES ($1::uuid, $2, $3, $4, $5, 'active')`,
+      [
+        teacherId,
+        "原生集成教师",
+        `原生集成教师-${suffix}`,
+        "测试学院",
+        `测试学院-${suffix}`,
+      ],
+    );
+
     const owner = await register("owner");
     const replier = await register("replier");
     const administrator = await register("admin");
@@ -331,6 +350,121 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
       { headers: { Cookie: owner.cookie } },
     );
     assert.deepEqual(await afterRead.json(), { unread: 0 });
+
+    const syncState = {
+      profile: {
+        entranceYear: 2026,
+        college: "测试学院",
+        majorId: "ci-major",
+        className: "测试2601",
+      },
+      skipped: false,
+      plans: [{
+        id: "default",
+        name: "默认课表",
+        scheduleIds: ["ci-section-meeting-1", "ci-section-meeting-2"],
+      }],
+      activePlanId: "default",
+      activities: [],
+      assignments: [],
+      favoriteRooms: ["之远楼401"],
+      recentRooms: ["笃行楼302"],
+      preferredTerm: "fall",
+      theme: "system",
+    };
+    const syncMutation = {
+      mutationId: `ci-sync-${suffix}-0001`,
+      baseRevision: 0,
+      clientUpdatedAt: new Date().toISOString(),
+      state: syncState,
+    };
+    const syncWrite = await fetch(`${baseUrl}/api/auth/sync`, {
+      method: "PUT",
+      headers: { ...requestHeaders, Cookie: owner.cookie },
+      body: JSON.stringify(syncMutation),
+    });
+    const syncWriteBody = await syncWrite.json();
+    assert.equal(syncWrite.status, 200);
+    assert.equal(syncWriteBody.revision, 1);
+    assert.equal(syncWriteBody.state.plans[0].scheduleIds.length, 2);
+
+    const syncRetry = await fetch(`${baseUrl}/api/auth/sync`, {
+      method: "PUT",
+      headers: { ...requestHeaders, Cookie: owner.cookie },
+      body: JSON.stringify(syncMutation),
+    });
+    assert.equal(syncRetry.status, 200);
+    assert.equal((await syncRetry.json()).deduplicated, true);
+
+    const isolatedSync = await fetch(`${baseUrl}/api/auth/sync`, {
+      headers: { Cookie: replier.cookie },
+    });
+    const isolatedSyncBody = await isolatedSync.json();
+    assert.equal(isolatedSync.status, 200);
+    assert.equal(isolatedSyncBody.revision, 0);
+
+    const staleSync = await fetch(`${baseUrl}/api/auth/sync`, {
+      method: "PUT",
+      headers: { ...requestHeaders, Cookie: owner.cookie },
+      body: JSON.stringify({
+        ...syncMutation,
+        mutationId: `ci-sync-${suffix}-0002`,
+      }),
+    });
+    assert.equal(staleSync.status, 409);
+    assert.equal((await staleSync.json()).revision, 1);
+
+    const ratings = {
+      courseOrganization: 5,
+      contentClarity: 4,
+      assessmentExplanation: 4,
+      classroomInteraction: 3,
+      materialCompleteness: 5,
+    };
+    const reviewCreated = await fetch(
+      `${baseUrl}/api/teachers/${teacherId}/my-review`,
+      {
+        method: "PUT",
+        headers: { ...requestHeaders, Cookie: owner.cookie },
+        body: JSON.stringify({
+          body: "课程结构清楚，课堂示例能帮助理解概念之间的关系。",
+          ratings,
+        }),
+      },
+    );
+    const reviewCreatedBody = await reviewCreated.json();
+    assert.equal(reviewCreated.status, 201);
+    assert.equal(reviewCreatedBody.review.version, 1);
+
+    const otherUsersReview = await fetch(
+      `${baseUrl}/api/teachers/${teacherId}/my-review`,
+      { headers: { Cookie: replier.cookie } },
+    );
+    assert.equal(otherUsersReview.status, 200);
+    assert.deepEqual(await otherUsersReview.json(), { review: null });
+
+    const competingUpdates = await Promise.all([
+      "第一次并发更新补充了作业反馈与课堂节奏。",
+      "第二次并发更新补充了例题难度与讲解速度。",
+    ].map((body) =>
+      fetch(`${baseUrl}/api/teachers/${teacherId}/my-review`, {
+        method: "PUT",
+        headers: { ...requestHeaders, Cookie: owner.cookie },
+        body: JSON.stringify({ body, ratings, expectedVersion: 1 }),
+      })
+    ));
+    assert.deepEqual(
+      competingUpdates.map((response) => response.status).sort(),
+      [200, 409],
+    );
+
+    const publicReviews = await fetch(
+      `${baseUrl}/api/teachers/${teacherId}/reviews?limit=20`,
+    );
+    const publicReviewsBody = await publicReviews.json();
+    assert.equal(publicReviews.status, 200);
+    assert.equal(publicReviewsBody.items.length, 1);
+    assert.equal(publicReviewsBody.items[0].sourceType, "user");
 
     const enrollment = adminSecurity.createEnrollment({
       userId: administrator.body.user.id,
@@ -456,5 +590,6 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
   } finally {
     await closeServer(server);
     await store.close();
+    await fixtureOwner.end();
   }
 });
