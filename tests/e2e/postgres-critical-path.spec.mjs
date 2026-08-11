@@ -19,10 +19,13 @@ const { Pool } = pg;
 
 async function dismissOnboarding(page) {
   const onboarding = page.getByRole("dialog", { name: "建立个人档案" });
-  if (await onboarding.isVisible()) {
-    await onboarding.getByRole("button", { name: "暂时跳过" }).click();
-    await expect(onboarding).toBeHidden();
+  try {
+    await onboarding.waitFor({ state: "visible", timeout: 5_000 });
+  } catch {
+    return;
   }
+  await onboarding.getByRole("button", { name: "暂时跳过" }).click();
+  await expect(onboarding).toBeHidden();
 }
 
 async function register(page, label) {
