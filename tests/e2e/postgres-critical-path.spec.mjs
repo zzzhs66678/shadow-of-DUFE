@@ -17,9 +17,18 @@ import { normalizeLoginIdentifier } from "../../services/auth-api/src/credential
 const password = "Moonlight!2026";
 const { Pool } = pg;
 
+async function dismissOnboarding(page) {
+  const onboarding = page.getByRole("dialog", { name: "建立个人档案" });
+  if (await onboarding.isVisible()) {
+    await onboarding.getByRole("button", { name: "暂时跳过" }).click();
+    await expect(onboarding).toBeHidden();
+  }
+}
+
 async function register(page, label) {
   const username = `browser-${label}-${Date.now().toString(36)}`;
   await page.goto("/?view=me");
+  await dismissOnboarding(page);
   await expect(page.getByText("现在的数据只保存在这台设备")).toBeVisible();
   await page.getByRole("button", { name: "创建账号", exact: true }).click();
   const form = page.locator(".credential-gateway form");
@@ -33,6 +42,7 @@ async function register(page, label) {
 
 async function login(page, username) {
   await page.goto("/?view=me");
+  await dismissOnboarding(page);
   await expect(page.getByText("现在的数据只保存在这台设备")).toBeVisible();
   const form = page.locator(".credential-gateway form");
   await form.getByLabel("用户名或邮箱").fill(username);
