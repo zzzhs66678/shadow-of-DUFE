@@ -709,6 +709,15 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
     });
     const reportBody = await reportResponse.json();
     assert.equal(reportResponse.status, 201);
+    await assert.rejects(
+      fixtureOwner.query(
+        `UPDATE community_reports
+         SET evidence_body = 'tampered evidence'
+         WHERE id = $1::uuid`,
+        [reportBody.report.id],
+      ),
+      (error) => error?.code === "P0001",
+    );
 
     const reports = await fetch(
       `${baseUrl}/api/admin/community/reports?status=open`,
@@ -768,6 +777,42 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
       ),
       true,
     );
+
+    const deletedAccount = await fetch(
+      `${baseUrl}/api/auth/account/delete`,
+      {
+        method: "POST",
+        headers: { ...requestHeaders, Cookie: owner.cookie },
+        body: JSON.stringify({ confirmation: "DELETE_MY_ACCOUNT" }),
+      },
+    );
+    assert.equal(deletedAccount.status, 200);
+
+    const retainedEvidence = await fixtureOwner.query(
+      `SELECT
+         reports.evidence_body,
+         reports.evidence_author_label,
+         (SELECT count(*)::integer FROM app_users WHERE id = $2::uuid)
+           AS remaining_user,
+         (SELECT count(*)::integer
+          FROM admin_audit_events
+          WHERE action = 'admin.community.hide'
+            AND target_id = $3::text) AS audit_count
+       FROM community_reports AS reports
+       WHERE reports.id = $1::uuid`,
+      [reportBody.report.id, owner.body.user.id, topicBody.topic.id],
+    );
+    assert.equal(retainedEvidence.rowCount, 1);
+    assert.equal(
+      retainedEvidence.rows[0].evidence_body.includes("真实 HTTP"),
+      true,
+    );
+    assert.equal(
+      retainedEvidence.rows[0].evidence_author_label.includes("ci-owner"),
+      true,
+    );
+    assert.equal(retainedEvidence.rows[0].remaining_user, 0);
+    assert.equal(Number(retainedEvidence.rows[0].audit_count) >= 1, true);
   } finally {
     await closeServer(server);
     await store.close();
