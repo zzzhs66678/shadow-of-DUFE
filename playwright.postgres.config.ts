@@ -10,6 +10,7 @@ export default defineConfig({
   reporter: [["line"], ["html", { open: "never" }]],
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000",
+    actionTimeout: 15_000,
     trace: "retain-on-failure",
     ...devices["Desktop Chrome"],
   },

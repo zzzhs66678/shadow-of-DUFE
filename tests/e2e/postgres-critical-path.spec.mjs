@@ -282,7 +282,7 @@ test("users and an administrator complete the release browser path", async ({
     await owner.goto(topicPath);
     await expect(owner.getByText("这段讨论已经不可见")).toBeVisible();
   } finally {
-    await Promise.all([
+    await Promise.allSettled([
       ownerContext.close(),
       secondOwnerContext.close(),
       replierContext.close(),
