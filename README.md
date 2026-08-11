@@ -89,4 +89,4 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 
 首次发布按 `docs/DEPLOYMENT_CHECKLIST.md` 逐项验证迁移、角色权限、管理员 TOTP、备份恢复、健康检查和回滚；不要仅因容器成功启动就放行。
 
-具体的发布提交绑定、镜像标签、原子切换、管理员一次性初始化与回滚顺序见 `docs/OPERATIONS_RUNBOOK.md`。运维命令只在 CI、staging 和人工审批都通过后执行；本仓库不会自动触发生产部署。
+具体的发布提交绑定、镜像标签、原子切换、管理员一次性初始化与回滚顺序见 `docs/OPERATIONS_RUNBOOK.md`。当前 14 项交付状态见 `docs/FINAL_DELIVERY_REPORT.md`。运维命令只在 CI、staging 和人工审批都通过后执行；本仓库不会自动触发生产部署。
