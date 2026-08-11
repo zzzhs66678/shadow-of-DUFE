@@ -165,6 +165,7 @@
 - 举报证据不只依赖应用权限：原生测试会让数据库 owner 直接尝试改写 `community_reports.evidence_body`，不可变触发器仍必须拒绝。治理完成后，主题作者通过真实账号注销 API 删除账号；测试要求 `app_users` 记录归零，但举报时正文/作者标签快照和 `admin.community.hide` 审计仍存在，确保注销不被触发器阻断，也不抹掉去标识化治理依据。
 - PostgreSQL 17 作业在应用/权限场景之后还会现场执行 `pg_dump` 生成 custom-format 备份和独立 SHA-256，调用生产同一 `restore-drill.sh` 的 `native` 运行模式恢复到唯一临时数据库，检查 16 个迁移、无未验证约束、关键表和 120 秒 CI RTO，再显式删库并查询确认没有 `dufesh_restore_drill_*` 残留。生产默认仍使用 Docker Compose 模式；本机无 `sh`/PostgreSQL，且 CI 尚未运行，因此不能把该代码路径记为已完成恢复演练。
 - 当前 Windows 开发机没有 PostgreSQL/Docker/WSL，因此这两个原生集成测试只能本地明确 SKIP；auth-api 72/72、基础设施契约 29/29、集成文件加载 2 项 SKIP、相关 ESLint 和 `git diff --check` 已通过。分支尚未推送，不能把已编码的 CI 作业记为运行成功，也不能替代真实浏览器、完整 ACL/并发和 staging 验收。本轮未部署。
+- quality workflow 另有独立 `linux-production-images` 作业：在 Ubuntu 上从三份真实生产 Dockerfile 构建主站、auth-api 和小影镜像，检查最终运行用户均为 `node`，在 auth-api Alpine 镜像内实际加载 Argon2id/Sharp/PG，在小影镜像加载运行依赖，在主站镜像核对失败关闭 `image-size@2.0.3-dufesh.0` 并启动生产网关接受 HTTP 请求。Dockerfile 的 `NODE_IMAGE` 参数只为 CI 选择官方 `node:22-alpine`，生产默认 DaoCloud 镜像不变。该作业尚未运行；本地仅有基础设施契约 30/30、相关 ESLint 与差异检查证据，不能宣称 Linux/musl 镜像通过。
 
 ## 当前无障碍门禁
 

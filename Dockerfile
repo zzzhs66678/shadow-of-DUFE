@@ -1,4 +1,6 @@
-FROM docker.m.daocloud.io/library/node:22-alpine AS dependencies
+ARG NODE_IMAGE=docker.m.daocloud.io/library/node:22-alpine
+
+FROM ${NODE_IMAGE} AS dependencies
 
 WORKDIR /app
 
@@ -14,7 +16,7 @@ ENV NEXT_PUBLIC_XIAOYING_URL=$NEXT_PUBLIC_XIAOYING_URL
 COPY . .
 RUN npx vinext build
 
-FROM docker.m.daocloud.io/library/node:22-alpine AS runtime
+FROM ${NODE_IMAGE} AS runtime
 
 WORKDIR /app
 ENV NODE_ENV=production

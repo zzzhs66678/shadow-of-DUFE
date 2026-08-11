@@ -43,6 +43,7 @@
 - [ ] 主站、auth-api、小影分别 `npm ci`、测试、生产依赖审计和构建成功。
 - [ ] 干净安装后 `npm ls image-size --all` 只显示 `2.0.3-dufesh.0 -> vendor/image-size-disabled` 且 vinext 去重；构建日志无本地图片探测错误，镜像中不存在上游 `image-size@2.0.2`。
 - [ ] auth-api 与小影镜像在目标架构验证原生依赖可加载。
+- [ ] GitHub `linux-production-images` 作业实际全绿：三套镜像均从生产 Dockerfile 构建，最终用户为 `node`，auth-api 的 Argon2id/Sharp/PG、小影运行依赖、主站失败关闭 `image-size` 与生产网关冒烟全部通过；本地静态契约不得替代该证据。
 - [ ] 容器使用非 root、只读文件系统、受限 tmpfs、CPU/内存/PID 与日志轮转。
 - [ ] Caddy 只依赖主站核心服务启动；小影故障不会阻止主站和账号入口。
 - [ ] `curl -I` 验证 `http://112.126.75.74/<path>?<query>` 与 `https://www.dufesh.cn/<path>?<query>` 均只经一次 308 到 `https://dufesh.cn` 同路径/查询；IP 响应不含应用正文或 `Set-Cookie`。

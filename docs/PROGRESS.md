@@ -440,9 +440,15 @@
 - 原生 PG17 作业新增完整恢复演练步骤：固定安装 PostgreSQL 17 客户端，现场生成无 owner/ACL 的 custom-format 备份和 basename SHA-256；`restore-drill.sh` 新增显式 `native` 模式以复用同一校验/恢复/清理逻辑，生产默认 `docker` 模式不变。CI 以 120 秒 RTO 恢复到唯一临时库，核对迁移、约束、关键表和行数摘要，脚本成功后再查询 `pg_database` 确认无演练库残留。该作业尚未推送运行，SEC-009 仍不能关闭，异地副本也仍受凭据阻塞。
 - 本地 auth-api 72/72、基础设施契约 29/29、集成测试加载 2 项明确 SKIP、相关 ESLint 和 `git diff --check` 通过。当前 Windows 没有 PostgreSQL，且分支尚未推送，不能宣称 GitHub PostgreSQL 作业或该真实 HTTP 流程已经成功；首次全绿后才可更新 SEC-002/003/006/011/013 的原生证据，本切片未部署。
 
+## M9 已实现待 CI 验证切片：生产 Linux 镜像门禁
+
+- quality workflow 新增独立 `linux-production-images` 作业，在 Ubuntu runner 分别从根目录、`services/auth-api` 和 `xiaoying-executor` 的真实生产 Dockerfile 构建主站、账号 API 与小影镜像，不复用宿主机 `node_modules`，也不以普通 Node 构建替代容器构建。
+- 三个 Dockerfile 保留生产默认的 DaoCloud Node 22 Alpine 基础镜像，同时通过统一 `NODE_IMAGE` 构建参数允许 CI 显式使用官方 `node:22-alpine`，避免镜像源网络差异改变生产默认值。门禁逐一检查最终镜像运行用户必须为 `node`；auth-api 镜像实际加载 musl 架构下的 Argon2id、Sharp 与 PostgreSQL 驱动，小影加载运行依赖，主站核对失败关闭的 `image-size@2.0.3-dufesh.0` 依赖树并启动真实生产网关接受 HTTP 请求。
+- 本地基础设施契约 30/30、相关 ESLint 和 `git diff --check` 通过。当前 Windows 没有 Docker，三个镜像尚未在本机或 GitHub runner 构建，不能把已编码的作业记为 Linux/musl 验证通过；首次 CI 全绿后才能勾选部署检查表的镜像构建与原生依赖项目，本切片未部署。
+
 ## 下一步
 
-1. 在可用 PostgreSQL 17 环境运行现有原生 CI 与隔离恢复门禁；随后补治理事务故障回滚竞态、教师同名隔离、导入/审核并发和 migrator/backup 权限边界，再完成两个普通用户与一个管理员的浏览器 E2E。
+1. 首次运行现有 Linux 镜像、PostgreSQL 17 与隔离恢复 CI 门禁；随后补治理事务故障回滚竞态、教师同名隔离、导入/审核并发和 migrator/backup 权限边界，再完成两个普通用户与一个管理员的浏览器 E2E。
 2. 生产邮件发送适配器和校园账号验证仍待凭据/上游能力；保持失败关闭，不阻塞 M2 开发。
 3. M6 本地切片已完成；具备 staging 条件后实测 LCP、INP、CLS，并以真实登录态复核长会话、服务端列表游标和校园照片解码。
 4. M3 本地实现已完成；在原生 PostgreSQL 17 验证 importer ACL、公开读取、评价提交/编辑/删除、账号注销撤下、审核/回滚并发锁和完整回滚。未审核历史正文仍不得公开。

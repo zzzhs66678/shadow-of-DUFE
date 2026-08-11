@@ -149,6 +149,34 @@ test("CI runs migrations twice against native PostgreSQL 17 and checks runtime r
   assert.match(integration, /ci-importer-denied/);
 });
 
+test("CI builds and smoke-tests every production Linux image", async () => {
+  const workflow = await read(".github/workflows/quality.yml");
+  const appDockerfile = await read("Dockerfile");
+  const authDockerfile = await read("services/auth-api/Dockerfile");
+  const xiaoyingDockerfile = await read("xiaoying-executor/Dockerfile");
+
+  assert.match(workflow, /container-builds:/);
+  assert.match(workflow, /name: linux-production-images/);
+  assert.match(workflow, /docker build[\s\S]*--tag dufesh-app:ci/);
+  assert.match(workflow, /docker build[\s\S]*--tag dufesh-auth-api:ci/);
+  assert.match(workflow, /docker build[\s\S]*--tag dufesh-xiaoying:ci/);
+  assert.match(workflow, /import\('\@node-rs\/argon2'\)/);
+  assert.match(workflow, /import\('sharp'\)/);
+  assert.match(workflow, /ls image-size --all/);
+  assert.match(workflow, /manifest\.version !== '2\.0\.3-dufesh\.0'/);
+  assert.match(workflow, /http:\/\/127\.0\.0\.1:3000\//);
+  assert.match(workflow, /docker image inspect --format '\{\{\.Config\.User\}\}'/);
+
+  for (const dockerfile of [appDockerfile, authDockerfile, xiaoyingDockerfile]) {
+    assert.match(
+      dockerfile,
+      /ARG NODE_IMAGE=docker\.m\.daocloud\.io\/library\/node:22-alpine/,
+    );
+    assert.match(dockerfile, /FROM \$\{NODE_IMAGE\}/);
+    assert.match(dockerfile, /USER node/);
+  }
+});
+
 test("identity foundation keeps OAuth identities, devices, and sessions separate", async () => {
   const migration = await read("ops/postgres/migrations/0001_identity_foundation.sql");
 

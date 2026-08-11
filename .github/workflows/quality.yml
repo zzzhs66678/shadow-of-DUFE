@@ -9,6 +9,56 @@ permissions:
   contents: read
 
 jobs:
+  container-builds:
+    name: linux-production-images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production images
+        run: |
+          docker build \
+            --build-arg NODE_IMAGE=node:22-alpine \
+            --build-arg NEXT_PUBLIC_XIAOYING_URL=/campus-lab/ \
+            --tag dufesh-app:ci \
+            .
+          docker build \
+            --build-arg NODE_IMAGE=node:22-alpine \
+            --tag dufesh-auth-api:ci \
+            services/auth-api
+          docker build \
+            --build-arg NODE_IMAGE=node:22-alpine \
+            --tag dufesh-xiaoying:ci \
+            xiaoying-executor
+      - name: Verify non-root runtime and native dependencies
+        run: |
+          for image in dufesh-app:ci dufesh-auth-api:ci dufesh-xiaoying:ci; do
+            test "$(docker image inspect --format '{{.Config.User}}' "$image")" = "node"
+          done
+          docker run --rm --entrypoint node dufesh-auth-api:ci \
+            --input-type=module \
+            --eval "await Promise.all([import('@node-rs/argon2'), import('sharp'), import('pg')]); console.log('auth native dependencies loaded')"
+          docker run --rm --entrypoint node dufesh-xiaoying:ci \
+            --input-type=module \
+            --eval "await import('qrcode'); console.log('xiaoying runtime dependencies loaded')"
+          docker run --rm --entrypoint npm dufesh-app:ci \
+            ls image-size --all
+          docker run --rm --entrypoint node dufesh-app:ci \
+            --input-type=module \
+            --eval "const manifest = JSON.parse(await (await import('node:fs/promises')).readFile(new URL('./node_modules/image-size/package.json', import.meta.url), 'utf8')); if (manifest.version !== '2.0.3-dufesh.0') throw new Error('unexpected image-size version: ' + manifest.version); console.log('fail-closed image-size package loaded')"
+      - name: Smoke-test the production gateway
+        run: |
+          container_id="$(docker run --detach --publish 127.0.0.1:3000:3000 dufesh-app:ci)"
+          trap 'docker logs "$container_id"; docker rm --force "$container_id" >/dev/null' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error --output /dev/null http://127.0.0.1:3000/; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Production gateway did not become ready" >&2
+          exit 1
+
   postgres-integration:
     name: postgres-17-integration
     runs-on: ubuntu-latest
