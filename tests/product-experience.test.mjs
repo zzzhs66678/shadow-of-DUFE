@@ -86,6 +86,10 @@ const moderationSource = await readFile(
   new URL("../app/admin/ModerationDesk.tsx", import.meta.url),
   "utf8",
 );
+const teacherReviewDeskSource = await readFile(
+  new URL("../app/admin/TeacherReviewDesk.tsx", import.meta.url),
+  "utf8",
+);
 const teacherExplorerSource = await readFile(
   new URL("../app/teachers/TeacherExplorer.tsx", import.meta.url),
   "utf8",
@@ -115,6 +119,17 @@ test("teacher directory disambiguates identities without taking over the daily w
   assert.match(teacherStyles, /min-height:\s*44px/);
   assert.match(teacherStyles, /@media \(max-width:\s*820px\)/);
   assert.match(teacherStyles, /\.ratingEditor label span[\s\S]*min-height:\s*44px/);
+});
+
+test("administrator can review imported teacher comments through the elevated backend", () => {
+  assert.match(adminSource, /<TeacherReviewDesk/);
+  assert.match(teacherReviewDeskSource, /\/api\/admin\/teacher-reviews\/candidates/);
+  assert.match(teacherReviewDeskSource, /\/decision/);
+  assert.match(teacherReviewDeskSource, /decision, reason/);
+  assert.match(teacherReviewDeskSource, /历史整理内容/);
+  assert.match(teacherReviewDeskSource, /teacher_review_candidate_conflict/);
+  assert.match(teacherReviewDeskSource, /admin_mfa_required/);
+  assert.doesNotMatch(teacherReviewDeskSource, /dangerouslySetInnerHTML/);
 });
 
 test("today page keeps the one-glance command deck", () => {

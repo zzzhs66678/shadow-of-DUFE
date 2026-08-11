@@ -8,6 +8,7 @@ import { useModalFocus } from "../use-modal-focus";
 import styles from "./admin.module.css";
 import { ModerationDesk } from "./ModerationDesk";
 import { AnnouncementDesk } from "./AnnouncementDesk";
+import { TeacherReviewDesk } from "./TeacherReviewDesk";
 
 type AccessState = {
   role: "admin";
@@ -446,6 +447,11 @@ export function AdminConsole() {
           {feedback && <div className={styles.feedback} role="status">{feedback}</div>}
 
           <ModerationDesk
+            onMfaExpired={handleMfaExpired}
+            onAuditChanged={loadAudit}
+          />
+
+          <TeacherReviewDesk
             onMfaExpired={handleMfaExpired}
             onAuditChanged={loadAudit}
           />
