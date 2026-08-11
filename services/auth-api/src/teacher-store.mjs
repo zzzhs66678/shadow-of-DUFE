@@ -73,6 +73,37 @@ function mapOwnReview(row) {
 
 export function createTeacherStore(pool) {
   return {
+    async listPublicTeachersBySchedule({ catalogId, scheduleId }) {
+      const result = await pool.query(
+        `SELECT
+           teacher.id,
+           teacher.display_name,
+           teacher.college_name,
+           teacher.updated_at,
+           (
+             SELECT count(*)::integer
+             FROM teacher_course_sections AS section
+             WHERE section.teacher_id = teacher.id
+               AND section.record_status IN ('current', 'needs_review')
+           ) AS course_count,
+           (
+             SELECT count(*)::integer
+             FROM teacher_reviews AS review
+             WHERE review.teacher_id = teacher.id
+               AND review.status = 'published'
+           ) AS review_count
+         FROM course_schedule_teachers AS link
+         INNER JOIN teachers AS teacher ON teacher.id = link.teacher_id
+         WHERE link.catalog_id = $1
+           AND link.schedule_id = $2
+           AND link.record_status = 'current'
+           AND teacher.identity_status IN ('pending', 'active')
+         ORDER BY teacher.normalized_name, teacher.normalized_college, teacher.id`,
+        [catalogId, scheduleId],
+      );
+      return result.rows.map(mapTeacherSummary);
+    },
+
     async listPublicTeachers({ query, college, after, limit }) {
       const normalizedQuery = query.normalize("NFKC").toLocaleLowerCase("zh-CN");
       const normalizedCollege = college.normalize("NFKC").toLocaleLowerCase("zh-CN");

@@ -5,6 +5,8 @@ import {
   validateTeacherReviewWrite,
 } from "./teacher-review-contract.mjs";
 
+const STABLE_COURSE_KEY = /^[A-Za-z0-9:_-]+$/u;
+
 function sendJson(response, statusCode, body, { privateResponse = false } = {}) {
   response.statusCode = statusCode;
   response.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -110,6 +112,32 @@ function withoutCursor(item) {
 export function createTeacherRequestHandler({ store, config, rateLimiters }) {
   return async function handleTeacherRequest(request, response, url) {
     if (!url.pathname.startsWith("/api/teachers")) return false;
+
+    if (url.pathname === "/api/teachers/by-schedule") {
+      if (request.method !== "GET") {
+        methodNotAllowed(response, "GET");
+        return true;
+      }
+      const keys = [...url.searchParams.keys()];
+      const catalogId = boundedText(url.searchParams.get("catalogId"), 80);
+      const scheduleId = boundedText(url.searchParams.get("scheduleId"), 160);
+      const validKeys = keys.length === 2 &&
+        new Set(keys).size === 2 &&
+        keys.every((key) => key === "catalogId" || key === "scheduleId");
+      if (
+        !validKeys ||
+        !catalogId ||
+        !scheduleId ||
+        !STABLE_COURSE_KEY.test(catalogId) ||
+        !STABLE_COURSE_KEY.test(scheduleId)
+      ) {
+        sendJson(response, 400, { error: "invalid_teacher_schedule_query" });
+        return true;
+      }
+      const teachers = await store.listPublicTeachersBySchedule({ catalogId, scheduleId });
+      sendJson(response, 200, { items: teachers });
+      return true;
+    }
 
     if (url.pathname === "/api/teachers") {
       if (request.method !== "GET") {

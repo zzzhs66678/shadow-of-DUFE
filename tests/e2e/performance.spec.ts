@@ -24,9 +24,13 @@ test("home defers the full course index until a full workspace opens", async ({
   const dataRequests: string[] = [];
   const campusImageRequests: string[] = [];
   const fontRequests: string[] = [];
+  const teacherLookupRequests: string[] = [];
   page.on("request", (request) => {
     const pathname = new URL(request.url()).pathname;
     if (pathname.startsWith("/data/course-")) dataRequests.push(pathname);
+    if (pathname === "/api/teachers/by-schedule") {
+      teacherLookupRequests.push(request.url());
+    }
     if (pathname.startsWith("/images/dufe-")) {
       campusImageRequests.push(pathname);
     }
@@ -44,6 +48,7 @@ test("home defers the full course index until a full workspace opens", async ({
   expect(dataRequests).not.toContain("/data/course-data.json");
   expect(campusImageRequests).toEqual([]);
   expect(fontRequests).toEqual([]);
+  expect(teacherLookupRequests).toEqual([]);
 
   const desktopNavigation = page.getByRole("navigation", {
     name: "主导航",

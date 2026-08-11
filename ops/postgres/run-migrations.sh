@@ -255,7 +255,7 @@ SELECT format(
     :'runtime_user'
 ) \gexec
 SELECT format(
-    'REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON teachers, teacher_source_identities, teacher_aliases, teacher_course_sections, teaching_section_textbooks FROM %I',
+    'REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON teachers, teacher_source_identities, teacher_aliases, teacher_course_sections, teaching_section_textbooks, course_schedule_teachers FROM %I',
     :'runtime_user'
 ) \gexec
 SELECT format(
@@ -308,7 +308,7 @@ SELECT format(
     :'import_user'
 ) \gexec
 SELECT format(
-    'GRANT SELECT, INSERT, UPDATE ON teachers, teacher_source_identities, teacher_aliases, teacher_course_sections, teaching_section_textbooks TO %I',
+    'GRANT SELECT, INSERT, UPDATE ON teachers, teacher_source_identities, teacher_aliases, teacher_course_sections, teaching_section_textbooks, course_schedule_teachers TO %I',
     :'import_user'
 ) \gexec
 SELECT format('GRANT SELECT, INSERT ON teacher_review_candidates TO %I', :'import_user') \gexec

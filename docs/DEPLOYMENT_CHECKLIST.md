@@ -38,6 +38,7 @@
 - [ ] 在 PostgreSQL 17 验证 `0014_teacher_review_moderation.sql` 重复迁移、候选决定 append-only、approve/reject 并发、审计故障回滚和审核/批次回滚竞态。
 - [x] 原生 CI 用真实 importer 并发 apply 同一私有包，确认教师/教材各只有一个 applied batch 且另一路幂等复用；同一候选并发批准、批准与回滚竞态只产生完整单一终态。
 - [ ] 在 PostgreSQL 17 验证 `0015_teacher_user_reviews.sql` 空库/升级/重复迁移、每用户每教师活动评价唯一性、正文摘要与评分触发器、版本冲突、软删除重建，以及账号注销撤下评价且不被触发器阻断。
+- [ ] 在 PostgreSQL 17 验证 `0019_course_schedule_teacher_overlay.sql` 空库/升级/重复迁移、runtime/importer/backup ACL、0/1/多教师覆盖、目录与 schedule 存在性失败关闭、不同来源幂等/并发/逆序回滚和教师批次依赖保护；恢复演练必须检查至少 19 个迁移及覆盖表。
 - [x] 原生 CI 验证 auth runtime 对 `data_import_batches`、`data_import_rows`、`data_import_mutations`、`teacher_review_candidates` 和决定表无直接权限，只能执行审核白名单函数，并不能写教师来源身份或教学班教材事实。
 - [x] 原生 CI 验证 importer 不能 UPDATE 候选、批准/拒绝、写公开评价或管理员审计，只能执行专用未批准候选回滚函数，且保持 `NOINHERIT`/无高权属性。
 - [x] 原生 CI 验证 auth runtime 无法 UPDATE/DELETE/TRUNCATE `community_content_edits` 与 `community_moderation_actions`，但仍可按设计追加记录。
@@ -126,7 +127,7 @@
 - 微信开放平台正式 AppID/AppSecret 与最终审核状态：未提供，本地不需要等待；生产微信入口受此阻塞。
 - 独立 staging 环境与凭据：尚未确认，未擅自创建付费资源。
 - 邮件发送服务凭据：尚未提供；失败关闭 SMTP 适配器和本地投递契约已实现，生产验证/重置邮件的真实服务商投递仍受此阻塞。
-- 当前开发机未安装 `sh`、Docker/PostgreSQL 或 WSL；PR #10 的既有 runner 已完成空库 17 个迁移双执行、角色 ACL/共享限流、完整真实账号浏览器路径、现场备份恢复和 Linux musl 原生模块验证。当前分支新增 `0018_academic_import_state_guards.sql` 并把恢复门槛提升为 18，必须取得新 runner 的空库双迁移、不同来源教材并发和隔离恢复证据；既有数据库升级副本、真实私有导入包、生产备份和外部服务仍须 staging 验收。
+- 当前开发机未安装 `sh`、Docker/PostgreSQL 或 WSL；PR #10 run `31470482243` 已完成空库 18 个迁移双执行、角色 ACL、教材不同来源并发/版本循环/教师回滚重导、完整真实账号浏览器路径、现场备份恢复和 Linux musl 原生模块验证。当前分支新增 `0019_course_schedule_teacher_overlay.sql` 并把恢复门槛提升为 19，必须取得新 runner 的目录覆盖、0/1/多教师、ACL、逆序回滚和隔离恢复证据；既有数据库升级副本、真实私有导入包、生产备份和外部服务仍须 staging 验收。
 - 主站已用仓库内失败关闭包隔离 vinext 的 `image-size@2.0.2`；Linux PR CI 已复核实际去重、构建、生产审计与网关冒烟。正式镜像摘要和上一版本回滚仍须 staging 记录。
 - 本地门禁与 PR #10 quality run `31466722843` 均通过；后续代码或发布文档变化必须重新保持 PR CI 全绿。该证据不替代真实 Web Vitals、代理链、监控、外部凭据和生产审批。
 - 异地对象存储/备份凭据：尚未提供；本地适配器和恢复流程继续开发，生产异地副本受此阻塞。

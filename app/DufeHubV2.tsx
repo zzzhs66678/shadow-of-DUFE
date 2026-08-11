@@ -30,6 +30,7 @@ import {
   type PersonalSyncState,
 } from "./personal-sync";
 import { FormField } from "./FormField";
+import { TeacherRecordLink } from "./TeacherRecordLink";
 import {
   anonymousPersonalScope,
   migrateLegacyPersonalStorage,
@@ -43,6 +44,7 @@ import {
 type Term = "fall" | "spring";
 type View = "home" | "catalog" | "schedule" | "rooms" | "me";
 type SearchKind = "all" | "course" | "material" | "teacher" | "room";
+const COURSE_CATALOG_ID = /^course-v1:[0-9a-f]{64}$/u;
 
 type Major = { id: string; college: string; name: string; aliases: string[] };
 type Course = {
@@ -77,6 +79,7 @@ type Schedule = {
   classNames: string;
 };
 type SiteData = {
+  catalogId: string;
   disclaimer: string;
   periods: Array<{ block: number; label: string; short: string; time: string }>;
   buildings: string[];
@@ -94,6 +97,7 @@ type SiteData = {
 };
 type CourseCorePayload = {
   version: 1;
+  catalogId: string;
   disclaimer: string;
   periods: SiteData["periods"];
   buildings: string[];
@@ -125,6 +129,9 @@ type CourseCorePayload = {
 
 function inflateCourseCore(payload: CourseCorePayload): SiteData {
   if (payload.version !== 1) throw new Error("unsupported course core version");
+  if (!COURSE_CATALOG_ID.test(payload.catalogId)) {
+    throw new Error("invalid course catalog identity");
+  }
   const courses = payload.courseTitles.map(([id, title]) => ({
     id,
     title,
@@ -168,6 +175,7 @@ function inflateCourseCore(payload: CourseCorePayload): SiteData {
   );
 
   return {
+    catalogId: payload.catalogId,
     disclaimer: payload.disclaimer,
     periods: payload.periods,
     buildings: payload.buildings,
@@ -1004,6 +1012,12 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           : Promise.reject(new Error("full course data unavailable")),
       )
       .then((payload) => {
+        if (
+          !COURSE_CATALOG_ID.test(payload.catalogId) ||
+          payload.catalogId !== initialData.catalogId
+        ) {
+          throw new Error("course catalog identity mismatch");
+        }
         setData(payload);
         setSelectedCourse((current) =>
           current
@@ -1019,7 +1033,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
       });
     fullDataRequestRef.current = request;
     return request;
-  }, []);
+  }, [initialData.catalogId]);
 
   const loadMaterials = useCallback(() => {
     if (materialsRequestRef.current) return materialsRequestRef.current;
@@ -1988,6 +2002,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
       )}
       {selectedCourse && fullDataStatus === "ready" && (
         <CourseDrawer
+          catalogId={data.catalogId}
           course={selectedCourse}
           materials={materials.filter(
             (item) =>
@@ -2741,10 +2756,12 @@ function CatalogPage({
 }
 
 function DraggableScheduleCard({
+  catalogId,
   schedule,
   onOpen,
   onRemove,
 }: {
+  catalogId: string;
   schedule: Schedule;
   onOpen: () => void;
   onRemove: () => void;
@@ -2780,13 +2797,12 @@ function DraggableScheduleCard({
         </small>
       </button>
       {schedule.teacher && (
-        <a
+        <TeacherRecordLink
           className="schedule-card-teacher-link"
-          href={`/teachers?q=${encodeURIComponent(schedule.teacher)}`}
-          onClick={(event) => event.stopPropagation()}
-        >
-          {schedule.teacher}
-        </a>
+          catalogId={catalogId}
+          scheduleId={schedule.id}
+          teacherName={schedule.teacher}
+        />
       )}
       <button
         className="schedule-card-remove"
@@ -3468,6 +3484,7 @@ function SchedulePage({
                     {cell.map((item) => (
                       <DraggableScheduleCard
                         key={item.id}
+                        catalogId={data.catalogId}
                         schedule={item}
                         onOpen={() => onCourse(courses.get(item.courseId)!)}
                         onRemove={() => removeSchedule(item.id)}
@@ -5761,6 +5778,7 @@ function SearchCommand({
 }
 
 function CourseDrawer({
+  catalogId,
   course,
   materials,
   materialsStatus,
@@ -5770,6 +5788,7 @@ function CourseDrawer({
   onAddMany,
   onClose,
 }: {
+  catalogId: string;
   course: Course;
   materials: Material[];
   materialsStatus: MaterialsLoadStatus;
@@ -6060,9 +6079,12 @@ function CourseDrawer({
                     <div>
                       <header>
                         {first.teacher ? (
-                          <a className="teacher-record-link" href={`/teachers?q=${encodeURIComponent(first.teacher)}`}>
-                            {first.teacher}
-                          </a>
+                          <TeacherRecordLink
+                            className="teacher-record-link"
+                            catalogId={catalogId}
+                            scheduleId={first.id}
+                            teacherName={first.teacher}
+                          />
                         ) : <strong>教师未标注</strong>}
                         <span className={section.conflict ? "conflict" : "available"}>
                           {section.conflict ? "与当前课表冲突" : "与课表不冲突"}
@@ -6191,9 +6213,12 @@ function CourseDrawer({
                       {section.conflict ? "冲突" : "可用"}
                     </span>
                     {first.teacher ? (
-                      <a className="teacher-record-link" href={`/teachers?q=${encodeURIComponent(first.teacher)}`}>
-                        {first.teacher}
-                      </a>
+                      <TeacherRecordLink
+                        className="teacher-record-link"
+                        catalogId={catalogId}
+                        scheduleId={first.id}
+                        teacherName={first.teacher}
+                      />
                     ) : <strong>教师未标注</strong>}
                     <small>
                       {section.meetings

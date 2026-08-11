@@ -287,7 +287,7 @@ test("backup and disk protection have bounded local retention", async () => {
   assert.match(restoreDrill, /--maintenance-db "\$POSTGRES_DB"/);
   assert.match(restoreDrill, /pg_restore/);
   assert.match(restoreDrill, /--exit-on-error/);
-  assert.match(restoreDrill, /migration_count < 18/);
+  assert.match(restoreDrill, /migration_count < 19/);
   assert.match(restoreDrill, /NOT convalidated/);
   assert.match(restoreDrill, /api_rate_limit_buckets/);
   assert.match(restoreDrill, /community_announcements/);
@@ -709,7 +709,7 @@ test("teacher import foundation separates identities, section textbooks, and pen
   );
   assert.match(
     migrations,
-    /REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON teachers, teacher_source_identities, teacher_aliases, teacher_course_sections, teaching_section_textbooks/,
+    /REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON teachers, teacher_source_identities, teacher_aliases, teacher_course_sections, teaching_section_textbooks, course_schedule_teachers/,
   );
   assert.match(migrations, /IMPORT_DB_USER/);
   assert.match(migrations, /IMPORT_DB_PASSWORD/);
@@ -742,6 +742,43 @@ test("academic import state guards serialize one active textbook per teaching sl
     /WHERE record_status IN \('current', 'needs_review'\)/,
   );
   assert.match(importer, /restored_teacher_source_identity/);
+});
+
+test("course schedule teacher overlay stores only stable identifiers and explicit mappings", async () => {
+  const migration = await read(
+    "ops/postgres/migrations/0019_course_schedule_teacher_overlay.sql",
+  );
+  const importer = await read("scripts/academic-import-apply.mjs");
+  const routes = await read("services/auth-api/src/teacher-routes.mjs");
+  const store = await read("services/auth-api/src/teacher-store.mjs");
+  const grants = await read("ops/postgres/run-migrations.sh");
+
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS course_schedule_teachers/);
+  assert.match(migration, /catalog_id text NOT NULL/);
+  assert.match(migration, /schedule_id text NOT NULL/);
+  assert.match(migration, /teacher_id uuid NOT NULL REFERENCES teachers/);
+  assert.match(migration, /course_schedule_teachers_active_uidx/);
+  assert.doesNotMatch(
+    migration,
+    /\b(?:weekday|weeks|periods|building|room|course_title|teacher_name)\b/u,
+  );
+  assert.match(importer, /externalTeacherKeys/);
+  assert.match(importer, /课程日程缺少显式教师映射/);
+  assert.match(importer, /非空 courseSections 必须提供 --course-data/);
+  assert.match(importer, /catalogId 与课程目录不一致/);
+  assert.match(importer, /课程目录中不存在 scheduleId/);
+  assert.match(importer, /assertCourseSectionsExist\(bundle, courseCatalog\)/);
+  assert.doesNotMatch(importer, /courseSections[\s\S]{0,200}teacherName/);
+  assert.match(routes, /\/api\/teachers\/by-schedule/);
+  assert.match(store, /FROM course_schedule_teachers AS link/);
+  assert.match(
+    grants,
+    /REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON[\s\S]*course_schedule_teachers FROM %I/,
+  );
+  assert.match(
+    grants,
+    /GRANT SELECT, INSERT, UPDATE ON[\s\S]*course_schedule_teachers TO %I/,
+  );
 });
 
 test("teacher review moderation requires elevation and immutable one-time decisions", async () => {

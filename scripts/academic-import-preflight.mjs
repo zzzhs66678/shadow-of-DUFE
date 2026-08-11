@@ -550,6 +550,10 @@ export async function runPreflight(options) {
     sources: {
       teacher: { filename: path.basename(options.teacher), sha256: teacherHash },
       textbook: { filename: path.basename(options.textbook), sha256: textbookHash },
+      courseSections: {
+        filename: "course-sections.empty.json",
+        sha256: sha256("[]"),
+      },
     },
     teacher: teacher.facts,
     textbook: textbook.facts,
@@ -569,6 +573,7 @@ export async function runPreflight(options) {
     teachers: teacher.bundle.teachers,
     reviewCandidates: teacher.bundle.reviewCandidates,
     textbooks: textbook.bundle.textbooks,
+    courseSections: [],
   };
   const outputDirectory = assertPrivateOutputDirectory(options.out);
   await fs.mkdir(outputDirectory, { recursive: true });
