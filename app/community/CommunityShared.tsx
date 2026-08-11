@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { DialogActions, DialogBackdrop } from "../DialogBackdrop";
 import { FormField } from "../FormField";
@@ -47,8 +48,8 @@ export function CommunityHeader({
 }
 
 export function AuthorBadge({ author }: { author: CommunityAuthor | null }) {
-  return (
-    <span className={styles.authorBadge}>
+  const badge = (
+    <>
       {author?.avatarUrl ? (
         <Image src={author.avatarUrl} alt="" width={34} height={34} unoptimized />
       ) : (
@@ -58,8 +59,11 @@ export function AuthorBadge({ author }: { author: CommunityAuthor | null }) {
         <b>{authorName(author)}</b>
         <small>{author?.username ? `@${author.username}` : "账号已注销"}</small>
       </span>
-    </span>
+    </>
   );
+  return author
+    ? <Link className={styles.authorBadge} href={`/community/users/${author.id}`}>{badge}</Link>
+    : <span className={styles.authorBadge}>{badge}</span>;
 }
 
 export function Feedback({ message }: { message: string }) {

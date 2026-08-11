@@ -76,6 +76,97 @@ test("community store uses bounded keyset pagination and maps viewer state", asy
   assert.match(queries[0].sql, /community_user_blocks/u);
 });
 
+test("public profiles hide blocked accounts and list only public authored content", async () => {
+  const calls = [];
+  const profileUserId = "00000000-0000-4000-8000-000000000012";
+  const profileCommentId = "00000000-0000-4000-8000-000000000041";
+  const pool = {
+    async query(sql, values) {
+      calls.push({ sql, values });
+      if (sql.includes("FROM app_users AS users")) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: profileUserId,
+            username: "corridor-student",
+            display_name: "回廊同学",
+            avatar_url: null,
+            created_at: new Date("2026-08-01T08:00:00Z"),
+            topic_count: "2",
+            comment_count: "3",
+          }],
+        };
+      }
+      if (
+        sql.includes("FROM community_comments AS comments") &&
+        sql.includes("JOIN community_topics AS topics ON topics.id = comments.topic_id")
+      ) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: profileCommentId,
+            topic_id: topicId,
+            topic_title: "图书馆闭馆之后，你会去哪里？",
+            body: "公开回复",
+            created_at: new Date("2026-08-09T09:00:00Z"),
+            edited_at: null,
+            like_count: "4",
+            viewer_liked: true,
+          }],
+        };
+      }
+      return { rowCount: 1, rows: [topicRow({ author_user_id: profileUserId })] };
+    },
+  };
+  const store = createCommunityStore(pool);
+  const profile = await store.getCommunityUserProfile({
+    userId: profileUserId,
+    viewerUserId: viewerId,
+  });
+  assert.deepEqual(profile, {
+    id: profileUserId,
+    username: "corridor-student",
+    displayName: "回廊同学",
+    avatarUrl: null,
+    joinedAt: "2026-08-01T08:00:00.000Z",
+    topicCount: 2,
+    commentCount: 3,
+  });
+  assert.match(calls[0].sql, /users\.status = 'active'/u);
+  assert.match(calls[0].sql, /community_user_blocks/u);
+
+  const topics = await store.listCommunityUserContent({
+    userId: profileUserId,
+    viewerUserId: viewerId,
+    kind: "topics",
+    limit: 20,
+  });
+  assert.equal(topics.items[0].author.id, profileUserId);
+  assert.match(calls[1].sql, /topics\.visibility = 'public'/u);
+  assert.match(calls[1].sql, /profile_user\.status = 'active'/u);
+  assert.deepEqual(calls[1].values, [viewerId, profileUserId, null, null, 21]);
+
+  const comments = await store.listCommunityUserContent({
+    userId: profileUserId,
+    viewerUserId: viewerId,
+    kind: "comments",
+    limit: 20,
+  });
+  assert.deepEqual(comments.items[0], {
+    id: profileCommentId,
+    topicId,
+    topicTitle: "图书馆闭馆之后，你会去哪里？",
+    body: "公开回复",
+    likeCount: 4,
+    liked: true,
+    createdAt: "2026-08-09T09:00:00.000Z",
+    editedAt: null,
+  });
+  assert.match(calls[2].sql, /comments\.status = 'published'/u);
+  assert.match(calls[2].sql, /topics\.visibility = 'public'/u);
+  assert.match(calls[2].sql, /profile_user\.status = 'active'/u);
+});
+
 test("blocked and removed topic details expose only a local fallback", async () => {
   const rows = [
     topicRow({ blocked_by_viewer: true }),

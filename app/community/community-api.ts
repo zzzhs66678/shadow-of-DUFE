@@ -39,6 +39,23 @@ export type CommunityComment = {
   editedAt: string | null;
 };
 
+export type CommunityPublicProfile = CommunityAuthor & {
+  joinedAt: string;
+  topicCount: number;
+  commentCount: number;
+};
+
+export type CommunityProfileComment = {
+  id: string;
+  topicId: string;
+  topicTitle: string;
+  body: string;
+  likeCount: number;
+  liked: boolean;
+  createdAt: string;
+  editedAt: string | null;
+};
+
 export type CommunityNotification = {
   id: string;
   type: "topic_reply" | "comment_reply" | "mention" | "content_moderated" | "system_announcement";

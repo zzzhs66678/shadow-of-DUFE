@@ -60,7 +60,7 @@
 .loginPrompt b { font: 500 20px/1.3 var(--serif); }
 .loginPrompt p { color: var(--muted); font-size: 10px; line-height: 1.7; }
 
-.authorBadge { align-items: center; display: inline-flex; gap: 10px; min-width: 0; }
+.authorBadge { align-items: center; color: inherit; display: inline-flex; gap: 10px; min-width: 0; text-decoration: none; }
 .authorBadge > i,
 .authorBadge > img { align-items: center; background: var(--paper-deep); border: 1px solid var(--line); border-radius: 50%; display: flex; flex: 0 0 34px; font: 500 13px/1 var(--serif); height: 34px; justify-content: center; object-fit: cover; width: 34px; }
 .authorBadge > span { min-width: 0; }
@@ -131,6 +131,32 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .communityFooter b { font: 500 14px/1 var(--serif); }
 .communityFooter p { color: #cfc9bf; font-size: 9px; margin: 0; }
 .communityFooter a { color: #f2d0c7; font-size: 9px; text-decoration: underline; text-underline-offset: 3px; }
+
+.profileHero { border-bottom: 1px solid var(--ink); margin: 0 auto; max-width: 1450px; padding: clamp(72px, 10vw, 150px) clamp(22px, 7vw, 110px) clamp(48px, 7vw, 90px); position: relative; }
+.profileHero::before { background: var(--red); content: ""; height: 5px; left: clamp(22px, 7vw, 110px); position: absolute; top: clamp(44px, 7vw, 100px); transform: skewX(-28deg); width: min(220px, 38vw); }
+.profileHero > span { color: var(--red); display: block; font: 700 9px/1 var(--mono); letter-spacing: .15em; margin-bottom: 30px; }
+.profileHero > .authorBadge { display: none; }
+.profileHero h1 { font: 500 clamp(52px, 9vw, 124px)/.96 var(--serif); letter-spacing: -.055em; margin: 0; max-width: 1000px; }
+.profileHero > p { color: var(--muted); font: 9px/1.6 var(--mono); margin: 24px 0 0; }
+.profileHero dl { display: flex; gap: clamp(34px, 7vw, 90px); margin: 50px 0 0; }
+.profileHero dl > div { border-left: 1px solid var(--red); display: flex; flex-direction: column-reverse; gap: 8px; padding-left: 14px; }
+.profileHero dt { color: var(--muted); font-size: 9px; }
+.profileHero dd { font: 500 34px/1 var(--serif); margin: 0; }
+.profileWorkspace { margin: 0 auto; max-width: 1120px; min-height: 520px; padding: clamp(48px, 7vw, 90px) 24px 110px; }
+.profileWorkspace > header { align-items: end; border-bottom: 1px solid var(--ink); display: flex; justify-content: space-between; padding-bottom: 24px; }
+.profileWorkspace > header span { color: var(--red); font: 700 9px/1 var(--mono); letter-spacing: .14em; }
+.profileWorkspace > header h2 { font: 500 clamp(34px, 5vw, 58px)/1 var(--serif); margin: 12px 0 0; }
+.profileTabs { display: flex; gap: 8px; }
+.profileTabs button { background: transparent; border: 0; border-bottom: 1px solid var(--line); color: var(--muted); min-height: 44px; padding: 0 12px; }
+.profileTabs button[aria-pressed="true"] { border-bottom-color: var(--red); color: var(--red-deep); font-weight: 700; }
+.profileRecords { list-style: none; margin: 0; padding: 0; }
+.profileRecords li { border-bottom: 1px solid var(--line); display: grid; gap: 26px; grid-template-columns: 110px minmax(0, 1fr); padding: 32px 0; }
+.profileRecords time { color: var(--gold); font: 8px/1.5 var(--mono); padding-top: 5px; }
+.profileRecords a { color: inherit; min-width: 0; text-decoration: none; }
+.profileRecords h3 { font: 500 clamp(24px, 4vw, 40px)/1.3 var(--serif); margin: 0 0 14px; }
+.profileRecords p { color: var(--muted); display: -webkit-box; font-size: 12px; line-height: 1.85; margin: 10px 0 14px; overflow: hidden; white-space: pre-wrap; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }
+.profileRecords small { color: var(--red-deep); font: 8px/1.5 var(--mono); }
+.profileRecords b { color: var(--muted); font-size: 9px; font-weight: 400; }
 
 .topicCrumb { align-items: center; display: flex; gap: 10px; margin: 28px auto 0; max-width: 1120px; padding: 0 24px; }
 .topicCrumb a { color: var(--red-deep); font-size: 10px; }
@@ -251,6 +277,16 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   .topicLink p { font-size: 12px; -webkit-line-clamp: 4; }
   .communityFooter { align-items: start; grid-template-columns: 1fr auto; margin: 0 18px; }
   .communityFooter p { grid-column: 1 / -1; grid-row: 2; }
+  .profileHero { padding-left: 28px; padding-right: 20px; }
+  .profileHero::before { left: 28px; }
+  .profileHero h1 { font-size: clamp(44px, 15vw, 72px); overflow-wrap: anywhere; }
+  .profileHero dl { gap: 30px; margin-top: 36px; }
+  .profileWorkspace { padding: 44px 18px 80px 28px; }
+  .profileWorkspace > header { align-items: flex-start; flex-direction: column; gap: 22px; }
+  .profileTabs { width: 100%; }
+  .profileTabs button { flex: 1; }
+  .profileRecords li { gap: 9px; grid-template-columns: 1fr; padding: 28px 0; }
+  .profileRecords time { padding-top: 0; }
   .topicCrumb { margin-top: 18px; padding: 0 18px; }
   .topicReading { margin-top: 56px; padding: 0 18px 50px 48px; }
   .readingSpine { left: 17px; width: 25px; }

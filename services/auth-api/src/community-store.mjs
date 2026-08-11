@@ -57,6 +57,19 @@ function mapComment(row) {
   };
 }
 
+function mapProfileComment(row) {
+  return {
+    id: String(row.id),
+    topicId: String(row.topic_id),
+    topicTitle: row.topic_title,
+    body: row.body,
+    likeCount: Number(row.like_count ?? 0),
+    liked: Boolean(row.viewer_liked),
+    createdAt: iso(row.created_at),
+    editedAt: iso(row.edited_at),
+  };
+}
+
 function communityError(code, details = {}) {
   return Object.assign(new Error(code), { code, ...details });
 }
@@ -684,6 +697,157 @@ const topicSelect = `
 
 export function createCommunityStore(pool) {
   return {
+    async getCommunityUserProfile({ userId, viewerUserId = null }) {
+      const result = await pool.query(
+        `SELECT
+           users.id,
+           users.username,
+           users.display_name,
+           users.avatar_url,
+           users.created_at,
+           (
+             SELECT count(*)
+             FROM community_topics AS topics
+             WHERE topics.author_user_id = users.id
+               AND topics.status = 'published'
+               AND topics.visibility = 'public'
+           ) AS topic_count,
+           (
+             SELECT count(*)
+             FROM community_comments AS comments
+             JOIN community_topics AS topics ON topics.id = comments.topic_id
+             WHERE comments.author_user_id = users.id
+               AND comments.status = 'published'
+               AND topics.status = 'published'
+               AND topics.visibility = 'public'
+           ) AS comment_count
+         FROM app_users AS users
+         WHERE users.id = $2::uuid
+           AND users.status = 'active'
+           AND NOT EXISTS (
+             SELECT 1
+             FROM community_user_blocks AS blocks
+             WHERE (
+               blocks.blocker_user_id = $1::uuid AND
+               blocks.blocked_user_id = users.id
+             ) OR (
+               blocks.blocker_user_id = users.id AND
+               blocks.blocked_user_id = $1::uuid
+             )
+           )
+         LIMIT 1`,
+        [viewerUserId, userId],
+      );
+      const row = result.rows[0];
+      if (!row) return null;
+      return {
+        id: String(row.id),
+        username: row.username,
+        displayName: row.display_name,
+        avatarUrl: row.avatar_url,
+        joinedAt: iso(row.created_at),
+        topicCount: Number(row.topic_count ?? 0),
+        commentCount: Number(row.comment_count ?? 0),
+      };
+    },
+
+    async listCommunityUserContent({
+      userId,
+      viewerUserId = null,
+      kind = "topics",
+      cursor = null,
+      limit = 20,
+    }) {
+      const values = [
+        viewerUserId,
+        userId,
+        cursor?.createdAt ?? null,
+        cursor?.id ?? null,
+        limit + 1,
+      ];
+      const result = kind === "comments"
+        ? await pool.query(
+            `SELECT
+               comments.id,
+               comments.topic_id,
+               topics.title AS topic_title,
+               comments.body,
+               comments.created_at,
+               comments.edited_at,
+               (SELECT count(*) FROM community_comment_likes AS likes WHERE likes.comment_id = comments.id) AS like_count,
+               EXISTS (
+                 SELECT 1 FROM community_comment_likes AS viewer_likes
+                 WHERE viewer_likes.comment_id = comments.id
+                   AND viewer_likes.user_id = $1::uuid
+               ) AS viewer_liked
+             FROM community_comments AS comments
+             JOIN community_topics AS topics ON topics.id = comments.topic_id
+             WHERE comments.author_user_id = $2::uuid
+               AND comments.status = 'published'
+               AND topics.status = 'published'
+               AND topics.visibility = 'public'
+               AND EXISTS (
+                 SELECT 1 FROM app_users AS profile_user
+                 WHERE profile_user.id = $2::uuid
+                   AND profile_user.status = 'active'
+               )
+               AND (
+                 $3::timestamptz IS NULL OR
+                 (comments.created_at, comments.id) < ($3::timestamptz, $4::uuid)
+               )
+               AND NOT EXISTS (
+                 SELECT 1 FROM community_user_blocks AS blocks
+                 WHERE (
+                   blocks.blocker_user_id = $1::uuid AND
+                   blocks.blocked_user_id = $2::uuid
+                 ) OR (
+                   blocks.blocker_user_id = $2::uuid AND
+                   blocks.blocked_user_id = $1::uuid
+                 )
+               )
+             ORDER BY comments.created_at DESC, comments.id DESC
+             LIMIT $5`,
+            values,
+          )
+        : await pool.query(
+            `${topicSelect}
+             WHERE topics.author_user_id = $2::uuid
+               AND topics.status = 'published'
+               AND topics.visibility = 'public'
+               AND EXISTS (
+                 SELECT 1 FROM app_users AS profile_user
+                 WHERE profile_user.id = $2::uuid
+                   AND profile_user.status = 'active'
+               )
+               AND (
+                 $3::timestamptz IS NULL OR
+                 (topics.created_at, topics.id) < ($3::timestamptz, $4::uuid)
+               )
+               AND NOT EXISTS (
+                 SELECT 1 FROM community_user_blocks AS blocks
+                 WHERE (
+                   blocks.blocker_user_id = $1::uuid AND
+                   blocks.blocked_user_id = $2::uuid
+                 ) OR (
+                   blocks.blocker_user_id = $2::uuid AND
+                   blocks.blocked_user_id = $1::uuid
+                 )
+               )
+             ORDER BY topics.created_at DESC, topics.id DESC
+             LIMIT $5`,
+            values,
+          );
+      const hasMore = result.rows.length > limit;
+      const rows = result.rows.slice(0, limit);
+      const last = rows.at(-1);
+      return {
+        items: rows.map(kind === "comments" ? mapProfileComment : mapTopic),
+        nextCursor: hasMore && last
+          ? { createdAt: iso(last.created_at), id: String(last.id) }
+          : null,
+      };
+    },
+
     async listCommunityTopics({ viewerUserId = null, cursor = null, limit = 20 }) {
       const result = await pool.query(
         `${topicSelect}

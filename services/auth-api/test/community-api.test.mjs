@@ -55,6 +55,28 @@ function createCommunityStore() {
         },
       };
     },
+    async getCommunityUserProfile(input) {
+      calls.push(["getCommunityUserProfile", structuredClone(input)]);
+      if (input.userId !== otherUserId) return null;
+      return {
+        id: otherUserId,
+        username: "corridor-student",
+        displayName: "回廊同学",
+        avatarUrl: null,
+        joinedAt: "2026-08-01T08:00:00.000Z",
+        topicCount: 1,
+        commentCount: 1,
+      };
+    },
+    async listCommunityUserContent(input) {
+      calls.push(["listCommunityUserContent", structuredClone(input)]);
+      return {
+        items: input.kind === "comments"
+          ? [{ id: commentId, topicId, topicTitle: "主题", body: "公开回复" }]
+          : [{ id: topicId, title: "公开主题" }],
+        nextCursor: null,
+      };
+    },
     async getCommunityTopic(input) {
       calls.push(["getCommunityTopic", structuredClone(input)]);
       if (input.topicId === nextTopicId) {
@@ -219,6 +241,53 @@ test("topic list is public and authenticated viewers receive scoped state", asyn
     });
     assert.equal(signedIn.status, 200);
     assert.equal(store.calls[1][1].viewerUserId, userId);
+  });
+});
+
+test("public user profiles expose only published paginated community content", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    const anonymous = await fetch(
+      `${baseUrl}/api/community/users/${otherUserId}?kind=topics&limit=12`,
+    );
+    assert.equal(anonymous.status, 200);
+    const first = await anonymous.json();
+    assert.equal(first.profile.displayName, "回廊同学");
+    assert.equal(first.items[0].id, topicId);
+    assert.equal(Object.hasOwn(first.profile, "email"), false);
+    assert.equal(Object.hasOwn(first.profile, "schoolAccount"), false);
+    assert.equal(Object.hasOwn(first.profile, "role"), false);
+    assert.deepEqual(
+      store.calls.find(([name]) => name === "getCommunityUserProfile")[1],
+      { userId: otherUserId, viewerUserId: null },
+    );
+
+    const signedIn = await fetch(
+      `${baseUrl}/api/community/users/${otherUserId}?kind=comments`,
+      { headers: { Cookie: `${sessionCookie}=${store.sessionToken}` } },
+    );
+    assert.equal(signedIn.status, 200);
+    const second = await signedIn.json();
+    assert.equal(second.kind, "comments");
+    assert.equal(second.items[0].id, commentId);
+    assert.deepEqual(
+      store.calls.filter(([name]) => name === "listCommunityUserContent").at(-1)[1],
+      {
+        userId: otherUserId,
+        viewerUserId: userId,
+        kind: "comments",
+        cursor: null,
+        limit: 20,
+      },
+    );
+
+    const invalidKind = await fetch(
+      `${baseUrl}/api/community/users/${otherUserId}?kind=private`,
+    );
+    assert.equal(invalidKind.status, 400);
+    const missing = await fetch(
+      `${baseUrl}/api/community/users/${userId}`,
+    );
+    assert.equal(missing.status, 404);
   });
 });
 

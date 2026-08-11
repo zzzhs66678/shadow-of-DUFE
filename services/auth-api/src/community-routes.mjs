@@ -313,6 +313,53 @@ export function createCommunityRequestHandler({ store, config, rateLimiters }) {
       return true;
     }
 
+    const userProfileMatch = url.pathname.match(
+      /^\/api\/community\/users\/([0-9a-f-]{36})$/iu,
+    );
+    if (userProfileMatch) {
+      if (!isCommunityUuid(userProfileMatch[1])) {
+        sendJson(response, 404, { error: "community_user_not_found" });
+        return true;
+      }
+      if (request.method !== "GET") {
+        methodNotAllowed(response, "GET");
+        return true;
+      }
+      const limit = pageLimit(url.searchParams.get("limit"));
+      const cursor = decodeCursor(url.searchParams.get("cursor"));
+      const kind = url.searchParams.get("kind") ?? "topics";
+      if (
+        limit === null ||
+        cursor === false ||
+        !["topics", "comments"].includes(kind)
+      ) {
+        sendJson(response, 400, { error: "invalid_community_query" });
+        return true;
+      }
+      const profile = await store.getCommunityUserProfile({
+        userId: userProfileMatch[1],
+        viewerUserId,
+      });
+      if (!profile) {
+        sendJson(response, 404, { error: "community_user_not_found" });
+        return true;
+      }
+      const result = await store.listCommunityUserContent({
+        userId: userProfileMatch[1],
+        viewerUserId,
+        kind,
+        cursor,
+        limit,
+      });
+      sendJson(response, 200, {
+        profile,
+        kind,
+        items: result.items,
+        nextCursor: encodeCursor(result.nextCursor),
+      });
+      return true;
+    }
+
     if (url.pathname === "/api/community/topics") {
       if (request.method === "POST") {
         const input = await writeInput(validateTopicCreate);

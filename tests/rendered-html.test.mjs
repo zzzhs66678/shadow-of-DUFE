@@ -82,6 +82,15 @@ test("community list and topic routes render independent readable shells", async
   const detailHtml = await detail.text();
   assert.match(detailHtml, /正在展开这段讨论/);
   assert.match(detailHtml, /href="\/community"/);
+
+  const profile = await render(
+    "/community/users/00000000-0000-4000-8000-000000000002",
+  );
+  assert.equal(profile.status, 200);
+  const profileHtml = await profile.text();
+  assert.match(profileHtml, /<title>社区公开档案｜东财之影<\/title>/i);
+  assert.match(profileHtml, /正在打开公开档案/);
+  assert.match(profileHtml, /href="\/community"/);
 });
 
 test("course index preserves the expected source relationships", async () => {

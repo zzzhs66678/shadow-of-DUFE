@@ -66,6 +66,10 @@ const communityTopicSource = await readFile(
   new URL("../app/community/CommunityTopicView.tsx", import.meta.url),
   "utf8",
 );
+const communityProfileSource = await readFile(
+  new URL("../app/community/CommunityProfileView.tsx", import.meta.url),
+  "utf8",
+);
 const communityStyles = await readFile(
   new URL("../app/community/community.module.css", import.meta.url),
   "utf8",
@@ -320,6 +324,16 @@ test("community stays outside the five-item primary workspace and enters through
   assert.doesNotMatch(component, /id: "community"/);
 });
 
+test("community authors lead to privacy-bounded public activity profiles", () => {
+  assert.match(communitySource, /href={`\/community\/users\/\${author\.id}`}/);
+  assert.match(communityProfileSource, /kind=\${requestedKind}&limit=20/);
+  assert.match(communityProfileSource, /公开主题/);
+  assert.match(communityProfileSource, /公开回复/);
+  assert.match(communityProfileSource, /私人资料不会在这里显示/);
+  assert.match(communityStyles, /\.profileTabs button\[aria-pressed="true"\]/);
+  assert.match(communityStyles, /@media \(max-width: 680px\)[\s\S]*?\.profileRecords li/);
+});
+
 test("personal page explains local data, cloud sync, devices, and account control", () => {
   const meStart = component.indexOf("function MePage");
   const searchStart = component.indexOf("function SearchCommand");
@@ -423,4 +437,5 @@ test("public compliance pages expose filing, privacy, terms, and deletion paths"
   }
   assert.match(privacy, /统一转换为 WebP/);
   assert.match(privacy, /不会保存上传原图和 EXIF/);
+  assert.match(privacy, /邮箱、校园账号、课表、日程、作业、收藏和登录信息不会进入该档案/);
 });
