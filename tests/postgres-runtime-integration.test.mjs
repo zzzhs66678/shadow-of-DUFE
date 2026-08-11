@@ -174,7 +174,7 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
       `SELECT roles.rolinherit, roles.rolsuper, roles.rolcreaterole,
               roles.rolcreatedb, roles.rolreplication, roles.rolbypassrls,
               ARRAY(
-                SELECT granted.rolname
+                SELECT granted.rolname::text
                 FROM pg_auth_members AS membership
                 INNER JOIN pg_roles AS granted ON granted.oid = membership.roleid
                 WHERE membership.member = roles.oid
@@ -1120,7 +1120,7 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
     const adminBaseCookie = adminBaseCookies[elevationIndex];
     const elevationCookie = cookieHeader(elevation);
     assert.match(elevationCookie, /__Host-dufesh_admin_elevation=/u);
-    const elevatedAdminCookie = `${adminBaseCookie}; ${elevationCookie}`;
+    const totpElevatedAdminCookie = `${adminBaseCookie}; ${elevationCookie}`;
 
     const recoveryAttempts = await Promise.all(
       Array.from({ length: 2 }, () =>
@@ -1135,14 +1135,34 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
       recoveryAttempts.map((response) => response.status).sort(),
       [200, 403],
     );
+    const recoveryIndex = recoveryAttempts.findIndex(
+      (response) => response.status === 200,
+    );
+    const recoveryElevationCookie = cookieHeader(
+      recoveryAttempts[recoveryIndex],
+    );
+    assert.match(
+      recoveryElevationCookie,
+      /__Host-dufesh_admin_elevation=/u,
+    );
+    const elevatedAdminCookie =
+      `${adminBaseCookie}; ${recoveryElevationCookie}`;
+
+    const revokedTotpElevation = await fetch(
+      `${baseUrl}/api/admin/session`,
+      { headers: { Cookie: totpElevatedAdminCookie } },
+    );
+    assert.equal(revokedTotpElevation.status, 200);
+    assert.equal((await revokedTotpElevation.json()).elevated, false);
 
     const adminSession = await fetch(`${baseUrl}/api/admin/session`, {
       headers: { Cookie: elevatedAdminCookie },
     });
     assert.equal(adminSession.status, 200);
+    const adminSessionBody = await adminSession.json();
     assert.deepEqual(
-      { role: (await adminSession.json()).role },
-      { role: "admin" },
+      { role: adminSessionBody.role, elevated: adminSessionBody.elevated },
+      { role: "admin", elevated: true },
     );
 
     const reportResponse = await fetch(`${baseUrl}/api/community/reports`, {
