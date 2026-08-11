@@ -313,7 +313,9 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
   const address = server.address();
   const baseUrl = `http://127.0.0.1:${address.port}`;
   const suffix = randomUUID().slice(0, 8);
+  const teacherName = `原生同名教师-${suffix}`;
   const teacherId = randomUUID();
+  const sameNameTeacherId = randomUUID();
   const requestHeaders = {
     "Content-Type": "application/json",
     Origin: "https://dufesh.cn",
@@ -344,13 +346,18 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
       `INSERT INTO teachers (
          id, display_name, normalized_name, college_name,
          normalized_college, identity_status
-       ) VALUES ($1::uuid, $2, $3, $4, $5, 'active')`,
+       ) VALUES
+         ($1::uuid, $2, $3, $4, $5, 'active'),
+         ($6::uuid, $2, $3, $7, $8, 'active')`,
       [
         teacherId,
-        "原生集成教师",
-        `原生集成教师-${suffix}`,
-        "测试学院",
-        `测试学院-${suffix}`,
+        teacherName,
+        teacherName.toLocaleLowerCase("zh-CN"),
+        `测试学院甲-${suffix}`,
+        `测试学院甲-${suffix}`.toLocaleLowerCase("zh-CN"),
+        sameNameTeacherId,
+        `测试学院乙-${suffix}`,
+        `测试学院乙-${suffix}`.toLocaleLowerCase("zh-CN"),
       ],
     );
 
@@ -361,6 +368,53 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
     const health = await fetch(`${baseUrl}/api/auth/health`);
     assert.equal(health.status, 200);
     assert.deepEqual(await health.json(), { ok: true });
+
+    const sameNameIndex = await fetch(
+      `${baseUrl}/api/teachers?${new URLSearchParams({ q: teacherName, limit: "10" })}`,
+    );
+    const sameNameIndexBody = await sameNameIndex.json();
+    assert.equal(sameNameIndex.status, 200);
+    assert.equal(sameNameIndexBody.items.length, 2);
+    const indexedTeacher = sameNameIndexBody.items.find(
+      (teacher) => teacher.id === teacherId,
+    );
+    const indexedSameNameTeacher = sameNameIndexBody.items.find(
+      (teacher) => teacher.id === sameNameTeacherId,
+    );
+    assert.deepEqual(
+      {
+        name: indexedTeacher?.displayName,
+        college: indexedTeacher?.collegeName,
+      },
+      { name: teacherName, college: `测试学院甲-${suffix}` },
+    );
+    assert.deepEqual(
+      {
+        name: indexedSameNameTeacher?.displayName,
+        college: indexedSameNameTeacher?.collegeName,
+      },
+      { name: teacherName, college: `测试学院乙-${suffix}` },
+    );
+
+    const sameNameDetails = await Promise.all(
+      [teacherId, sameNameTeacherId].map((id) =>
+        fetch(`${baseUrl}/api/teachers/${id}`).then(async (response) => ({
+          status: response.status,
+          body: await response.json(),
+        })),
+      ),
+    );
+    assert.deepEqual(
+      sameNameDetails.map(({ status, body }) => ({
+        status,
+        id: body.teacher.id,
+        college: body.teacher.collegeName,
+      })),
+      [
+        { status: 200, id: teacherId, college: `测试学院甲-${suffix}` },
+        { status: 200, id: sameNameTeacherId, college: `测试学院乙-${suffix}` },
+      ],
+    );
 
     const ownerSession = await fetch(`${baseUrl}/api/auth/session`, {
       headers: { Cookie: owner.cookie },
@@ -616,6 +670,22 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
     assert.equal(publicReviews.status, 200);
     assert.equal(publicReviewsBody.items.length, 1);
     assert.equal(publicReviewsBody.items[0].sourceType, "user");
+
+    const isolatedSameNameReviews = await fetch(
+      `${baseUrl}/api/teachers/${sameNameTeacherId}/reviews?limit=20`,
+    );
+    assert.equal(isolatedSameNameReviews.status, 200);
+    assert.deepEqual(await isolatedSameNameReviews.json(), {
+      items: [],
+      nextCursor: null,
+    });
+
+    const isolatedSameNameOwnReview = await fetch(
+      `${baseUrl}/api/teachers/${sameNameTeacherId}/my-review`,
+      { headers: { Cookie: owner.cookie } },
+    );
+    assert.equal(isolatedSameNameOwnReview.status, 200);
+    assert.deepEqual(await isolatedSameNameOwnReview.json(), { review: null });
 
     const enrollment = adminSecurity.createEnrollment({
       userId: administrator.body.user.id,
