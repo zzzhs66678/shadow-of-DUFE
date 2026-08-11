@@ -741,6 +741,85 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
     assert.equal(openedCase.status, 200);
     assert.equal(openedCaseBody.case.status, "reviewing");
 
+    await fixtureOwner.query(
+      "DROP TRIGGER IF EXISTS ci_reject_community_hide_audit ON admin_audit_events",
+    );
+    await fixtureOwner.query(
+      "DROP FUNCTION IF EXISTS ci_reject_community_hide_audit()",
+    );
+    await fixtureOwner.query(
+      `CREATE OR REPLACE FUNCTION ci_reject_community_hide_audit()
+       RETURNS trigger
+       LANGUAGE plpgsql
+       AS $$
+       BEGIN
+         IF NEW.action = 'admin.community.hide' THEN
+           RAISE EXCEPTION 'ci injected admin audit failure';
+         END IF;
+         RETURN NEW;
+       END
+       $$`,
+    );
+    await fixtureOwner.query(
+      `CREATE TRIGGER ci_reject_community_hide_audit
+       BEFORE INSERT ON admin_audit_events
+       FOR EACH ROW
+       EXECUTE FUNCTION ci_reject_community_hide_audit()`,
+    );
+    try {
+      const rejectedHide = await fetch(
+        `${baseUrl}/api/admin/community/cases/${openedCaseBody.case.id}/actions`,
+        {
+          method: "POST",
+          headers: { ...requestHeaders, Cookie: elevatedAdminCookie },
+          body: JSON.stringify({
+            action: "hide",
+            reason: "故障注入必须回滚内容、案件、举报、通知和双审计",
+          }),
+        },
+      );
+      assert.equal(rejectedHide.status, 500);
+
+      const rolledBackModeration = await fixtureOwner.query(
+        `SELECT
+           topics.status AS topic_status,
+           topics.version AS topic_version,
+           cases.status AS case_status,
+           reports.status AS report_status,
+           (SELECT count(*)::integer
+            FROM community_moderation_actions
+            WHERE case_id = $2::uuid AND action = 'hide') AS action_count,
+           (SELECT count(*)::integer
+            FROM admin_audit_events
+            WHERE action = 'admin.community.hide'
+              AND target_id = $1::text) AS audit_count,
+           (SELECT count(*)::integer
+            FROM community_notifications
+            WHERE topic_id = $1::uuid AND body IS NOT NULL) AS original_notification_count
+         FROM community_topics AS topics
+         JOIN community_moderation_cases AS cases ON cases.id = $2::uuid
+         JOIN community_reports AS reports ON reports.id = $3::uuid
+         WHERE topics.id = $1::uuid`,
+        [topicBody.topic.id, openedCaseBody.case.id, reportBody.report.id],
+      );
+      assert.deepEqual(rolledBackModeration.rows[0], {
+        topic_status: "published",
+        topic_version: 1,
+        case_status: "reviewing",
+        report_status: "reviewing",
+        action_count: 0,
+        audit_count: 0,
+        original_notification_count: 1,
+      });
+    } finally {
+      await fixtureOwner.query(
+        "DROP TRIGGER IF EXISTS ci_reject_community_hide_audit ON admin_audit_events",
+      );
+      await fixtureOwner.query(
+        "DROP FUNCTION IF EXISTS ci_reject_community_hide_audit()",
+      );
+    }
+
     const hidden = await fetch(
       `${baseUrl}/api/admin/community/cases/${openedCaseBody.case.id}/actions`,
       {

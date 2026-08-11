@@ -147,6 +147,8 @@ test("CI runs migrations twice against native PostgreSQL 17 and checks runtime r
   assert.match(integration, /admin_audit_events/);
   assert.match(integration, /teacher_review_candidate_decisions/);
   assert.match(integration, /ci-importer-denied/);
+  assert.match(integration, /ci_reject_community_hide_audit/);
+  assert.match(integration, /original_notification_count/);
 });
 
 test("CI builds and smoke-tests every production Linux image", async () => {
