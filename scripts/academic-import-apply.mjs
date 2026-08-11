@@ -68,6 +68,13 @@ async function lockImport(client, importType, sourceSha256, mappingVersion) {
   );
 }
 
+async function lockTextbookScope(client, scopeKey) {
+  await client.query(
+    "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+    [`teaching_section_textbook_scope:${scopeKey}`],
+  );
+}
+
 async function findAppliedBatch(client, importType, sourceSha256, mappingVersion) {
   const result = await client.query(
     `SELECT id
@@ -189,14 +196,31 @@ async function applyTeacherBatch(database, bundle) {
     for (const teacher of bundle.teachers) {
       assertDigest(teacher.sourceDigest, "教师来源摘要");
       const existing = await client.query(
-        `SELECT id, teacher_id, mapping_status
-         FROM teacher_source_identities
+        `SELECT source_identity.id, source_identity.teacher_id,
+                source_identity.mapping_status,
+                source_identity.source_name_snapshot,
+                source_identity.source_college_snapshot,
+                teacher.identity_status
+         FROM teacher_source_identities AS source_identity
+         INNER JOIN teachers AS teacher ON teacher.id = source_identity.teacher_id
          WHERE source_system = $1 AND external_teacher_key = $2`,
         [TEACHER_SOURCE_SYSTEM, teacher.externalTeacherKey],
       );
       if (existing.rows[0]) {
+        const sourceIdentityChanged =
+          String(existing.rows[0].source_name_snapshot).normalize("NFKC").trim() !==
+            String(teacher.displayName).normalize("NFKC").trim() ||
+          String(existing.rows[0].source_college_snapshot).normalize("NFKC").trim() !==
+            String(teacher.collegeName).normalize("NFKC").trim();
+        if (sourceIdentityChanged) {
+          throw new Error(
+            `teacher_source_identity_conflict:${teacher.externalTeacherKey}`,
+          );
+        }
         teacherIds.set(teacher.externalTeacherKey, existing.rows[0].teacher_id);
-        if (existing.rows[0].mapping_status === "withdrawn") {
+        const restored = existing.rows[0].mapping_status === "withdrawn";
+        const importRowId = crypto.randomUUID();
+        if (restored) {
           await client.query(
             `UPDATE teacher_source_identities
              SET mapping_status = 'current', source_name_snapshot = $2,
@@ -209,10 +233,16 @@ async function applyTeacherBatch(database, bundle) {
               teacher.sourceDigest,
             ],
           );
+          await client.query(
+            `UPDATE teachers
+             SET identity_status = 'pending'
+             WHERE id = $1 AND identity_status = 'retired'`,
+            [existing.rows[0].teacher_id],
+          );
         }
         const locator = parseLocator(teacher.sourceLocator, "做在这个表");
         await insertImportRow(client, {
-          id: crypto.randomUUID(),
+          id: importRowId,
           batchId,
           sourceSheet: locator.sheet,
           sourceRow: locator.row,
@@ -220,13 +250,37 @@ async function applyTeacherBatch(database, bundle) {
           sourceLocator: teacher.sourceLocator,
           sourceKey: teacher.externalTeacherKey,
           contentSha256: teacher.sourceDigest,
-          disposition: "accepted",
-          errorCodes: ["existing_teacher_source_identity"],
+          disposition: restored ? "applied" : "accepted",
+          errorCodes: [
+            restored
+              ? "restored_teacher_source_identity"
+              : "existing_teacher_source_identity",
+          ],
           sanitizedPayload: {
             displayName: teacher.displayName,
             collegeName: teacher.collegeName,
           },
+          appliedEntityType: restored ? "teacher_source_identity" : null,
+          appliedEntityId: restored ? existing.rows[0].id : null,
         });
+        if (restored) {
+          await insertMutation(client, {
+            batchId,
+            importRowId,
+            entityType: "teacher_source_identity",
+            entityId: existing.rows[0].id,
+            mutationType: "restored",
+          });
+          if (existing.rows[0].identity_status === "retired") {
+            await insertMutation(client, {
+              batchId,
+              importRowId,
+              entityType: "teacher",
+              entityId: existing.rows[0].teacher_id,
+              mutationType: "restored",
+            });
+          }
+        }
         accepted += 1;
         continue;
       }
@@ -386,19 +440,14 @@ async function applyTeacherBatch(database, bundle) {
   });
 }
 
-function textbookIdentityKey(record, teacherId) {
-  return [
+function textbookScopeKey(record, teacherId) {
+  return JSON.stringify([
     record.termKey,
     record.courseId,
     record.sectionNo,
     teacherId ?? "",
     record.position,
-    record.materialSha256,
-  ].join("\u0000");
-}
-
-function textbookScopeKey(record, teacherId) {
-  return [record.termKey, record.courseId, record.sectionNo, teacherId ?? "", record.position].join("\u0000");
+  ]);
 }
 
 async function applyTextbookBatch(database, bundle) {
@@ -432,13 +481,25 @@ async function applyTextbookBatch(database, bundle) {
     const teacherIds = new Map(
       mappingRows.rows.map((row) => [row.external_teacher_key, row.teacher_id]),
     );
+    const resolvedTextbooks = bundle.textbooks.map((record) => {
+      const teacherId = record.externalTeacherKey
+        ? teacherIds.get(record.externalTeacherKey) ?? null
+        : null;
+      return {
+        record,
+        teacherId,
+        scopeKey: textbookScopeKey(record, teacherId),
+      };
+    });
+    const scopeKeys = [...new Set(resolvedTextbooks.map((item) => item.scopeKey))].sort();
+    for (const scopeKey of scopeKeys) await lockTextbookScope(client, scopeKey);
+
     const existingRows = await client.query(
       `SELECT id, term_key, course_id, section_no, teacher_id, position,
               material_sha256, record_status
        FROM teaching_section_textbooks
-       WHERE record_status <> 'withdrawn'`,
+       WHERE record_status IN ('current', 'needs_review')`,
     );
-    const exact = new Map();
     const scopes = new Map();
     for (const row of existingRows.rows) {
       const record = {
@@ -448,19 +509,15 @@ async function applyTextbookBatch(database, bundle) {
         position: row.position,
         materialSha256: row.material_sha256,
       };
-      exact.set(textbookIdentityKey(record, row.teacher_id), row);
       scopes.set(textbookScopeKey(record, row.teacher_id), row);
     }
 
     let accepted = 0;
     let warning = 0;
-    for (const record of bundle.textbooks) {
+    for (const { record, teacherId, scopeKey } of resolvedTextbooks) {
       assertDigest(record.materialSha256, "教材摘要");
-      const teacherId = record.externalTeacherKey
-        ? teacherIds.get(record.externalTeacherKey) ?? null
-        : null;
-      const exactKey = textbookIdentityKey(record, teacherId);
-      if (exact.has(exactKey)) {
+      const previous = scopes.get(scopeKey);
+      if (previous?.material_sha256 === record.materialSha256) {
         const locator = parseLocator(record.sourceLocator, "Sheet1");
         const needsReview = record.recordStatus === "needs_review";
         await insertImportRow(client, {
@@ -484,7 +541,6 @@ async function applyTextbookBatch(database, bundle) {
       const importRowId = crypto.randomUUID();
       const textbookId = crypto.randomUUID();
       const locator = parseLocator(record.sourceLocator, "Sheet1");
-      const previous = scopes.get(textbookScopeKey(record, teacherId));
       await insertImportRow(client, {
         id: importRowId,
         batchId,
@@ -565,9 +621,13 @@ async function applyTextbookBatch(database, bundle) {
         mutationType: "created",
         previousEntityId: previous?.id,
       });
-      const row = { id: textbookId, teacher_id: teacherId, ...record };
-      exact.set(exactKey, row);
-      scopes.set(textbookScopeKey(record, teacherId), row);
+      const row = {
+        id: textbookId,
+        teacher_id: teacherId,
+        material_sha256: record.materialSha256,
+        record_status: record.recordStatus,
+      };
+      scopes.set(scopeKey, row);
       if (record.recordStatus === "needs_review") warning += 1;
       else accepted += 1;
     }
@@ -683,7 +743,31 @@ export async function rollbackImportBatch(database, batchId) {
           entityId: mutation.entity_id,
           mutationType: "withdrawn",
         });
+      } else if (mutation.entity_type === "teacher_source_identity" && mutation.mutation_type === "restored") {
+        await client.query(
+          "UPDATE teacher_source_identities SET mapping_status = 'withdrawn' WHERE id = $1",
+          [mutation.entity_id],
+        );
+        await insertMutation(client, {
+          batchId,
+          importRowId: mutation.import_row_id,
+          entityType: mutation.entity_type,
+          entityId: mutation.entity_id,
+          mutationType: "withdrawn",
+        });
       } else if (mutation.entity_type === "teacher" && mutation.mutation_type === "created") {
+        await client.query(
+          "UPDATE teachers SET identity_status = 'retired' WHERE id = $1",
+          [mutation.entity_id],
+        );
+        await insertMutation(client, {
+          batchId,
+          importRowId: mutation.import_row_id,
+          entityType: mutation.entity_type,
+          entityId: mutation.entity_id,
+          mutationType: "withdrawn",
+        });
+      } else if (mutation.entity_type === "teacher" && mutation.mutation_type === "restored") {
         await client.query(
           "UPDATE teachers SET identity_status = 'retired' WHERE id = $1",
           [mutation.entity_id],

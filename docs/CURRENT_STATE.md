@@ -157,6 +157,7 @@
 - 1,370 条历史评价含时效性考核陈述、疑似攻击、其他教师或联系方式等至少一项风险。全部历史评价只能先进入私有待审核候选，不关联当前用户、不自动生成五维评分；批准后公开时固定标注“历史整理内容”。
 - 教材计划含 1,143 行，展开为 2,660 条教学班教材关系，覆盖 1,018 门课程。13 门课程存在多教材版本，777 行为“不指定教材”并带占位 ISBN，1 条课程号缺目录匹配、13 条教学班键缺直接匹配。
 - 当前发布分支新增 `0013_teacher_catalog_imports.sql` 与 `0014_teacher_review_moderation.sql`：教师使用独立 UUID，来源身份由 `(source_system, external_teacher_key)` 映射；教材按教学班版本化；历史候选、一次性管理员决定、公开评价、导入逐行证据和 mutation 分层审计，回滚不硬删除。
+- 当前发布分支新增 `0018_academic_import_state_guards.sql`：同一 `term/course/section/teacher/position` 教材槽位最多只有一条 `current/needs_review`，迁移会把存量重复活动记录按更新时间确定性降为 `superseded`。不同来源批次在写入前按排序后的槽位键取得事务级 advisory lock；活动匹配不再读取旧 `superseded`，因此 A→B→A 会形成三条可审计版本并让最新 A 唯一生效。教师批次回滚后重导会复用原 UUID、恢复 `pending/current` 状态，并记录可再次回滚的 `restored` mutation；同一来源教师键若姓名或学院快照变化则整批失败关闭，不静默改写身份。本地 PGlite、导入、预检、基础设施与审核 42/42 通过；真实不同来源并发已进入 PG17 CI，用新 runner 结果前不宣称原生通过，未部署。
 - `npm run import:academic:preflight` 可重复生成无评价正文的 JSON 摘要和逐行 CSV 错误报告。嵌入式 PostgreSQL 17.5 已执行 `0001`—`0014` 并验证导入、回滚和历史候选审核事务。本机没有原生 PostgreSQL/Docker，运行角色权限、真实并发连接和升级库数据仍待 staging。当前未部署，生产数据未写入。
 - dry-run 还会生成不可放入 `public/`/`app/` 的私有规范化包。本次包含 861 位完整教师来源身份、3,294 条去重脱敏评价候选和 2,659 条教学班教材；写入前会再次拒绝未脱敏联系方式和异常摘要。
 - `npm run import:academic:write` 使用专用 importer 数据库角色和显式 `IMPORT_ALLOW_APPLY=true` 开关；事务 apply 以 advisory lock、源文件摘要和映射版本幂等，逐行证据与 mutation append-only。回滚按依赖顺序把记录标为 `withdrawn/rolled_back/retired`，不硬删除。
