@@ -24,6 +24,8 @@
 - [ ] 大索引和回填不在单个长事务中阻塞生产业务。
 - [ ] teacher/material/community 导入先 dry-run，保存批次报告和回滚标识。
 - [ ] 数据库 owner、migrator、runtime、backup 角色按最小权限分离。
+- [ ] 在 600 权限 `postgres.env` 配置不可登录 `MIGRATION_DB_ROLE` 与独立 `MIGRATION_DB_USER/MIGRATION_DB_PASSWORD`；确认 migrator 为 `NOINHERIT`、仅能 `SET ROLE` 到 schema owner，基础会话不能读业务表，schema owner 无登录/高权属性并持有全部 public 对象。
+- [ ] 首次升级先用当前正式版本完成 owner 备份，再运行新迁移器接管 public 对象所有权；在 staging 验证空库、既有库、第二次幂等执行和失败事务回滚后才能进入生产窗口。
 - [ ] 为 backup 生成独立长随机 `BACKUP_DB_USER/BACKUP_DB_PASSWORD` 写入 600 权限 `postgres.env`；用该角色完成 custom-format `pg_dump`，并验证可完整恢复，同时不能写表或执行 public 函数。
 - [ ] 为 importer 生成独立长随机密码并配置 `IMPORT_DB_USER/IMPORT_DB_PASSWORD`；确认该角色 `NOINHERIT`，不能读取账号、凭据、会话、MFA、OAuth 或头像表。
 - [ ] 在 PostgreSQL 17 验证 `0010_community_foundation.sql` 空库/升级库迁移、两级回复触发器、软删除引用、通知/互动去重和开放举报部分唯一索引。

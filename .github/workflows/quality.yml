@@ -83,6 +83,9 @@ jobs:
       POSTGRES_DB: dufesh_ci
       POSTGRES_USER: dufesh_owner
       POSTGRES_PASSWORD: ci-owner-password
+      MIGRATION_DB_ROLE: dufesh_schema_owner_ci
+      MIGRATION_DB_USER: dufesh_migrator_ci
+      MIGRATION_DB_PASSWORD: ci-migrator-password
       AUTH_DB_USER: dufesh_runtime_ci
       AUTH_DB_PASSWORD: ci-runtime-password
       IMPORT_DB_USER: dufesh_import_ci

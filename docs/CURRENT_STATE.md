@@ -169,7 +169,8 @@
 - PostgreSQL 17 作业在应用/权限场景之后还会现场执行 `pg_dump` 生成 custom-format 备份和独立 SHA-256，调用生产同一 `restore-drill.sh` 的 `native` 运行模式恢复到唯一临时数据库，检查 16 个迁移、无未验证约束、关键表和 120 秒 CI RTO，再显式删库并查询确认没有 `dufesh_restore_drill_*` 残留。生产默认仍使用 Docker Compose 模式；本机无 `sh`/PostgreSQL，且 CI 尚未运行，因此不能把该代码路径记为已完成恢复演练。
 - 当前 Windows 开发机没有 PostgreSQL/Docker/WSL，因此三项原生集成测试只能本地明确 SKIP；auth-api 72/72、基础设施契约 30/30、集成文件加载 3 项 SKIP、相关 ESLint 和 `git diff --check` 已通过。分支尚未推送，不能把已编码的 CI 作业记为运行成功，也不能替代真实浏览器、完整 ACL/并发和 staging 验收。本轮未部署。
 - quality workflow 另有独立 `linux-production-images` 作业：在 Ubuntu 上从三份真实生产 Dockerfile 构建主站、auth-api 和小影镜像，检查最终运行用户均为 `node`，在 auth-api Alpine 镜像内实际加载 Argon2id/Sharp/PG，在小影镜像加载运行依赖，在主站镜像核对失败关闭 `image-size@2.0.3-dufesh.0` 并启动生产网关接受 HTTP 请求。Dockerfile 的 `NODE_IMAGE` 参数只为 CI 选择官方 `node:22-alpine`，生产默认 DaoCloud 镜像不变。该作业尚未运行；本地仅有基础设施契约 30/30、相关 ESLint 与差异检查证据，不能宣称 Linux/musl 镜像通过。
-- 当前发布分支新增独立只读 PostgreSQL backup 登录角色：只可读取 public 表/序列，不能写数据、执行 public 函数或持有高权角色属性；生产 `backup.sh` 和 PG17 CI 的现场 `pg_dump` 都改用该账号，不再使用 owner 凭据。新角色与真实 custom-format 备份尚未在 PostgreSQL/Docker 执行；服务器上线前必须在 600 权限 `postgres.env` 增加独立随机密码，migrator 与 owner 的对象所有权分离仍未完成。
+- 当前发布分支新增独立只读 PostgreSQL backup 登录角色：只可读取 public 表/序列，不能写数据、执行 public 函数或持有高权角色属性；生产 `backup.sh` 和 PG17 CI 的现场 `pg_dump` 都改用该账号，不再使用 owner 凭据。新角色与真实 custom-format 备份尚未在 PostgreSQL/Docker 执行；服务器上线前必须在 600 权限 `postgres.env` 增加独立随机密码。
+- PostgreSQL 迁移也已从初始化 owner 分离：不可登录、无高权的 schema owner 持有 public schema/表/序列/函数；`NOINHERIT` migrator 登录只拥有该 schema owner 一项成员关系，基础会话无直接业务表权限，迁移连接显式切换角色后才执行 `schema_migrations` checksum 和版本事务。引导脚本会在既有库把 public 对象所有权收敛到 schema owner；该接管尚未在真实空库或升级库执行，不能标记为已通过。
 
 ## 当前无障碍门禁
 

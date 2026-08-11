@@ -153,6 +153,10 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
   );
   const importer = poolFor(process.env.IMPORT_DB_USER, process.env.IMPORT_DB_PASSWORD);
   const backup = poolFor(process.env.BACKUP_DB_USER, process.env.BACKUP_DB_PASSWORD);
+  const migrator = poolFor(
+    process.env.MIGRATION_DB_USER,
+    process.env.MIGRATION_DB_PASSWORD,
+  );
   const digestA = Buffer.alloc(32, 0x41);
   const digestB = Buffer.alloc(32, 0x42);
 
@@ -164,6 +168,94 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
       "SELECT count(*)::integer AS count FROM schema_migrations",
     );
     assert.equal(migrations.rows[0].count, 16);
+
+    await denied(migrator, "SELECT * FROM app_users LIMIT 1");
+    const migrationRole = await migrator.query(
+      `SELECT roles.rolinherit, roles.rolsuper, roles.rolcreaterole,
+              roles.rolcreatedb, roles.rolreplication, roles.rolbypassrls,
+              array_agg(granted.rolname ORDER BY granted.rolname)
+                FILTER (WHERE granted.rolname IS NOT NULL) AS memberships
+       FROM pg_roles AS roles
+       LEFT JOIN pg_auth_members AS membership ON membership.member = roles.oid
+       LEFT JOIN pg_roles AS granted ON granted.oid = membership.roleid
+       WHERE roles.rolname = current_user
+       GROUP BY roles.oid`,
+    );
+    assert.deepEqual(migrationRole.rows[0], {
+      rolinherit: false,
+      rolsuper: false,
+      rolcreaterole: false,
+      rolcreatedb: false,
+      rolreplication: false,
+      rolbypassrls: false,
+      memberships: [process.env.MIGRATION_DB_ROLE],
+    });
+    const schemaOwnerRole = await owner.query(
+      `SELECT roles.rolcanlogin, roles.rolinherit, roles.rolsuper,
+              roles.rolcreaterole, roles.rolcreatedb, roles.rolreplication,
+              roles.rolbypassrls,
+              (SELECT namespace.nspowner = roles.oid
+               FROM pg_namespace AS namespace
+               WHERE namespace.nspname = 'public') AS owns_public_schema,
+              (SELECT count(*)::integer
+               FROM pg_auth_members
+               WHERE member = roles.oid) AS membership_count,
+              (SELECT count(*)::integer
+               FROM pg_class AS relation
+               INNER JOIN pg_namespace AS namespace
+                 ON namespace.oid = relation.relnamespace
+               WHERE namespace.nspname = 'public'
+                 AND relation.relkind IN ('r', 'p', 'S')
+                 AND relation.relowner <> roles.oid) AS foreign_relation_count,
+              (SELECT count(*)::integer
+               FROM pg_proc AS procedure
+               INNER JOIN pg_namespace AS namespace
+                 ON namespace.oid = procedure.pronamespace
+               WHERE namespace.nspname = 'public'
+                 AND procedure.prokind = 'f'
+                 AND procedure.proowner <> roles.oid) AS foreign_function_count
+       FROM pg_roles AS roles
+       WHERE roles.rolname = $1`,
+      [process.env.MIGRATION_DB_ROLE],
+    );
+    assert.deepEqual(schemaOwnerRole.rows[0], {
+      rolcanlogin: false,
+      rolinherit: false,
+      rolsuper: false,
+      rolcreaterole: false,
+      rolcreatedb: false,
+      rolreplication: false,
+      rolbypassrls: false,
+      owns_public_schema: true,
+      membership_count: 0,
+      foreign_relation_count: 0,
+      foreign_function_count: 0,
+    });
+    assert.match(process.env.MIGRATION_DB_ROLE, /^[a-z][a-z0-9_]{2,62}$/u);
+    const migrationClient = await migrator.connect();
+    try {
+      await migrationClient.query("BEGIN");
+      await migrationClient.query(`SET ROLE "${process.env.MIGRATION_DB_ROLE}"`);
+      const effectiveRole = await migrationClient.query(
+        `SELECT session_user, current_user,
+                has_schema_privilege(current_user, 'public', 'CREATE') AS can_create`,
+      );
+      assert.deepEqual(effectiveRole.rows[0], {
+        session_user: process.env.MIGRATION_DB_USER,
+        current_user: process.env.MIGRATION_DB_ROLE,
+        can_create: true,
+      });
+      await migrationClient.query(
+        "CREATE TABLE ci_migrator_transaction_probe (id integer PRIMARY KEY)",
+      );
+      await migrationClient.query("ROLLBACK");
+    } finally {
+      migrationClient.release();
+    }
+    const rolledBackProbe = await owner.query(
+      "SELECT to_regclass('public.ci_migrator_transaction_probe') AS relation",
+    );
+    assert.equal(rolledBackProbe.rows[0].relation, null);
 
     const attempts = await Promise.all(
       Array.from({ length: 20 }, () =>
@@ -375,6 +467,7 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
       aclRuntime.end(),
       importer.end(),
       backup.end(),
+      migrator.end(),
     ]);
   }
 });

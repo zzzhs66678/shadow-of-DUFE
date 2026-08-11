@@ -133,6 +133,7 @@ test("PostgreSQL is private, resource-limited, health-checked, and log-rotated",
 test("CI runs migrations twice against native PostgreSQL 17 and checks runtime roles", async () => {
   const workflow = await read(".github/workflows/quality.yml");
   const integration = await read("tests/postgres-runtime-integration.test.mjs");
+  const migrationRunner = await read("ops/postgres/run-migrations.sh");
 
   assert.match(workflow, /postgres-integration:/);
   assert.match(workflow, /image: postgres:17-alpine/);
@@ -153,9 +154,17 @@ test("CI runs migrations twice against native PostgreSQL 17 and checks runtime r
   assert.match(integration, /isolatedSameNameReviews/);
   assert.match(integration, /academic import and review moderation serialize/);
   assert.match(integration, /moderationRollbackRace/);
+  assert.match(migrationRunner, /MIGRATION_DB_ROLE/);
+  assert.match(migrationRunner, /PGOPTIONS="-c role=\$MIGRATION_DB_ROLE"/);
+  assert.match(migrationRunner, /--username "\$MIGRATION_DB_USER"/);
+  assert.match(migrationRunner, /ALTER TABLE %I\.%I OWNER TO %I/);
+  assert.match(migrationRunner, /ALTER FUNCTION %I\.%I\(%s\) OWNER TO %I/);
   assert.match(workflow, /BACKUP_DB_USER: dufesh_backup_ci/);
+  assert.match(workflow, /MIGRATION_DB_ROLE: dufesh_schema_owner_ci/);
+  assert.match(workflow, /MIGRATION_DB_USER: dufesh_migrator_ci/);
   assert.match(workflow, /PGPASSWORD="\$BACKUP_DB_PASSWORD" pg_dump/);
   assert.match(integration, /const backup = poolFor/);
+  assert.match(integration, /ci_migrator_transaction_probe/);
 });
 
 test("CI builds and smoke-tests every production Linux image", async () => {

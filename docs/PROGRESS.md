@@ -453,7 +453,13 @@
 
 - `run-migrations.sh` 新增必填 `BACKUP_DB_USER/BACKUP_DB_PASSWORD`，创建 `NOINHERIT`、无 superuser/createdb/createrole/bypassrls 的独立登录角色。该角色只获得 public schema 使用权和全部现有/未来表、序列的 SELECT；脚本先清除其直接权限，并撤销 public schema 全部函数的 PUBLIC 默认执行权，再保留 runtime 与 importer 已显式授予的函数白名单。
 - 生产 `backup.sh` 的 `pg_dump` 已从 `POSTGRES_USER` 切换为独立 backup 账号，并只把密码作为单次 `docker compose exec -e PGPASSWORD=...` 环境传入。PG17 CI 的现场 custom-format 备份也改由 backup 账号创建；原生 ACL 矩阵要求它能读取迁移、账号凭据、审计、社区和教师表以形成完整灾备，但不能 INSERT/UPDATE/DELETE/TRUNCATE，也不能执行限流、审核或 importer 回滚函数。
-- 本地基础设施契约 30/30、原生测试文件 3 项明确 SKIP、相关 ESLint 与 `git diff --check` 通过。本机无 PostgreSQL/Docker，不能宣称该角色已成功完成真实 `pg_dump`；部署前必须先向 600 权限的服务器 `postgres.env` 增加新随机凭据，再由首次 PG17 CI/staging 备份与恢复门禁证明。migrator 与 owner 的对象所有权分离仍是下一切片，本切片未部署。
+- 本地基础设施契约 30/30、原生测试文件 3 项明确 SKIP、相关 ESLint 与 `git diff --check` 通过。本机无 PostgreSQL/Docker，不能宣称该角色已成功完成真实 `pg_dump`；部署前必须先向 600 权限的服务器 `postgres.env` 增加新随机凭据，再由首次 PG17 CI/staging 备份与恢复门禁证明。本切片未部署。
+
+## M9 已实现待 CI 验证切片：PostgreSQL schema owner 与 migrator 分离
+
+- `run-migrations.sh` 现在由数据库初始化 owner 只负责引导两个角色：不可登录、无高权的 `MIGRATION_DB_ROLE` 持有 public schema 及其中表、序列和函数；可登录的 `MIGRATION_DB_USER` 为 `NOINHERIT`、无 superuser/createdb/createrole/replication/bypassrls，只保留对 schema owner 的单一成员关系。脚本在每次运行前清除 migrator 的旧成员关系和直接数据库/schema/对象权限，再只恢复上述关系。
+- 空库和既有库统一由 migrator 登录，并通过连接级 `PGOPTIONS=-c role=...` 显式切换到 schema owner 后创建 `schema_migrations`、读取 checksum 和执行每个版本事务；`POSTGRES_USER` 不再执行迁移文件。升级既有库时，引导阶段会把 public 普通/分区表、序列和函数所有权收敛到 schema owner；运行时与 backup 的未来默认权限也改为针对 schema owner 创建的对象。
+- 原生 ACL 门禁要求 migrator 基础会话不能读取 `app_users`，成员关系只含 schema owner；schema owner 必须不可登录、无高权/上游角色并持有全部 public 表/序列/函数。测试随后在 migrator 会话显式 `SET ROLE`，用事务 DDL 建表再回滚并确认无残留。当前本地基础设施 30/30、三项 PG17 用例明确 SKIP、ESLint、YAML 与差异检查通过；所有权接管和双迁移仍必须在 CI 空库及 staging 升级库实际验证，本切片未部署。
 
 ## 下一步
 

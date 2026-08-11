@@ -6,6 +6,9 @@ MIGRATIONS_DIR="${MIGRATIONS_DIR:-/opt/dufesh-postgres/migrations}"
 : "${POSTGRES_DB:?POSTGRES_DB is required}"
 : "${POSTGRES_USER:?POSTGRES_USER is required}"
 : "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}"
+: "${MIGRATION_DB_ROLE:?MIGRATION_DB_ROLE is required}"
+: "${MIGRATION_DB_USER:?MIGRATION_DB_USER is required}"
+: "${MIGRATION_DB_PASSWORD:?MIGRATION_DB_PASSWORD is required}"
 : "${AUTH_DB_USER:?AUTH_DB_USER is required}"
 : "${AUTH_DB_PASSWORD:?AUTH_DB_PASSWORD is required}"
 : "${IMPORT_DB_USER:?IMPORT_DB_USER is required}"
@@ -25,6 +28,81 @@ psql \
   --username "$POSTGRES_USER" \
   --dbname "$POSTGRES_DB" \
   --set ON_ERROR_STOP=1 \
+  --variable "schema_owner=$MIGRATION_DB_ROLE" \
+  --variable "migration_user=$MIGRATION_DB_USER" \
+  --variable "migration_password=$MIGRATION_DB_PASSWORD" \
+  <<'SQL'
+SELECT format('CREATE ROLE %I NOLOGIN', :'schema_owner')
+WHERE NOT EXISTS (
+    SELECT 1 FROM pg_roles WHERE rolname = :'schema_owner'
+) \gexec
+SELECT format(
+    'ALTER ROLE %I NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS NOINHERIT',
+    :'schema_owner'
+) \gexec
+SELECT format('REVOKE %I FROM %I', granted_role.rolname, :'schema_owner')
+FROM pg_auth_members AS membership
+INNER JOIN pg_roles AS member_role ON member_role.oid = membership.member
+INNER JOIN pg_roles AS granted_role ON granted_role.oid = membership.roleid
+WHERE member_role.rolname = :'schema_owner' \gexec
+
+SELECT format('CREATE ROLE %I LOGIN', :'migration_user')
+WHERE NOT EXISTS (
+    SELECT 1 FROM pg_roles WHERE rolname = :'migration_user'
+) \gexec
+SELECT format(
+    'ALTER ROLE %I PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS NOINHERIT',
+    :'migration_user',
+    :'migration_password'
+) \gexec
+SELECT format('REVOKE %I FROM %I', granted_role.rolname, :'migration_user')
+FROM pg_auth_members AS membership
+INNER JOIN pg_roles AS member_role ON member_role.oid = membership.member
+INNER JOIN pg_roles AS granted_role ON granted_role.oid = membership.roleid
+WHERE member_role.rolname = :'migration_user' \gexec
+SELECT format('REVOKE ALL PRIVILEGES ON DATABASE %I FROM %I', current_database(), :'migration_user') \gexec
+SELECT format('REVOKE ALL PRIVILEGES ON SCHEMA public FROM %I', :'migration_user') \gexec
+SELECT format('REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM %I', :'migration_user') \gexec
+SELECT format('REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM %I', :'migration_user') \gexec
+SELECT format('REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM %I', :'migration_user') \gexec
+SELECT format('GRANT %I TO %I', :'schema_owner', :'migration_user') \gexec
+SELECT format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), :'migration_user') \gexec
+
+SELECT format('ALTER SCHEMA public OWNER TO %I', :'schema_owner') \gexec
+SELECT format('ALTER TABLE %I.%I OWNER TO %I', namespace.nspname, relation.relname, :'schema_owner')
+FROM pg_class AS relation
+INNER JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+WHERE namespace.nspname = 'public'
+  AND relation.relkind IN ('r', 'p')
+  AND relation.relowner <> :'schema_owner'::regrole \gexec
+SELECT format('ALTER SEQUENCE %I.%I OWNER TO %I', namespace.nspname, relation.relname, :'schema_owner')
+FROM pg_class AS relation
+INNER JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+WHERE namespace.nspname = 'public'
+  AND relation.relkind = 'S'
+  AND relation.relowner <> :'schema_owner'::regrole \gexec
+SELECT format(
+    'ALTER FUNCTION %I.%I(%s) OWNER TO %I',
+    namespace.nspname,
+    procedure.proname,
+    pg_get_function_identity_arguments(procedure.oid),
+    :'schema_owner'
+)
+FROM pg_proc AS procedure
+INNER JOIN pg_namespace AS namespace ON namespace.oid = procedure.pronamespace
+WHERE namespace.nspname = 'public'
+  AND procedure.prokind = 'f'
+  AND procedure.proowner <> :'schema_owner'::regrole \gexec
+SQL
+
+PGPASSWORD="$MIGRATION_DB_PASSWORD" \
+PGOPTIONS="-c role=$MIGRATION_DB_ROLE" \
+psql \
+  --host "${PGHOST:-postgres}" \
+  --port "${PGPORT:-5432}" \
+  --username "$MIGRATION_DB_USER" \
+  --dbname "$POSTGRES_DB" \
+  --set ON_ERROR_STOP=1 \
   <<'SQL'
 CREATE TABLE IF NOT EXISTS schema_migrations (
     version text PRIMARY KEY,
@@ -39,10 +117,12 @@ for migration in "$MIGRATIONS_DIR"/*.sql; do
   version="$(basename "$migration")"
   checksum="$(sha256sum "$migration" | awk '{print $1}')"
   stored_checksum="$(
+    PGPASSWORD="$MIGRATION_DB_PASSWORD" \
+    PGOPTIONS="-c role=$MIGRATION_DB_ROLE" \
     psql \
       --host "${PGHOST:-postgres}" \
       --port "${PGPORT:-5432}" \
-      --username "$POSTGRES_USER" \
+      --username "$MIGRATION_DB_USER" \
       --dbname "$POSTGRES_DB" \
       --tuples-only \
       --no-align \
@@ -69,10 +149,12 @@ SQL
     cat "$migration"
     printf "\nINSERT INTO schema_migrations(version, checksum) VALUES ('%s', '%s');\n" "$version" "$checksum"
     echo "COMMIT;"
-  } | psql \
+  } | PGPASSWORD="$MIGRATION_DB_PASSWORD" \
+    PGOPTIONS="-c role=$MIGRATION_DB_ROLE" \
+    psql \
     --host "${PGHOST:-postgres}" \
     --port "${PGPORT:-5432}" \
-    --username "$POSTGRES_USER" \
+    --username "$MIGRATION_DB_USER" \
     --dbname "$POSTGRES_DB" \
     --set ON_ERROR_STOP=1
 done
@@ -85,6 +167,7 @@ psql \
   --set ON_ERROR_STOP=1 \
   --variable "runtime_user=$AUTH_DB_USER" \
   --variable "runtime_password=$AUTH_DB_PASSWORD" \
+  --variable "schema_owner=$MIGRATION_DB_ROLE" \
   --variable "import_user=$IMPORT_DB_USER" \
   --variable "import_password=$IMPORT_DB_PASSWORD" \
   --variable "backup_user=$BACKUP_DB_USER" \
@@ -120,15 +203,18 @@ SELECT format(
     :'runtime_user'
 ) \gexec
 SELECT format(
-    'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO %I',
+    'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO %I',
+    :'schema_owner',
     :'runtime_user'
 ) \gexec
 SELECT format(
-    'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO %I',
+    'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO %I',
+    :'schema_owner',
     :'runtime_user'
 ) \gexec
 SELECT format(
-    'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO %I',
+    'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO %I',
+    :'schema_owner',
     :'runtime_user'
 ) \gexec
 
@@ -256,15 +342,20 @@ SELECT format('REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM %I', :'
 SELECT format('REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM %I', :'backup_user') \gexec
 SELECT format('REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM %I', :'backup_user') \gexec
 REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+SELECT format(
+    'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC',
+    :'schema_owner'
+) \gexec
 SELECT format('GRANT SELECT ON ALL TABLES IN SCHEMA public TO %I', :'backup_user') \gexec
 SELECT format('GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO %I', :'backup_user') \gexec
 SELECT format(
-    'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO %I',
+    'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public GRANT SELECT ON TABLES TO %I',
+    :'schema_owner',
     :'backup_user'
 ) \gexec
 SELECT format(
-    'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON SEQUENCES TO %I',
+    'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public GRANT SELECT ON SEQUENCES TO %I',
+    :'schema_owner',
     :'backup_user'
 ) \gexec
 SQL
