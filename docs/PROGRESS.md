@@ -468,6 +468,12 @@
 - 社区链路由账号 A 发布主题、账号 B 打开稳定链接回复并举报，A 从通知面板读取回复正文和回复者。管理员候选初始化前打开 `/admin` 必须看到权限拒绝；随后测试使用现有运维 bootstrap 数据路径配置加密 TOTP 并撤销旧会话，再从页面重新登录、提交实时 TOTP，进入值守台并读取真实账号概览和举报证据，依次完成入案、隐藏、删除结案，最后由 A 打开原链接确认降级页。
 - 测试不伪造 Cookie、会话、头像、社区响应或管理员角色；只有建立 CI 教师事实和运维专属 bootstrap 走数据库夹具，其余动作均通过浏览器页面和同一 PostgreSQL runtime API。扩展过程中修复管理员隐藏后仍保留旧 `hide` 动作的状态错误：刷新案卷后会切换到服务端返回的首个合法动作，再允许继续结案。Playwright `--list` 成功收集 1 项，本地产品与基础设施契约 52/52、TypeScript、相关 ESLint、YAML 和 `git diff --check` 通过。本机没有 PostgreSQL/Docker，完整浏览器场景尚未实际运行，不能作为发布门禁已通过的证据，本切片未部署。
 
+## M7/M9 已实现待 CI 验证切片：CI 供应链与全历史密钥扫描
+
+- quality workflow 的 checkout、setup-node、CodeQL 和 Gitleaks 全部锁定到已核对发布版本的完整 40 位提交 SHA，并保留可读版本注释；不再使用会随标签移动的 `@v*` 引用。checkout 全部关闭凭据持久化，CodeQL 作业显式只获得源码读取、包读取和安全结果写入权限。
+- 新增独立 `full-history-secret-scan` 作业：以 `fetch-depth: 0` 检出完整历史后执行 Gitleaks，关闭 PR 评论与制品上传，避免秘密扫描获得不必要的写入面。Actions 采用 Node 24 运行时版本，要求 GitHub runner 至少为 2.327.1；当前 GitHub 托管 runner 满足该前提。
+- 基础设施契约锁定完整 SHA、Action 数量、全历史检出、零凭据持久化、Gitleaks 只读行为和 CodeQL 权限，32/32 通过；workflow YAML、`git diff --check` 通过。Gitleaks 和 CodeQL 尚未在 GitHub runner 实际执行，不能把秘密扫描或静态分析标记为已通过，本切片未部署。
+
 ## 下一步
 
 1. 首次运行现有 Linux 镜像、PostgreSQL 17、完整发布浏览器路径与隔离恢复 CI 门禁；取得全绿后逐项记录原生证据并修复 runner 暴露的问题。

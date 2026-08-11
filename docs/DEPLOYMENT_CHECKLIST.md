@@ -83,6 +83,7 @@
 - [ ] axe 无 critical/serious；键盘、焦点、屏幕阅读器提示与 reduced motion 通过。
 - [ ] Lighthouse/真实性能预算达到计划目标，长列表和弱网可用。
 - [ ] 主站、auth-api、小影生产依赖 high/critical 0；CodeQL/秘密扫描通过。
+  - CodeQL 与全历史 Gitleaks 已以完整提交 SHA 和最小权限写入 workflow，但分支尚未推送；首次 GitHub runner 全绿前不得勾选。
 
 ## 5. 安全与隐私
 

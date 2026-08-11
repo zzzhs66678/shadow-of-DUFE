@@ -69,6 +69,25 @@ test("CI enforces the repository TypeScript boundary", async () => {
   assert.match(cloudflareEnv, /interface Env[\s\S]*DB\?: D1Database/);
 });
 
+test("CI pins Node 24 actions and scans the full Git history for secrets", async () => {
+  const workflow = await read(".github/workflows/quality.yml");
+  const checkoutSha = "de0fac2e4500dabe0009e67214ff5f5447ce83dd";
+  const setupNodeSha = "48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e";
+  const codeqlSha = "5595ccaf912efad79be6eef63a5619ff05969be3";
+  const gitleaksSha = "e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e";
+
+  assert.doesNotMatch(workflow, /uses:\s+[^\r\n]+@v\d/);
+  assert.equal(workflow.match(new RegExp(`actions/checkout@${checkoutSha}`, "g"))?.length, 5);
+  assert.equal(workflow.match(new RegExp(`actions/setup-node@${setupNodeSha}`, "g"))?.length, 2);
+  assert.equal(workflow.match(new RegExp(`github/codeql-action/(?:init|analyze)@${codeqlSha}`, "g"))?.length, 2);
+  assert.match(workflow, new RegExp(`gitleaks/gitleaks-action@${gitleaksSha}`));
+  assert.match(workflow, /secret-scan:[\s\S]*fetch-depth: 0/);
+  assert.match(workflow, /secret-scan:[\s\S]*GITLEAKS_ENABLE_COMMENTS: "false"/);
+  assert.match(workflow, /secret-scan:[\s\S]*GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"/);
+  assert.equal(workflow.match(/persist-credentials: false/g)?.length, 5);
+  assert.match(workflow, /codeql:[\s\S]*permissions:[\s\S]*contents: read[\s\S]*security-events: write/);
+});
+
 test("CI blocks critical and serious accessibility regressions on desktop and mobile", async () => {
   const packageJson = JSON.parse(await read("package.json"));
   const workflow = await read(".github/workflows/quality.yml");

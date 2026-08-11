@@ -76,7 +76,7 @@
 - 图书馆手机授权页会在提交前识别没有 `code=` 的普通首页链接，并明确提示必须使用带一次性授权码的跳转链接。
 - 主站与小影文案已按 `no-ai-slop` 规则复核，去除开发计划、提示词复述、二元对比、空泛口号和未实现承诺，改为简短、具体的校园用语；授权、同步和预约位置保留必要的操作说明。
 - 公开站已提供 SSR 可读首页内容、站点元数据、结构化数据、`robots.txt`、`sitemap.xml`、`security.txt`、资源清单、隐私保留期限和第三方说明；生产网关与小影分别执行 nonce/hash CSP，Caddy 继续提供 HSTS、COOP、CORP、点击劫持防护、权限限制及哈希静态资源长期缓存。
-- GitHub 已启用主站、auth-api 与小影依赖安装、生产依赖审计、回归测试、TypeScript、构建、服务端 HTML 检查和 CodeQL。vinext 的构建期图片探测已覆盖为仓库内失败关闭包；三个项目本地生产依赖审计均为 0，待 Pull Request 的 Linux CI 复核。
+- GitHub 已启用主站、auth-api 与小影依赖安装、生产依赖审计、回归测试、TypeScript、构建、服务端 HTML 检查、CodeQL 和全历史 Gitleaks 密钥扫描。checkout、setup-node、CodeQL 与 Gitleaks 均锁定到已核对发布版本的完整提交 SHA，checkout 不持久化仓库凭据；相关 Actions 已切换到 Node 24 运行时版本。vinext 的构建期图片探测已覆盖为仓库内失败关闭包；三个项目本地生产依赖审计均为 0，新增工作流尚待 Pull Request 的 Linux CI 实跑复核。
 - 2026-07-30 版本的体验改动与账号同步底座已发布到阿里云正式站；V18 视觉重构仍仅在当前发布分支，尚未上线。微信登录入口仍等待开放平台审核。
 - 主站服务器：阿里云 ECS，Docker 应用由 Caddy 反向代理。
 - 2026-07-29 实测 ECS 系统盘为 40GB；已发布学习资料约 6.8GB。

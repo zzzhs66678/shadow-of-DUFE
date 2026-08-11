@@ -21,6 +21,7 @@
 - 小影生产邀请码必须同时配置至少 12 位随机码和 1—500 次使用上限；任一缺失都会拒绝启动。SQLite 事务以 `use_count < max_uses` 条件原子消费，已有无限默认码在启动时升级为有界配额，轮换码会重置新批次计数并废止旧码。
 - 生产前端只把 vinext 绑定在回环端口；外部网关仅从 `dist/client` 白名单提供哈希资产、数据、图片、`.well-known` 和明确根文件，拒绝解码异常、NUL、目录穿越和源码路径，并为静态响应设置 `nosniff`。
 - 主站把 vinext 的构建期 `image-size` 依赖覆盖为仓库内失败关闭包：不再安装通告覆盖的 ICNS/JXL/HEIF 解析器，所有探测请求立即抛出固定错误。主站、auth-api 与小影生产依赖审计当前均为 high/critical 0；Linux CI 已编码三套生产镜像构建、非 root 用户、原生模块加载、替代包版本和主站网关冒烟检查，但尚未实际运行，仍须由 PR CI 和 staging 复核。
+- GitHub workflow 中 checkout、setup-node、CodeQL 和 Gitleaks 均锁定到核对过的完整提交 SHA，并使用 Node 24 运行时版本；checkout 不持久化仓库凭据。独立 Gitleaks 作业检出完整历史，关闭 PR 评论和制品上传，只继承仓库内容读取权限；CodeQL 只获得源码/包读取与安全结果写入权限。两项门禁尚待首次 PR CI 实跑。
 - 资料接口为公开只读面，查询字段做 NFKC 规范化和长度限制，分页每次最多 60 条；响应使用稳定 `material_id` 与清单内既有同源 URL，不接受任意文件路径，也不把内部搜索字段返回浏览器。
 - 社区公开读取接口只接受结构校验后的 UUID、有界游标与每页最多 30 条；SQL 全部参数化。双向屏蔽关系从公开列表和详情隔离，已删除/屏蔽评论只保留线程墓碑，不返回正文和作者，降级地址固定为本站路径。
 - 社区主题/评论写入要求可信 Origin、有效会话、用户与 IP 双维度专项限流；请求严格白名单、NFKC 和纯文本长度/控制字符校验，编辑删除使用乐观版本。数据库事务复核账号制裁、作者归属和目标可用性，并把旧正文写入不可变历史后再更新或软删除。
@@ -54,6 +55,7 @@
 | SEC-013 | P2 | 数据库角色最小权限仍缺原生 PostgreSQL ACL 验收 | 运行时或导入工具权限过大可能读取账号秘密或篡改审计 | M7/M9 | 已实现待原生 CI 验证：初始化 owner、不可登录 schema owner、`NOINHERIT` migrator、runtime、`NOINHERIT` importer 和只读 `NOINHERIT` backup 已分离。migrator 基础会话无业务表权限，只能显式切到其唯一 schema-owner 成员角色执行迁移；PG17 作业还逐项锁定 runtime、importer 与 backup 的 ACL/角色属性、导入并发状态机和真实 backup `pg_dump`。所有权接管、双迁移和备份尚未实际运行，staging 仍待验收 |
 | SEC-014 | P2 | 默认小影邀请码可无限使用 | 邀请码泄漏可批量创建账号 | M7 | 已修复并验证：生产显式要求 1—500 次上限，事务内条件消费；重启、超额、轮换和缺配置拒启均有测试 |
 | SEC-015 | P1 | `vinext@0.0.50` 固定的 `image-size@2.0.2` 命中新披露的图片解析 DoS，且上游暂无同版本线修复 | 恶意 ICNS/JXL/HEIF 在触发构建期图片探测时可能造成无限循环 | M7/M9 | 已修复并本地验证：根依赖与 npm override 把 vinext 去重到仓库内 `2.0.3-dufesh.0` 失败关闭包，原解析器不再安装；ICNS/JXL/HEIF 输入同步拒绝。CI 禁止 `app/` 本地图片 import 和图片 metadata 文件，产品图片使用 public URL 与显式尺寸。干净 `npm ci` 后主站审计 0，构建/浏览器 58/58 通过；待 Linux PR CI 和 staging 镜像复核。依据 GHSA-w3rx-r6r6-pgpr、GHSA-5p2g-fcmc-qvqq，官方截至 2026-08-07 仍无修复版本 |
+| SEC-016 | P1 | CI 使用可移动的主版本标签、Node 20 时代 Action，且没有全历史秘密扫描 | 上游标签被替换、旧运行时退役或历史密钥泄漏可能绕过发布审计 | M7/M9 | 已修复配置待 CI 验证：四类 Action 锁定完整提交 SHA并升级到 Node 24 运行时版本，checkout 禁止凭据持久化；Gitleaks 以完整历史、只读权限执行且不评论或上传制品。基础设施契约 32/32 通过，首次 GitHub runner 执行前不能标记为已验证 |
 
 ## 4. 实施要求
 
