@@ -332,7 +332,7 @@ test("the daily workspace stays functional while campus photographs live in My",
   assert.doesNotMatch(component, /<i>0[123]<\/i>/);
 });
 
-test("community stays outside the five-item primary workspace and enters through My", () => {
+test("community stays outside primary navigation and uses a quiet today-page exit", () => {
   const homeStart = component.indexOf("function HomePage");
   const catalogStart = component.indexOf("function CatalogPage");
   const meStart = component.indexOf("function MePage");
@@ -340,11 +340,20 @@ test("community stays outside the five-item primary workspace and enters through
   const homeSource = component.slice(homeStart, catalogStart);
   const meSource = component.slice(meStart, searchStart);
 
-  assert.doesNotMatch(homeSource, /community-corridor-entry/);
+  assert.match(homeSource, /today-community-note/);
+  assert.match(homeSource, /课间有空再看/u);
   assert.match(meSource, /community-corridor-entry/);
   assert.match(meSource, /href="\/community"/);
   assert.match(productStyles, /\.community-corridor-entry/);
+  assert.match(productStyles, /\.today-community-note/);
   assert.doesNotMatch(component, /id: "community"/);
+});
+
+test("community topics share through the system sheet with a copy fallback", () => {
+  assert.match(communityTopicSource, /navigator\.share/);
+  assert.match(communityTopicSource, /navigator\.clipboard\.writeText/);
+  assert.match(communityTopicSource, /document\.execCommand\("copy"\)/);
+  assert.match(communityTopicSource, />分享链接<\/button>/u);
 });
 
 test("community authors lead to privacy-bounded public activity profiles", () => {

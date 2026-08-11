@@ -2599,6 +2599,12 @@ function HomePage({
         </div>
       </section>
 
+      <a className="today-community-note" href="/community">
+        <span>课间有空再看</span>
+        <b>校园回廊</b>
+        <em>同学们的讨论 →</em>
+      </a>
+
     </div>
   );
 }
