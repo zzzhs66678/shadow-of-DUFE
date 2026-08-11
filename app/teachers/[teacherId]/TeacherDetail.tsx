@@ -167,6 +167,21 @@ export function TeacherDetail({ teacherId }: { teacherId: string }) {
       setOwnReview(saved.review);
       setDraftBody(saved.review.body);
       setDraftRatings(saved.review.ratings);
+      setReviews((current) => {
+        const withoutSavedReview = current.filter((review) => review.id !== saved.review.id);
+        if (saved.review.status !== "published") return withoutSavedReview;
+        return [
+          {
+            id: saved.review.id,
+            sourceType: saved.review.sourceType,
+            authorLabel: saved.review.authorLabel,
+            body: saved.review.body,
+            ratings: saved.review.ratings,
+            publishedAt: saved.review.publishedAt,
+          },
+          ...withoutSavedReview,
+        ];
+      });
       setComposerOpen(false);
       setReviewNotice(saved.review.status === "published"
         ? "你的评价已保存并公开。"
