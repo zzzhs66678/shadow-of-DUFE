@@ -81,3 +81,54 @@ test("textbook preflight preserves placeholders and section-level variants", () 
   assert.equal(report.bundle.textbooks.length, 2);
   assert.equal(report.bundle.textbooks[0].termKey, "fall");
 });
+
+test("textbook preflight leaves same-college same-name identities unresolved", () => {
+  const plan = [Array(14).fill(""), Array(14).fill("")];
+  const header = Array(25).fill("");
+  const joined = Array(25).fill("");
+  joined[0] = "上学期";
+  joined[5] = "课程学院";
+  joined[6] = "测试课程";
+  joined[7] = "C1";
+  joined[8] = "01";
+  joined[9] = "同名教师";
+  joined[10] = "同一学院";
+  joined[18] = "测试教材";
+  const courseData = {
+    courses: [{ id: "C1" }],
+    schedules: [
+      {
+        term: "fall",
+        courseId: "C1",
+        sectionId: "fall-C1-01-1",
+        teacher: "同名教师",
+      },
+    ],
+  };
+  const teacherRecords = [
+    {
+      collegeName: "同一学院",
+      displayName: "同名教师",
+      externalTeacherKey: "来源教师甲",
+    },
+    {
+      collegeName: "同一学院",
+      displayName: "同名教师",
+      externalTeacherKey: "来源教师乙",
+    },
+  ];
+
+  const report = analyzeTextbookWorkbook(
+    plan,
+    [header, joined],
+    courseData,
+    teacherRecords,
+  );
+  const result = report.results.find(
+    (row) => row.importType === "teaching_section_textbook",
+  );
+  assert.equal(result.disposition, "warning");
+  assert.ok(result.errorCodes.includes("teacher_source_identity_ambiguous"));
+  assert.equal(report.bundle.textbooks[0].externalTeacherKey, null);
+  assert.equal(report.bundle.textbooks[0].recordStatus, "needs_review");
+});
