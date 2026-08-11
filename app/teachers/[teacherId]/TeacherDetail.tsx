@@ -71,8 +71,8 @@ export function TeacherDetail({ teacherId }: { teacherId: string }) {
       setStatus("loading");
       try {
         const [detailResponse, reviewResponse, ownReviewResponse] = await Promise.all([
-          fetch(`/api/teachers/${teacherId}`, { signal: controller.signal, headers: { Accept: "application/json" } }),
-          fetch(`/api/teachers/${teacherId}/reviews?limit=20`, { signal: controller.signal, headers: { Accept: "application/json" } }),
+          fetch(`/api/teachers/${teacherId}`, { signal: controller.signal, cache: "no-store", headers: { Accept: "application/json" } }),
+          fetch(`/api/teachers/${teacherId}/reviews?limit=20`, { signal: controller.signal, cache: "no-store", headers: { Accept: "application/json" } }),
           fetch(`/api/teachers/${teacherId}/my-review`, { signal: controller.signal, headers: { Accept: "application/json" } }),
         ]);
         if (detailResponse.status === 404) {
@@ -109,7 +109,9 @@ export function TeacherDetail({ teacherId }: { teacherId: string }) {
 
   async function loadMoreReviews() {
     if (!nextCursor) return;
-    const response = await fetch(`/api/teachers/${teacherId}/reviews?limit=20&after=${encodeURIComponent(nextCursor)}`);
+    const response = await fetch(`/api/teachers/${teacherId}/reviews?limit=20&after=${encodeURIComponent(nextCursor)}`, {
+      cache: "no-store",
+    });
     if (!response.ok) {
       setStatus("error");
       return;
