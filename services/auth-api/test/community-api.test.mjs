@@ -49,10 +49,17 @@ function createCommunityStore() {
       calls.push(["listCommunityTopics", structuredClone(input)]);
       return {
         items: [{ id: topicId, title: "选课之后，你会怎样整理一周？" }],
-        nextCursor: {
-          id: nextTopicId,
-          createdAt: "2026-08-09T08:00:00.000Z",
-        },
+        nextCursor: input.sort === "hot"
+          ? {
+              id: nextTopicId,
+              createdAt: "2026-08-09T08:00:00.000Z",
+              rankedAt: "2026-08-11T08:00:00.000Z",
+              score: "17",
+            }
+          : {
+              id: nextTopicId,
+              createdAt: "2026-08-09T08:00:00.000Z",
+            },
       };
     },
     async getCommunityUserProfile(input) {
@@ -219,6 +226,27 @@ test("community cursors are bounded, opaque, and schema-checked", () => {
   });
   assert.equal(__test.decodeCursor("not-json"), false);
   assert.equal(__test.decodeCursor("a".repeat(257)), false);
+  assert.equal(
+    __test.decodeCursor(__test.encodeCursor({
+      id: topicId,
+      createdAt: "2026-08-09T08:00:00.000Z",
+      score: "9",
+    })),
+    false,
+  );
+  const hot = __test.encodeCursor({
+    id: topicId,
+    createdAt: "2026-08-09T08:00:00.000Z",
+    rankedAt: "2026-08-11T08:00:00.000Z",
+    score: "17",
+  });
+  assert.deepEqual(__test.decodeTopicCursor(hot, "hot"), {
+    id: topicId,
+    createdAt: "2026-08-09T08:00:00.000Z",
+    rankedAt: "2026-08-11T08:00:00.000Z",
+    score: "17",
+  });
+  assert.equal(__test.decodeTopicCursor(encoded, "hot"), false);
   assert.equal(__test.pageLimit("30"), 30);
   assert.equal(__test.pageLimit("31"), null);
 });
@@ -234,6 +262,7 @@ test("topic list is public and authenticated viewers receive scoped state", asyn
       viewerUserId: null,
       cursor: null,
       limit: 12,
+      sort: "latest",
     });
 
     const signedIn = await fetch(`${baseUrl}/api/community/topics`, {
@@ -241,6 +270,16 @@ test("topic list is public and authenticated viewers receive scoped state", asyn
     });
     assert.equal(signedIn.status, 200);
     assert.equal(store.calls[1][1].viewerUserId, userId);
+
+    const hot = await fetch(`${baseUrl}/api/community/topics?sort=hot`);
+    assert.equal(hot.status, 200);
+    const hotPayload = await hot.json();
+    assert.equal(typeof hotPayload.nextCursor, "string");
+    assert.equal(store.calls[2][1].sort, "hot");
+    assert.equal(
+      __test.decodeTopicCursor(hotPayload.nextCursor, "hot").score,
+      "17",
+    );
   });
 });
 
@@ -298,7 +337,7 @@ test("invalid community queries fail before data access", async () => {
     );
     assert.equal(invalidLimit.status, 400);
     const invalidSort = await fetch(
-      `${baseUrl}/api/community/topics?sort=hot`,
+      `${baseUrl}/api/community/topics?sort=popular`,
     );
     assert.equal(invalidSort.status, 400);
     assert.equal(store.calls.length, 0);

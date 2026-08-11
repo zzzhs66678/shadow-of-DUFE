@@ -70,6 +70,13 @@
 .authorBadge small { color: var(--muted); font: 8px/1.5 var(--mono); margin-top: 3px; }
 
 .feedColumn { min-width: 0; }
+.feedToolbar { align-items: end; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; margin: 0 0 28px 118px; padding: 0 0 15px; }
+.feedToolbar > p { color: var(--muted); font: 8px/1.5 var(--mono); letter-spacing: .06em; margin: 0; }
+.feedSort { align-items: center; display: flex; gap: 22px; }
+.feedSort button { background: transparent; border: 0; color: var(--muted); font: 500 15px/1 var(--serif); min-height: 32px; padding: 0; position: relative; }
+.feedSort button::after { background: transparent; bottom: -16px; content: ""; height: 3px; left: 0; position: absolute; right: 0; transform: skewX(-24deg); }
+.feedSort button[aria-pressed="true"] { color: var(--ink); }
+.feedSort button[aria-pressed="true"]::after { background: var(--red); }
 .composer { background: rgba(255, 255, 255, .42); border: 1px solid var(--ink); box-shadow: 13px 14px 0 rgba(23, 24, 22, .055); margin-bottom: 54px; padding: clamp(24px, 4vw, 46px); position: relative; }
 .composer::before { background: var(--red); content: ""; height: 5px; left: -1px; position: absolute; right: 42%; top: -1px; transform: skewX(-24deg); transform-origin: left; }
 .composer header { align-items: center; display: flex; justify-content: space-between; margin-bottom: 30px; }
@@ -264,6 +271,11 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   .feedRail > .authorBadge { grid-column: 1; }
   .feedRail > .primaryAction { grid-column: 2; grid-row: 1 / 3; margin: 0; min-height: 42px; width: auto; }
   .loginPrompt { grid-column: 1 / -1; }
+  .feedToolbar { align-items: center; margin: 0 0 26px 18px; }
+  .feedToolbar > p { display: none; }
+  .feedSort { gap: 26px; }
+  .feedSort button { min-height: 44px; min-width: 44px; }
+  .feedSort button::after { bottom: -8px; }
   .composer { box-shadow: 8px 9px 0 rgba(23, 24, 22, .055); margin: 0 0 38px 18px; padding: 24px 18px; }
   .composer header { align-items: flex-start; flex-direction: column; gap: 9px; }
   .composerFooter { align-items: stretch; flex-direction: column; }

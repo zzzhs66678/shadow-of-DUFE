@@ -334,6 +334,27 @@ test("community authors lead to privacy-bounded public activity profiles", () =>
   assert.match(communityStyles, /@media \(max-width: 680px\)[\s\S]*?\.profileRecords li/);
 });
 
+test("community exposes real latest and snapshot-bounded hot sorting", () => {
+  const selectSortSource = communityHubSource.slice(
+    communityHubSource.indexOf("function selectSort"),
+    communityHubSource.indexOf("const openNotifications"),
+  );
+  assert.match(communityHubSource, /type FeedSort = "latest" \| "hot"/);
+  assert.match(communityHubSource, /sort=\${requestedSort}&limit=20/);
+  assert.match(communityHubSource, /aria-label="主题排序方式"/);
+  assert.match(communityHubSource, /aria-pressed={sort === "hot"}/);
+  assert.match(communityHubSource, /同一热度时点/);
+  assert.ok(
+    selectSortSource.indexOf("setSort(nextSort)") <
+      selectSortSource.indexOf("void loadTopics(nextSort)"),
+  );
+  assert.match(communityStyles, /\.feedSort button\[aria-pressed="true"\]/);
+  assert.match(
+    communityStyles,
+    /@media \(max-width: 680px\)[\s\S]*?\.feedSort button \{ min-height: 44px;/,
+  );
+});
+
 test("personal page explains local data, cloud sync, devices, and account control", () => {
   const meStart = component.indexOf("function MePage");
   const searchStart = component.indexOf("function SearchCommand");

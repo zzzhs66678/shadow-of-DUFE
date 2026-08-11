@@ -71,9 +71,12 @@ test("community list and topic routes render independent readable shells", async
   const listHtml = await list.text();
   assert.match(listHtml, /<title>校园回廊｜东财之影<\/title>/i);
   assert.match(listHtml, /让有用的话/);
-  assert.match(listHtml, /主题按发布时间排序/);
+  assert.match(listHtml, /按时间追新/);
+  assert.match(listHtml, /主题排序方式/);
+  assert.match(listHtml, />最新<\/button>/);
+  assert.match(listHtml, />热议<\/button>/);
   assert.match(listHtml, /href="\/materials"/);
-  assert.doesNotMatch(listHtml, /热门排序|积分榜|用户等级/);
+  assert.doesNotMatch(listHtml, /积分榜|用户等级/);
 
   const detail = await render(
     "/community/topics/00000000-0000-4000-8000-000000000001",

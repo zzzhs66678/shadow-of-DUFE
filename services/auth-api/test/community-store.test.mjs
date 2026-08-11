@@ -76,6 +76,69 @@ test("community store uses bounded keyset pagination and maps viewer state", asy
   assert.match(queries[0].sql, /community_user_blocks/u);
 });
 
+test("community hot feed ranks real engagement against one bounded snapshot", async () => {
+  const queries = [];
+  const rankedAt = "2026-08-11T08:00:00.000Z";
+  const pool = {
+    async query(sql, values) {
+      queries.push({ sql, values });
+      return {
+        rowCount: 3,
+        rows: [
+          topicRow({ hot_score: "18", ranked_at: new Date(rankedAt) }),
+          topicRow({
+            id: "00000000-0000-4000-8000-000000000022",
+            created_at: new Date("2026-08-09T07:00:00.000Z"),
+            hot_score: "16",
+            ranked_at: new Date(rankedAt),
+          }),
+          topicRow({
+            id: "00000000-0000-4000-8000-000000000023",
+            created_at: new Date("2026-08-09T06:00:00.000Z"),
+            hot_score: "15",
+            ranked_at: new Date(rankedAt),
+          }),
+        ],
+      };
+    },
+  };
+  const store = createCommunityStore(pool);
+  const result = await store.listCommunityTopics({
+    viewerUserId: viewerId,
+    sort: "hot",
+    cursor: {
+      id: "00000000-0000-4000-8000-000000000020",
+      createdAt: "2026-08-09T09:00:00.000Z",
+      rankedAt,
+      score: "19",
+    },
+    limit: 2,
+  });
+
+  assert.equal(result.items.length, 2);
+  assert.deepEqual(result.nextCursor, {
+    id: "00000000-0000-4000-8000-000000000022",
+    createdAt: "2026-08-09T07:00:00.000Z",
+    rankedAt,
+    score: "16",
+  });
+  assert.deepEqual(queries[0].values, [
+    viewerId,
+    rankedAt,
+    "19",
+    "2026-08-09T09:00:00.000Z",
+    "00000000-0000-4000-8000-000000000020",
+    3,
+  ]);
+  assert.match(queries[0].sql, /count\(\*\) \* 2/u);
+  assert.match(queries[0].sql, /count\(\*\) \* 3/u);
+  assert.match(queries[0].sql, /interval '14 days'/u);
+  assert.match(
+    queries[0].sql,
+    /ORDER BY hot_topics\.hot_score DESC,[\s\S]*visible_topics\.created_at DESC/u,
+  );
+});
+
 test("public profiles hide blocked accounts and list only public authored content", async () => {
   const calls = [];
   const profileUserId = "00000000-0000-4000-8000-000000000012";

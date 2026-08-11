@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { FormField } from "../FormField";
 import {
   authorName,
@@ -21,12 +21,14 @@ import {
 import styles from "./community.module.css";
 
 type FeedState = "loading" | "ready" | "error";
+type FeedSort = "latest" | "hot";
 
 export function CommunityHub() {
   const [session, setSession] = useState<CommunitySession | null>(null);
   const [topics, setTopics] = useState<CommunityTopic[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [feedState, setFeedState] = useState<FeedState>("loading");
+  const [sort, setSort] = useState<FeedSort>("latest");
   const [sessionFailed, setSessionFailed] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -39,16 +41,25 @@ export function CommunityHub() {
   const [reportTarget, setReportTarget] = useState<{ type: "topic" | "comment" | "user"; id: string; label: string } | null>(null);
   const [undoBlock, setUndoBlock] = useState<{ id: string; name: string } | null>(null);
   const [dateMark, setDateMark] = useState("");
+  const requestSequence = useRef(0);
 
-  const loadTopics = useCallback(async (cursor?: string, append = false) => {
+  const loadTopics = useCallback(async (
+    requestedSort: FeedSort,
+    cursor?: string,
+    append = false,
+  ) => {
+    const requestId = ++requestSequence.current;
     setFeedState("loading");
     try {
       const suffix = cursor ? `&cursor=${encodeURIComponent(cursor)}` : "";
-      const payload = await communityRequest<{ items: CommunityTopic[]; nextCursor: string | null }>(`/api/community/topics?sort=latest&limit=20${suffix}`);
+      const payload = await communityRequest<{ items: CommunityTopic[]; nextCursor: string | null }>(`/api/community/topics?sort=${requestedSort}&limit=20${suffix}`);
+      if (requestId !== requestSequence.current) return;
+      setSort(requestedSort);
       setTopics((current) => append ? [...current, ...payload.items] : payload.items);
       setNextCursor(payload.nextCursor);
       setFeedState("ready");
     } catch {
+      if (requestId !== requestSequence.current) return;
       setFeedState("error");
     }
   }, []);
@@ -57,9 +68,11 @@ export function CommunityHub() {
     const frame = window.requestAnimationFrame(() => {
       const query = new URLSearchParams(window.location.search);
       if (query.get("panel") === "notifications") setNotificationsOpen(true);
+      const initialSort: FeedSort = query.get("sort") === "hot" ? "hot" : "latest";
+      setSort(initialSort);
       setDateMark(new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", weekday: "short" }).format(new Date()));
       void Promise.all([
-        loadTopics(),
+        loadTopics(initialSort),
         communityRequest<CommunitySession>("/api/auth/session")
           .then(async (payload) => {
             setSession(payload);
@@ -71,8 +84,23 @@ export function CommunityHub() {
           .catch(() => setSessionFailed(true)),
       ]);
     });
-    return () => window.cancelAnimationFrame(frame);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      requestSequence.current += 1;
+    };
   }, [loadTopics]);
+
+  function selectSort(nextSort: FeedSort) {
+    if (nextSort === sort && feedState !== "error") return;
+    const url = new URL(window.location.href);
+    if (nextSort === "hot") url.searchParams.set("sort", "hot");
+    else url.searchParams.delete("sort");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+    setSort(nextSort);
+    setTopics([]);
+    setNextCursor(null);
+    void loadTopics(nextSort);
+  }
 
   const openNotifications = useCallback(() => {
     const url = new URL(window.location.href);
@@ -155,7 +183,7 @@ export function CommunityHub() {
       await communityRequest(`/api/community/users/${undoBlock.id}/block`, { method: "DELETE" });
       setFeedback(`已取消屏蔽 ${undoBlock.name}。`);
       setUndoBlock(null);
-      await loadTopics();
+      await loadTopics(sort);
     } catch (error) {
       setFeedback(communityErrorMessage(error));
     } finally {
@@ -175,7 +203,7 @@ export function CommunityHub() {
             <span>让有用的话，</span>
             <span>在校园里多走一段。</span>
           </h1>
-          <p>课程经验、学习方法和校园生活都可以在这里展开。主题按发布时间排序。</p>
+          <p>课程经验、学习方法和校园生活都可以在这里展开。按时间追新，也可以看看正在升温的讨论。</p>
         </div>
         <aside>
           <strong>{topics.length}</strong>
@@ -188,7 +216,7 @@ export function CommunityHub() {
         <aside className={styles.feedRail}>
           <span>现在</span>
           <i />
-          <p>按发布时间从新到旧，继续加载可以查看更早的主题。</p>
+          <p>{sort === "latest" ? "按发布时间从新到旧，继续加载可以查看更早的主题。" : "热议按赞同、回复与两周内的新鲜度计算；这一轮翻页使用同一热度时点。"}</p>
           {sessionFailed ? (
             <div className={styles.railNotice}>账号状态暂时无法确认，公开内容仍可阅读。</div>
           ) : session?.authenticated ? (
@@ -202,6 +230,13 @@ export function CommunityHub() {
         </aside>
 
         <div className={styles.feedColumn} id="community-feed">
+          <div className={styles.feedToolbar}>
+            <div className={styles.feedSort} role="group" aria-label="主题排序方式">
+              <button type="button" aria-pressed={sort === "latest"} onClick={() => selectSort("latest")}>最新</button>
+              <button type="button" aria-pressed={sort === "hot"} onClick={() => selectSort("hot")}>热议</button>
+            </div>
+            <p>{sort === "latest" ? "沿时间向前读" : "发现正在被认真讨论的内容"}</p>
+          </div>
           {composerOpen && session?.authenticated && (
             <form className={styles.composer} onSubmit={publish}>
               <header><span>发布主题</span><small>纯文本 · 支持 @用户名</small></header>
@@ -218,10 +253,10 @@ export function CommunityHub() {
           {undoBlock && <div className={styles.undoBar}><span>已屏蔽该用户，其内容将不再显示。</span><button onClick={() => void undoBlockAuthor()} disabled={busy === "undo-block"}>立即撤销</button></div>}
 
           {feedState === "loading" && topics.length === 0 && <div className={styles.feedState} role="status"><i /><b>正在听回廊里的声音</b><p>主题加载完成后会按时间出现。</p></div>}
-          {feedState === "error" && topics.length === 0 && <div className={styles.feedState} role="alert"><b>回廊暂时没有回应</b><p>检查网络后重新连接，已经发布的内容不会被改动。</p><button onClick={() => void loadTopics()}>重新加载</button></div>}
+          {feedState === "error" && topics.length === 0 && <div className={styles.feedState} role="alert"><b>回廊暂时没有回应</b><p>检查网络后重新连接，已经发布的内容不会被改动。</p><button onClick={() => void loadTopics(sort)}>重新加载</button></div>}
           {feedState === "ready" && topics.length === 0 && <div className={styles.feedState}><b>这里还没有主题</b><p>{session?.authenticated ? "写下第一条真实有用的信息，让讨论从这里开始。" : "登录后可以发布第一条主题。"}</p>{session?.authenticated && <button onClick={() => setComposerOpen(true)}>写第一条</button>}</div>}
 
-          <ol className={styles.topicStream} aria-label="最新主题">
+          <ol className={styles.topicStream} aria-label={sort === "latest" ? "最新主题" : "热议主题"}>
             {topics.map((topic) => (
               <li key={topic.id}>
                 <div className={styles.timeSpine} aria-hidden="true"><i /><span suppressHydrationWarning>{formatCommunityTime(topic.createdAt)}</span></div>
@@ -244,8 +279,8 @@ export function CommunityHub() {
             ))}
           </ol>
 
-          {nextCursor && <button className={styles.loadMore} onClick={() => void loadTopics(nextCursor, true)} disabled={feedState === "loading"}>{feedState === "loading" ? "正在继续读取" : "继续往前走"}</button>}
-          {feedState === "error" && topics.length > 0 && <button className={styles.loadMore} onClick={() => void loadTopics(nextCursor ?? undefined, Boolean(nextCursor))}>这一段没有加载成功，重试</button>}
+          {nextCursor && <button className={styles.loadMore} onClick={() => void loadTopics(sort, nextCursor, true)} disabled={feedState === "loading"}>{feedState === "loading" ? "正在继续读取" : "继续往前走"}</button>}
+          {feedState === "error" && topics.length > 0 && <button className={styles.loadMore} onClick={() => void loadTopics(sort, nextCursor ?? undefined, Boolean(nextCursor))}>这一段没有加载成功，重试</button>}
         </div>
       </section>
 

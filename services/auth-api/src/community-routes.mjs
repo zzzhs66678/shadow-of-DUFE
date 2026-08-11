@@ -72,24 +72,56 @@ function encodeCursor(cursor) {
   return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
 }
 
-function decodeCursor(value) {
+function parseCursor(value) {
   if (value === null || value === "") return null;
   if (value.length > 256 || !/^[A-Za-z0-9_-]+$/u.test(value)) return false;
   try {
-    const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8"));
-    if (
-      !parsed ||
-      typeof parsed !== "object" ||
-      !UUID_PATTERN.test(parsed.id) ||
-      typeof parsed.createdAt !== "string" ||
-      !Number.isFinite(Date.parse(parsed.createdAt))
-    ) {
-      return false;
-    }
-    return { id: parsed.id, createdAt: new Date(parsed.createdAt).toISOString() };
+    return JSON.parse(Buffer.from(value, "base64url").toString("utf8"));
   } catch {
     return false;
   }
+}
+
+function decodeCursor(value) {
+  const parsed = parseCursor(value);
+  if (parsed === null || parsed === false) return parsed;
+  if (
+    !parsed ||
+    typeof parsed !== "object" ||
+    Object.keys(parsed).sort().join("|") !== "createdAt|id" ||
+    !UUID_PATTERN.test(parsed.id) ||
+    typeof parsed.createdAt !== "string" ||
+    !Number.isFinite(Date.parse(parsed.createdAt))
+  ) {
+    return false;
+  }
+  return { id: parsed.id, createdAt: new Date(parsed.createdAt).toISOString() };
+}
+
+function decodeTopicCursor(value, sort) {
+  if (sort === "latest") return decodeCursor(value);
+  const parsed = parseCursor(value);
+  if (parsed === null || parsed === false) return parsed;
+  if (
+    !parsed ||
+    typeof parsed !== "object" ||
+    Object.keys(parsed).sort().join("|") !== "createdAt|id|rankedAt|score" ||
+    !UUID_PATTERN.test(parsed.id) ||
+    typeof parsed.createdAt !== "string" ||
+    !Number.isFinite(Date.parse(parsed.createdAt)) ||
+    typeof parsed.rankedAt !== "string" ||
+    !Number.isFinite(Date.parse(parsed.rankedAt)) ||
+    typeof parsed.score !== "string" ||
+    !/^\d{1,18}$/u.test(parsed.score)
+  ) {
+    return false;
+  }
+  return {
+    id: parsed.id,
+    createdAt: new Date(parsed.createdAt).toISOString(),
+    rankedAt: new Date(parsed.rankedAt).toISOString(),
+    score: parsed.score,
+  };
 }
 
 async function optionalSession(request, store, config) {
@@ -377,9 +409,13 @@ export function createCommunityRequestHandler({ store, config, rateLimiters }) {
         return true;
       }
       const limit = pageLimit(url.searchParams.get("limit"));
-      const cursor = decodeCursor(url.searchParams.get("cursor"));
       const sort = url.searchParams.get("sort") ?? "latest";
-      if (limit === null || cursor === false || sort !== "latest") {
+      if (!["latest", "hot"].includes(sort)) {
+        sendJson(response, 400, { error: "invalid_community_query" });
+        return true;
+      }
+      const cursor = decodeTopicCursor(url.searchParams.get("cursor"), sort);
+      if (limit === null || cursor === false) {
         sendJson(response, 400, { error: "invalid_community_query" });
         return true;
       }
@@ -387,6 +423,7 @@ export function createCommunityRequestHandler({ store, config, rateLimiters }) {
         viewerUserId,
         cursor,
         limit,
+        sort,
       });
       sendJson(response, 200, {
         items: result.items,
@@ -651,4 +688,9 @@ export function createCommunityRequestHandler({ store, config, rateLimiters }) {
   };
 }
 
-export const __test = { decodeCursor, encodeCursor, pageLimit };
+export const __test = {
+  decodeCursor,
+  decodeTopicCursor,
+  encodeCursor,
+  pageLimit,
+};

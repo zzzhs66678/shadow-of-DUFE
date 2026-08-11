@@ -127,5 +127,5 @@
 - 邮件发送服务凭据：尚未提供；失败关闭 SMTP 适配器和本地投递契约已实现，生产验证/重置邮件的真实服务商投递仍受此阻塞。
 - 当前开发机未安装 `sh`、Docker/PostgreSQL 或 WSL；`0006_credential_auth.sql`—`0016_shared_rate_limits.sql` 的空库、升级库、重复执行，以及 Linux musl 原生 Argon2id/Sharp 镜像验证必须在 staging 或具备 Docker 的 CI 完成。仓库原生作业已经编码迁移双执行、ACL/共享限流、完整真实账号浏览器路径和现场备份恢复，但尚未推送运行；教师导入/审核的其余并发、migrator/backup 权限、Linux 镜像与首次隔离恢复仍需真实执行。
 - 主站已用仓库内失败关闭包隔离 vinext 的 `image-size@2.0.2`，干净本地 `npm ci` 后生产依赖审计为 0；仍须由 Linux PR CI 与 staging 镜像复核实际去重、构建和审计，未复核前不得放行生产发布。
-- 本地 `npm run typecheck`、主仓 Node 129 项中 126 通过且 3 项 PostgreSQL 明确 SKIP、个人存储/同步 9/9、auth-api 77/77、构建后渲染 4/4、CSS 审计和全仓 ESLint 已通过；渲染 4 项已包含在主仓 129 项中，不重复计数。quality workflow 已加入 TypeScript 步骤；仍须由 Pull Request CI 在 Linux 上复核后才能勾选生产前质量门禁。
+- 本地 `npm run typecheck`、主仓 Node 130 项中 127 通过且 3 项 PostgreSQL 明确 SKIP、个人存储/同步 9/9、auth-api 78/78、构建后渲染 4/4、CSS 审计和全仓 ESLint 已通过；渲染 4 项已包含在主仓 130 项中，不重复计数。quality workflow 已加入 TypeScript 步骤；仍须由 Pull Request CI 在 Linux 上复核后才能勾选生产前质量门禁。
 - 异地对象存储/备份凭据：尚未提供；本地适配器和恢复流程继续开发，生产异地副本受此阻塞。

@@ -848,7 +848,92 @@ export function createCommunityStore(pool) {
       };
     },
 
-    async listCommunityTopics({ viewerUserId = null, cursor = null, limit = 20 }) {
+    async listCommunityTopics({
+      viewerUserId = null,
+      cursor = null,
+      limit = 20,
+      sort = "latest",
+    }) {
+      if (sort === "hot") {
+        const rankedAt = cursor?.rankedAt ?? new Date().toISOString();
+        const result = await pool.query(
+          `WITH hot_topics AS (
+             SELECT
+               topics.id,
+               $2::timestamptz AS ranked_at,
+               (
+                 (SELECT count(*) * 2
+                  FROM community_topic_likes AS likes
+                  WHERE likes.topic_id = topics.id
+                    AND likes.created_at <= $2::timestamptz) +
+                 (SELECT count(*) * 3
+                  FROM community_comments AS comments
+                  WHERE comments.topic_id = topics.id
+                    AND comments.status = 'published'
+                    AND comments.created_at <= $2::timestamptz) +
+                 CASE
+                   WHEN topics.created_at >= $2::timestamptz - interval '14 days'
+                   THEN 14 - floor(
+                     extract(epoch FROM ($2::timestamptz - topics.created_at)) / 86400
+                   )::bigint
+                   ELSE 0
+                 END
+               )::bigint AS hot_score
+             FROM community_topics AS topics
+             WHERE topics.status = 'published'
+               AND topics.visibility = 'public'
+               AND topics.created_at <= $2::timestamptz
+           )
+           SELECT visible_topics.*, hot_topics.hot_score, hot_topics.ranked_at
+           FROM (
+             ${topicSelect}
+             WHERE topics.status = 'published'
+               AND topics.visibility = 'public'
+               AND NOT EXISTS (
+                 SELECT 1 FROM community_user_blocks AS viewer_blocks
+                 WHERE viewer_blocks.blocker_user_id = $1::uuid
+                   AND viewer_blocks.blocked_user_id = topics.author_user_id
+               )
+               AND NOT EXISTS (
+                 SELECT 1 FROM community_user_blocks AS author_blocks
+                 WHERE author_blocks.blocker_user_id = topics.author_user_id
+                   AND author_blocks.blocked_user_id = $1::uuid
+               )
+           ) AS visible_topics
+           JOIN hot_topics ON hot_topics.id = visible_topics.id
+           WHERE (
+             $3::bigint IS NULL OR
+             (hot_topics.hot_score, visible_topics.created_at, visible_topics.id) <
+             ($3::bigint, $4::timestamptz, $5::uuid)
+           )
+           ORDER BY hot_topics.hot_score DESC,
+                    visible_topics.created_at DESC,
+                    visible_topics.id DESC
+           LIMIT $6`,
+          [
+            viewerUserId,
+            rankedAt,
+            cursor?.score ?? null,
+            cursor?.createdAt ?? null,
+            cursor?.id ?? null,
+            limit + 1,
+          ],
+        );
+        const hasMore = result.rows.length > limit;
+        const rows = result.rows.slice(0, limit);
+        const last = rows.at(-1);
+        return {
+          items: rows.map(mapTopic),
+          nextCursor: hasMore && last
+            ? {
+                id: String(last.id),
+                createdAt: iso(last.created_at),
+                rankedAt: iso(last.ranked_at),
+                score: String(last.hot_score),
+              }
+            : null,
+        };
+      }
       const result = await pool.query(
         `${topicSelect}
          WHERE topics.status = 'published'
