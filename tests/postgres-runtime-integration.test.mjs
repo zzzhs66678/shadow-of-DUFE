@@ -128,6 +128,41 @@ function integrationAcademicBundle(label) {
   };
 }
 
+function integrationTextbookBundle(label, sourceRevision, materialRevision = sourceRevision) {
+  const bundle = integrationAcademicBundle(label);
+  bundle.reviewCandidates = [];
+  bundle.sources.textbook = {
+    filename: `ci-textbooks-${label}-${sourceRevision}.xlsx`,
+    sha256: sha256(`textbook-source:${label}:${sourceRevision}`),
+  };
+  bundle.textbooks = [{
+    sourceLocator: "教材!A2:Y2",
+    sourceRow: 2,
+    termKey: "2026-fall",
+    courseId: `CI-COURSE-${label}`,
+    courseTitle: `并发教材课程-${label}`,
+    sectionNo: "01",
+    teacherName: `并发导入教师-${label}`,
+    teacherCollege: `并发测试学院-${label}`,
+    externalTeacherKey: `ci-teacher-${label}`,
+    materialKind: "book",
+    selectionStatus: "specified",
+    position: 1,
+    recordStatus: "current",
+    materialSha256: sha256(`material:${materialRevision}`),
+    title: `教材-${sourceRevision}`,
+    author: "测试作者",
+    publisher: "测试出版社",
+    publicationDate: null,
+    publicationDateRaw: null,
+    edition: null,
+    printing: null,
+    isbn: null,
+    isbnStatus: "missing",
+  }];
+  return bundle;
+}
+
 function cookieHeader(response) {
   return response.headers
     .getSetCookie()
@@ -167,7 +202,7 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
     const migrations = await owner.query(
       "SELECT count(*)::integer AS count FROM schema_migrations",
     );
-    assert.equal(migrations.rows[0].count, 17);
+    assert.equal(migrations.rows[0].count, 18);
 
     await denied(migrator, "SELECT * FROM app_users LIMIT 1");
     const migrationRole = await migrator.query(
@@ -657,6 +692,81 @@ test("academic import and review moderation serialize on PostgreSQL", {
         review_count: 0,
       });
     }
+
+    const concurrentLabel = `textbook-race-${label}`;
+    const concurrentTextbooks = await Promise.all([
+      applyPrivateBundle(importer, integrationTextbookBundle(concurrentLabel, "X")),
+      applyPrivateBundle(importer, integrationTextbookBundle(concurrentLabel, "Y")),
+    ]);
+    assert.deepEqual(
+      concurrentTextbooks.map((result) => result.textbookBatch.idempotent),
+      [false, false],
+    );
+    const concurrentState = await owner.query(
+      `SELECT record_status, material_sha256
+       FROM teaching_section_textbooks
+       WHERE course_id = $1
+       ORDER BY created_at, id`,
+      [`CI-COURSE-${concurrentLabel}`],
+    );
+    assert.equal(concurrentState.rowCount, 2);
+    assert.equal(
+      concurrentState.rows.filter((row) => row.record_status === "current").length,
+      1,
+    );
+    assert.equal(
+      concurrentState.rows.filter((row) => row.record_status === "superseded").length,
+      1,
+    );
+
+    const cycleLabel = `textbook-cycle-${label}`;
+    await applyPrivateBundle(importer, integrationTextbookBundle(cycleLabel, "A"));
+    await applyPrivateBundle(importer, integrationTextbookBundle(cycleLabel, "B"));
+    await applyPrivateBundle(importer, integrationTextbookBundle(cycleLabel, "A-again", "A"));
+    const expectedA = sha256("material:A");
+    const cycleState = await owner.query(
+      `SELECT material_sha256, record_status
+       FROM teaching_section_textbooks
+       WHERE course_id = $1
+       ORDER BY created_at, id`,
+      [`CI-COURSE-${cycleLabel}`],
+    );
+    assert.equal(cycleState.rowCount, 3);
+    assert.equal(
+      cycleState.rows.filter((row) => row.record_status === "current").length,
+      1,
+    );
+    assert.equal(
+      cycleState.rows.find((row) => row.record_status === "current").material_sha256,
+      expectedA,
+    );
+
+    const restoreBundle = integrationAcademicBundle(`teacher-restore-${label}`);
+    const restoreFirst = await applyPrivateBundle(importer, restoreBundle);
+    const originalTeacher = await owner.query(
+      `SELECT teacher.id
+       FROM teachers AS teacher
+       INNER JOIN teacher_source_identities AS source_identity
+         ON source_identity.teacher_id = teacher.id
+       WHERE source_identity.external_teacher_key = $1`,
+      [restoreBundle.teachers[0].externalTeacherKey],
+    );
+    await rollbackImportBatch(importer, restoreFirst.teacherBatch.batchId);
+    const restoreSecond = await applyPrivateBundle(importer, restoreBundle);
+    assert.equal(restoreSecond.teacherBatch.idempotent, false);
+    const restoredTeacher = await owner.query(
+      `SELECT teacher.id, teacher.identity_status, source_identity.mapping_status
+       FROM teachers AS teacher
+       INNER JOIN teacher_source_identities AS source_identity
+         ON source_identity.teacher_id = teacher.id
+       WHERE source_identity.external_teacher_key = $1`,
+      [restoreBundle.teachers[0].externalTeacherKey],
+    );
+    assert.deepEqual(restoredTeacher.rows[0], {
+      id: originalTeacher.rows[0].id,
+      identity_status: "pending",
+      mapping_status: "current",
+    });
   } finally {
     await Promise.allSettled([owner.end(), runtime.end(), importer.end()]);
   }

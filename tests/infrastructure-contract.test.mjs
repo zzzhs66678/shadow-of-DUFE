@@ -287,7 +287,7 @@ test("backup and disk protection have bounded local retention", async () => {
   assert.match(restoreDrill, /--maintenance-db "\$POSTGRES_DB"/);
   assert.match(restoreDrill, /pg_restore/);
   assert.match(restoreDrill, /--exit-on-error/);
-  assert.match(restoreDrill, /migration_count < 17/);
+  assert.match(restoreDrill, /migration_count < 18/);
   assert.match(restoreDrill, /NOT convalidated/);
   assert.match(restoreDrill, /api_rate_limit_buckets/);
   assert.match(restoreDrill, /community_announcements/);
@@ -723,6 +723,25 @@ test("teacher import foundation separates identities, section textbooks, and pen
     migrations,
     /ALL TABLES IN SCHEMA public TO %I',\s*:'import_user'/,
   );
+});
+
+test("academic import state guards serialize one active textbook per teaching slot", async () => {
+  const migration = await read(
+    "ops/postgres/migrations/0018_academic_import_state_guards.sql",
+  );
+  const importer = await read("scripts/academic-import-apply.mjs");
+
+  assert.match(
+    migration,
+    /teaching_section_textbooks_active_scope_uidx[\s\S]*WHERE record_status IN \('current', 'needs_review'\)/,
+  );
+  assert.match(migration, /DROP INDEX IF EXISTS teaching_section_textbooks_identity_uidx/);
+  assert.match(importer, /teaching_section_textbook_scope:/);
+  assert.match(
+    importer,
+    /WHERE record_status IN \('current', 'needs_review'\)/,
+  );
+  assert.match(importer, /restored_teacher_source_identity/);
 });
 
 test("teacher review moderation requires elevation and immutable one-time decisions", async () => {
