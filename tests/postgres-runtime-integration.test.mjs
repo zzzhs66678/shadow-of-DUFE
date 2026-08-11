@@ -247,6 +247,34 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
     assert.equal(ownerSessionBody.authenticated, true);
     assert.equal(ownerSessionBody.user.id, owner.body.user.id);
 
+    const verificationRequest = await fetch(
+      `${baseUrl}/api/auth/email/verification/request`,
+      {
+        method: "POST",
+        headers: { Origin: "https://dufesh.cn", Cookie: owner.cookie },
+      },
+    );
+    const verificationRequestBody = await verificationRequest.json();
+    assert.equal(verificationRequest.status, 202);
+    assert.match(verificationRequestBody.debugToken, /^[A-Za-z0-9_-]{43}$/u);
+    const verificationAttempts = await Promise.all(
+      Array.from({ length: 2 }, () =>
+        fetch(`${baseUrl}/api/auth/email/verification/confirm`, {
+          method: "POST",
+          headers: { ...requestHeaders, Cookie: owner.cookie },
+          body: JSON.stringify({ token: verificationRequestBody.debugToken }),
+        })
+      ),
+    );
+    assert.deepEqual(
+      verificationAttempts.map((response) => response.status).sort(),
+      [200, 400],
+    );
+    const verifiedSession = await fetch(`${baseUrl}/api/auth/session`, {
+      headers: { Cookie: owner.cookie },
+    });
+    assert.equal((await verifiedSession.json()).user.emailVerified, true);
+
     const forbiddenAdmin = await fetch(`${baseUrl}/api/admin/session`, {
       headers: { Cookie: owner.cookie },
     });
@@ -482,30 +510,60 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
     assert.equal(revokedBootstrapSession.status, 200);
     assert.equal((await revokedBootstrapSession.json()).authenticated, false);
 
-    const adminLogin = await fetch(`${baseUrl}/api/auth/login`, {
-      method: "POST",
-      headers: requestHeaders,
-      body: JSON.stringify({
-        identifier: `ci-admin-${suffix}@example.com`,
-        password: "Moonlight!2026",
-      }),
-    });
-    assert.equal(adminLogin.status, 200);
-    const adminBaseCookie = cookieHeader(adminLogin);
+    const adminLogins = await Promise.all(
+      Array.from({ length: 2 }, () =>
+        fetch(`${baseUrl}/api/auth/login`, {
+          method: "POST",
+          headers: requestHeaders,
+          body: JSON.stringify({
+            identifier: `ci-admin-${suffix}@example.com`,
+            password: "Moonlight!2026",
+          }),
+        })
+      ),
+    );
+    assert.deepEqual(adminLogins.map((response) => response.status), [200, 200]);
+    const adminBaseCookies = adminLogins.map(cookieHeader);
 
     const totp = adminSecurityTest.codeForStep(
       enrollment.secret,
       Math.floor(Date.now() / 1_000 / 30),
     );
-    const elevation = await fetch(`${baseUrl}/api/admin/elevation`, {
-      method: "POST",
-      headers: { ...requestHeaders, Cookie: adminBaseCookie },
-      body: JSON.stringify({ code: totp }),
-    });
-    assert.equal(elevation.status, 200);
+    const elevationAttempts = await Promise.all(
+      adminBaseCookies.map((cookie) =>
+        fetch(`${baseUrl}/api/admin/elevation`, {
+          method: "POST",
+          headers: { ...requestHeaders, Cookie: cookie },
+          body: JSON.stringify({ code: totp }),
+        })
+      ),
+    );
+    assert.deepEqual(
+      elevationAttempts.map((response) => response.status).sort(),
+      [200, 403],
+    );
+    const elevationIndex = elevationAttempts.findIndex(
+      (response) => response.status === 200,
+    );
+    const elevation = elevationAttempts[elevationIndex];
+    const adminBaseCookie = adminBaseCookies[elevationIndex];
     const elevationCookie = cookieHeader(elevation);
     assert.match(elevationCookie, /__Host-dufesh_admin_elevation=/u);
     const elevatedAdminCookie = `${adminBaseCookie}; ${elevationCookie}`;
+
+    const recoveryAttempts = await Promise.all(
+      Array.from({ length: 2 }, () =>
+        fetch(`${baseUrl}/api/admin/elevation`, {
+          method: "POST",
+          headers: { ...requestHeaders, Cookie: adminBaseCookie },
+          body: JSON.stringify({ code: enrollment.recoveryCodes[0] }),
+        })
+      ),
+    );
+    assert.deepEqual(
+      recoveryAttempts.map((response) => response.status).sort(),
+      [200, 403],
+    );
 
     const adminSession = await fetch(`${baseUrl}/api/admin/session`, {
       headers: { Cookie: elevatedAdminCookie },
