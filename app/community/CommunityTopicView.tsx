@@ -244,6 +244,37 @@ export function CommunityTopicView({ topicId }: { topicId: string }) {
     }
   }
 
+  async function shareTopic() {
+    if (!topic) return;
+    const url = window.location.href;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: topic.title, url });
+        setFeedback("已打开系统分享。");
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setFeedback("讨论链接已复制。");
+    } catch (error) {
+      if ((error as Error).name === "AbortError") return;
+      try {
+        const field = document.createElement("textarea");
+        field.value = url;
+        field.setAttribute("readonly", "");
+        field.style.position = "fixed";
+        field.style.opacity = "0";
+        document.body.appendChild(field);
+        field.select();
+        const copied = document.execCommand("copy");
+        field.remove();
+        if (!copied) throw new Error("copy_failed");
+        setFeedback("讨论链接已复制。");
+      } catch {
+        setFeedback("暂时无法自动复制。可以从浏览器地址栏复制这条讨论的链接。");
+      }
+    }
+  }
+
   if (pageState === "loading") {
     return <main className={styles.page}><CommunityHeader session={session} unread={unread} onOpenNotifications={openNotifications} /><div className={styles.fullState} role="status"><i /><b>正在展开这段讨论</b><p>主题和回复会一起加载。</p></div></main>;
   }
@@ -268,6 +299,7 @@ export function CommunityTopicView({ topicId }: { topicId: string }) {
         <footer>
           <button className={topic.liked ? styles.activeAction : undefined} onClick={() => void toggleTopic("like")} disabled={busy === "like"} aria-pressed={topic.liked}>赞同 {topic.likeCount}</button>
           <button className={topic.bookmarked ? styles.activeAction : undefined} onClick={() => void toggleTopic("bookmark")} disabled={busy === "bookmark"} aria-pressed={topic.bookmarked}>{topic.bookmarked ? "已收藏" : "收藏"}</button>
+          <button onClick={() => void shareTopic()}>分享链接</button>
           <span>{topic.commentCount} 条讨论</span>
           {isOwner ? (
             <><button onClick={() => { setEditTitle(topic.title); setEditBody(topic.body); setEditingTopic(true); }}>编辑</button><button onClick={() => void deleteTopic()} disabled={busy === "delete-topic"}>删除</button></>
