@@ -163,10 +163,11 @@
 - quality workflow 已定义独立 PostgreSQL 17 作业：从空库连续执行 `0001`—`0016` 两次，使用真实 owner、auth runtime 和 importer 连接核对服务版本、迁移摘要/幂等、共享限流并发与重启持久性。ACL 矩阵逐项核对 runtime 对公开教师/用户评价/社区写入的必要权限、导入证据和审核决定的拒绝、社区编辑/治理/全局审计的只追加边界，以及 importer 对批次/逐行证据/教师事实的最小写权限、账号/会话/公开评价/审核决定/管理员审计的拒绝和仅可执行专用回滚函数；importer 同时必须保持 `NOINHERIT` 且无高权限角色属性。
 - 同一作业已接入真实 auth-api 依赖和 HTTP server，不使用内存假 store：随机创建两个普通账号与一个管理员候选，核对 Argon2id 注册、持久会话、普通用户访问管理员接口 403；同一邮箱验证令牌并发确认只能成功一次。账号 A 发布主题、账号 B 无法改写 A 的主题，B 回复后 A 收到并读取消通知。账号 A 的个人快照会真实写入、同 mutation 重放去重、旧 revision 冲突，账号 B 保持独立 revision 0；A 对真实教师记录创建评价，B 读取不到 A 的私有资源，两个同版本并发更新只能成功一个。管理员候选再通过真实 bootstrap 事务升为管理员，旧会话被撤销；两个新基础会话并发提交同一 TOTP 只能成功一个，同一恢复码并发提交也只能成功一个；成功的 TOTP 提升会话随后读取举报证据、入案、隐藏主题并从 append-only 管理审计读取同一动作。
 - 教师原生场景使用两位同显示名、同规范化姓名但学院和稳定 `teacher_id` 不同的记录；公开索引必须保留两项和各自学院，详情按 UUID 精确命中。给其中一位创建/并发更新评价后，另一位的公开评价和同一账号私有评价仍为空。该用例已编码，本机无 PostgreSQL，只能加载为 SKIP。
+- 原生作业另有独立 importer 并发场景：同一私有包的两次并发 apply 必须复用同一教师/教材 batch，分别只有一次真实应用；同一候选并发批准只能留下一份决定和公开评价。另一批次的批准与导入回滚并发只允许完整的 approved/applied 或 rolled_back/rolled_back 终态，决策、公开评价和批次状态不得交叉。该用例已编码，本机三项 PG17 测试均只能 SKIP。
 - 举报证据不只依赖应用权限：原生测试会让数据库 owner 直接尝试改写 `community_reports.evidence_body`，不可变触发器仍必须拒绝。治理完成后，主题作者通过真实账号注销 API 删除账号；测试要求 `app_users` 记录归零，但举报时正文/作者标签快照和 `admin.community.hide` 审计仍存在，确保注销不被触发器阻断，也不抹掉去标识化治理依据。
 - 同一原生场景会在正常隐藏前故意让 `admin.community.hide` 全局审计插入失败：真实管理员 API 必须返回 500，主题状态/版本、举报与案件状态、治理动作、全局审计以及原通知正文全部保持调用前状态；故障触发器移除后才允许隐藏成功。该回滚用例已编码，本机仍只能 SKIP，尚未得到 PG17 作业通过证据。
 - PostgreSQL 17 作业在应用/权限场景之后还会现场执行 `pg_dump` 生成 custom-format 备份和独立 SHA-256，调用生产同一 `restore-drill.sh` 的 `native` 运行模式恢复到唯一临时数据库，检查 16 个迁移、无未验证约束、关键表和 120 秒 CI RTO，再显式删库并查询确认没有 `dufesh_restore_drill_*` 残留。生产默认仍使用 Docker Compose 模式；本机无 `sh`/PostgreSQL，且 CI 尚未运行，因此不能把该代码路径记为已完成恢复演练。
-- 当前 Windows 开发机没有 PostgreSQL/Docker/WSL，因此这两个原生集成测试只能本地明确 SKIP；auth-api 72/72、基础设施契约 29/29、集成文件加载 2 项 SKIP、相关 ESLint 和 `git diff --check` 已通过。分支尚未推送，不能把已编码的 CI 作业记为运行成功，也不能替代真实浏览器、完整 ACL/并发和 staging 验收。本轮未部署。
+- 当前 Windows 开发机没有 PostgreSQL/Docker/WSL，因此三项原生集成测试只能本地明确 SKIP；auth-api 72/72、基础设施契约 30/30、集成文件加载 3 项 SKIP、相关 ESLint 和 `git diff --check` 已通过。分支尚未推送，不能把已编码的 CI 作业记为运行成功，也不能替代真实浏览器、完整 ACL/并发和 staging 验收。本轮未部署。
 - quality workflow 另有独立 `linux-production-images` 作业：在 Ubuntu 上从三份真实生产 Dockerfile 构建主站、auth-api 和小影镜像，检查最终运行用户均为 `node`，在 auth-api Alpine 镜像内实际加载 Argon2id/Sharp/PG，在小影镜像加载运行依赖，在主站镜像核对失败关闭 `image-size@2.0.3-dufesh.0` 并启动生产网关接受 HTTP 请求。Dockerfile 的 `NODE_IMAGE` 参数只为 CI 选择官方 `node:22-alpine`，生产默认 DaoCloud 镜像不变。该作业尚未运行；本地仅有基础设施契约 30/30、相关 ESLint 与差异检查证据，不能宣称 Linux/musl 镜像通过。
 
 ## 当前无障碍门禁

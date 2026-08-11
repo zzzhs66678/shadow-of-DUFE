@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import test from "node:test";
 
 import pg from "pg";
@@ -18,6 +18,11 @@ import { createPasswordService } from "../services/auth-api/src/passwords.mjs";
 import { createWechatProvider } from "../services/auth-api/src/providers/mock-wechat.mjs";
 import { createApiRateLimiters } from "../services/auth-api/src/rate-limit.mjs";
 import { createAuthServer } from "../services/auth-api/src/server.mjs";
+import {
+  applyPrivateBundle,
+  rollbackImportBatch,
+} from "../scripts/academic-import-apply.mjs";
+import { createTeacherReviewStore } from "../services/auth-api/src/teacher-review-store.mjs";
 
 const enabled = process.env.POSTGRES_INTEGRATION === "true";
 const { Pool } = pg;
@@ -80,6 +85,47 @@ function integrationConfig() {
     AUTH_ADMIN_RECOVERY_PEPPER:
       "ci-recovery-pepper-that-is-longer-than-thirty-two-characters",
   });
+}
+
+function sha256(value) {
+  return createHash("sha256").update(value, "utf8").digest("hex");
+}
+
+function integrationAcademicBundle(label) {
+  const teacherKey = `ci-teacher-${label}`;
+  return {
+    schemaVersion: 1,
+    mappingVersion: `ci-${label}`,
+    private: true,
+    sources: {
+      teacher: {
+        filename: `ci-teachers-${label}.xlsx`,
+        sha256: sha256(`teacher-source:${label}`),
+      },
+      textbook: {
+        filename: `ci-textbooks-${label}.xlsx`,
+        sha256: sha256(`textbook-source:${label}`),
+      },
+    },
+    teachers: [{
+      sourceLocator: "教师评价!C2",
+      externalTeacherKey: teacherKey,
+      displayName: `并发导入教师-${label}`,
+      collegeName: `并发测试学院-${label}`,
+      sourceDigest: sha256(`teacher-row:${label}`),
+    }],
+    reviewCandidates: [{
+      sourceLocator: "教师评价!D2",
+      sourceRow: 2,
+      sourceColumn: 4,
+      externalTeacherKey: teacherKey,
+      sanitizedBody: `这是一条用于真实 PostgreSQL 并发审核的脱敏历史评价-${label}`,
+      originalBodySha256: sha256(`review-original:${label}`),
+      normalizedBodySha256: sha256(`review-normalized:${label}`),
+      riskFlags: [],
+    }],
+    textbooks: [],
+  };
 }
 
 function cookieHeader(response) {
@@ -281,6 +327,189 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
       aclRuntime.end(),
       importer.end(),
     ]);
+  }
+});
+
+test("academic import and review moderation serialize on PostgreSQL", {
+  skip: !enabled,
+  timeout: 45_000,
+}, async () => {
+  const owner = poolFor(process.env.POSTGRES_USER, process.env.POSTGRES_PASSWORD);
+  const runtime = poolFor(process.env.AUTH_DB_USER, process.env.AUTH_DB_PASSWORD);
+  const importer = poolFor(process.env.IMPORT_DB_USER, process.env.IMPORT_DB_PASSWORD);
+  const adminId = randomUUID();
+  const sessionId = randomUUID();
+  const elevationHash = `ci-elevation-${randomUUID()}`;
+  const label = randomUUID().slice(0, 8);
+  const reviewStore = createTeacherReviewStore(runtime);
+  const adminInput = (extra) => ({
+    actorUserId: adminId,
+    actorSessionId: sessionId,
+    actorElevationTokenHash: elevationHash,
+    ipHash: sha256(`ip:${label}`),
+    userAgentHash: sha256(`user-agent:${label}`),
+    ...extra,
+  });
+
+  try {
+    await owner.query(
+      `INSERT INTO app_users (
+         id, status, display_name, role, username, normalized_username,
+         registered_via
+       ) VALUES ($1::uuid, 'active', $2, 'admin', $3, $3, 'credential')`,
+      [adminId, `并发审核管理员-${label}`, `ci-review-admin-${label}`],
+    );
+    await owner.query(
+      `INSERT INTO user_sessions (id, user_id, token_hash, expires_at)
+       VALUES ($1::uuid, $2::uuid, $3, now() + interval '1 hour')`,
+      [sessionId, adminId, `ci-review-session-${label}`],
+    );
+    await owner.query(
+      `INSERT INTO admin_elevated_sessions (
+         user_id, base_session_id, token_hash, method, expires_at
+       ) VALUES ($1::uuid, $2::uuid, $3, 'totp', now() + interval '10 minutes')`,
+      [adminId, sessionId, elevationHash],
+    );
+
+    const idempotentBundle = integrationAcademicBundle(`idempotent-${label}`);
+    const concurrentImports = await Promise.all([
+      applyPrivateBundle(importer, idempotentBundle),
+      applyPrivateBundle(importer, idempotentBundle),
+    ]);
+    assert.deepEqual(
+      concurrentImports
+        .map((result) => result.teacherBatch.idempotent)
+        .sort(),
+      [false, true],
+    );
+    assert.deepEqual(
+      concurrentImports
+        .map((result) => result.textbookBatch.idempotent)
+        .sort(),
+      [false, true],
+    );
+    assert.equal(
+      new Set(concurrentImports.map((result) => result.teacherBatch.batchId)).size,
+      1,
+    );
+
+    const idempotentCandidate = await owner.query(
+      `SELECT candidate.id
+       FROM teacher_review_candidates AS candidate
+       INNER JOIN data_import_rows AS import_row
+         ON import_row.id = candidate.import_row_id
+       WHERE import_row.batch_id = $1::uuid`,
+      [concurrentImports[0].teacherBatch.batchId],
+    );
+    assert.equal(idempotentCandidate.rowCount, 1);
+    const decisionAttempts = await Promise.allSettled([
+      reviewStore.moderateAdminTeacherReviewCandidate(adminInput({
+        candidateId: idempotentCandidate.rows[0].id,
+        decision: "approve",
+        reason: "第一条并发审核请求尝试批准同一历史评价候选",
+        requestId: randomUUID(),
+      })),
+      reviewStore.moderateAdminTeacherReviewCandidate(adminInput({
+        candidateId: idempotentCandidate.rows[0].id,
+        decision: "approve",
+        reason: "第二条并发审核请求尝试批准同一历史评价候选",
+        requestId: randomUUID(),
+      })),
+    ]);
+    assert.equal(
+      decisionAttempts.filter((result) => result.status === "fulfilled").length,
+      1,
+    );
+    assert.equal(
+      decisionAttempts.filter(
+        (result) => result.status === "rejected" &&
+          result.reason?.code === "TEACHER_REVIEW_CANDIDATE_CONFLICT",
+      ).length,
+      1,
+    );
+    const singleDecision = await owner.query(
+      `SELECT
+         candidate.moderation_status,
+         (SELECT count(*)::integer
+          FROM teacher_review_candidate_decisions
+          WHERE candidate_id = candidate.id) AS decision_count,
+         (SELECT count(*)::integer
+          FROM teacher_reviews
+          WHERE import_candidate_id = candidate.id) AS review_count
+       FROM teacher_review_candidates AS candidate
+       WHERE candidate.id = $1::uuid`,
+      [idempotentCandidate.rows[0].id],
+    );
+    assert.deepEqual(singleDecision.rows[0], {
+      moderation_status: "approved",
+      decision_count: 1,
+      review_count: 1,
+    });
+
+    const raceBundle = integrationAcademicBundle(`rollback-${label}`);
+    const raceImport = await applyPrivateBundle(importer, raceBundle);
+    const raceCandidate = await owner.query(
+      `SELECT candidate.id
+       FROM teacher_review_candidates AS candidate
+       INNER JOIN data_import_rows AS import_row
+         ON import_row.id = candidate.import_row_id
+       WHERE import_row.batch_id = $1::uuid`,
+      [raceImport.teacherBatch.batchId],
+    );
+    assert.equal(raceCandidate.rowCount, 1);
+    const moderationRollbackRace = await Promise.allSettled([
+      reviewStore.moderateAdminTeacherReviewCandidate(adminInput({
+        candidateId: raceCandidate.rows[0].id,
+        decision: "approve",
+        reason: "并发审核与导入回滚只能有一条状态路径成功提交",
+        requestId: randomUUID(),
+      })),
+      rollbackImportBatch(importer, raceImport.teacherBatch.batchId),
+    ]);
+    assert.equal(
+      moderationRollbackRace.filter((result) => result.status === "fulfilled").length,
+      1,
+    );
+    assert.equal(
+      moderationRollbackRace.filter((result) => result.status === "rejected").length,
+      1,
+    );
+
+    const raceState = await owner.query(
+      `SELECT
+         batch.status AS batch_status,
+         candidate.moderation_status,
+         (SELECT count(*)::integer
+          FROM teacher_review_candidate_decisions
+          WHERE candidate_id = candidate.id) AS decision_count,
+         (SELECT count(*)::integer
+          FROM teacher_reviews
+          WHERE import_candidate_id = candidate.id) AS review_count
+       FROM data_import_batches AS batch
+       INNER JOIN data_import_rows AS import_row ON import_row.batch_id = batch.id
+       INNER JOIN teacher_review_candidates AS candidate
+         ON candidate.import_row_id = import_row.id
+       WHERE batch.id = $1::uuid`,
+      [raceImport.teacherBatch.batchId],
+    );
+    assert.equal(raceState.rowCount, 1);
+    if (raceState.rows[0].batch_status === "applied") {
+      assert.deepEqual(raceState.rows[0], {
+        batch_status: "applied",
+        moderation_status: "approved",
+        decision_count: 1,
+        review_count: 1,
+      });
+    } else {
+      assert.deepEqual(raceState.rows[0], {
+        batch_status: "rolled_back",
+        moderation_status: "rolled_back",
+        decision_count: 0,
+        review_count: 0,
+      });
+    }
+  } finally {
+    await Promise.allSettled([owner.end(), runtime.end(), importer.end()]);
   }
 });
 
