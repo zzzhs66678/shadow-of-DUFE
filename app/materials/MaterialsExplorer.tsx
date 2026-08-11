@@ -64,19 +64,24 @@ function termLabel(term: string) {
   return term === "fall" ? "上学期" : term === "spring" ? "下学期" : term;
 }
 
-export function MaterialsExplorer() {
-  const [initial] = useState(() =>
-    typeof window === "undefined"
-      ? new URLSearchParams()
-      : new URLSearchParams(window.location.search),
-  );
-  const [query, setQuery] = useState(initial.get("q") ?? "");
-  const [course, setCourse] = useState(initial.get("course") ?? "");
-  const [teacher, setTeacher] = useState(initial.get("teacher") ?? "");
-  const [type, setType] = useState(initial.get("type") ?? "");
-  const [tag, setTag] = useState(initial.get("tag") ?? "");
-  const [term, setTerm] = useState(initial.get("term") ?? "");
-  const [year, setYear] = useState(initial.get("year") ?? "");
+type MaterialSearchState = {
+  q?: string;
+  course?: string;
+  teacher?: string;
+  type?: string;
+  tag?: string;
+  term?: string;
+  year?: string;
+};
+
+export function MaterialsExplorer({ initialSearch = {} }: { initialSearch?: MaterialSearchState }) {
+  const [query, setQuery] = useState(initialSearch.q ?? "");
+  const [course, setCourse] = useState(initialSearch.course ?? "");
+  const [teacher, setTeacher] = useState(initialSearch.teacher ?? "");
+  const [type, setType] = useState(initialSearch.type ?? "");
+  const [tag, setTag] = useState(initialSearch.tag ?? "");
+  const [term, setTerm] = useState(initialSearch.term ?? "");
+  const [year, setYear] = useState(initialSearch.year ?? "");
   const [result, setResult] = useState<SearchResponse | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [revision, setRevision] = useState(0);

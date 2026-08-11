@@ -19,11 +19,8 @@ type TeacherResponse = {
   nextCursor: string | null;
 };
 
-export function TeacherExplorer() {
-  const [initial] = useState(() =>
-    typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("q") ?? "",
-  );
-  const [query, setQuery] = useState(initial);
+export function TeacherExplorer({ initialQuery = "" }: { initialQuery?: string }) {
+  const [query, setQuery] = useState(initialQuery);
   const [items, setItems] = useState<TeacherSummary[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
