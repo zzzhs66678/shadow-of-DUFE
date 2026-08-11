@@ -62,7 +62,7 @@ jobs:
   postgres-integration:
     name: postgres-17-integration
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:17-alpine
@@ -120,6 +120,51 @@ jobs:
           MIGRATIONS_DIR="$GITHUB_WORKSPACE/ops/postgres/migrations" sh ops/postgres/run-migrations.sh
       - name: Verify PostgreSQL roles and real auth/community flows
         run: node --test tests/postgres-runtime-integration.test.mjs
+      - name: Install Chromium for authenticated browser checks
+        run: npx playwright install --with-deps chromium
+      - name: Run the PostgreSQL-backed browser critical path
+        env:
+          NODE_ENV: test
+          AUTH_API_PORT: "3100"
+          AUTH_TOKEN_PEPPER: ci-token-pepper-that-is-longer-than-thirty-two-characters
+          AUTH_ALLOWED_ORIGINS: http://localhost:3000
+          AUTH_PUBLIC_ORIGIN: https://dufesh.cn
+          AUTH_WECHAT_MODE: disabled
+          AUTH_PASSWORD_RESET_MODE: response
+          AUTH_EMAIL_VERIFICATION_MODE: response
+          AUTH_ADMIN_ENABLED: "true"
+          AUTH_ADMIN_MFA_ACTIVE_KEY_ID: ci-key
+          AUTH_ADMIN_MFA_KEYS: '{"ci-key":"REREREREREREREREREREREREREREREREREREREREREQ="}'
+          AUTH_ADMIN_RECOVERY_PEPPER: ci-recovery-pepper-that-is-longer-than-thirty-two-characters
+        run: |
+          auth_log="$RUNNER_TEMP/auth-api-browser.log"
+          app_log="$RUNNER_TEMP/app-browser.log"
+          node services/auth-api/src/index.mjs >"$auth_log" 2>&1 &
+          auth_pid=$!
+          AUTH_API_DEV_TARGET=http://127.0.0.1:3100 npm run dev >"$app_log" 2>&1 &
+          app_pid=$!
+          cleanup() {
+            status=$?
+            trap - EXIT
+            kill "$app_pid" "$auth_pid" 2>/dev/null || true
+            wait "$app_pid" "$auth_pid" 2>/dev/null || true
+            if [ "$status" -ne 0 ]; then
+              cat "$auth_log" "$app_log"
+            fi
+            exit "$status"
+          }
+          trap cleanup EXIT
+          ready=0
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent --output /dev/null http://localhost:3000/api/auth/health; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          test "$ready" = "1"
+          PLAYWRIGHT_BASE_URL=http://localhost:3000 \
+            npx playwright test --config playwright.postgres.config.ts
       - name: Run isolated backup restore drill
         run: |
           drill_dir="$RUNNER_TEMP/postgres-restore-drill"

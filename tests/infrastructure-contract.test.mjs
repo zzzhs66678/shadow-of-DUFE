@@ -167,6 +167,26 @@ test("CI runs migrations twice against native PostgreSQL 17 and checks runtime r
   assert.match(integration, /ci_migrator_transaction_probe/);
 });
 
+test("CI drives the authenticated browser critical path through PostgreSQL", async () => {
+  const workflow = await read(".github/workflows/quality.yml");
+  const config = await read("playwright.postgres.config.ts");
+  const suite = await read("tests/e2e/postgres-critical-path.spec.mjs");
+
+  assert.match(workflow, /Install Chromium for authenticated browser checks/);
+  assert.match(workflow, /AUTH_API_DEV_TARGET=http:\/\/127\.0\.0\.1:3100/);
+  assert.match(workflow, /http:\/\/localhost:3000\/api\/auth\/health/);
+  assert.match(workflow, /playwright\.postgres\.config\.ts/);
+  assert.ok(config.includes("testMatch: /postgres-critical-path\\.spec\\.mjs/"));
+  assert.match(config, /workers: 1/);
+  assert.match(suite, /register\(owner, "owner"\)/);
+  assert.match(suite, /register\(replier, "replier"\)/);
+  assert.match(suite, /getAdminBootstrapTarget/);
+  assert.match(suite, /bootstrapAdmin/);
+  assert.match(suite, /codeForStep/);
+  assert.match(suite, /举报主题/);
+  assert.match(suite, /通知/);
+});
+
 test("CI builds and smoke-tests every production Linux image", async () => {
   const workflow = await read(".github/workflows/quality.yml");
   const appDockerfile = await read("Dockerfile");

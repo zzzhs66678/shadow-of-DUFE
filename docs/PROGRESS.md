@@ -461,9 +461,15 @@
 - 空库和既有库统一由 migrator 登录，并通过连接级 `PGOPTIONS=-c role=...` 显式切换到 schema owner 后创建 `schema_migrations`、读取 checksum 和执行每个版本事务；`POSTGRES_USER` 不再执行迁移文件。升级既有库时，引导阶段会把 public 普通/分区表、序列和函数所有权收敛到 schema owner；运行时与 backup 的未来默认权限也改为针对 schema owner 创建的对象。
 - 原生 ACL 门禁要求 migrator 基础会话不能读取 `app_users`，成员关系只含 schema owner；schema owner 必须不可登录、无高权/上游角色并持有全部 public 表/序列/函数。测试随后在 migrator 会话显式 `SET ROLE`，用事务 DDL 建表再回滚并确认无残留。当前本地基础设施 30/30、三项 PG17 用例明确 SKIP、ESLint、YAML 与差异检查通过；所有权接管和双迁移仍必须在 CI 空库及 staging 升级库实际验证，本切片未部署。
 
+## M8/M9 已实现待 CI 验证切片：真实账号浏览器闭环
+
+- 新增独立 `playwright.postgres.config.ts`，只收集串行的 PostgreSQL 关键路径，不复用公开页面的离线降级浏览器套件。quality workflow 在同一 PG17 作业中启动真实 auth-api 与主站开发代理，并只在同源 `/api/auth/health` 同时穿过主站和认证服务后运行 Chromium。
+- 用例通过可访问名称操作真实页面：两个普通用户和一个管理员候选分别完成密码注册；普通用户在校园回廊发布主题，第二名用户打开稳定链接回复并举报，主题作者从通知面板读取回复正文和回复者。管理员候选初始化前打开 `/admin` 必须看到权限拒绝；随后测试使用现有运维 bootstrap 数据路径配置加密 TOTP 并撤销旧会话，再从页面重新登录、提交实时 TOTP，进入值守台并读取真实账号概览。
+- 测试不伪造 Cookie、会话、社区响应或管理员角色；除运维专属 bootstrap 外，所有用户动作均通过浏览器页面和同一 PostgreSQL runtime API。Playwright `--list` 成功收集 1 项，本地基础设施契约 31/31、TypeScript、相关 ESLint、YAML 和 `git diff --check` 通过。本机没有 PostgreSQL/Docker，完整浏览器场景尚未实际运行；它也尚未覆盖资料、跨设备同步、教师评价和最终管理员举报处置，不能替代完整发布 E2E，本切片未部署。
+
 ## 下一步
 
-1. 首次运行现有 Linux 镜像、PostgreSQL 17 与隔离恢复 CI 门禁；随后补 migrator/backup 权限边界，再完成两个普通用户与一个管理员的浏览器 E2E。
+1. 首次运行现有 Linux 镜像、PostgreSQL 17、真实账号浏览器与隔离恢复 CI 门禁；取得全绿证据后，再把浏览器链扩展到资料、跨设备同步、教师评价和管理员实际处理举报。
 2. 生产邮件发送适配器和校园账号验证仍待凭据/上游能力；保持失败关闭，不阻塞 M2 开发。
 3. M6 本地切片已完成；具备 staging 条件后实测 LCP、INP、CLS，并以真实登录态复核长会话、服务端列表游标和校园照片解码。
 4. M3 本地实现已完成；在原生 PostgreSQL 17 验证 importer ACL、公开读取、评价提交/编辑/删除、账号注销撤下、审核/回滚并发锁和完整回滚。未审核历史正文仍不得公开。

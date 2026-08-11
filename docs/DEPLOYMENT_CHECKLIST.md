@@ -76,6 +76,7 @@
 - [ ] GitHub `postgres-17-integration` 作业从空库执行 `run-migrations.sh` 两遍，通过真实 owner/runtime/importer 与账号/业务测试，并现场 `pg_dump` 后以 `restore-drill.sh` native 模式恢复到隔离临时库，检查迁移/约束/关键表/RTO和零残留；本地 SKIP 或脚本静态检查不得作为替代证据。
 - [ ] 用本次私有包在 staging 完成首次 apply、第二次幂等 no-op、错误依赖顺序拒绝和教材→教师回滚；私有包不得进入镜像、Git、静态目录或备份公开层。
 - [ ] 关键路径浏览器 E2E 通过：注册→资料→跨设备→教师→评价→回复→通知→举报→管理员处理。
+  - 已编码但未实跑的 PG17 浏览器切片仅覆盖页面注册、主题、回复、举报、通知、普通用户拒绝与管理员 TOTP 入台；不得因此勾选完整关键路径。
 - [ ] 课表中的教师姓名先进入索引消歧；只有持有稳定 `teacher_id` 的数据才能直达详情，不能用同名首条记录代替。
 - [ ] 普通用户访问 `/admin` 与所有管理 API 均被拒绝。
 - [ ] 320/360/375/390/414/768px 与横屏浏览器检查通过。
@@ -118,7 +119,7 @@
 - 微信开放平台正式 AppID/AppSecret 与最终审核状态：未提供，本地不需要等待；生产微信入口受此阻塞。
 - 独立 staging 环境与凭据：尚未确认，未擅自创建付费资源。
 - 邮件发送服务凭据：尚未提供；密码注册可先本地验证，生产验证/重置邮件受此阻塞。
-- 当前开发机未安装 `sh`、Docker/PostgreSQL 或 WSL；`0006_credential_auth.sql`—`0016_shared_rate_limits.sql` 的空库、升级库、重复执行，以及 Linux musl 原生 Argon2id/Sharp 镜像验证必须在 staging 或具备 Docker 的 CI 完成。仓库原生作业已经编码迁移双执行、ACL/共享限流、真实账号业务闭环和现场备份恢复，但尚未推送运行；教师导入/审核的其余并发、migrator/backup 权限、Linux 镜像与首次隔离恢复仍需真实执行。
+- 当前开发机未安装 `sh`、Docker/PostgreSQL 或 WSL；`0006_credential_auth.sql`—`0016_shared_rate_limits.sql` 的空库、升级库、重复执行，以及 Linux musl 原生 Argon2id/Sharp 镜像验证必须在 staging 或具备 Docker 的 CI 完成。仓库原生作业已经编码迁移双执行、ACL/共享限流、真实账号 HTTP/浏览器业务切片和现场备份恢复，但尚未推送运行；教师导入/审核的其余并发、migrator/backup 权限、完整浏览器关键路径、Linux 镜像与首次隔离恢复仍需真实执行。
 - 主站已用仓库内失败关闭包隔离 vinext 的 `image-size@2.0.2`，干净本地 `npm ci` 后生产依赖审计为 0；仍须由 Linux PR CI 与 staging 镜像复核实际去重、构建和审计，未复核前不得放行生产发布。
 - 本地 `npm run typecheck`、主仓 Node 91/91、个人存储/同步 9/9、auth-api 72/72、构建后渲染 4/4、CSS 审计和相关 ESLint 已通过；渲染 4 项已包含在主仓 91 项中，不重复计数。quality workflow 已加入 TypeScript 步骤；仍须由 Pull Request CI 在 Linux 上复核后才能勾选生产前质量门禁。
 - 异地对象存储/备份凭据：尚未提供；本地适配器和恢复流程继续开发，生产异地副本受此阻塞。
