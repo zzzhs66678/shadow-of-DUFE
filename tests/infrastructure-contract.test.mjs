@@ -230,6 +230,11 @@ test("CI builds and smoke-tests every production Linux image", async () => {
   assert.match(workflow, /manifest\.version !== '2\.0\.3-dufesh\.0'/);
   assert.match(workflow, /http:\/\/127\.0\.0\.1:3000\//);
   assert.match(workflow, /docker image inspect --format '\{\{\.Config\.User\}\}'/);
+  assert.equal(
+    [...appDockerfile.matchAll(/COPY vendor\/image-size-disabled \.\/vendor\/image-size-disabled/g)].length,
+    2,
+    "the fail-closed local dependency must exist during install in both build and runtime stages",
+  );
 
   for (const dockerfile of [appDockerfile, authDockerfile, xiaoyingDockerfile]) {
     assert.match(
