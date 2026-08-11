@@ -1246,7 +1246,10 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
           }),
         },
       );
-      assert.equal(rejectedHide.status, 500);
+      assert.equal(rejectedHide.status, 503);
+      assert.deepEqual(await rejectedHide.json(), {
+        error: "service_unavailable",
+      });
 
       const rolledBackModeration = await fixtureOwner.query(
         `SELECT
