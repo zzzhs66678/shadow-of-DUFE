@@ -228,12 +228,9 @@ test("users and an administrator complete the release browser path", async ({
     await composer.getByLabel("标题").fill(topicTitle);
     await composer.getByLabel("正文").fill(topicBody);
     await composer.getByRole("button", { name: "发布主题" }).click();
-    const topicLink = owner
-      .locator('a[href^="/community/topics/"]')
-      .filter({ hasText: topicTitle })
-      .first();
-    await expect(topicLink).toBeVisible();
-    const topicPath = await topicLink.getAttribute("href");
+    await expect(owner).toHaveURL(/\/community\/topics\/[0-9a-f-]{36}$/u);
+    await expect(owner.getByRole("heading", { name: topicTitle })).toBeVisible();
+    const topicPath = new URL(owner.url()).pathname;
     expect(topicPath).toMatch(/^\/community\/topics\/[0-9a-f-]{36}$/u);
 
     await replier.goto(topicPath);
