@@ -7,11 +7,18 @@ export const metadata: Metadata = {
   alternates: { canonical: "/teachers" },
 };
 
-export default function TeachersPage() {
+type TeachersPageProps = {
+  searchParams: Promise<{ q?: string | string[] }>;
+};
+
+export default async function TeachersPage({ searchParams }: TeachersPageProps) {
+  const params = await searchParams;
+  const initialQuery = Array.isArray(params.q) ? params.q[0] ?? "" : params.q ?? "";
+
   return (
     <>
       <a className="skip-link" href="#main-content">跳到教师搜索</a>
-      <TeacherExplorer />
+      <TeacherExplorer initialQuery={initialQuery} />
     </>
   );
 }
