@@ -161,8 +161,8 @@
 ## 当前原生 PostgreSQL CI 门禁
 
 - quality workflow 已定义独立 PostgreSQL 17 作业：从空库连续执行 `0001`—`0016` 两次，使用真实 owner、auth runtime 和 importer 连接核对服务版本、迁移摘要/幂等、共享限流并发与重启持久性，以及基础角色拒绝边界。
-- 同一作业已接入真实 auth-api 依赖和 HTTP server，不使用内存假 store：随机创建两个普通账号，核对 Argon2id 注册、持久会话、普通用户访问管理员接口 403、账号 A 发布主题、账号 B 无法改写 A 的主题、B 回复后 A 收到并读取消通知。
-- 当前 Windows 开发机没有 PostgreSQL/Docker/WSL，因此这两个原生集成测试只能本地明确 SKIP；auth-api 72/72、基础设施契约 29/29、集成文件加载 2 项 SKIP、相关 ESLint 和 `git diff --check` 已通过。分支尚未推送，不能把已编码的 CI 作业记为运行成功，也不能替代管理员、浏览器、完整 ACL/并发和 staging 验收。本轮未部署。
+- 同一作业已接入真实 auth-api 依赖和 HTTP server，不使用内存假 store：随机创建两个普通账号与一个管理员候选，核对 Argon2id 注册、持久会话、普通用户访问管理员接口 403、账号 A 发布主题、账号 B 无法改写 A 的主题、B 回复后 A 收到并读取消通知。管理员候选再通过真实 bootstrap 事务升为管理员，旧会话被撤销；重新登录和 TOTP 提升后读取举报证据、入案、隐藏主题并从 append-only 管理审计读取同一动作。
+- 当前 Windows 开发机没有 PostgreSQL/Docker/WSL，因此这两个原生集成测试只能本地明确 SKIP；auth-api 72/72、基础设施契约 29/29、集成文件加载 2 项 SKIP、相关 ESLint 和 `git diff --check` 已通过。分支尚未推送，不能把已编码的 CI 作业记为运行成功，也不能替代真实浏览器、完整 ACL/并发和 staging 验收。本轮未部署。
 
 ## 当前无障碍门禁
 

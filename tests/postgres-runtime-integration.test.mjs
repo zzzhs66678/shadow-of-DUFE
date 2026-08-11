@@ -4,7 +4,10 @@ import test from "node:test";
 
 import pg from "pg";
 
-import { createAdminSecurity } from "../services/auth-api/src/admin-security.mjs";
+import {
+  __test as adminSecurityTest,
+  createAdminSecurity,
+} from "../services/auth-api/src/admin-security.mjs";
 import { createAvatarProcessor } from "../services/auth-api/src/avatars.mjs";
 import { loadConfig } from "../services/auth-api/src/config.mjs";
 import {
@@ -158,23 +161,24 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
   }
 });
 
-test("real auth and community HTTP flows persist across two PostgreSQL users", {
+test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
   skip: !enabled,
   timeout: 45_000,
 }, async () => {
   const config = integrationConfig();
   const store = createAuthStore(createDatabasePool(config));
+  const adminSecurity = createAdminSecurity({
+    activeKeyId: config.adminMfaActiveKeyId,
+    keyring: config.adminMfaKeys,
+    recoveryPepper: config.adminRecoveryPepper,
+  });
   const server = createAuthServer({
     store,
     config,
     wechatProvider: createWechatProvider(config),
     passwordService: createPasswordService(),
     avatarProcessor: createAvatarProcessor(),
-    adminSecurity: createAdminSecurity({
-      activeKeyId: config.adminMfaActiveKeyId,
-      keyring: config.adminMfaKeys,
-      recoveryPepper: config.adminRecoveryPepper,
-    }),
+    adminSecurity,
     rateLimiters: createApiRateLimiters({ store }),
   });
 
@@ -210,6 +214,7 @@ test("real auth and community HTTP flows persist across two PostgreSQL users", {
   try {
     const owner = await register("owner");
     const replier = await register("replier");
+    const administrator = await register("admin");
 
     const health = await fetch(`${baseUrl}/api/auth/health`);
     assert.equal(health.status, 200);
@@ -326,6 +331,128 @@ test("real auth and community HTTP flows persist across two PostgreSQL users", {
       { headers: { Cookie: owner.cookie } },
     );
     assert.deepEqual(await afterRead.json(), { unread: 0 });
+
+    const enrollment = adminSecurity.createEnrollment({
+      userId: administrator.body.user.id,
+      accountLabel: administrator.body.user.email,
+    });
+    await store.bootstrapAdmin({
+      userId: administrator.body.user.id,
+      enrollment,
+    });
+
+    const revokedBootstrapSession = await fetch(
+      `${baseUrl}/api/auth/session`,
+      { headers: { Cookie: administrator.cookie } },
+    );
+    assert.equal(revokedBootstrapSession.status, 200);
+    assert.equal((await revokedBootstrapSession.json()).authenticated, false);
+
+    const adminLogin = await fetch(`${baseUrl}/api/auth/login`, {
+      method: "POST",
+      headers: requestHeaders,
+      body: JSON.stringify({
+        identifier: `ci-admin-${suffix}@example.com`,
+        password: "Moonlight!2026",
+      }),
+    });
+    assert.equal(adminLogin.status, 200);
+    const adminBaseCookie = cookieHeader(adminLogin);
+
+    const totp = adminSecurityTest.codeForStep(
+      enrollment.secret,
+      Math.floor(Date.now() / 1_000 / 30),
+    );
+    const elevation = await fetch(`${baseUrl}/api/admin/elevation`, {
+      method: "POST",
+      headers: { ...requestHeaders, Cookie: adminBaseCookie },
+      body: JSON.stringify({ code: totp }),
+    });
+    assert.equal(elevation.status, 200);
+    const elevationCookie = cookieHeader(elevation);
+    assert.match(elevationCookie, /__Host-dufesh_admin_elevation=/u);
+    const elevatedAdminCookie = `${adminBaseCookie}; ${elevationCookie}`;
+
+    const adminSession = await fetch(`${baseUrl}/api/admin/session`, {
+      headers: { Cookie: elevatedAdminCookie },
+    });
+    assert.equal(adminSession.status, 200);
+    assert.deepEqual(
+      { role: (await adminSession.json()).role },
+      { role: "admin" },
+    );
+
+    const reportResponse = await fetch(`${baseUrl}/api/community/reports`, {
+      method: "POST",
+      headers: { ...requestHeaders, Cookie: replier.cookie },
+      body: JSON.stringify({
+        targetType: "topic",
+        targetId: topicBody.topic.id,
+        reasonCode: "spam",
+        detail: "原生 PostgreSQL 管理流程使用的测试举报。",
+      }),
+    });
+    const reportBody = await reportResponse.json();
+    assert.equal(reportResponse.status, 201);
+
+    const reports = await fetch(
+      `${baseUrl}/api/admin/community/reports?status=open`,
+      { headers: { Cookie: elevatedAdminCookie } },
+    );
+    const reportsBody = await reports.json();
+    assert.equal(reports.status, 200);
+    assert.equal(reportsBody.reports.length, 1);
+    assert.equal(reportsBody.reports[0].id, reportBody.report.id);
+    assert.equal(reportsBody.reports[0].evidenceBody.includes("真实 HTTP"), true);
+
+    const openedCase = await fetch(
+      `${baseUrl}/api/admin/community/reports/${reportBody.report.id}/case`,
+      {
+        method: "POST",
+        headers: { ...requestHeaders, Cookie: elevatedAdminCookie },
+        body: JSON.stringify({ reason: "测试举报进入管理员人工复核流程" }),
+      },
+    );
+    const openedCaseBody = await openedCase.json();
+    assert.equal(openedCase.status, 200);
+    assert.equal(openedCaseBody.case.status, "reviewing");
+
+    const hidden = await fetch(
+      `${baseUrl}/api/admin/community/cases/${openedCaseBody.case.id}/actions`,
+      {
+        method: "POST",
+        headers: { ...requestHeaders, Cookie: elevatedAdminCookie },
+        body: JSON.stringify({
+          action: "hide",
+          reason: "验证隐藏、通知与双审计位于同一事务",
+        }),
+      },
+    );
+    const hiddenBody = await hidden.json();
+    assert.equal(hidden.status, 200);
+    assert.equal(hiddenBody.case.action, "hide");
+
+    const hiddenTopic = await fetch(
+      `${baseUrl}/api/community/topics/${topicBody.topic.id}`,
+    );
+    assert.equal(hiddenTopic.status, 404);
+    assert.deepEqual(await hiddenTopic.json(), {
+      error: "community_topic_unavailable",
+      status: "hidden",
+      fallbackPath: "/community",
+    });
+
+    const audit = await fetch(`${baseUrl}/api/admin/audit`, {
+      headers: { Cookie: elevatedAdminCookie },
+    });
+    const auditBody = await audit.json();
+    assert.equal(audit.status, 200);
+    assert.equal(
+      auditBody.events.some(
+        (event) => event.action === "admin.community.hide",
+      ),
+      true,
+    );
   } finally {
     await closeServer(server);
     await store.close();
