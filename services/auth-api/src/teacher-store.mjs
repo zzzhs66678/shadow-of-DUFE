@@ -272,7 +272,7 @@ export function createTeacherStore(pool) {
              ON teacher.id = $2
             AND teacher.identity_status IN ('pending', 'active')
            WHERE users.id = $1 AND users.status = 'active'
-           FOR UPDATE OF users, teacher`,
+           FOR UPDATE OF users`,
           [userId, teacherId],
         );
         if (access.rows.length === 0) throw domainError("TEACHER_REVIEW_TARGET_NOT_FOUND");
