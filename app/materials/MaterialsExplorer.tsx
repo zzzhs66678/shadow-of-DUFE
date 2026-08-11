@@ -60,6 +60,17 @@ function formatFileSize(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
 }
 
+function formatCatalogDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "收录时间未标注";
+  return `站内收录于 ${new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "Asia/Shanghai",
+  }).format(date)}`;
+}
+
 function termLabel(term: string) {
   return term === "fall" ? "上学期" : term === "spring" ? "下学期" : term;
 }
@@ -330,6 +341,7 @@ export function MaterialsExplorer({ initialSearch = {} }: { initialSearch?: Mate
                     <small>
                       {material.teachers.length ? material.teachers.join(" / ") : "教师未标注"}
                       {material.description ? ` · ${material.description}` : ""}
+                      {` · ${formatCatalogDate(material.catalogedAt)}`}
                     </small>
                   </div>
                   <div className={styles.quickActions}>

@@ -121,6 +121,12 @@ test("teacher directory disambiguates identities without taking over the daily w
   assert.match(teacherStyles, /\.ratingEditor label span[\s\S]*min-height:\s*44px/);
 });
 
+test("material pages label catalog time without presenting it as source publication time", () => {
+  assert.match(materialsSource, /formatCatalogDate\(material\.catalogedAt\)/);
+  assert.match(materialDetailSource, /站内收录/u);
+  assert.match(materialDetailSource, /不等同于原文件发布时间/u);
+});
+
 test("administrator can review imported teacher comments through the elevated backend", () => {
   assert.match(adminSource, /<TeacherReviewDesk/);
   assert.match(teacherReviewDeskSource, /\/api\/admin\/teacher-reviews\/candidates/);
