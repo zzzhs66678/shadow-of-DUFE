@@ -98,6 +98,10 @@ const teacherDetailSource = await readFile(
   new URL("../app/teachers/[teacherId]/TeacherDetail.tsx", import.meta.url),
   "utf8",
 );
+const teacherDiscussionSource = await readFile(
+  new URL("../app/teachers/TeacherReviewDiscussion.tsx", import.meta.url),
+  "utf8",
+);
 const teacherStyles = await readFile(
   new URL("../app/teachers/teachers.module.css", import.meta.url),
   "utf8",
@@ -118,6 +122,12 @@ test("teacher directory disambiguates identities without taking over the daily w
   assert.match(teacherDetailSource, /<fieldset/);
   assert.match(teacherDetailSource, /expectedVersion/);
   assert.match(teacherDetailSource, /删除后公开页将不再显示/);
+  assert.match(teacherDetailSource, /审核期间不能修改正文/);
+  assert.match(teacherDetailSource, /<TeacherReviewDiscussion/);
+  assert.match(teacherDiscussionSource, /aria-expanded={open}/);
+  assert.match(teacherDiscussionSource, /if \(!open \|\| status !== "idle"\) return/);
+  assert.match(teacherDiscussionSource, /teacher_review_comment/);
+  assert.match(teacherDiscussionSource, /comment\.author\?\.id === currentUserId/);
   assert.match(component, /<TeacherRecordLink/);
   assert.match(teacherRecordLinkSource, /href=\{fallbackHref\}/);
   assert.match(teacherRecordLinkSource, /resolveTeacherScheduleHref/);

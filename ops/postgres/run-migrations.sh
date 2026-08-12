@@ -247,6 +247,14 @@ SELECT format(
     :'runtime_user'
 ) \gexec
 SELECT format(
+    'REVOKE DELETE, TRUNCATE ON teacher_review_comments FROM %I',
+    :'runtime_user'
+) \gexec
+SELECT format(
+    'REVOKE UPDATE, DELETE, TRUNCATE ON teacher_review_comment_edits FROM %I',
+    :'runtime_user'
+) \gexec
+SELECT format(
     'REVOKE ALL PRIVILEGES ON data_import_batches, data_import_rows, data_import_mutations, teacher_review_candidates FROM %I',
     :'runtime_user'
 ) \gexec

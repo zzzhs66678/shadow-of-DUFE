@@ -1,6 +1,8 @@
 import { parseCookies } from "./cookies.mjs";
 import { isOpaqueToken, tokenDigest } from "./tokens.mjs";
 import {
+  validateTeacherReviewCommentCreate,
+  validateTeacherReviewCommentUpdate,
   validateTeacherReviewDelete,
   validateTeacherReviewWrite,
 } from "./teacher-review-contract.mjs";
@@ -109,6 +111,22 @@ function withoutCursor(item) {
   return result;
 }
 
+function handleCommunityWriteError(error, response) {
+  if (error?.code === "COMMUNITY_POSTING_FORBIDDEN" || error?.code === "COMMUNITY_ACTION_FORBIDDEN") {
+    sendJson(response, 403, { error: error.code === "COMMUNITY_POSTING_FORBIDDEN" ? "community_posting_forbidden" : "community_action_forbidden" }, { privateResponse: true });
+    return true;
+  }
+  if (["COMMUNITY_CONTENT_UNAVAILABLE", "COMMUNITY_REPLY_TARGET_UNAVAILABLE"].includes(error?.code)) {
+    sendJson(response, 409, { error: "community_content_unavailable" }, { privateResponse: true });
+    return true;
+  }
+  if (error?.code === "COMMUNITY_VERSION_CONFLICT") {
+    sendJson(response, 409, { error: "community_version_conflict", currentVersion: error.currentVersion }, { privateResponse: true });
+    return true;
+  }
+  return false;
+}
+
 export function createTeacherRequestHandler({ store, config, rateLimiters }) {
   return async function handleTeacherRequest(request, response, url) {
     if (!url.pathname.startsWith("/api/teachers")) return false;
@@ -162,6 +180,116 @@ export function createTeacherRequestHandler({ store, config, rateLimiters }) {
         items: teachers.map(withoutCursor),
         nextCursor: last ? encodeCursor(last.cursor) : null,
       });
+      return true;
+    }
+
+    const reviewCommentsMatch = url.pathname.match(
+      /^\/api\/teachers\/([0-9a-f-]{36})\/reviews\/([0-9a-f-]{36})\/comments$/iu,
+    );
+    if (reviewCommentsMatch) {
+      if (!isUuid(reviewCommentsMatch[1]) || !isUuid(reviewCommentsMatch[2])) {
+        sendJson(response, 404, { error: "teacher_review_not_found" });
+        return true;
+      }
+      if (!["GET", "POST"].includes(request.method)) {
+        methodNotAllowed(response, "GET, POST");
+        return true;
+      }
+      const session = await optionalSession(request, store, config);
+      if (request.method === "GET") {
+        const limitValue = url.searchParams.get("limit") ?? "20";
+        const limit = /^\d{1,2}$/u.test(limitValue) ? Number(limitValue) : 0;
+        const after = decodeCursor(url.searchParams.get("after"), ["createdAt", "id"]);
+        if (limit < 1 || limit > 30 || after === undefined) {
+          sendJson(response, 400, { error: "invalid_teacher_review_comment_query" });
+          return true;
+        }
+        const reviewExists = await store.getPublicTeacherReviewForTeacher({
+          teacherId: reviewCommentsMatch[1], reviewId: reviewCommentsMatch[2],
+        });
+        if (!reviewExists) {
+          sendJson(response, 404, { error: "teacher_review_not_found" }, { privateResponse: true });
+          return true;
+        }
+        const result = await store.listTeacherReviewComments({
+          reviewId: reviewCommentsMatch[2], viewerUserId: session?.userId ?? null,
+          after, limit,
+        });
+        sendJson(response, 200, { items: result.items, nextCursor: result.nextCursor ? encodeCursor(result.nextCursor) : null }, { privateResponse: true });
+        return true;
+      }
+      if (!trustedOrigin(request, config.allowedOrigins)) {
+        sendJson(response, 403, { error: "untrusted_origin" }, { privateResponse: true });
+        return true;
+      }
+      if (!session) {
+        sendJson(response, 401, { error: "authentication_required" }, { privateResponse: true });
+        return true;
+      }
+      if (!(await writeRateAllowed(request, session.userId, rateLimiters, config))) {
+        response.setHeader("Retry-After", "300");
+        sendJson(response, 429, { error: "teacher_review_rate_limit_exceeded" }, { privateResponse: true });
+        return true;
+      }
+      const input = validateTeacherReviewCommentCreate(await readJsonBody(request));
+      if (!input) {
+        sendJson(response, 400, { error: "invalid_teacher_review_comment" }, { privateResponse: true });
+        return true;
+      }
+      try {
+        const comment = await store.createTeacherReviewComment({
+          teacherId: reviewCommentsMatch[1], reviewId: reviewCommentsMatch[2],
+          userId: session.userId, ...input,
+        });
+        sendJson(response, 201, { comment }, { privateResponse: true });
+      } catch (error) {
+        if (!handleCommunityWriteError(error, response)) throw error;
+      }
+      return true;
+    }
+
+    const reviewCommentMatch = url.pathname.match(
+      /^\/api\/teachers\/review-comments\/([0-9a-f-]{36})$/iu,
+    );
+    if (reviewCommentMatch) {
+      if (!isUuid(reviewCommentMatch[1])) {
+        sendJson(response, 404, { error: "teacher_review_comment_not_found" }, { privateResponse: true });
+        return true;
+      }
+      if (!["PATCH", "DELETE"].includes(request.method)) {
+        methodNotAllowed(response, "PATCH, DELETE");
+        return true;
+      }
+      if (!trustedOrigin(request, config.allowedOrigins)) {
+        sendJson(response, 403, { error: "untrusted_origin" }, { privateResponse: true });
+        return true;
+      }
+      const session = await optionalSession(request, store, config);
+      if (!session) {
+        sendJson(response, 401, { error: "authentication_required" }, { privateResponse: true });
+        return true;
+      }
+      if (!(await writeRateAllowed(request, session.userId, rateLimiters, config))) {
+        response.setHeader("Retry-After", "300");
+        sendJson(response, 429, { error: "teacher_review_rate_limit_exceeded" }, { privateResponse: true });
+        return true;
+      }
+      const rawBody = await readJsonBody(request);
+      const input = request.method === "PATCH"
+        ? validateTeacherReviewCommentUpdate(rawBody)
+        : validateTeacherReviewDelete(rawBody);
+      if (!input) {
+        sendJson(response, 400, { error: "invalid_teacher_review_comment" }, { privateResponse: true });
+        return true;
+      }
+      try {
+        const comment = request.method === "PATCH"
+          ? await store.updateTeacherReviewComment({ commentId: reviewCommentMatch[1], userId: session.userId, ...input })
+          : await store.deleteTeacherReviewComment({ commentId: reviewCommentMatch[1], userId: session.userId, ...input });
+        sendJson(response, 200, { comment }, { privateResponse: true });
+      } catch (error) {
+        if (!handleCommunityWriteError(error, response)) throw error;
+      }
       return true;
     }
 
@@ -268,6 +396,10 @@ export function createTeacherRequestHandler({ store, config, rateLimiters }) {
             { error: "teacher_review_version_conflict", currentVersion: error.currentVersion },
             { privateResponse: true },
           );
+          return true;
+        }
+        if (error?.code === "COMMUNITY_CONTENT_UNAVAILABLE") {
+          sendJson(response, 409, { error: "community_content_unavailable" }, { privateResponse: true });
           return true;
         }
         throw error;

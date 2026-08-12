@@ -157,6 +157,22 @@
 .reviews > div article > div { display: flex; justify-content: space-between; }
 .reviews time { color: var(--dufe-muted); font-size: 9px; }
 .reviews article p { font: 15px/1.9 var(--journal-body, sans-serif); margin: 18px 0 0; white-space: pre-wrap; }
+.reviewDiscussion { border-top: 1px solid color-mix(in srgb, var(--dufe-line) 72%, transparent); margin-top: 22px; padding-top: 14px; }
+.reviewDiscussionBar { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; }
+.reviewDiscussionBar button, .reviewThread button, .reviewThread a { background: transparent; border: 0; border-bottom: 1px solid var(--dufe-red); color: var(--dufe-red-deep); min-height: 44px; padding: 0 2px; text-decoration: none; }
+.reviewDiscussionBar button, .reviewThread button, .reviewThread a { touch-action: manipulation; }
+.reviewDiscussionBar button:focus-visible, .reviewThread button:focus-visible, .reviewThread a:focus-visible { outline: 2px solid var(--dufe-red); outline-offset: 3px; }
+.reviewThread { margin-top: 12px; }
+.reviewThread > p { color: var(--dufe-muted); font-size: 12px; }
+.reviewThread > ol { list-style: none; margin: 0; padding: 0; }
+.reviewThread > ol > li { border-top: 1px solid var(--dufe-line); margin: 0; padding: 18px 0; }
+.reviewThread > ol > li[data-reply="true"] { margin-left: clamp(18px, 5vw, 48px); }
+.reviewThread > ol > li > div { align-items: baseline; display: flex; gap: 12px; justify-content: space-between; }
+.reviewThread > ol > li > p { overflow-wrap: anywhere; font-size: 13px; margin-top: 9px; }
+.reviewThread menu { display: flex; flex-wrap: wrap; gap: 12px; list-style: none; margin: 8px 0 0; padding: 0; }
+.reviewReplyForm { border-left: 2px solid var(--dufe-red); margin-top: 20px; padding-left: clamp(14px, 3vw, 24px); }
+.reviewReplyForm > header { align-items: center; display: flex; justify-content: space-between; }
+.reviewReplyForm textarea { resize: vertical; width: 100%; }
 .inlineEmpty { color: var(--dufe-muted); padding: 28px 0; }
 
 .reviewContribution { border-top: 4px solid var(--dufe-red); margin-bottom: 38px; padding: 22px 0 28px; }

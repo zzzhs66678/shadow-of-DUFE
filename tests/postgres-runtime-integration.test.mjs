@@ -400,6 +400,14 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
       ["teacher_reviews", "INSERT", true],
       ["teacher_reviews", "UPDATE", true],
       ["teacher_reviews", "DELETE", false],
+      ["teacher_review_comments", "INSERT", true],
+      ["teacher_review_comments", "UPDATE", true],
+      ["teacher_review_comments", "DELETE", false],
+      ["teacher_review_comments", "TRUNCATE", false],
+      ["teacher_review_comment_edits", "INSERT", true],
+      ["teacher_review_comment_edits", "UPDATE", false],
+      ["teacher_review_comment_edits", "DELETE", false],
+      ["teacher_review_comment_edits", "TRUNCATE", false],
       ["teacher_review_candidates", "SELECT", false],
       ["teacher_review_candidate_decisions", "SELECT", false],
       ["data_import_batches", "SELECT", false],
@@ -1269,6 +1277,35 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
     assert.equal(publicReviewsBody.items.length, 1);
     assert.equal(publicReviewsBody.items[0].sourceType, "user");
 
+    const publicReviewId = publicReviewsBody.items[0].id;
+    const reviewCommentResponse = await fetch(
+      `${baseUrl}/api/teachers/${teacherId}/reviews/${publicReviewId}/comments`,
+      {
+        method: "POST",
+        headers: { ...requestHeaders, Cookie: replier.cookie },
+        body: JSON.stringify({ body: "这条真实 PostgreSQL 回复会通知评价作者。" }),
+      },
+    );
+    const reviewCommentBody = await reviewCommentResponse.json();
+    assert.equal(reviewCommentResponse.status, 201);
+    assert.equal(reviewCommentBody.comment.reviewId, publicReviewId);
+    assert.equal(reviewCommentBody.comment.author.id, replier.body.user.id);
+    const wrongTeacherThread = await fetch(
+      `${baseUrl}/api/teachers/${sameNameTeacherId}/reviews/${publicReviewId}/comments?limit=20`,
+      { headers: { Cookie: owner.cookie } },
+    );
+    assert.equal(wrongTeacherThread.status, 404);
+    assert.match(wrongTeacherThread.headers.get("cache-control"), /no-store/u);
+    const ownerReviewNotifications = await fetch(
+      `${baseUrl}/api/community/notifications?limit=20`,
+      { headers: { Cookie: owner.cookie } },
+    );
+    const ownerReviewNotificationsBody = await ownerReviewNotifications.json();
+    assert.equal(ownerReviewNotifications.status, 200);
+    assert.equal(ownerReviewNotificationsBody.items.some(
+      (item) => item.type === "teacher_review_reply" && item.teacherReviewId === publicReviewId,
+    ), true);
+
     const isolatedSameNameReviews = await fetch(
       `${baseUrl}/api/teachers/${sameNameTeacherId}/reviews?limit=20`,
     );
@@ -1397,6 +1434,18 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
     });
     const reportBody = await reportResponse.json();
     assert.equal(reportResponse.status, 201);
+    const teacherReplyReportResponse = await fetch(`${baseUrl}/api/community/reports`, {
+      method: "POST",
+      headers: { ...requestHeaders, Cookie: owner.cookie },
+      body: JSON.stringify({
+        targetType: "teacher_review_comment",
+        targetId: reviewCommentBody.comment.id,
+        reasonCode: "other",
+        detail: "真实 PostgreSQL 教师评价回复举报进入统一治理队列。",
+      }),
+    });
+    const teacherReplyReportBody = await teacherReplyReportResponse.json();
+    assert.equal(teacherReplyReportResponse.status, 201);
     await assert.rejects(
       fixtureOwner.query(
         `UPDATE community_reports
@@ -1413,9 +1462,117 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
     );
     const reportsBody = await reports.json();
     assert.equal(reports.status, 200);
-    assert.equal(reportsBody.reports.length, 1);
-    assert.equal(reportsBody.reports[0].id, reportBody.report.id);
-    assert.equal(reportsBody.reports[0].evidenceBody.includes("真实 HTTP"), true);
+    assert.equal(reportsBody.reports.length, 2);
+    const topicReportQueueItem = reportsBody.reports.find((item) => item.id === reportBody.report.id);
+    const teacherReportQueueItem = reportsBody.reports.find(
+      (item) => item.id === teacherReplyReportBody.report.id,
+    );
+    assert.equal(topicReportQueueItem.evidenceBody.includes("真实 HTTP"), true);
+    assert.equal(teacherReportQueueItem.targetType, "teacher_review_comment");
+    assert.equal(teacherReportQueueItem.evidenceBody, reviewCommentBody.comment.body);
+
+    const teacherOpenedCase = await fetch(
+      `${baseUrl}/api/admin/community/reports/${teacherReplyReportBody.report.id}/case`,
+      {
+        method: "POST",
+        headers: { ...requestHeaders, Cookie: elevatedAdminCookie },
+        body: JSON.stringify({ reason: "教师评价回复举报进入人工复核。" }),
+      },
+    );
+    const teacherOpenedCaseBody = await teacherOpenedCase.json();
+    assert.equal(teacherOpenedCase.status, 200);
+    const teacherCaseId = teacherOpenedCaseBody.case.id;
+
+    const hideTeacherReply = await fetch(
+      `${baseUrl}/api/admin/community/cases/${teacherCaseId}/actions`,
+      {
+        method: "POST",
+        headers: { ...requestHeaders, Cookie: elevatedAdminCookie },
+        body: JSON.stringify({ action: "hide", reason: "先隐藏教师评价回复并保留原始证据。" }),
+      },
+    );
+    assert.equal(hideTeacherReply.status, 200);
+    const hiddenEdit = await fetch(
+      `${baseUrl}/api/teachers/review-comments/${reviewCommentBody.comment.id}`,
+      {
+        method: "PATCH",
+        headers: { ...requestHeaders, Cookie: replier.cookie },
+        body: JSON.stringify({ body: "隐藏期间不能偷换正文。", version: reviewCommentBody.comment.version + 1 }),
+      },
+    );
+    assert.equal(hiddenEdit.status, 409);
+    assert.deepEqual(await hiddenEdit.json(), { error: "community_content_unavailable" });
+
+    const restoreTeacherReply = await fetch(
+      `${baseUrl}/api/admin/community/cases/${teacherCaseId}/actions`,
+      {
+        method: "POST",
+        headers: { ...requestHeaders, Cookie: elevatedAdminCookie },
+        body: JSON.stringify({ action: "restore", reason: "复核后恢复原始教师评价回复。" }),
+      },
+    );
+    assert.equal(restoreTeacherReply.status, 200);
+    const restoredTeacherReply = await fixtureOwner.query(
+      `SELECT body,status FROM teacher_review_comments WHERE id=$1::uuid`,
+      [reviewCommentBody.comment.id],
+    );
+    assert.deepEqual(restoredTeacherReply.rows[0], {
+      body: reviewCommentBody.comment.body,
+      status: "published",
+    });
+
+    const secondTeacherReport = await fixtureOwner.query(
+      `UPDATE community_reports SET status='open', resolved_at=NULL
+       WHERE id=$1::uuid RETURNING id`,
+      [teacherReplyReportBody.report.id],
+    ).catch(() => ({ rows: [] }));
+    assert.equal(secondTeacherReport.rows.length, 0);
+    const deleteReportResponse = await fetch(`${baseUrl}/api/community/reports`, {
+      method: "POST",
+      headers: { ...requestHeaders, Cookie: owner.cookie },
+      body: JSON.stringify({
+        targetType: "teacher_review_comment",
+        targetId: reviewCommentBody.comment.id,
+        reasonCode: "other",
+        detail: "恢复后再次举报，用于验证最终删除状态。",
+      }),
+    });
+    const deleteReportBody = await deleteReportResponse.json();
+    assert.equal(deleteReportResponse.status, 201);
+    const deleteCaseResponse = await fetch(
+      `${baseUrl}/api/admin/community/reports/${deleteReportBody.report.id}/case`,
+      {
+        method: "POST",
+        headers: { ...requestHeaders, Cookie: elevatedAdminCookie },
+        body: JSON.stringify({ reason: "再次复核后执行最终删除。" }),
+      },
+    );
+    const deleteCaseBody = await deleteCaseResponse.json();
+    assert.equal(deleteCaseResponse.status, 200);
+    const deleteTeacherReply = await fetch(
+      `${baseUrl}/api/admin/community/cases/${deleteCaseBody.case.id}/actions`,
+      {
+        method: "POST",
+        headers: { ...requestHeaders, Cookie: elevatedAdminCookie },
+        body: JSON.stringify({ action: "delete", reason: "证据确认后软删除教师评价回复。" }),
+      },
+    );
+    assert.equal(deleteTeacherReply.status, 200);
+    await assert.rejects(
+      fixtureOwner.query(`UPDATE teacher_review_comments SET status='published' WHERE id=$1::uuid`, [reviewCommentBody.comment.id]),
+      /invalid teacher review comment status transition/u,
+    );
+    const deletedThread = await fetch(
+      `${baseUrl}/api/teachers/${teacherId}/reviews/${publicReviewId}/comments?limit=20`,
+      { headers: { Cookie: owner.cookie } },
+    );
+    const deletedThreadBody = await deletedThread.json();
+    assert.equal(deletedThread.status, 200);
+    const deletedTeacherReply = deletedThreadBody.items.find(
+      (item) => item.id === reviewCommentBody.comment.id,
+    );
+    assert.equal(deletedTeacherReply.status, "deleted");
+    assert.equal(deletedTeacherReply.body, null);
 
     const openedCase = await fetch(
       `${baseUrl}/api/admin/community/reports/${reportBody.report.id}/case`,

@@ -106,7 +106,7 @@ export function communityModerationAllowedActions(
 }
 
 async function withTransaction(pool, callback) {
-  const client = await pool.connect();
+  const client = typeof pool.connect === "function" ? await pool.connect() : pool;
   try {
     await client.query("BEGIN");
     const result = await callback(client);
@@ -116,7 +116,7 @@ async function withTransaction(pool, callback) {
     await client.query("ROLLBACK");
     throw error;
   } finally {
-    client.release();
+    if (client !== pool && typeof client.release === "function") client.release();
   }
 }
 
@@ -147,7 +147,7 @@ async function assertElevatedAdmin(client, input) {
     ],
   );
   if (
-    result.rowCount !== 1 ||
+    result.rows.length !== 1 ||
     result.rows[0].role !== "admin" ||
     result.rows[0].status !== "active"
   ) {
@@ -196,7 +196,7 @@ async function assertPostingAllowed(client, userId) {
     [userId],
   );
   if (
-    result.rowCount !== 1 ||
+    result.rows.length !== 1 ||
     result.rows[0].status !== "active" ||
     result.rows[0].sanctioned
   ) {
@@ -223,7 +223,7 @@ async function assertCommunityAccountAllowed(client, userId, { rejectBan = true 
     [userId],
   );
   if (
-    result.rowCount !== 1 ||
+    result.rows.length !== 1 ||
     result.rows[0].status !== "active" ||
     (rejectBan && result.rows[0].banned)
   ) {
@@ -314,7 +314,8 @@ async function assertReportTarget(client, targetType, targetId, userId) {
          FOR SHARE`,
         [targetId],
       )
-    : await client.query(
+    : targetType === "comment"
+      ? await client.query(
         `SELECT
            comments.id,
            comments.author_user_id,
@@ -324,13 +325,28 @@ async function assertReportTarget(client, targetType, targetId, userId) {
          JOIN community_topics AS topics ON topics.id = comments.topic_id
          WHERE comments.id = $1::uuid
          FOR SHARE OF comments, topics`,
-        [targetId],
-      );
+          [targetId],
+        )
+      : targetType === "teacher_review"
+        ? await client.query(
+            `SELECT id, author_user_id, status
+             FROM teacher_reviews WHERE id = $1::uuid FOR SHARE`,
+            [targetId],
+          )
+        : await client.query(
+            `SELECT comments.id, comments.author_user_id, comments.status,
+                    reviews.status AS review_status
+             FROM teacher_review_comments AS comments
+             JOIN teacher_reviews AS reviews ON reviews.id = comments.review_id
+             WHERE comments.id = $1::uuid FOR SHARE OF comments, reviews`,
+            [targetId],
+          );
   const target = result.rows[0];
   if (
     !target ||
     target.status !== "published" ||
-    (targetType === "comment" && target.topic_status !== "published")
+    (targetType === "comment" && target.topic_status !== "published") ||
+    (targetType === "teacher_review_comment" && target.review_status !== "published")
   ) {
     throw communityError("COMMUNITY_CONTENT_UNAVAILABLE");
   }
@@ -360,7 +376,30 @@ async function communityReportEvidence(client, targetType, targetId) {
            WHERE comments.id = $1::uuid`,
           [targetId],
         )
-      : await client.query(
+      : targetType === "teacher_review"
+        ? await client.query(
+            `SELECT teachers.display_name AS evidence_title,
+                    reviews.body AS evidence_body,
+                    COALESCE(authors.display_name, authors.username, reviews.author_label, '已注销用户') AS evidence_author_label
+             FROM teacher_reviews AS reviews
+             JOIN teachers ON teachers.id = reviews.teacher_id
+             LEFT JOIN app_users AS authors ON authors.id = reviews.author_user_id
+             WHERE reviews.id = $1::uuid`,
+            [targetId],
+          )
+        : targetType === "teacher_review_comment"
+          ? await client.query(
+              `SELECT teachers.display_name AS evidence_title,
+                      comments.body AS evidence_body,
+                      COALESCE(authors.display_name, authors.username, '已注销用户') AS evidence_author_label
+               FROM teacher_review_comments AS comments
+               JOIN teacher_reviews AS reviews ON reviews.id = comments.review_id
+               JOIN teachers ON teachers.id = reviews.teacher_id
+               LEFT JOIN app_users AS authors ON authors.id = comments.author_user_id
+               WHERE comments.id = $1::uuid`,
+              [targetId],
+            )
+          : await client.query(
           `SELECT COALESCE(users.display_name, users.username) AS evidence_title,
                   NULL::text AS evidence_body,
                   COALESCE(users.display_name, users.username, '已注销用户') AS evidence_author_label
@@ -368,7 +407,7 @@ async function communityReportEvidence(client, targetType, targetId) {
            WHERE users.id = $1::uuid`,
           [targetId],
         );
-  if (result.rowCount !== 1) {
+  if (result.rows.length !== 1) {
     throw communityError("COMMUNITY_CONTENT_UNAVAILABLE");
   }
   return result.rows[0];
@@ -648,6 +687,10 @@ function notificationResult(row) {
     type: row.notification_type,
     topicId: row.topic_id ? String(row.topic_id) : null,
     commentId: row.comment_id ? String(row.comment_id) : null,
+    teacherReviewId: row.teacher_review_id ? String(row.teacher_review_id) : null,
+    teacherReviewCommentId: row.teacher_review_comment_id
+      ? String(row.teacher_review_comment_id)
+      : null,
     title: row.title,
     body: row.body,
     fallbackPath: row.fallback_path,
@@ -1631,6 +1674,8 @@ export function createCommunityStore(pool) {
            CASE
              WHEN reports.target_type = 'topic' THEN topics.status
              WHEN reports.target_type = 'comment' THEN comments.status
+             WHEN reports.target_type = 'teacher_review' THEN teacher_reviews.status
+             WHEN reports.target_type = 'teacher_review_comment' THEN teacher_review_comments.status
              ELSE target_user.status
            END AS target_status,
            active_sanction.sanction_type AS active_sanction_type,
@@ -1642,6 +1687,10 @@ export function createCommunityStore(pool) {
            ON reports.target_type = 'topic' AND topics.id = reports.target_id
          LEFT JOIN community_comments AS comments
            ON reports.target_type = 'comment' AND comments.id = reports.target_id
+         LEFT JOIN teacher_reviews
+           ON reports.target_type = 'teacher_review' AND teacher_reviews.id = reports.target_id
+         LEFT JOIN teacher_review_comments
+           ON reports.target_type = 'teacher_review_comment' AND teacher_review_comments.id = reports.target_id
          LEFT JOIN app_users AS target_user
            ON reports.target_type = 'user' AND target_user.id = reports.target_id
          LEFT JOIN LATERAL (
@@ -1829,7 +1878,9 @@ export function createCommunityStore(pool) {
         }
         if (
           ["hide", "restore", "delete"].includes(input.action) &&
-          !["topic", "comment"].includes(moderationCase.target_type)
+          !["topic", "comment", "teacher_review", "teacher_review_comment"].includes(
+            moderationCase.target_type,
+          )
         ) {
           throw communityError("COMMUNITY_MODERATION_ACTION_INVALID");
         }
@@ -1843,14 +1894,23 @@ export function createCommunityStore(pool) {
         let recipientUserId = null;
         let topicId = null;
         let commentId = null;
-        if (["topic", "comment"].includes(moderationCase.target_type)) {
-          const table = moderationCase.target_type === "topic"
-            ? "community_topics"
-            : "community_comments";
+        let teacherReviewId = null;
+        let teacherReviewCommentId = null;
+        let fallbackPath = "/community";
+        if (["topic", "comment", "teacher_review", "teacher_review_comment"].includes(moderationCase.target_type)) {
+          const table = ({ topic: "community_topics", comment: "community_comments",
+            teacher_review: "teacher_reviews", teacher_review_comment: "teacher_review_comments" })[
+            moderationCase.target_type
+          ];
+          const extraSelect = moderationCase.target_type === "comment"
+            ? ", topic_id"
+            : moderationCase.target_type === "teacher_review"
+              ? ", teacher_id"
+              : moderationCase.target_type === "teacher_review_comment"
+                ? ", review_id, (SELECT teacher_id FROM teacher_reviews WHERE id = review_id) AS teacher_id"
+                : "";
           const target = await client.query(
-            `SELECT id, author_user_id, status${
-              moderationCase.target_type === "comment" ? ", topic_id" : ""
-            }
+            `SELECT id, author_user_id, status${extraSelect}
              FROM ${table}
              WHERE id = $1::uuid
              FOR UPDATE`,
@@ -1869,10 +1929,21 @@ export function createCommunityStore(pool) {
           recipientUserId = target.rows[0].author_user_id;
           topicId = moderationCase.target_type === "topic"
             ? moderationCase.target_id
-            : target.rows[0].topic_id;
+            : moderationCase.target_type === "comment" ? target.rows[0].topic_id : null;
           commentId = moderationCase.target_type === "comment"
             ? moderationCase.target_id
             : null;
+          teacherReviewId = moderationCase.target_type === "teacher_review"
+            ? moderationCase.target_id
+            : moderationCase.target_type === "teacher_review_comment"
+              ? target.rows[0].review_id
+              : null;
+          teacherReviewCommentId = moderationCase.target_type === "teacher_review_comment"
+            ? moderationCase.target_id
+            : null;
+          fallbackPath = target.rows[0].teacher_id
+            ? `/teachers/${target.rows[0].teacher_id}`
+            : "/community";
           if (input.action === "hide") {
             if (target.rows[0].status !== "published") {
               throw communityError("COMMUNITY_MODERATION_STATE_CONFLICT");
@@ -1883,12 +1954,14 @@ export function createCommunityStore(pool) {
                WHERE id = $1::uuid`,
               [moderationCase.target_id],
             );
+            const notificationColumn = ({ topic: "topic_id", comment: "comment_id",
+              teacher_review: "teacher_review_id", teacher_review_comment: "teacher_review_comment_id" })[
+              moderationCase.target_type
+            ];
             await client.query(
-              `UPDATE community_notifications
-               SET title = '相关内容正在审核', body = NULL,
-                   fallback_path = '/community'
-               WHERE ${moderationCase.target_type === "topic" ? "topic_id" : "comment_id"} = $1::uuid`,
-              [moderationCase.target_id],
+              `UPDATE community_notifications SET title = '相关内容正在审核', body = NULL,
+                       fallback_path = $2 WHERE ${notificationColumn} = $1::uuid`,
+              [moderationCase.target_id, fallbackPath],
             );
           } else if (input.action === "restore") {
             if (target.rows[0].status !== "hidden") {
@@ -1912,12 +1985,14 @@ export function createCommunityStore(pool) {
                WHERE id = $1::uuid`,
               [moderationCase.target_id],
             );
+            const notificationColumn = ({ topic: "topic_id", comment: "comment_id",
+              teacher_review: "teacher_review_id", teacher_review_comment: "teacher_review_comment_id" })[
+              moderationCase.target_type
+            ];
             await client.query(
-              `UPDATE community_notifications
-               SET title = '相关内容已被处理', body = NULL,
-                   fallback_path = '/community'
-               WHERE ${moderationCase.target_type === "topic" ? "topic_id" : "comment_id"} = $1::uuid`,
-              [moderationCase.target_id],
+              `UPDATE community_notifications SET title = '相关内容已被处理', body = NULL,
+                       fallback_path = $2 WHERE ${notificationColumn} = $1::uuid`,
+              [moderationCase.target_id, fallbackPath],
             );
           }
         } else {
@@ -2047,11 +2122,12 @@ export function createCommunityStore(pool) {
           await client.query(
             `INSERT INTO community_notifications (
                recipient_user_id, actor_user_id, notification_type,
-               topic_id, comment_id, title, body, fallback_path, dedupe_key
+               topic_id, comment_id, teacher_review_id, teacher_review_comment_id,
+               title, body, fallback_path, dedupe_key
              ) VALUES (
                $1::uuid, $2::uuid, 'content_moderated',
-               $3::uuid, $4::uuid, '你的社区内容有新的处理结果',
-               $5, '/community', 'moderation:' || $6::uuid::text
+               $3::uuid, $4::uuid, $5::uuid, $6::uuid,
+               '你的内容有新的处理结果', $7, $8, 'moderation:' || $9::uuid::text
              )
              ON CONFLICT DO NOTHING`,
             [
@@ -2059,7 +2135,10 @@ export function createCommunityStore(pool) {
               input.actorUserId,
               topicId,
               commentId,
+              teacherReviewId,
+              teacherReviewCommentId,
               input.reason,
+              fallbackPath,
               input.requestId,
             ],
           );
@@ -2085,6 +2164,8 @@ export function createCommunityStore(pool) {
            notifications.notification_type,
            notifications.topic_id,
            notifications.comment_id,
+           notifications.teacher_review_id,
+           notifications.teacher_review_comment_id,
            notifications.title,
            notifications.body,
            notifications.fallback_path,

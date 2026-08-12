@@ -287,7 +287,7 @@ test("backup and disk protection have bounded local retention", async () => {
   assert.match(restoreDrill, /--maintenance-db "\$POSTGRES_DB"/);
   assert.match(restoreDrill, /pg_restore/);
   assert.match(restoreDrill, /--exit-on-error/);
-  assert.match(restoreDrill, /migration_count < 19/);
+  assert.match(restoreDrill, /migration_count < 20/);
   assert.match(restoreDrill, /NOT convalidated/);
   assert.match(restoreDrill, /api_rate_limit_buckets/);
   assert.match(restoreDrill, /community_announcements/);
@@ -837,6 +837,33 @@ test("user teacher reviews are session-scoped, versioned, and soft-deleted", asy
   assert.match(store, /version = \$10/);
   assert.match(store, /FOR UPDATE OF users/);
   assert.doesNotMatch(store, /FOR UPDATE OF users, teacher/);
+});
+
+test("teacher review discussions preserve independent threads and reuse immutable governance", async () => {
+  const migration = await read(
+    "ops/postgres/migrations/0020_teacher_review_governance.sql",
+  );
+  const routes = await read("services/auth-api/src/teacher-routes.mjs");
+  const store = await read("services/auth-api/src/teacher-store.mjs");
+  const community = await read("services/auth-api/src/community-store.mjs");
+  const grants = await read("ops/postgres/run-migrations.sh");
+
+  for (const table of ["teacher_review_comments", "teacher_review_comment_edits"]) {
+    assert.match(migration, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`));
+  }
+  assert.match(migration, /teacher review replies are limited to two levels/);
+  assert.match(migration, /teacher review comments must be soft-deleted/);
+  assert.match(migration, /hidden teacher review content is immutable/);
+  assert.match(migration, /notification cannot mix community and teacher review references/);
+  assert.match(migration, /teacher_review_reply/);
+  assert.match(migration, /'teacher_review', 'teacher_review_comment'/);
+  assert.match(routes, /reviewCommentsMatch/);
+  assert.match(routes, /getPublicTeacherReviewForTeacher/);
+  assert.match(store, /listTeacherReviewComments/);
+  assert.match(store, /teacher_review_comment_edits/);
+  assert.match(community, /teacher_review_comment/);
+  assert.match(grants, /REVOKE DELETE, TRUNCATE ON teacher_review_comments/);
+  assert.match(grants, /REVOKE UPDATE, DELETE, TRUNCATE ON teacher_review_comment_edits/);
 });
 
 test("auth traffic combines bounded burst protection with persistent high-risk quotas", async () => {

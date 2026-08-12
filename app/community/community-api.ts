@@ -58,9 +58,11 @@ export type CommunityProfileComment = {
 
 export type CommunityNotification = {
   id: string;
-  type: "topic_reply" | "comment_reply" | "mention" | "content_moderated" | "system_announcement";
+  type: "topic_reply" | "comment_reply" | "mention" | "teacher_review_reply" | "content_moderated" | "system_announcement";
   topicId: string | null;
   commentId: string | null;
+  teacherReviewId?: string | null;
+  teacherReviewCommentId?: string | null;
   title: string;
   body: string | null;
   fallbackPath: string;
@@ -122,6 +124,7 @@ export function communityErrorMessage(error: unknown) {
     case "community_version_conflict":
       return "内容刚刚在别处更新。请刷新后再编辑，避免覆盖新版本。";
     case "community_write_rate_limited":
+    case "teacher_review_rate_limit_exceeded":
       return "操作有些频繁，请稍后再试。";
     case "community_report_rate_limited":
       return "举报提交较频繁，请稍后再试；已经提交的举报不会丢失。";

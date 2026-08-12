@@ -10,7 +10,7 @@ type ModerationAction = "hide" | "restore" | "delete" | "warn" | "suspend" | "ba
 
 type CommunityReport = {
   id: string;
-  targetType: "topic" | "comment" | "user";
+  targetType: "topic" | "comment" | "user" | "teacher_review" | "teacher_review_comment";
   targetId: string;
   targetLabel: string | null;
   targetStatus: string | null;
