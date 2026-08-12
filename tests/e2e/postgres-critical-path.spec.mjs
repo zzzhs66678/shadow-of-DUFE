@@ -258,6 +258,20 @@ test("users and an administrator complete the release browser path", async ({
     await reviewArticle.getByRole("button", { name: "发布回复" }).click();
     await expect(reviewArticle.getByText(teacherReplyBody)).toBeVisible();
 
+    await expect.poll(async () => {
+      return secondOwner.evaluate(async (expectedBody) => {
+        const response = await fetch("/api/community/notifications?limit=30", {
+          cache: "no-store",
+          headers: { Accept: "application/json" },
+        });
+        if (!response.ok) return false;
+        const payload = await response.json();
+        return payload.items.some((item) =>
+          item.type === "teacher_review_reply" && item.body === expectedBody
+        );
+      }, teacherReplyBody);
+    }).toBe(true);
+
     await secondOwner.goto("/community");
     await secondOwner.getByRole("button", { name: /通知/u }).click();
     const teacherNotifications = secondOwner.getByRole("dialog", { name: "通知" });
