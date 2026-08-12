@@ -75,7 +75,7 @@ export function ReportDialog({
   onClose,
   onReported,
 }: {
-  target: { type: "topic" | "comment" | "user"; id: string; label: string } | null;
+  target: { type: "topic" | "comment" | "user" | "teacher_review" | "teacher_review_comment"; id: string; label: string } | null;
   onClose: () => void;
   onReported: (message: string) => void;
 }) {

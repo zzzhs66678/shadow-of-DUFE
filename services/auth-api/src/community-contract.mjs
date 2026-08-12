@@ -149,7 +149,9 @@ export function validateCommunityReport(value) {
   const reasonCode = value.reasonCode;
   const detail = normalizeOptionalDetail(value.detail);
   if (
-    !["topic", "comment", "user"].includes(targetType) ||
+    ![
+      "topic", "comment", "user", "teacher_review", "teacher_review_comment",
+    ].includes(targetType) ||
     !isCommunityUuid(targetId) ||
     ![
       "harassment",

@@ -144,8 +144,8 @@ DECLARE
     missing_table_count integer;
 BEGIN
     SELECT count(*) INTO migration_count FROM schema_migrations;
-    IF migration_count < 19 THEN
-        RAISE EXCEPTION 'restore contains only % migrations; expected at least 19', migration_count;
+    IF migration_count < 20 THEN
+        RAISE EXCEPTION 'restore contains only % migrations; expected at least 20', migration_count;
     END IF;
 
     SELECT count(*) INTO invalid_constraint_count
@@ -167,6 +167,8 @@ BEGIN
         'teachers',
         'course_schedule_teachers',
         'teacher_reviews',
+        'teacher_review_comments',
+        'teacher_review_comment_edits',
         'api_rate_limit_buckets'
     ]) AS required_table(name)
     WHERE to_regclass('public.' || required_table.name) IS NULL;

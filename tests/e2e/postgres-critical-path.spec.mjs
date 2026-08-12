@@ -244,7 +244,37 @@ test("users and an administrator complete the release browser path", async ({
     expect(publishedReviews.payload.items).toEqual(
       expect.arrayContaining([expect.objectContaining({ body: publishedReviewBody })]),
     );
+    const userReview = publishedReviews.payload.items.find(
+      (review) => review.body === publishedReviewBody,
+    );
+    expect(userReview?.id).toMatch(/^[0-9a-f-]{36}$/u);
     await expect(secondOwner.getByText(publishedReviewBody)).toBeVisible();
+
+    await replier.goto(`/teachers/${teacher.id}`);
+    const reviewArticle = replier.locator("article").filter({ hasText: publishedReviewBody });
+    await reviewArticle.getByRole("button", { name: "展开讨论" }).click();
+    const teacherReplyBody = "这条回复由另一名真实注册用户补充具体课堂体验。";
+    await reviewArticle.getByLabel("只讨论具体教学体验").fill(teacherReplyBody);
+    await reviewArticle.getByRole("button", { name: "发布回复" }).click();
+    await expect(reviewArticle.getByText(teacherReplyBody)).toBeVisible();
+
+    await secondOwner.goto("/community");
+    await secondOwner.getByRole("button", { name: /通知/u }).click();
+    const teacherNotifications = secondOwner.getByRole("dialog", { name: "通知" });
+    await expect(teacherNotifications.getByText(teacherReplyBody)).toBeVisible();
+    await expect(
+      teacherNotifications.locator("small").filter({ hasText: replierUsername }),
+    ).toBeVisible();
+    await teacherNotifications.getByRole("button", { name: "关闭通知" }).click();
+
+    await secondOwner.goto(`/teachers/${teacher.id}`);
+    const reportedReviewArticle = secondOwner.locator("article").filter({ hasText: publishedReviewBody });
+    await reportedReviewArticle.getByRole("button", { name: "展开讨论" }).click();
+    await reportedReviewArticle.getByRole("button", { name: "举报", exact: true }).click();
+    const teacherReport = secondOwner.getByRole("dialog", { name: "举报“教师评价回复”" });
+    await teacherReport.getByLabel(/补充说明/u).fill("用于验证教师评价回复的真实举报与审核闭环。");
+    await teacherReport.getByRole("button", { name: "提交举报" }).click();
+    await expect(secondOwner.getByRole("status")).toContainText("举报已提交");
 
     await administrator.goto("/admin");
     await expect(
@@ -336,6 +366,74 @@ test("users and an administrator complete the release browser path", async ({
     await secondOwner.goto(`/teachers/${teacher.id}`);
     await expect(secondOwner.getByText(teacher.candidateBody)).toBeVisible();
     await expect(secondOwner.getByText("历史整理内容", { exact: true })).toBeVisible();
+
+    const moderationDesk = administrator.locator("section").filter({
+      has: administrator.getByRole("heading", { name: "举报案卷" }),
+    });
+    await moderationDesk
+      .getByRole("button", { name: new RegExp(teacher.displayName, "u") })
+      .click();
+    const teacherCaseDialog = administrator.getByRole("dialog", {
+      name: teacher.displayName,
+    });
+    await teacherCaseDialog
+      .getByLabel(/入案原因/u)
+      .fill("举报证据完整，进入教师评价回复的人工复核流程。");
+    await teacherCaseDialog.getByRole("button", { name: "建立审核案件" }).click();
+    await expect(teacherCaseDialog.getByLabel("治理动作")).toBeVisible();
+    await teacherCaseDialog.getByLabel("治理动作").selectOption("hide");
+    await teacherCaseDialog
+      .getByLabel(/处置原因/u)
+      .fill("证据已留存，先隐藏教师评价回复并继续复核。");
+    await teacherCaseDialog
+      .getByRole("button", { name: "隐藏内容，继续审核" })
+      .click();
+    await expect(teacherCaseDialog.getByLabel("治理动作")).toHaveValue("restore");
+    await teacherCaseDialog.getByLabel("治理动作").selectOption("restore");
+    await teacherCaseDialog
+      .getByLabel(/处置原因/u)
+      .fill("复核后先恢复原回复，验证恢复不改写原始正文。");
+    await teacherCaseDialog
+      .getByRole("button", { name: "恢复内容并结案" })
+      .click();
+    await expect(teacherCaseDialog).toBeHidden();
+
+    await secondOwner.goto(`/teachers/${teacher.id}`);
+    const restoredReviewArticle = secondOwner.locator("article").filter({ hasText: publishedReviewBody });
+    await restoredReviewArticle.getByRole("button", { name: "展开讨论" }).click();
+    await expect(restoredReviewArticle.getByText(teacherReplyBody)).toBeVisible();
+    await restoredReviewArticle.getByRole("button", { name: "举报", exact: true }).click();
+    const finalTeacherReport = secondOwner.getByRole("dialog", { name: "举报“教师评价回复”" });
+    await finalTeacherReport.getByLabel(/补充说明/u).fill("恢复后再次举报，用于验证管理员最终删除的真实页面闭环。");
+    await finalTeacherReport.getByRole("button", { name: "提交举报" }).click();
+    await expect(secondOwner.getByRole("status")).toContainText("举报已提交");
+
+    await administrator.reload();
+    const refreshedModerationDesk = administrator.locator("section").filter({
+      has: administrator.getByRole("heading", { name: "举报案卷" }),
+    });
+    await refreshedModerationDesk
+      .getByRole("button", { name: new RegExp(teacher.displayName, "u") })
+      .click();
+    const finalTeacherCase = administrator.getByRole("dialog", { name: teacher.displayName });
+    await finalTeacherCase
+      .getByLabel(/入案原因/u)
+      .fill("恢复后的新举报证据完整，进入最终删除复核。");
+    await finalTeacherCase.getByRole("button", { name: "建立审核案件" }).click();
+    await finalTeacherCase.getByLabel("治理动作").selectOption("delete");
+    await finalTeacherCase
+      .getByLabel(/处置原因/u)
+      .fill("复核确认后软删除教师评价回复并保留讨论位置。");
+    await finalTeacherCase
+      .getByRole("button", { name: "删除内容并结案" })
+      .click();
+    await expect(finalTeacherCase).toBeHidden();
+
+    await secondOwner.reload();
+    const deletedReviewArticle = secondOwner.locator("article").filter({ hasText: publishedReviewBody });
+    await deletedReviewArticle.getByRole("button", { name: "展开讨论" }).click();
+    await expect(deletedReviewArticle.getByText("这条回复已不可见，讨论位置仍被保留。")).toBeVisible();
+    await expect(deletedReviewArticle.getByText(teacherReplyBody)).toBeHidden();
 
     await administrator
       .getByRole("button", { name: new RegExp(topicTitle, "u") })

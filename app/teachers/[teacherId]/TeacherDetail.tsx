@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import { FormField } from "../../FormField";
 import { PublicMasthead } from "../../PublicMasthead";
+import { TeacherReviewDiscussion } from "../TeacherReviewDiscussion";
 import styles from "../teachers.module.css";
 
 type RatingKey = "courseOrganization" | "contentClarity" | "assessmentExplanation" | "classroomInteraction" | "materialCompleteness";
@@ -50,6 +51,7 @@ export function TeacherDetail({ teacherId }: { teacherId: string }) {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "missing" | "error">("loading");
   const [accountStatus, setAccountStatus] = useState<"loading" | "guest" | "ready" | "error">("loading");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [ownReview, setOwnReview] = useState<OwnTeacherReview | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
   const [draftBody, setDraftBody] = useState("");
@@ -70,10 +72,11 @@ export function TeacherDetail({ teacherId }: { teacherId: string }) {
     async function load() {
       setStatus("loading");
       try {
-        const [detailResponse, reviewResponse, ownReviewResponse] = await Promise.all([
+        const [detailResponse, reviewResponse, ownReviewResponse, sessionResponse] = await Promise.all([
           fetch(`/api/teachers/${teacherId}`, { signal: controller.signal, cache: "no-store", headers: { Accept: "application/json" } }),
           fetch(`/api/teachers/${teacherId}/reviews?limit=20`, { signal: controller.signal, cache: "no-store", headers: { Accept: "application/json" } }),
           fetch(`/api/teachers/${teacherId}/my-review`, { signal: controller.signal, headers: { Accept: "application/json" } }),
+          fetch("/api/auth/session", { signal: controller.signal, cache: "no-store", headers: { Accept: "application/json" } }),
         ]);
         if (detailResponse.status === 404) {
           setStatus("missing");
@@ -97,6 +100,12 @@ export function TeacherDetail({ teacherId }: { teacherId: string }) {
           }
         } else {
           setAccountStatus("error");
+        }
+        if (sessionResponse.ok) {
+          const session = await sessionResponse.json() as { authenticated?: boolean; user?: { id?: string } | null };
+          setCurrentUserId(session.authenticated && session.user?.id ? session.user.id : null);
+        } else {
+          setCurrentUserId(null);
         }
         setStatus("ready");
       } catch (error) {
@@ -317,8 +326,13 @@ export function TeacherDetail({ teacherId }: { teacherId: string }) {
             {accountStatus === "ready" && !composerOpen && (
               <div>
                 <b>{ownReview?.status === "hidden" ? "这份评价当前未公开" : ownReview ? "你的评价已经公开" : "你上过这位老师的课吗？"}</b>
-                <p>{ownReview?.status === "hidden" ? "可以修改或删除，但修改不会自动恢复公开。" : ownReview ? "可以继续修改，公开页会显示最新版本。" : "只写与教学有关、自己实际经历过的内容。"}</p>
-                <button type="button" onClick={openComposer}>{ownReview ? "修改我的评价" : "写一份评价"}</button>
+                <p>{ownReview?.status === "hidden" ? "审核期间不能修改正文；你仍可删除这份评价，或等待复核结果。" : ownReview ? "可以继续修改，公开页会显示最新版本。" : "只写与教学有关、自己实际经历过的内容。"}</p>
+                {ownReview?.status === "hidden" ? (
+                  <div className={styles.reviewActions}>
+                    {!confirmDelete && <button type="button" onClick={() => setConfirmDelete(true)} disabled={reviewAction !== "idle"}>删除我的评价</button>}
+                    {confirmDelete && <><span>删除后公开页将不再显示。</span><button type="button" onClick={() => void deleteReview()} disabled={reviewAction !== "idle"}>{reviewAction === "deleting" ? "正在删除" : "确认删除"}</button><button type="button" onClick={() => setConfirmDelete(false)} disabled={reviewAction !== "idle"}>取消</button></>}
+                  </div>
+                ) : <button type="button" onClick={openComposer}>{ownReview ? "修改我的评价" : "写一份评价"}</button>}
               </div>
             )}
             {accountStatus === "ready" && composerOpen && (
@@ -355,6 +369,7 @@ export function TeacherDetail({ teacherId }: { teacherId: string }) {
             <article key={review.id}>
               <div><b>{review.authorLabel}</b><time dateTime={review.publishedAt}>{new Date(review.publishedAt).toLocaleDateString("zh-CN")}</time></div>
               <p>{review.body}</p>
+              <TeacherReviewDiscussion teacherId={teacherId} reviewId={review.id} reviewLabel={`${review.authorLabel}的评价`} canWrite={Boolean(currentUserId)} currentUserId={currentUserId} />
             </article>
           )) : <p className={styles.inlineEmpty}>还没有公开评价。</p>}
         </div>

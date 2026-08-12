@@ -27,6 +27,22 @@ function normalizeBody(value) {
   return normalized;
 }
 
+function normalizeCommentBody(value) {
+  if (typeof value !== "string") return null;
+  const normalized = value.normalize("NFKC").replace(/\r\n?/gu, "\n").trim();
+  if (
+    normalized.length < 1 ||
+    normalized.length > 3_000 ||
+    /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(normalized)
+  ) return null;
+  return normalized;
+}
+
+function isUuid(value) {
+  return typeof value === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value);
+}
+
 function normalizeRatings(value) {
   if (
     !isRecord(value) ||
@@ -75,6 +91,29 @@ export function validateTeacherReviewDelete(value) {
     return null;
   }
   return { expectedVersion: value.version };
+}
+
+export function validateTeacherReviewCommentCreate(value) {
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, new Set(["body", "replyToCommentId"]))
+  ) return null;
+  const body = normalizeCommentBody(value.body);
+  const replyToCommentId = value.replyToCommentId ?? null;
+  if (!body || (replyToCommentId !== null && !isUuid(replyToCommentId))) return null;
+  return { body, replyToCommentId };
+}
+
+export function validateTeacherReviewCommentUpdate(value) {
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, new Set(["body", "version"])) ||
+    Object.keys(value).length !== 2
+  ) return null;
+  const body = normalizeCommentBody(value.body);
+  return body && Number.isSafeInteger(value.version) && value.version >= 1
+    ? { body, expectedVersion: value.version }
+    : null;
 }
 
 export const __test = { RATING_KEYS };

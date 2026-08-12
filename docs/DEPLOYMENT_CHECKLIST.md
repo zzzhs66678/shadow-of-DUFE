@@ -38,7 +38,8 @@
 - [ ] 在 PostgreSQL 17 验证 `0014_teacher_review_moderation.sql` 重复迁移、候选决定 append-only、approve/reject 并发、审计故障回滚和审核/批次回滚竞态。
 - [x] 原生 CI 用真实 importer 并发 apply 同一私有包，确认教师/教材各只有一个 applied batch 且另一路幂等复用；同一候选并发批准、批准与回滚竞态只产生完整单一终态。
 - [ ] 在 PostgreSQL 17 验证 `0015_teacher_user_reviews.sql` 空库/升级/重复迁移、每用户每教师活动评价唯一性、正文摘要与评分触发器、版本冲突、软删除重建，以及账号注销撤下评价且不被触发器阻断。
-- [ ] 在 PostgreSQL 17 验证 `0019_course_schedule_teacher_overlay.sql` 空库/升级/重复迁移、runtime/importer/backup ACL、0/1/多教师覆盖、目录与 schedule 存在性失败关闭、不同来源幂等/并发/逆序回滚和教师批次依赖保护；恢复演练必须检查至少 19 个迁移及覆盖表。
+- [x] 在 PostgreSQL 17 验证 `0019_course_schedule_teacher_overlay.sql` 空库/升级/重复迁移、runtime/importer/backup ACL、0/1/多教师覆盖、目录与 schedule 存在性失败关闭、不同来源幂等/并发/逆序回滚和教师批次依赖保护；恢复演练检查至少 19 个迁移及覆盖表。PR #10 quality run `31473068640` 已通过。
+- [ ] 在 PostgreSQL 17 验证 `0020_teacher_review_governance.sql` 空库/升级/重复迁移、runtime ACL、两级回复/版本冲突/注销脱敏、回复通知、评价与回复举报、MFA 案件 hide→restore→delete 和同事务双审计；恢复演练必须检查至少 20 个迁移及新增回复/编辑证据表。
 - [x] 原生 CI 验证 auth runtime 对 `data_import_batches`、`data_import_rows`、`data_import_mutations`、`teacher_review_candidates` 和决定表无直接权限，只能执行审核白名单函数，并不能写教师来源身份或教学班教材事实。
 - [x] 原生 CI 验证 importer 不能 UPDATE 候选、批准/拒绝、写公开评价或管理员审计，只能执行专用未批准候选回滚函数，且保持 `NOINHERIT`/无高权属性。
 - [x] 原生 CI 验证 auth runtime 无法 UPDATE/DELETE/TRUNCATE `community_content_edits` 与 `community_moderation_actions`，但仍可按设计追加记录。
