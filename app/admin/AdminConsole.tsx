@@ -7,6 +7,7 @@ import { FormField } from "../FormField";
 import { useModalFocus } from "../use-modal-focus";
 import styles from "./admin.module.css";
 import { ModerationDesk } from "./ModerationDesk";
+import { ActiveContentDesk } from "./ActiveContentDesk";
 import { AnnouncementDesk } from "./AnnouncementDesk";
 import { TeacherReviewDesk } from "./TeacherReviewDesk";
 
@@ -578,6 +579,11 @@ export function AdminConsole() {
           {feedback && <div className={styles.feedback} role="status">{feedback}</div>}
 
           <ModerationDesk
+            onMfaExpired={handleMfaExpired}
+            onAuditChanged={loadAudit}
+          />
+
+          <ActiveContentDesk
             onMfaExpired={handleMfaExpired}
             onAuditChanged={loadAudit}
           />

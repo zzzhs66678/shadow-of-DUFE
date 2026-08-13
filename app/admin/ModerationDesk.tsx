@@ -79,6 +79,7 @@ function moderationError(error: unknown) {
     case "community_report_not_found": return "举报已被其他值守人员处理，队列已刷新。";
     case "community_case_not_found": return "案件已经结案或不可用，队列已刷新。";
     case "invalid_community_moderation_action": return "该动作不适用于当前目标，请重新选择。";
+    case "community_moderation_rate_limited": return "值守动作过于频繁，请稍后再继续。";
     default: return "治理请求没有完成。检查网络后重试。";
   }
 }

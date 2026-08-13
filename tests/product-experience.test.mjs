@@ -86,6 +86,10 @@ const moderationSource = await readFile(
   new URL("../app/admin/ModerationDesk.tsx", import.meta.url),
   "utf8",
 );
+const activeContentSource = await readFile(
+  new URL("../app/admin/ActiveContentDesk.tsx", import.meta.url),
+  "utf8",
+);
 const teacherReviewDeskSource = await readFile(
   new URL("../app/admin/TeacherReviewDesk.tsx", import.meta.url),
   "utf8",
@@ -164,6 +168,17 @@ test("administrator can review imported teacher comments through the elevated ba
   assert.match(teacherReviewDeskSource, /teacher_review_candidate_conflict/);
   assert.match(teacherReviewDeskSource, /admin_mfa_required/);
   assert.doesNotMatch(teacherReviewDeskSource, /dangerouslySetInnerHTML/);
+});
+
+test("administrator can actively review topics and replies through the audited case workflow", () => {
+  assert.match(adminSource, /<ActiveContentDesk/);
+  assert.match(activeContentSource, /\/api\/admin\/community\/content\?/);
+  assert.match(activeContentSource, /\/api\/admin\/community\/content\/\$\{selected\.type\}\/\$\{selected\.id\}\/case/);
+  assert.match(activeContentSource, /\/api\/admin\/community\/cases\/\$\{selected\.caseId\}\/actions/);
+  assert.match(activeContentSource, /无需等待举报/u);
+  assert.match(activeContentSource, /在公开页面核对上下文/u);
+  assert.doesNotMatch(activeContentSource, /dangerouslySetInnerHTML/);
+  assert.match(adminStyles, /\.contentFilters button[\s\S]*min-height:\s*44px/);
 });
 
 test("administrator account governance exposes trends, precise filters, and public-only records", () => {
