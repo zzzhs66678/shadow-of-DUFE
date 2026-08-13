@@ -71,6 +71,7 @@ function createAdminStore() {
   let sensitiveCalls = 0;
   let teacherReviewStatus = "pending";
   const announcements = [];
+  const adminInputs = [];
   const target = {
     id: userId,
     username: "student",
@@ -88,6 +89,7 @@ function createAdminStore() {
     tokens: { adminTokenOne, adminTokenTwo, userToken },
     enrollment,
     audit,
+    adminInputs,
     get sensitiveCalls() {
       return sensitiveCalls;
     },
@@ -148,11 +150,64 @@ function createAdminStore() {
         disabledUsers: target.status === "disabled" ? 1 : 0,
         administrators: 1,
         verifiedEmails: 0,
+        registrationTrend: Array.from({ length: 30 }, (_, index) => {
+          const date = new Date(Date.UTC(2023, 9, 16 + index));
+          return {
+            date: date.toISOString().slice(0, 10),
+            count: index === 29 ? 2 : 0,
+          };
+        }),
       };
     },
-    async listAdminUsers() {
+    async listAdminUsers(input) {
       sensitiveCalls += 1;
-      return [structuredClone(target)];
+      adminInputs.push(["listAdminUsers", structuredClone(input)]);
+      return {
+        users: [structuredClone(target)],
+        nextCursor: {
+          createdAt: target.createdAt,
+          id: target.id,
+        },
+      };
+    },
+    async getAdminUserPublicProfile(input) {
+      sensitiveCalls += 1;
+      adminInputs.push(["getAdminUserPublicProfile", structuredClone(input)]);
+      if (input.userId !== target.id) return null;
+      return {
+        profile: {
+          id: target.id,
+          username: target.username,
+          displayName: target.displayName,
+          avatarUrl: null,
+          joinedAt: target.createdAt,
+          topicCount: 1,
+          commentCount: 1,
+          accountStatus: target.status,
+        },
+        items: input.kind === "comments"
+          ? [{
+              kind: "comment",
+              id: reportId,
+              topicId: moderationCaseId,
+              topicTitle: "公开主题",
+              body: "公开回复",
+              publicPath: `/community/topics/${moderationCaseId}`,
+              createdAt: target.createdAt,
+              editedAt: null,
+            }]
+          : [{
+              kind: "topic",
+              id: moderationCaseId,
+              title: "公开主题",
+              body: "公开正文",
+              publicPath: `/community/topics/${moderationCaseId}`,
+              createdAt: target.createdAt,
+              updatedAt: target.createdAt,
+              editedAt: null,
+            }],
+        nextCursor: null,
+      };
     },
     async listAdminAudit() {
       sensitiveCalls += 1;
@@ -457,6 +512,144 @@ test("TOTP elevation is strict-cookie bound to one base session and rejects repl
     });
     assert.equal(replay.status, 403);
     assert.deepEqual(await replay.json(), { error: "admin_mfa_invalid" });
+  });
+});
+
+test("admin overview exposes a zero-filled 30-day registration trend", async () => {
+  await withAdminServer(async ({ baseUrl, store }) => {
+    const cookie = await elevatedCookie(baseUrl, store);
+    const response = await fetch(`${baseUrl}/api/admin/overview`, {
+      headers: { Cookie: cookie },
+    });
+    assert.equal(response.status, 200);
+    const { overview } = await response.json();
+    assert.equal(overview.registrationTrend.length, 30);
+    assert.deepEqual(overview.registrationTrend[0], {
+      date: "2023-10-16",
+      count: 0,
+    });
+    assert.deepEqual(overview.registrationTrend.at(-1), {
+      date: "2023-11-14",
+      count: 2,
+    });
+
+    const unknown = await fetch(`${baseUrl}/api/admin/overview?days=90`, {
+      headers: { Cookie: cookie },
+    });
+    assert.equal(unknown.status, 400);
+    assert.deepEqual(await unknown.json(), {
+      error: "invalid_admin_overview_query",
+    });
+  });
+});
+
+test("admin user listing validates filters and returns an opaque keyset cursor", async () => {
+  await withAdminServer(async ({ baseUrl, store }) => {
+    const cookie = await elevatedCookie(baseUrl, store);
+    const response = await fetch(
+      `${baseUrl}/api/admin/users?query=%EF%BC%B3tudent&role=user&status=active&registeredFrom=2023-01-01&registeredTo=2023-12-31&limit=20`,
+      { headers: { Cookie: cookie } },
+    );
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.users.length, 1);
+    assert.equal(payload.users[0].email, undefined);
+    assert.equal(payload.users[0].emailMasked, "st***@example.com");
+    assert.equal(typeof payload.nextCursor, "string");
+    assert.ok(payload.nextCursor.length > 10);
+    assert.deepEqual(store.adminInputs.at(-1), [
+      "listAdminUsers",
+      {
+        query: "Student",
+        role: "user",
+        status: "active",
+        registeredFrom: "2023-01-01",
+        registeredTo: "2023-12-31",
+        cursor: null,
+        limit: 20,
+      },
+    ]);
+
+    const next = await fetch(
+      `${baseUrl}/api/admin/users?cursor=${encodeURIComponent(payload.nextCursor)}&limit=1`,
+      { headers: { Cookie: cookie } },
+    );
+    assert.equal(next.status, 200);
+    assert.deepEqual(store.adminInputs.at(-1)[1].cursor, {
+      createdAt: new Date(0).toISOString(),
+      id: userId,
+    });
+
+    const invalidQueries = [
+      "role=owner",
+      "status=deleted",
+      "registeredFrom=2023-02-30",
+      "registeredFrom=2023-12-31&registeredTo=2023-01-01",
+      "limit=0",
+      "limit=51",
+      "cursor=not-a-cursor",
+      "unknown=true",
+      "role=user&role=admin",
+    ];
+    for (const query of invalidQueries) {
+      const invalid = await fetch(`${baseUrl}/api/admin/users?${query}`, {
+        headers: { Cookie: cookie },
+      });
+      assert.equal(invalid.status, 400, query);
+      assert.deepEqual(await invalid.json(), { error: "invalid_admin_query" });
+    }
+  });
+});
+
+test("admin public profile is paged, ignores community blocks and leaks no private account fields", async () => {
+  await withAdminServer(async ({ baseUrl, store }) => {
+    const cookie = await elevatedCookie(baseUrl, store);
+    const response = await fetch(
+      `${baseUrl}/api/admin/users/${userId}/public-profile?kind=comments&limit=12`,
+      { headers: { Cookie: cookie } },
+    );
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.kind, "comments");
+    assert.equal(payload.profile.accountStatus, "active");
+    assert.equal(payload.profile.email, undefined);
+    assert.equal(payload.profile.emailMasked, undefined);
+    assert.equal(payload.profile.role, undefined);
+    assert.equal(payload.profile.lastLoginAt, undefined);
+    assert.equal(payload.profile.schoolAccount, undefined);
+    assert.equal(payload.items[0].kind, "comment");
+    assert.equal(
+      payload.items[0].publicPath,
+      `/community/topics/${moderationCaseId}`,
+    );
+    assert.equal(payload.nextCursor, null);
+    assert.deepEqual(store.adminInputs.at(-1), [
+      "getAdminUserPublicProfile",
+      {
+        userId,
+        kind: "comments",
+        cursor: null,
+        limit: 12,
+      },
+    ]);
+
+    for (const query of ["kind=private", "limit=51", "blocked=true"]) {
+      const invalid = await fetch(
+        `${baseUrl}/api/admin/users/${userId}/public-profile?${query}`,
+        { headers: { Cookie: cookie } },
+      );
+      assert.equal(invalid.status, 400, query);
+      assert.deepEqual(await invalid.json(), {
+        error: "invalid_admin_public_profile_query",
+      });
+    }
+
+    const missing = await fetch(
+      `${baseUrl}/api/admin/users/00000000-0000-4000-8000-000000000099/public-profile`,
+      { headers: { Cookie: cookie } },
+    );
+    assert.equal(missing.status, 404);
+    assert.deepEqual(await missing.json(), { error: "admin_user_not_found" });
   });
 });
 

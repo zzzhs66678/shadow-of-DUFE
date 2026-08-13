@@ -1059,7 +1059,8 @@ export function createAuthStore(pool) {
     },
 
     async getAdminOverview() {
-      const result = await pool.query(
+      const [result, trendResult] = await Promise.all([
+        pool.query(
         `SELECT
            count(*)::integer AS total_users,
            count(*) FILTER (WHERE status = 'active')::integer AS active_users,
@@ -1069,7 +1070,41 @@ export function createAuthStore(pool) {
              AS verified_emails
          FROM app_users
          WHERE status <> 'deleted'`,
-      );
+        ),
+        pool.query(
+          `WITH days AS (
+             SELECT generate_series(
+               (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Shanghai')::date - 29,
+               (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Shanghai')::date,
+               interval '1 day'
+             )::date AS registration_date
+           ), registrations AS (
+             SELECT
+               (created_at AT TIME ZONE 'Asia/Shanghai')::date AS registration_date,
+               count(*)::integer AS registration_count
+             FROM app_users
+             WHERE status <> 'deleted'
+               AND created_at >= (
+                 (
+                   (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Shanghai')::date - 29
+                 )::timestamp AT TIME ZONE 'Asia/Shanghai'
+               )
+               AND created_at < (
+                 (
+                   (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Shanghai')::date + 1
+                 )::timestamp AT TIME ZONE 'Asia/Shanghai'
+               )
+             GROUP BY registration_date
+           )
+           SELECT
+             to_char(days.registration_date, 'YYYY-MM-DD') AS registration_date,
+             COALESCE(registrations.registration_count, 0)::integer
+               AS registration_count
+           FROM days
+           LEFT JOIN registrations USING (registration_date)
+           ORDER BY days.registration_date ASC`,
+        ),
+      ]);
       const row = result.rows[0];
       return {
         totalUsers: row.total_users,
@@ -1077,10 +1112,22 @@ export function createAuthStore(pool) {
         disabledUsers: row.disabled_users,
         administrators: row.administrators,
         verifiedEmails: row.verified_emails,
+        registrationTrend: trendResult.rows.map((trendRow) => ({
+          date: trendRow.registration_date,
+          count: Number(trendRow.registration_count),
+        })),
       };
     },
 
-    async listAdminUsers({ query, limit }) {
+    async listAdminUsers({
+      query,
+      role = null,
+      status = null,
+      registeredFrom = null,
+      registeredTo = null,
+      cursor = null,
+      limit,
+    }) {
       const normalizedQuery = query.toLocaleLowerCase("en-US");
       const result = await pool.query(
         `SELECT
@@ -1101,11 +1148,38 @@ export function createAuthStore(pool) {
              OR normalized_username LIKE '%' || $1 || '%'
              OR normalized_email LIKE '%' || $1 || '%'
            )
+           AND ($2::text IS NULL OR role = $2)
+           AND ($3::text IS NULL OR status = $3)
+           AND (
+             $4::date IS NULL OR
+             created_at >= ($4::date::timestamp AT TIME ZONE 'Asia/Shanghai')
+           )
+           AND (
+             $5::date IS NULL OR
+             created_at < (
+               ($5::date + 1)::timestamp AT TIME ZONE 'Asia/Shanghai'
+             )
+           )
+           AND (
+             $6::timestamptz IS NULL OR
+             (created_at, id) < ($6::timestamptz, $7::uuid)
+           )
          ORDER BY created_at DESC, id DESC
-         LIMIT $2`,
-        [normalizedQuery, limit],
+         LIMIT $8`,
+        [
+          normalizedQuery,
+          role,
+          status,
+          registeredFrom,
+          registeredTo,
+          cursor?.createdAt ?? null,
+          cursor?.id ?? null,
+          limit + 1,
+        ],
       );
-      return result.rows.map((row) => ({
+      const hasMore = result.rows.length > limit;
+      const rows = result.rows.slice(0, limit);
+      const users = rows.map((row) => ({
         id: String(row.id),
         username: row.username,
         displayName: row.display_name,
@@ -1119,6 +1193,155 @@ export function createAuthStore(pool) {
           ? new Date(row.last_login_at).toISOString()
           : null,
       }));
+      const last = rows.at(-1);
+      return {
+        users,
+        nextCursor: hasMore && last
+          ? {
+              createdAt: new Date(last.created_at).toISOString(),
+              id: String(last.id),
+            }
+          : null,
+      };
+    },
+
+    async getAdminUserPublicProfile({
+      userId,
+      kind,
+      cursor = null,
+      limit,
+    }) {
+      const profileResult = await pool.query(
+        `SELECT
+           users.id,
+           users.username,
+           users.display_name,
+           users.avatar_url,
+           users.status,
+           users.created_at,
+           (
+             SELECT count(*)
+             FROM community_topics AS topics
+             WHERE topics.author_user_id = users.id
+               AND topics.status = 'published'
+               AND topics.visibility = 'public'
+           ) AS topic_count,
+           (
+             SELECT count(*)
+             FROM community_comments AS comments
+             JOIN community_topics AS topics ON topics.id = comments.topic_id
+             WHERE comments.author_user_id = users.id
+               AND comments.status = 'published'
+               AND topics.status = 'published'
+               AND topics.visibility = 'public'
+           ) AS comment_count
+         FROM app_users AS users
+         WHERE users.id = $1::uuid
+           AND users.status IN ('active', 'disabled')
+         LIMIT 1`,
+        [userId],
+      );
+      const profileRow = profileResult.rows[0];
+      if (!profileRow) return null;
+
+      const values = [
+        userId,
+        cursor?.createdAt ?? null,
+        cursor?.id ?? null,
+        limit + 1,
+      ];
+      const contentResult = kind === "comments"
+        ? await pool.query(
+            `SELECT
+               comments.id,
+               comments.topic_id,
+               topics.title AS topic_title,
+               comments.body,
+               comments.created_at,
+               comments.edited_at
+             FROM community_comments AS comments
+             JOIN community_topics AS topics ON topics.id = comments.topic_id
+             WHERE comments.author_user_id = $1::uuid
+               AND comments.status = 'published'
+               AND topics.status = 'published'
+               AND topics.visibility = 'public'
+               AND (
+                 $2::timestamptz IS NULL OR
+                 (comments.created_at, comments.id) <
+                   ($2::timestamptz, $3::uuid)
+               )
+             ORDER BY comments.created_at DESC, comments.id DESC
+             LIMIT $4`,
+            values,
+          )
+        : await pool.query(
+            `SELECT
+               topics.id,
+               topics.title,
+               topics.body,
+               topics.created_at,
+               topics.updated_at,
+               topics.edited_at
+             FROM community_topics AS topics
+             WHERE topics.author_user_id = $1::uuid
+               AND topics.status = 'published'
+               AND topics.visibility = 'public'
+               AND (
+                 $2::timestamptz IS NULL OR
+                 (topics.created_at, topics.id) <
+                   ($2::timestamptz, $3::uuid)
+               )
+             ORDER BY topics.created_at DESC, topics.id DESC
+             LIMIT $4`,
+            values,
+          );
+      const hasMore = contentResult.rows.length > limit;
+      const rows = contentResult.rows.slice(0, limit);
+      const items = rows.map((row) => kind === "comments"
+        ? {
+            kind: "comment",
+            id: String(row.id),
+            topicId: String(row.topic_id),
+            topicTitle: row.topic_title,
+            body: row.body,
+            publicPath: `/community/topics/${row.topic_id}`,
+            createdAt: new Date(row.created_at).toISOString(),
+            editedAt: row.edited_at
+              ? new Date(row.edited_at).toISOString()
+              : null,
+          }
+        : {
+            kind: "topic",
+            id: String(row.id),
+            title: row.title,
+            body: row.body,
+            publicPath: `/community/topics/${row.id}`,
+            createdAt: new Date(row.created_at).toISOString(),
+            updatedAt: new Date(row.updated_at).toISOString(),
+            editedAt: row.edited_at
+              ? new Date(row.edited_at).toISOString()
+              : null,
+          });
+      const last = rows.at(-1);
+      return {
+        profile: {
+          id: String(profileRow.id),
+          username: profileRow.username,
+          displayName: profileRow.display_name,
+          avatarUrl: profileRow.avatar_url,
+          joinedAt: new Date(profileRow.created_at).toISOString(),
+          topicCount: Number(profileRow.topic_count ?? 0),
+          commentCount: Number(profileRow.comment_count ?? 0),
+          accountStatus: profileRow.status,
+        },
+        items,
+        nextCursor: hasMore && last
+          ? {
+              createdAt: new Date(last.created_at).toISOString(),
+              id: String(last.id),
+            }
+          : null,
+      };
     },
 
     async listAdminAudit({ limit }) {

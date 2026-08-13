@@ -969,6 +969,7 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
 
     const owner = await register("owner");
     const replier = await register("replier");
+    const filteredUser = await register("filtered");
     const administrator = await register("admin");
 
     const health = await fetch(`${baseUrl}/api/auth/health`);
@@ -1421,6 +1422,188 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
       { role: adminSessionBody.role, elevated: adminSessionBody.elevated },
       { role: "admin", elevated: true },
     );
+
+    const overviewResponse = await fetch(`${baseUrl}/api/admin/overview`, {
+      headers: { Cookie: elevatedAdminCookie },
+    });
+    const overviewBody = await overviewResponse.json();
+    assert.equal(overviewResponse.status, 200);
+    assert.equal(overviewBody.overview.registrationTrend.length, 30);
+    assert.deepEqual(
+      [...overviewBody.overview.registrationTrend]
+        .map((entry) => entry.date)
+        .sort(),
+      overviewBody.overview.registrationTrend.map((entry) => entry.date),
+    );
+    assert.equal(
+      overviewBody.overview.registrationTrend.every(
+        (entry) => /^\d{4}-\d{2}-\d{2}$/u.test(entry.date)
+          && Number.isInteger(entry.count)
+          && entry.count >= 0,
+      ),
+      true,
+    );
+    assert.equal(
+      overviewBody.overview.registrationTrend.at(-1)?.date,
+      new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai" }).format(new Date()),
+    );
+    assert.equal(
+      overviewBody.overview.registrationTrend.at(-1)?.count >= 4,
+      true,
+    );
+
+    const firstUserPageResponse = await fetch(
+      `${baseUrl}/api/admin/users?${new URLSearchParams({
+        role: "user",
+        status: "active",
+        limit: "1",
+      })}`,
+      { headers: { Cookie: elevatedAdminCookie } },
+    );
+    const firstUserPageBody = await firstUserPageResponse.json();
+    assert.equal(firstUserPageResponse.status, 200);
+    assert.equal(firstUserPageBody.users.length, 1);
+    assert.equal(typeof firstUserPageBody.nextCursor, "string");
+
+    const secondUserPageResponse = await fetch(
+      `${baseUrl}/api/admin/users?${new URLSearchParams({
+        role: "user",
+        status: "active",
+        limit: "1",
+        cursor: firstUserPageBody.nextCursor,
+      })}`,
+      { headers: { Cookie: elevatedAdminCookie } },
+    );
+    const secondUserPageBody = await secondUserPageResponse.json();
+    assert.equal(secondUserPageResponse.status, 200);
+    assert.equal(secondUserPageBody.users.length, 1);
+    assert.notEqual(secondUserPageBody.users[0].id, firstUserPageBody.users[0].id);
+
+    const shanghaiToday = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Shanghai",
+    }).format(new Date());
+    const filteredUserListResponse = await fetch(
+      `${baseUrl}/api/admin/users?${new URLSearchParams({
+        query: owner.body.user.username,
+        role: "user",
+        status: "active",
+        registeredFrom: shanghaiToday,
+        registeredTo: shanghaiToday,
+        limit: "20",
+      })}`,
+      { headers: { Cookie: elevatedAdminCookie } },
+    );
+    const filteredUserListBody = await filteredUserListResponse.json();
+    assert.equal(filteredUserListResponse.status, 200);
+    assert.deepEqual(
+      filteredUserListBody.users.map((user) => user.id),
+      [owner.body.user.id],
+    );
+    assert.equal(filteredUserListBody.nextCursor, null);
+
+    const disabledFilteredUserResponse = await fetch(
+      `${baseUrl}/api/admin/users/${filteredUser.body.user.id}/status`,
+      {
+        method: "PATCH",
+        headers: { ...requestHeaders, Cookie: elevatedAdminCookie },
+        body: JSON.stringify({
+          status: "disabled",
+          expectedStatus: "active",
+          reason: "验证管理员账号状态筛选与会话撤销闭环。",
+        }),
+      },
+    );
+    assert.equal(disabledFilteredUserResponse.status, 200);
+
+    const disabledUserListResponse = await fetch(
+      `${baseUrl}/api/admin/users?${new URLSearchParams({
+        query: filteredUser.body.user.username,
+        role: "user",
+        status: "disabled",
+        limit: "20",
+      })}`,
+      { headers: { Cookie: elevatedAdminCookie } },
+    );
+    const disabledUserListBody = await disabledUserListResponse.json();
+    assert.equal(disabledUserListResponse.status, 200);
+    assert.deepEqual(
+      disabledUserListBody.users.map((user) => ({ id: user.id, status: user.status })),
+      [{ id: filteredUser.body.user.id, status: "disabled" }],
+    );
+
+    const adminRoleListResponse = await fetch(
+      `${baseUrl}/api/admin/users?${new URLSearchParams({
+        query: administrator.body.user.username,
+        role: "admin",
+        limit: "20",
+      })}`,
+      { headers: { Cookie: elevatedAdminCookie } },
+    );
+    const adminRoleListBody = await adminRoleListResponse.json();
+    assert.equal(adminRoleListResponse.status, 200);
+    assert.deepEqual(
+      adminRoleListBody.users.map((user) => user.id),
+      [administrator.body.user.id],
+    );
+
+    const invalidUserFilterResponse = await fetch(
+      `${baseUrl}/api/admin/users?role=owner&status=locked&limit=500`,
+      { headers: { Cookie: elevatedAdminCookie } },
+    );
+    assert.equal(invalidUserFilterResponse.status, 400);
+    assert.deepEqual(await invalidUserFilterResponse.json(), {
+      error: "invalid_admin_query",
+    });
+
+    const ownerProfileResponse = await fetch(
+      `${baseUrl}/api/admin/users/${owner.body.user.id}/public-profile?kind=topics&limit=1`,
+      { headers: { Cookie: elevatedAdminCookie } },
+    );
+    const ownerProfileBody = await ownerProfileResponse.json();
+    assert.equal(ownerProfileResponse.status, 200);
+    assert.deepEqual(
+      Object.keys(ownerProfileBody.profile).sort(),
+      [
+        "accountStatus",
+        "avatarUrl",
+        "commentCount",
+        "displayName",
+        "id",
+        "joinedAt",
+        "topicCount",
+        "username",
+      ],
+    );
+    assert.equal(ownerProfileBody.kind, "topics");
+    assert.equal(ownerProfileBody.profile.id, owner.body.user.id);
+    assert.equal(ownerProfileBody.profile.topicCount >= 1, true);
+    assert.equal(ownerProfileBody.items[0].id, topicBody.topic.id);
+    assert.equal(ownerProfileBody.items[0].title, topicBody.topic.title);
+    assert.equal(ownerProfileBody.nextCursor, null);
+
+    const replierProfileResponse = await fetch(
+      `${baseUrl}/api/admin/users/${replier.body.user.id}/public-profile?kind=comments&limit=1`,
+      { headers: { Cookie: elevatedAdminCookie } },
+    );
+    const replierProfileBody = await replierProfileResponse.json();
+    assert.equal(replierProfileResponse.status, 200);
+    assert.equal(replierProfileBody.kind, "comments");
+    assert.equal(replierProfileBody.profile.id, replier.body.user.id);
+    assert.equal(replierProfileBody.profile.commentCount >= 1, true);
+    assert.equal(replierProfileBody.items[0].id, replyBody.comment.id);
+    assert.equal(replierProfileBody.items[0].topicId, topicBody.topic.id);
+
+    for (const profileBody of [ownerProfileBody, replierProfileBody]) {
+      const serialized = JSON.stringify(profileBody);
+      assert.equal(serialized.includes("@example.com"), false);
+      assert.equal(/"(?:email|emailMasked|emailVerified|schoolAccount|role|lastLoginAt)"/u.test(serialized), false);
+    }
+
+    const userProfileBoundary = await fetch(
+      `${baseUrl}/api/admin/users/${owner.body.user.id}/public-profile?kind=topics&limit=1`,
+      { headers: { Cookie: replier.cookie } },
+    );
+    assert.equal(userProfileBoundary.status, 403);
 
     const reportResponse = await fetch(`${baseUrl}/api/community/reports`, {
       method: "POST",
