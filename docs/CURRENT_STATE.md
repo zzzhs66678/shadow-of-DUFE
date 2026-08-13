@@ -266,7 +266,7 @@
 - 仓库新增与生产完全分离的 `docker-compose.staging.yml`：三个自建镜像必须绑定完整 40 位 Git SHA，PostgreSQL、小影和 Caddy 使用独立命名卷，凭据与资料目录必须由仓库外绝对路径显式提供，默认只监听 `127.0.0.1:8443`。
 - staging 预检会拒绝 `dufesh.cn`、生产 IP、生产共享目录、非 `_staging` 数据库、非 600 权限凭据、非 HTTPS 公网来源和未经批准的公网监听；无真实值会直接失败，不提供可误用的生产默认值。冒烟脚本同样拒绝生产目标。
 - 主站应用容器补齐非 root 之外的只读文件系统、64MB 临时目录、禁止提权以及 CPU/内存/PID 限额。生产与 staging 的 Caddy 都只等待主应用健康，小影作为隔离的可选服务，其故障不再阻止主站和账号入口启动。
-- 本地 staging/发布契约 8/8、TypeScript、Compose YAML 解析、生产构建与差异检查通过。PR #10 run `31686974470` 已在 Linux 真实启动隔离 PostgreSQL、执行 20 个迁移并从 HTTPS Caddy 验证主应用、认证健康、教师接口和社区；独立外部 staging 的域名、凭据、SMTP、真实私有数据与回滚演练仍待环境提供。本轮未部署。
+- 本地 staging/发布契约 8/8、TypeScript、Compose YAML 解析、生产构建与差异检查通过。PR #10 run `31687272428` 已在 Linux 真实启动隔离 PostgreSQL、执行 20 个迁移并从 HTTPS Caddy 验证主应用、认证健康、教师接口、社区及首页实际引用的全部 JS/CSS 状态、MIME 与长期缓存；verify、PG17、Linux 镜像、CodeQL 和全历史密钥扫描全绿。独立外部 staging 的域名、凭据、SMTP、真实私有数据与回滚演练仍待环境提供。本轮未部署。
 
 ## 下一阶段
 
