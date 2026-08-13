@@ -536,7 +536,14 @@ test("users and an administrator complete the release browser path", async ({
     await expect(deletedReviewArticle.getByText("这条回复已不可见，讨论位置仍被保留。")).toBeVisible();
     await expect(deletedReviewArticle.getByText(teacherReplyBody)).toBeHidden();
 
-    await administrator
+    const finalModerationDesk = administrator.locator("section").filter({
+      has: administrator.getByRole("heading", { name: "举报案卷" }),
+    });
+    await finalModerationDesk.getByRole("button", { name: "待入案" }).click();
+    await expect(
+      finalModerationDesk.getByRole("button", { name: "待入案" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await finalModerationDesk
       .getByRole("button", { name: new RegExp(topicTitle, "u") })
       .click();
     const caseDialog = administrator.getByRole("dialog", { name: topicTitle });
