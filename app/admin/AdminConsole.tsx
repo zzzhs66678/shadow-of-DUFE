@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { DialogActions, DialogBackdrop } from "../DialogBackdrop";
 import { FormField } from "../FormField";
@@ -23,6 +23,7 @@ type Overview = {
   disabledUsers: number;
   administrators: number;
   verifiedEmails: number;
+  registrationTrend: Array<{ date: string; count: number }>;
 };
 
 type AdminUser = {
@@ -47,6 +48,35 @@ type AuditEvent = {
   targetId: string | null;
   requestId: string | null;
   metadata: Record<string, unknown> | null;
+  createdAt: string;
+};
+
+type UserFilters = {
+  query: string;
+  role: "" | "user" | "moderator" | "admin";
+  status: "" | "active" | "disabled";
+  registeredFrom: string;
+  registeredTo: string;
+};
+
+type AdminPublicProfile = {
+  id: string;
+  username: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
+  joinedAt: string;
+  topicCount: number;
+  commentCount: number;
+  accountStatus: "active" | "disabled";
+};
+
+type PublicProfileItem = {
+  id: string;
+  topicId?: string;
+  title?: string;
+  topicTitle?: string;
+  body: string;
+  publicPath: string;
   createdAt: string;
 };
 
@@ -133,21 +163,47 @@ function errorMessage(error: unknown) {
   }
 }
 
+const emptyUserFilters: UserFilters = {
+  query: "",
+  role: "",
+  status: "",
+  registeredFrom: "",
+  registeredTo: "",
+};
+
+function userFilterSearch(filters: UserFilters, cursor?: string | null) {
+  const query = new URLSearchParams({ limit: "20" });
+  for (const [key, value] of Object.entries(filters)) {
+    if (value) query.set(key, value);
+  }
+  if (cursor) query.set("cursor", cursor);
+  return query.toString();
+}
+
 export function AdminConsole() {
   const [screen, setScreen] = useState<Screen>("loading");
   const [access, setAccess] = useState<AccessState | null>(null);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [audit, setAudit] = useState<AuditEvent[]>([]);
-  const [query, setQuery] = useState("");
-  const [activeQuery, setActiveQuery] = useState("");
+  const [filters, setFilters] = useState<UserFilters>(emptyUserFilters);
+  const [activeFilters, setActiveFilters] = useState<UserFilters>(emptyUserFilters);
+  const [usersCursor, setUsersCursor] = useState<string | null>(null);
   const [mfaCode, setMfaCode] = useState("");
   const [feedback, setFeedback] = useState("");
   const [busy, setBusy] = useState("");
   const [target, setTarget] = useState<AdminUser | null>(null);
+  const [profileTarget, setProfileTarget] = useState<AdminUser | null>(null);
+  const [publicProfile, setPublicProfile] = useState<AdminPublicProfile | null>(null);
+  const [publicItems, setPublicItems] = useState<PublicProfileItem[]>([]);
+  const [publicKind, setPublicKind] = useState<"topics" | "comments">("topics");
+  const [publicState, setPublicState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [publicCursor, setPublicCursor] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const closeUserAction = useCallback(() => setTarget(null), []);
+  const closePublicProfile = useCallback(() => setProfileTarget(null), []);
   const actionDialogRef = useModalFocus<HTMLFormElement>(Boolean(target), closeUserAction, Boolean(busy));
+  const profileDialogRef = useModalFocus<HTMLElement>(Boolean(profileTarget), closePublicProfile, publicState === "loading");
 
   const loadAudit = useCallback(async () => {
     const payload = await requestJson<{ events: AuditEvent[] }>("/api/admin/audit");
@@ -158,16 +214,62 @@ export function AdminConsole() {
     setScreen("elevation");
   }, []);
 
-  const loadDashboard = useCallback(async (search = "") => {
-    const suffix = search ? `?query=${encodeURIComponent(search)}` : "";
+  const loadDashboard = useCallback(async (nextFilters = emptyUserFilters) => {
     const [overviewPayload, usersPayload] = await Promise.all([
       requestJson<{ overview: Overview }>("/api/admin/overview"),
-      requestJson<{ users: AdminUser[] }>(`/api/admin/users${suffix}`),
+      requestJson<{ users: AdminUser[]; nextCursor: string | null }>(
+        `/api/admin/users?${userFilterSearch(nextFilters)}`,
+      ),
       loadAudit(),
     ]);
     setOverview(overviewPayload.overview);
     setUsers(usersPayload.users);
+    setUsersCursor(usersPayload.nextCursor);
   }, [loadAudit]);
+
+  const loadMoreUsers = useCallback(async () => {
+    if (!usersCursor) return;
+    setBusy("users-more");
+    try {
+      const payload = await requestJson<{ users: AdminUser[]; nextCursor: string | null }>(
+        `/api/admin/users?${userFilterSearch(activeFilters, usersCursor)}`,
+      );
+      setUsers((current) => [
+        ...current,
+        ...payload.users.filter((user) => !current.some((existing) => existing.id === user.id)),
+      ]);
+      setUsersCursor(payload.nextCursor);
+    } catch (error) {
+      setFeedback(errorMessage(error));
+    } finally {
+      setBusy("");
+    }
+  }, [activeFilters, usersCursor]);
+
+  const loadPublicProfile = useCallback(async (
+    user: AdminUser,
+    kind: "topics" | "comments",
+    cursor?: string | null,
+    append = false,
+  ) => {
+    setPublicState("loading");
+    try {
+      const suffix = cursor ? `&cursor=${encodeURIComponent(cursor)}` : "";
+      const payload = await requestJson<{
+        profile: AdminPublicProfile;
+        items: PublicProfileItem[];
+        nextCursor: string | null;
+      }>(`/api/admin/users/${user.id}/public-profile?kind=${kind}&limit=10${suffix}`);
+      setPublicProfile(payload.profile);
+      setPublicItems((current) => append ? [...current, ...payload.items] : payload.items);
+      setPublicKind(kind);
+      setPublicCursor(payload.nextCursor);
+      setPublicState("ready");
+    } catch (error) {
+      setPublicState("error");
+      setFeedback(errorMessage(error));
+    }
+  }, []);
 
   const loadAccess = useCallback(async () => {
     try {
@@ -200,6 +302,10 @@ export function AdminConsole() {
     if (!overview?.totalUsers) return 0;
     return Math.round((overview.verifiedEmails / overview.totalUsers) * 100);
   }, [overview]);
+  const registrationPeak = useMemo(
+    () => Math.max(1, ...(overview?.registrationTrend ?? []).map((item) => item.count)),
+    [overview],
+  );
 
   async function elevate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -231,12 +337,21 @@ export function AdminConsole() {
 
   async function searchUsers(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const normalized = query.trim();
+    const normalized = { ...filters, query: filters.query.normalize("NFKC").trim() };
+    if (
+      normalized.registeredFrom &&
+      normalized.registeredTo &&
+      normalized.registeredFrom > normalized.registeredTo
+    ) {
+      setFeedback("注册起日不能晚于注册止日，请调整日期后再查找。");
+      return;
+    }
     setBusy("search");
     setFeedback("");
     try {
       await loadDashboard(normalized);
-      setActiveQuery(normalized);
+      setFilters(normalized);
+      setActiveFilters(normalized);
     } catch (error) {
       const apiError = error as ApiError;
       if (apiError.code === "admin_mfa_required") {
@@ -265,7 +380,7 @@ export function AdminConsole() {
       });
       setTarget(null);
       setReason("");
-      await loadDashboard(activeQuery);
+      await loadDashboard(activeFilters);
       setFeedback(status === "disabled" ? "账号已停用，既有会话已撤销。" : "账号已恢复，可重新登录。历史会话不会恢复。");
     } catch (error) {
       setFeedback(errorMessage(error));
@@ -274,7 +389,7 @@ export function AdminConsole() {
         setReason("");
         setScreen("elevation");
       } else if ((error as ApiError).code === "admin_user_status_conflict") {
-        await loadDashboard(activeQuery);
+        await loadDashboard(activeFilters);
         setTarget(null);
         setReason("");
       }
@@ -444,6 +559,22 @@ export function AdminConsole() {
             </article>
           </section>
 
+          <section className={styles.registrationTrend} aria-labelledby="admin-registration-trend-title">
+            <header>
+              <div><span>30 DAYS</span><h2 id="admin-registration-trend-title">新同学抵达记录</h2></div>
+              <p>按上海日期记录最近 30 天真实注册量；柱高只帮助比较，人数以文字为准。</p>
+            </header>
+            <ol aria-label="最近 30 天新增用户趋势">
+              {overview.registrationTrend.map((item) => (
+                <li key={item.date}>
+                  <i style={{ "--trend-height": `${Math.max(4, Math.round(item.count / registrationPeak * 100))}%` } as CSSProperties} />
+                  <span>{item.date.slice(5)}</span>
+                  <b>{item.count}<span className="sr-only"> 人</span></b>
+                </li>
+              ))}
+            </ol>
+          </section>
+
           {feedback && <div className={styles.feedback} role="status">{feedback}</div>}
 
           <ModerationDesk
@@ -466,21 +597,44 @@ export function AdminConsole() {
               <header>
                 <div><span>账号名册</span><h2 id="admin-users-title">查找与处置</h2></div>
                 <form onSubmit={searchUsers} role="search">
-                  <label className="sr-only" htmlFor="admin-user-query">搜索用户名或邮箱</label>
-                  <input
-                    id="admin-user-query"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder="用户名或邮箱"
-                    maxLength={64}
-                  />
+                  <div>
+                    <label htmlFor="admin-user-query">用户名或邮箱</label>
+                    <input
+                      id="admin-user-query"
+                      name="query"
+                      value={filters.query}
+                      onChange={(event) => setFilters((current) => ({ ...current, query: event.target.value }))}
+                      placeholder="输入账号线索"
+                      maxLength={64}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="admin-user-role">角色</label>
+                    <select id="admin-user-role" name="role" value={filters.role} onChange={(event) => setFilters((current) => ({ ...current, role: event.target.value as UserFilters["role"] }))}>
+                      <option value="">全部角色</option><option value="user">学生</option><option value="moderator">审核员</option><option value="admin">管理员</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="admin-user-status">状态</label>
+                    <select id="admin-user-status" name="status" value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value as UserFilters["status"] }))}>
+                      <option value="">全部状态</option><option value="active">正常</option><option value="disabled">已停用</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="admin-user-from">注册起日</label>
+                    <input id="admin-user-from" name="registeredFrom" type="date" value={filters.registeredFrom} onChange={(event) => setFilters((current) => ({ ...current, registeredFrom: event.target.value }))} />
+                  </div>
+                  <div>
+                    <label htmlFor="admin-user-to">注册止日</label>
+                    <input id="admin-user-to" name="registeredTo" type="date" value={filters.registeredTo} onChange={(event) => setFilters((current) => ({ ...current, registeredTo: event.target.value }))} />
+                  </div>
                   <button disabled={busy === "search"}>{busy === "search" ? "查找中" : "查找"}</button>
                 </form>
               </header>
-              {activeQuery && (
+              {Object.values(activeFilters).some(Boolean) && (
                 <div className={styles.queryNote}>
-                  正在查看“{activeQuery}”的结果
-                  <button onClick={() => { setQuery(""); setActiveQuery(""); void loadDashboard(""); }}>清除</button>
+                  当前名册已按检索条件筛选
+                  <button onClick={() => { setFilters(emptyUserFilters); setActiveFilters(emptyUserFilters); void loadDashboard(emptyUserFilters); }}>清除全部</button>
                 </div>
               )}
               <div className={styles.userList}>
@@ -506,6 +660,9 @@ export function AdminConsole() {
                     </div>
                     <div className={styles.userAction}>
                       <em data-status={user.status}>{user.status === "active" ? "正常" : "已停用"}</em>
+                      <button onClick={() => { setProfileTarget(user); setPublicItems([]); setPublicProfile(null); setPublicCursor(null); void loadPublicProfile(user, "topics"); }}>
+                        查看公开资料
+                      </button>
                       <button onClick={() => { setTarget(user); setReason(""); setFeedback(""); }}>
                         {user.status === "active" ? "停用" : "恢复"}
                       </button>
@@ -513,6 +670,7 @@ export function AdminConsole() {
                   </article>
                 ))}
               </div>
+              {usersCursor && <button className={styles.usersMore} onClick={() => void loadMoreUsers()} disabled={busy === "users-more"}>{busy === "users-more" ? "正在续读" : "继续读取名册"}</button>}
             </section>
 
             <aside className={styles.auditTrail} aria-labelledby="admin-audit-title">
@@ -548,13 +706,50 @@ export function AdminConsole() {
             <h2 id="admin-action-title">{target.displayName || target.username || "这名用户"}</h2>
             <p>{target.status === "active" ? "停用后，这名用户的所有登录与管理员短时权限都会立即撤销。" : "恢复后可以重新登录，但过去的会话不会重新生效。"}</p>
             <FormField label="处置原因（至少 8 个字）" counter={`${reason.length}/500`} className={styles.caseField}>
-              <textarea id="admin-action-reason" value={reason} onChange={(event) => setReason(event.target.value)} maxLength={500} rows={4} autoFocus />
+              <textarea id="admin-action-reason" name="reason" autoComplete="off" value={reason} onChange={(event) => setReason(event.target.value)} maxLength={500} rows={4} autoFocus />
             </FormField>
             <DialogActions>
               <button type="button" onClick={closeUserAction} disabled={Boolean(busy)}>取消</button>
               <button disabled={reason.trim().length < 8 || Boolean(busy)}>{busy ? "正在写入记录" : target.status === "active" ? "确认停用" : "确认恢复"}</button>
             </DialogActions>
           </form>
+        </DialogBackdrop>
+      )}
+
+      {profileTarget && (
+        <DialogBackdrop onDismiss={closePublicProfile} dismissDisabled={publicState === "loading"}>
+          <section ref={profileDialogRef} className={styles.publicProfileSheet} role="dialog" aria-modal="true" aria-labelledby="admin-public-profile-title">
+            <header>
+              <div><span>PUBLIC RECORD</span><h2 id="admin-public-profile-title">{publicProfile?.displayName || publicProfile?.username || profileTarget.displayName || "公开资料"}</h2></div>
+              <button type="button" onClick={closePublicProfile} aria-label="关闭公开资料">×</button>
+            </header>
+            {publicProfile && (
+              <>
+                <p>@{publicProfile.username || "未设置"} · {publicProfile.accountStatus === "active" ? "账号正常" : "账号已停用"} · 加入于 {formatDate(publicProfile.joinedAt, false)}</p>
+                <dl>
+                  <div><dt>公开主题</dt><dd>{publicProfile.topicCount}</dd></div>
+                  <div><dt>公开回复</dt><dd>{publicProfile.commentCount}</dd></div>
+                </dl>
+                <nav aria-label="公开资料类型">
+                  <button type="button" aria-pressed={publicKind === "topics"} onClick={() => { setPublicItems([]); void loadPublicProfile(profileTarget, "topics"); }}>主题</button>
+                  <button type="button" aria-pressed={publicKind === "comments"} onClick={() => { setPublicItems([]); void loadPublicProfile(profileTarget, "comments"); }}>回复</button>
+                </nav>
+              </>
+            )}
+            {publicState === "loading" && publicItems.length === 0 && <p role="status">正在读取公开资料…</p>}
+            {publicState === "error" && <p role="alert">公开资料没有读取成功。可以关闭后重试。</p>}
+            {publicState === "ready" && publicItems.length === 0 && <p>这名用户暂无公开{publicKind === "topics" ? "主题" : "回复"}。</p>}
+            <ol>
+              {publicItems.map((item) => (
+                <li key={item.id}>
+                  <time dateTime={item.createdAt}>{formatDate(item.createdAt)}</time>
+                  <Link href={item.publicPath}>{publicKind === "topics" ? item.title : `回复于《${item.topicTitle || "主题"}》`}</Link>
+                  <p>{item.body}</p>
+                </li>
+              ))}
+            </ol>
+            {publicCursor && <button className={styles.usersMore} type="button" onClick={() => void loadPublicProfile(profileTarget, publicKind, publicCursor, true)} disabled={publicState === "loading"}>{publicState === "loading" ? "正在续读" : "继续读取公开记录"}</button>}
+          </section>
         </DialogBackdrop>
       )}
     </main>

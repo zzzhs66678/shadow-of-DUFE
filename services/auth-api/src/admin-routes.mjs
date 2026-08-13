@@ -71,6 +71,66 @@ function maskedEmail(email) {
   return `${local.slice(0, 2)}***@${domain}`;
 }
 
+function exactQuery(searchParams, allowedKeys) {
+  const keys = [...searchParams.keys()];
+  return (
+    keys.every((key) => allowedKeys.has(key)) &&
+    [...new Set(keys)].every((key) => searchParams.getAll(key).length === 1)
+  );
+}
+
+function calendarDate(value) {
+  if (value === null) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(value)) return false;
+  if (value < "2000-01-01" || value > "2100-12-31") return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) &&
+    date.toISOString().slice(0, 10) === value
+    ? value
+    : false;
+}
+
+function encodeCursor(cursor) {
+  if (!cursor) return null;
+  return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
+}
+
+function decodeCursor(value) {
+  if (value === null) return null;
+  if (
+    value.length < 1 ||
+    value.length > 256 ||
+    !/^[A-Za-z0-9_-]+$/u.test(value)
+  ) {
+    return false;
+  }
+  try {
+    const cursor = JSON.parse(Buffer.from(value, "base64url").toString("utf8"));
+    if (
+      !exactObject(
+        cursor,
+        new Set(["createdAt", "id"]),
+        ["createdAt", "id"],
+      ) ||
+      !isUuid(cursor.id) ||
+      typeof cursor.createdAt !== "string" ||
+      cursor.createdAt.length > 32
+    ) {
+      return false;
+    }
+    const createdAt = new Date(cursor.createdAt);
+    if (
+      Number.isNaN(createdAt.getTime()) ||
+      createdAt.toISOString() !== cursor.createdAt
+    ) {
+      return false;
+    }
+    return { createdAt: cursor.createdAt, id: cursor.id };
+  } catch {
+    return false;
+  }
+}
+
 function exactObject(value, allowedKeys, requiredKeys) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const keys = Object.keys(value);
@@ -318,6 +378,10 @@ export function createAdminRequestHandler({
         methodNotAllowed(response, "GET");
         return true;
       }
+      if (!exactQuery(url.searchParams, new Set())) {
+        sendJson(response, 400, { error: "invalid_admin_overview_query" });
+        return true;
+      }
       sendJson(response, 200, {
         overview: await store.getAdminOverview(),
       });
@@ -329,17 +393,101 @@ export function createAdminRequestHandler({
         methodNotAllowed(response, "GET");
         return true;
       }
-      const query = String(url.searchParams.get("query") ?? "").trim();
-      if (query.length > 64) {
+      const allowedKeys = new Set([
+        "query",
+        "role",
+        "status",
+        "registeredFrom",
+        "registeredTo",
+        "cursor",
+        "limit",
+      ]);
+      const query = String(url.searchParams.get("query") ?? "")
+        .normalize("NFKC")
+        .trim();
+      const role = url.searchParams.get("role");
+      const status = url.searchParams.get("status");
+      const registeredFrom = calendarDate(
+        url.searchParams.get("registeredFrom"),
+      );
+      const registeredTo = calendarDate(url.searchParams.get("registeredTo"));
+      const cursor = decodeCursor(url.searchParams.get("cursor"));
+      const limitValue = url.searchParams.get("limit") ?? "50";
+      const limit = /^\d{1,2}$/u.test(limitValue) ? Number(limitValue) : 0;
+      if (
+        !exactQuery(url.searchParams, allowedKeys) ||
+        query.length > 64 ||
+        /[\u0000-\u001f\u007f]/u.test(query) ||
+        (role !== null && !["user", "moderator", "admin"].includes(role)) ||
+        (status !== null && !["active", "disabled"].includes(status)) ||
+        registeredFrom === false ||
+        registeredTo === false ||
+        (registeredFrom && registeredTo && registeredFrom > registeredTo) ||
+        cursor === false ||
+        limit < 1 ||
+        limit > 50
+      ) {
         sendJson(response, 400, { error: "invalid_admin_query" });
         return true;
       }
-      const users = await store.listAdminUsers({ query, limit: 50 });
+      const result = await store.listAdminUsers({
+        query,
+        role,
+        status,
+        registeredFrom,
+        registeredTo,
+        cursor,
+        limit,
+      });
       sendJson(response, 200, {
-        users: users.map((user) => {
+        users: result.users.map((user) => {
           const { email, ...safeUser } = user;
           return { ...safeUser, emailMasked: maskedEmail(email) };
         }),
+        nextCursor: encodeCursor(result.nextCursor),
+      });
+      return true;
+    }
+
+    const publicProfileMatch = url.pathname.match(
+      /^\/api\/admin\/users\/([0-9a-f-]{36})\/public-profile$/iu,
+    );
+    if (publicProfileMatch) {
+      if (request.method !== "GET") {
+        methodNotAllowed(response, "GET");
+        return true;
+      }
+      const allowedKeys = new Set(["kind", "cursor", "limit"]);
+      const kind = url.searchParams.get("kind") ?? "topics";
+      const cursor = decodeCursor(url.searchParams.get("cursor"));
+      const limitValue = url.searchParams.get("limit") ?? "20";
+      const limit = /^\d{1,2}$/u.test(limitValue) ? Number(limitValue) : 0;
+      if (
+        !isUuid(publicProfileMatch[1]) ||
+        !exactQuery(url.searchParams, allowedKeys) ||
+        !["topics", "comments"].includes(kind) ||
+        cursor === false ||
+        limit < 1 ||
+        limit > 50
+      ) {
+        sendJson(response, 400, { error: "invalid_admin_public_profile_query" });
+        return true;
+      }
+      const result = await store.getAdminUserPublicProfile({
+        userId: publicProfileMatch[1],
+        kind,
+        cursor,
+        limit,
+      });
+      if (!result) {
+        sendJson(response, 404, { error: "admin_user_not_found" });
+        return true;
+      }
+      sendJson(response, 200, {
+        profile: result.profile,
+        kind,
+        items: result.items,
+        nextCursor: encodeCursor(result.nextCursor),
       });
       return true;
     }
