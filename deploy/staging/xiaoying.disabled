@@ -1,0 +1,2 @@
+# Intentionally empty. The optional xiaoying profile requires a separate 600-mode
+# environment file validated by ops/staging/preflight.sh before it is enabled.

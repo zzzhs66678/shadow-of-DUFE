@@ -1,0 +1,65 @@
+{
+	admin off
+}
+
+{$DUFESH_STAGING_SITE_ADDRESS:http://localhost} {
+	encode zstd gzip
+
+	header {
+		-Server
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		X-Frame-Options "DENY"
+		X-XSS-Protection "0"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Resource-Policy "same-origin"
+		X-Permitted-Cross-Domain-Policies "none"
+		X-Robots-Tag "noindex, nofollow, noarchive"
+	}
+
+	@course_data path /data/*
+	header @course_data Cache-Control "public, max-age=3600, stale-while-revalidate=86400"
+
+	@site_images path /images/*
+	header @site_images Cache-Control "public, max-age=604800, immutable"
+
+	@compiled_assets path /assets/* /_next/static/*
+	header @compiled_assets Cache-Control "public, max-age=31536000, immutable"
+
+	handle /api/auth/* {
+		reverse_proxy auth-api:3100
+	}
+
+	handle /api/admin/* {
+		header Cache-Control "no-store"
+		reverse_proxy auth-api:3100
+	}
+
+	handle /api/community/* {
+		reverse_proxy auth-api:3100
+	}
+
+	@teacher_api path /api/teachers /api/teachers/*
+	handle @teacher_api {
+		reverse_proxy auth-api:3100
+	}
+
+	redir /campus-lab /campus-lab/ 308
+
+	handle_path /campus-lab/* {
+		header Cache-Control "no-store"
+		reverse_proxy xiaoying:43120
+	}
+
+	handle_path /resources/files/* {
+		root * /srv/resources
+		header Cache-Control "public, max-age=3600"
+		header Content-Security-Policy "default-src 'none'; frame-ancestors 'self'"
+		file_server
+	}
+
+	handle {
+		reverse_proxy app:3000
+	}
+}

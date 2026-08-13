@@ -234,9 +234,46 @@ jobs:
           node --test tests/infrastructure-contract.test.mjs
           node --test tests/environment-contract.test.mjs
           node --test tests/release-readiness.test.mjs
+          node --test tests/staging-release-contract.test.mjs
           node --test tests/personal-storage.test.ts tests/personal-sync.test.ts
           npm test --prefix services/auth-api
           npm run test:xiaoying
+      - name: Validate the isolated staging topology
+        run: |
+          config_dir="$(mktemp -d)"
+          resources_dir="$(mktemp -d)"
+          trap 'rm -rf "$config_dir" "$resources_dir"' EXIT
+          postgres_env="$config_dir/postgres.env"
+          auth_env="$config_dir/auth.env"
+          cat > "$postgres_env" <<'EOF'
+          POSTGRES_DB=dufesh_ci_staging
+          POSTGRES_USER=dufesh_owner
+          POSTGRES_PASSWORD=ci-owner-password
+          MIGRATION_DB_ROLE=dufesh_schema_owner_ci
+          MIGRATION_DB_USER=dufesh_migrator_ci
+          MIGRATION_DB_PASSWORD=ci-migrator-password
+          AUTH_DB_USER=dufesh_runtime_ci
+          AUTH_DB_PASSWORD=ci-runtime-password
+          IMPORT_DB_USER=dufesh_import_ci
+          IMPORT_DB_PASSWORD=ci-import-password
+          BACKUP_DB_USER=dufesh_backup_ci
+          BACKUP_DB_PASSWORD=ci-backup-password
+          EOF
+          cat > "$auth_env" <<'EOF'
+          AUTH_TOKEN_PEPPER=ci-token-pepper-that-is-longer-than-thirty-two-characters
+          AUTH_ALLOWED_ORIGINS=http://localhost
+          AUTH_PUBLIC_ORIGIN=http://localhost
+          AUTH_ADMIN_MFA_KEYS={"ci":"0123456789abcdef0123456789abcdef"}
+          AUTH_ADMIN_RECOVERY_PEPPER=ci-recovery-pepper-that-is-longer-than-thirty-two-characters
+          EOF
+          chmod 600 "$postgres_env" "$auth_env"
+          DUFESH_IMAGE_TAG="$GITHUB_SHA" \
+            DUFESH_STAGING_ORIGIN=http://localhost \
+            DUFESH_STAGING_SITE_ADDRESS=http://localhost \
+            DUFESH_STAGING_POSTGRES_ENV_FILE="$postgres_env" \
+            DUFESH_STAGING_AUTH_ENV_FILE="$auth_env" \
+            DUFESH_STAGING_RESOURCES_DIR="$resources_dir" \
+            sh ops/staging/preflight.sh
       - name: Build production app
         run: npm run build
       - name: Type-check TypeScript
