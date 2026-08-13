@@ -431,7 +431,12 @@ test("users and an administrator complete the release browser path", async ({
       administrator.getByRole("heading", { name: "今日值守簿" }),
     ).toBeVisible();
     await expect(administrator.getByText("在册账号")).toBeVisible();
-    await expect(administrator.getByText(ownerUsername)).toBeVisible();
+    await expect(
+      administrator
+        .getByRole("region", { name: "查找与处置" })
+        .locator("span")
+        .filter({ hasText: `@${ownerUsername} ·` }),
+    ).toBeVisible();
 
     await expect(
       administrator.getByRole("heading", { name: "举报案卷" }),
