@@ -541,7 +541,7 @@ test("users and an administrator complete the release browser path", async ({
     });
     await finalModerationDesk.getByRole("button", { name: "待入案" }).click();
     await expect(
-      finalModerationDesk.getByRole("button", { name: "待入案" }),
+      finalModerationDesk.getByRole("button", { name: "待入案", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
     await finalModerationDesk
       .getByRole("button", { name: new RegExp(topicTitle, "u") })
