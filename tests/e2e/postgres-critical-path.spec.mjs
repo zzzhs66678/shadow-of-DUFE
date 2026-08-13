@@ -405,9 +405,12 @@ test("users and an administrator complete the release browser path", async ({
     await owner.goto(topicPath);
     await owner.getByRole("button", { name: /通知/u }).click();
     const notifications = owner.getByRole("dialog", { name: "通知" });
-    await expect(notifications.getByText(replyBody)).toBeVisible();
+    const topicReplyNotification = notifications
+      .getByRole("button")
+      .filter({ hasText: replyBody });
+    await expect(topicReplyNotification).toBeVisible();
     await expect(
-      notifications.locator("small").filter({ hasText: replierUsername }),
+      topicReplyNotification.locator("small").filter({ hasText: replierUsername }),
     ).toBeVisible();
 
     const enrollment = await bootstrapAdministrator(adminUsername);
