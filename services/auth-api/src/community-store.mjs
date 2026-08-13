@@ -753,6 +753,138 @@ const topicSelect = `
 
 export function createCommunityStore(pool) {
   return {
+    async listAdminCommunityContent({ type, status, query = "", cursor = null, limit = 20 }) {
+      const normalizedQuery = query.normalize("NFKC").toLocaleLowerCase("zh-CN");
+      const isTopic = type === "topic";
+      const table = isTopic ? "community_topics" : "community_comments";
+      const titleSelect = isTopic
+        ? "content.title"
+        : "'回复 · ' || left(topics.title, 120)";
+      const topicJoin = isTopic
+        ? ""
+        : "JOIN community_topics AS topics ON topics.id = content.topic_id";
+      const queryExpression = isTopic
+        ? "content.title || E'\\n' || content.body"
+        : "content.body";
+      const result = await pool.query(
+        `SELECT
+           content.id, ${titleSelect} AS title, content.body, content.status,
+           content.created_at, content.updated_at,
+           COALESCE(authors.display_name, authors.username, '已注销用户') AS author_label,
+           ${isTopic ? "content.id" : "content.topic_id"} AS topic_id,
+           active_case.id AS case_id, active_case.status AS case_status
+         FROM ${table} AS content
+         ${topicJoin}
+         LEFT JOIN app_users AS authors ON authors.id = content.author_user_id
+         LEFT JOIN LATERAL (
+           SELECT cases.id, cases.status
+           FROM community_moderation_cases AS cases
+           WHERE cases.target_type = $1
+             AND cases.target_id = content.id
+             AND cases.status IN ('open', 'reviewing', 'appealed')
+           ORDER BY cases.opened_at DESC
+           LIMIT 1
+         ) AS active_case ON true
+         WHERE content.status = $2
+           AND ($3 = '' OR strpos(lower(${queryExpression}), $3) > 0)
+           AND ($4::timestamptz IS NULL OR (content.created_at, content.id) < ($4, $5::uuid))
+         ORDER BY content.created_at DESC, content.id DESC
+         LIMIT $6`,
+        [type, status, normalizedQuery, cursor?.createdAt ?? null, cursor?.id ?? null, limit],
+      );
+      const items = result.rows.map((row) => ({
+        id: String(row.id),
+        type,
+        title: row.title,
+        body: row.body,
+        status: row.status,
+        authorLabel: row.author_label,
+        publicPath: `/community/topics/${row.topic_id}`,
+        caseId: row.case_id ? String(row.case_id) : null,
+        caseStatus: row.case_status,
+        allowedActions: communityModerationAllowedActions(type, row.status),
+        createdAt: iso(row.created_at),
+        updatedAt: iso(row.updated_at),
+      }));
+      const last = items.length === limit ? items.at(-1) : null;
+      return {
+        items,
+        nextCursor: last ? { createdAt: last.createdAt, id: last.id } : null,
+      };
+    },
+
+    async openDirectCommunityModerationCase(input) {
+      return withTransaction(pool, async (client) => {
+        const actor = await assertElevatedAdmin(client, input);
+        const table = input.targetType === "topic" ? "community_topics" : "community_comments";
+        const target = await client.query(
+          `SELECT id, status FROM ${table} WHERE id = $1::uuid FOR UPDATE`,
+          [input.targetId],
+        );
+        if (target.rows.length !== 1 || !["published", "hidden"].includes(target.rows[0].status)) {
+          throw communityError("COMMUNITY_CONTENT_UNAVAILABLE");
+        }
+        let created = await client.query(
+          `INSERT INTO community_moderation_cases (
+             target_type, target_id, assigned_moderator_id
+           ) VALUES ($1, $2::uuid, $3::uuid)
+           ON CONFLICT (target_type, target_id)
+             WHERE status IN ('open', 'reviewing', 'appealed')
+           DO NOTHING
+           RETURNING id, status`,
+          [input.targetType, input.targetId, input.actorUserId],
+        );
+        if (created.rows.length === 0) {
+          const existing = await client.query(
+            `SELECT id, status FROM community_moderation_cases
+             WHERE target_type = $1 AND target_id = $2::uuid
+               AND status IN ('open', 'reviewing', 'appealed')
+             FOR UPDATE`,
+            [input.targetType, input.targetId],
+          );
+          if (existing.rows.length !== 1) throw communityError("COMMUNITY_MODERATION_STATE_CONFLICT");
+          return {
+            id: String(existing.rows[0].id),
+            targetType: input.targetType,
+            targetId: input.targetId,
+            status: existing.rows[0].status,
+            created: false,
+            allowedActions: communityModerationAllowedActions(input.targetType, target.rows[0].status),
+          };
+        }
+        await client.query(
+          `UPDATE community_moderation_cases
+           SET status = 'reviewing', assigned_moderator_id = $2::uuid
+           WHERE id = $1::uuid`,
+          [created.rows[0].id, input.actorUserId],
+        );
+        await client.query(
+          `INSERT INTO community_moderation_actions (
+             case_id, actor_user_id, actor_label, actor_role, action,
+             target_type, target_id, reason, metadata, request_id
+           ) VALUES ($1::uuid, $2::uuid, $3, 'admin', 'case_opened',
+                     $4, $5::uuid, $6, '{"source":"active_review"}'::jsonb, $7::uuid)`,
+          [created.rows[0].id, input.actorUserId, actor.actor_label, input.targetType, input.targetId, input.reason, input.requestId],
+        );
+        await insertAdminAudit(
+          client,
+          input,
+          "admin.community.case_opened",
+          input.targetType,
+          input.targetId,
+          { caseId: String(created.rows[0].id), reason: input.reason, source: "active_review" },
+        );
+        return {
+          id: String(created.rows[0].id),
+          targetType: input.targetType,
+          targetId: input.targetId,
+          status: "reviewing",
+          created: true,
+          allowedActions: communityModerationAllowedActions(input.targetType, target.rows[0].status),
+        };
+      });
+    },
+
     async listAdminCommunityAnnouncements({ limit = 10 } = {}) {
       const result = await pool.query(
         `SELECT

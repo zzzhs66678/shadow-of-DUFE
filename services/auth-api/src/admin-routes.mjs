@@ -722,6 +722,95 @@ export function createAdminRequestHandler({
       return true;
     }
 
+    if (url.pathname === "/api/admin/community/content") {
+      if (request.method !== "GET") {
+        methodNotAllowed(response, "GET");
+        return true;
+      }
+      const allowedKeys = new Set(["type", "status", "query", "cursor", "limit"]);
+      const type = url.searchParams.get("type") ?? "topic";
+      const status = url.searchParams.get("status") ?? "published";
+      const query = String(url.searchParams.get("query") ?? "").normalize("NFKC").trim();
+      const cursor = decodeCursor(url.searchParams.get("cursor"));
+      const limitValue = url.searchParams.get("limit") ?? "20";
+      const limit = /^\d{1,2}$/u.test(limitValue) ? Number(limitValue) : 0;
+      if (
+        !exactQuery(url.searchParams, allowedKeys) ||
+        !["topic", "comment"].includes(type) ||
+        !["published", "hidden"].includes(status) ||
+        query.length > 64 ||
+        /[\u0000-\u001f\u007f]/u.test(query) ||
+        cursor === false ||
+        limit < 1 || limit > 30
+      ) {
+        sendJson(response, 400, { error: "invalid_admin_community_content_query" });
+        return true;
+      }
+      const result = await store.listAdminCommunityContent({ type, status, query, cursor, limit });
+      sendJson(response, 200, {
+        items: result.items,
+        nextCursor: encodeCursor(result.nextCursor),
+      });
+      return true;
+    }
+
+    const directCaseMatch = url.pathname.match(
+      /^\/api\/admin\/community\/content\/(topic|comment)\/([0-9a-f-]{36})\/case$/iu,
+    );
+    if (directCaseMatch) {
+      if (request.method !== "POST") {
+        methodNotAllowed(response, "POST");
+        return true;
+      }
+      if (!isUuid(directCaseMatch[2])) {
+        sendJson(response, 404, { error: "community_content_not_found" });
+        return true;
+      }
+      const body = await readJsonBody(request);
+      const reason = moderationReason(body?.reason);
+      if (!exactObject(body, new Set(["reason"]), ["reason"]) || !reason) {
+        sendJson(response, 400, { error: "invalid_community_case" });
+        return true;
+      }
+      const rateKey = tokenDigest(
+        `admin-community-moderation:${clientAddress(request)}:${session.userId}:${session.id}`,
+        config.tokenPepper,
+      );
+      if (!(await (rateLimiters.adminCommunityModeration ?? rateLimiters.write).consume(rateKey))) {
+        response.setHeader("Retry-After", "60");
+        sendJson(response, 429, { error: "community_moderation_rate_limited" });
+        return true;
+      }
+      try {
+        const moderationCase = await store.openDirectCommunityModerationCase({
+          actorUserId: session.userId,
+          actorSessionId: session.id,
+          actorElevationTokenHash: elevationTokenHash,
+          targetType: directCaseMatch[1].toLowerCase(),
+          targetId: directCaseMatch[2],
+          reason,
+          requestId,
+          ipHash: tokenDigest(`admin-ip:${clientAddress(request)}`, config.tokenPepper),
+          userAgentHash: tokenDigest(
+            `admin-ua:${String(request.headers["user-agent"] ?? "")}`,
+            config.tokenPepper,
+          ),
+        });
+        sendJson(response, moderationCase.created ? 201 : 200, { case: moderationCase });
+      } catch (error) {
+        if (error?.code === "AUTH_ADMIN_FORBIDDEN") {
+          sendJson(response, 403, { error: "admin_mfa_required" }, [clearAdminCookie()]);
+        } else if (error?.code === "COMMUNITY_CONTENT_UNAVAILABLE") {
+          sendJson(response, 404, { error: "community_content_not_found" });
+        } else if (error?.code === "COMMUNITY_MODERATION_STATE_CONFLICT") {
+          sendJson(response, 409, { error: "community_moderation_state_conflict" });
+        } else {
+          throw error;
+        }
+      }
+      return true;
+    }
+
     const reportCaseMatch = url.pathname.match(
       /^\/api\/admin\/community\/reports\/([0-9a-f-]{36})\/case$/iu,
     );
@@ -741,6 +830,15 @@ export function createAdminRequestHandler({
         !reason
       ) {
         sendJson(response, 400, { error: "invalid_community_case" });
+        return true;
+      }
+      const rateKey = tokenDigest(
+        `admin-community-moderation:${clientAddress(request)}:${session.userId}:${session.id}`,
+        config.tokenPepper,
+      );
+      if (!(await (rateLimiters.adminCommunityModeration ?? rateLimiters.write).consume(rateKey))) {
+        response.setHeader("Retry-After", "60");
+        sendJson(response, 429, { error: "community_moderation_rate_limited" });
         return true;
       }
       try {
@@ -820,6 +918,15 @@ export function createAdminRequestHandler({
         sendJson(response, 400, {
           error: "invalid_community_moderation_action",
         });
+        return true;
+      }
+      const rateKey = tokenDigest(
+        `admin-community-moderation:${clientAddress(request)}:${session.userId}:${session.id}`,
+        config.tokenPepper,
+      );
+      if (!(await (rateLimiters.adminCommunityModeration ?? rateLimiters.write).consume(rateKey))) {
+        response.setHeader("Retry-After", "60");
+        sendJson(response, 429, { error: "community_moderation_rate_limited" });
         return true;
       }
       try {

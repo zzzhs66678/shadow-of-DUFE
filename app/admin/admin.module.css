@@ -282,6 +282,17 @@
 .reportQueue button:focus-visible b { color: var(--admin-red-deep); }
 .reportQueue button:focus-visible { outline: 2px solid var(--admin-red); outline-offset: -2px; }
 .queueMore { background: transparent; border: 1px solid var(--admin-ink); display: block; margin: 26px auto 0; min-height: 44px; padding: 0 24px; }
+.activeContentDesk { margin-top: 0; }
+.contentFilters { align-items: end; border-bottom: 1px solid var(--admin-line); display: grid; gap: 24px; grid-template-columns: minmax(280px, 1fr) auto; padding: 24px 0; }
+.contentFilters form { align-items: end; display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr) auto; }
+.contentFilters form > div { margin: 0; }
+.contentFilters button { background: transparent; border: 0; border-bottom: 1px solid var(--admin-red); color: var(--admin-red-deep); min-height: 44px; padding: 0 8px; }
+.contentFilters > div { display: flex; }
+.contentFilters > div button { border: 1px solid var(--admin-line); color: var(--admin-muted); min-width: 88px; }
+.contentFilters > div button + button { border-left: 0; }
+.contentFilters > div button[aria-pressed="true"] { background: var(--admin-ink); color: var(--admin-paper); }
+.contentFilters button:focus-visible { outline: 2px solid var(--admin-red); outline-offset: 3px; }
+.reportDetail a { color: var(--admin-red-deep); text-decoration-color: var(--admin-red); text-underline-offset: 4px; }
 
 .caseSheet { background: var(--admin-paper); border: 1px solid var(--admin-ink); box-shadow: 18px 18px 0 rgba(0,0,0,.18); max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); max-width: 720px; overscroll-behavior: contain; overflow-y: auto; padding: clamp(26px, 4vw, 46px); width: 100%; }
 .caseSheet > header { align-items: start; display: flex; justify-content: space-between; }
@@ -344,6 +355,8 @@
   .reportQueue li:nth-child(odd) { border-right: 0; }
   .reportQueue li:nth-child(even) button,
   .reportQueue button { padding-left: 0; padding-right: 0; }
+  .contentFilters { align-items: stretch; grid-template-columns: 1fr; }
+  .contentFilters > div button { flex: 1; }
   .actionSheet,
   .caseSheet { border-bottom: 0; border-left: 0; border-right: 0; box-shadow: none; max-height: 92vh; max-height: 92dvh; padding-bottom: max(26px, env(safe-area-inset-bottom)); }
   .caseSheet dl { grid-template-columns: 1fr; }

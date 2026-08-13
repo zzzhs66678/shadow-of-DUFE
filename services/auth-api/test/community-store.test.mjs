@@ -1021,6 +1021,82 @@ test("opening a moderation case rechecks elevation and appends both audit trails
   assert.equal(calls.at(-1).sql, "COMMIT");
 });
 
+test("active content listing stays bounded and does not require a report", async () => {
+  const queries = [];
+  const pool = {
+    async query(sql, values) {
+      queries.push({ sql, values });
+      return {
+        rowCount: 1,
+        rows: [{
+          id: topicId,
+          title: "公开主题",
+          body: "这是管理员主动巡查目录中的公开正文。",
+          status: "published",
+          author_label: "东财同学",
+          topic_id: topicId,
+          case_id: null,
+          case_status: null,
+          created_at: new Date("2026-08-09T08:00:00.000Z"),
+          updated_at: new Date("2026-08-09T08:00:00.000Z"),
+        }],
+      };
+    },
+  };
+  const result = await createCommunityStore(pool).listAdminCommunityContent({
+    type: "topic",
+    status: "published",
+    query: "主动巡查",
+    cursor: null,
+    limit: 20,
+  });
+  assert.equal(result.items[0].id, topicId);
+  assert.equal(result.items[0].publicPath, `/community/topics/${topicId}`);
+  assert.equal(result.items[0].allowedActions.includes("hide"), true);
+  assert.match(queries[0].sql, /community_moderation_cases/u);
+  assert.doesNotMatch(queries[0].sql, /community_reports/u);
+  assert.deepEqual(queries[0].values, ["topic", "published", "主动巡查", null, null, 20]);
+});
+
+test("direct moderation case rechecks content and writes both audit trails atomically", async () => {
+  const adminId = "00000000-0000-4000-8000-000000000001";
+  const caseId = "00000000-0000-4000-8000-000000000061";
+  const calls = [];
+  const client = {
+    async query(sql, values) {
+      calls.push({ sql, values });
+      if (sql.includes("JOIN admin_elevated_sessions")) {
+        return { rowCount: 1, rows: [{ role: "admin", status: "active", actor_label: "管理员" }] };
+      }
+      if (sql.includes("FROM community_topics") && sql.includes("FOR UPDATE")) {
+        return { rowCount: 1, rows: [{ id: topicId, status: "published" }] };
+      }
+      if (sql.includes("INSERT INTO community_moderation_cases")) {
+        return { rowCount: 1, rows: [{ id: caseId, status: "open" }] };
+      }
+      return { rowCount: 1, rows: [] };
+    },
+    release() {},
+  };
+  const result = await createCommunityStore({ async connect() { return client; } })
+    .openDirectCommunityModerationCase({
+      actorUserId: adminId,
+      actorSessionId: "00000000-0000-4000-8000-000000000071",
+      actorElevationTokenHash: "elevation-hash",
+      targetType: "topic",
+      targetId: topicId,
+      reason: "主动巡查发现该主题需要进一步审核",
+      requestId: "00000000-0000-4000-8000-000000000081",
+      ipHash: "ip-hash",
+      userAgentHash: "ua-hash",
+    });
+  assert.equal(result.created, true);
+  assert.deepEqual(result.allowedActions, ["hide", "delete", "warn", "dismiss"]);
+  assert.ok(calls.some(({ sql }) => sql.includes("INSERT INTO community_moderation_actions")));
+  assert.ok(calls.some(({ sql }) => sql.includes("INSERT INTO admin_audit_events")));
+  assert.equal(calls.at(-1).sql, "COMMIT");
+});
+
 test("moderation hides content, keeps the case reviewable, notifies the author, and audits atomically", async () => {
   const adminId = "00000000-0000-4000-8000-000000000001";
   const authorId = "00000000-0000-4000-8000-000000000012";

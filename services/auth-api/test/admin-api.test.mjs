@@ -17,6 +17,7 @@ const userId = "00000000-0000-4000-8000-000000000002";
 const reportId = "00000000-0000-4000-8000-000000000003";
 const moderationCaseId = "00000000-0000-4000-8000-000000000004";
 const teacherReviewCandidateId = "00000000-0000-4000-8000-000000000005";
+const communityTopicId = "00000000-0000-4000-8000-000000000006";
 const announcementId = "00000000-0000-4000-8000-000000000008";
 const adminSecurity = createAdminSecurity({
   activeKeyId,
@@ -315,6 +316,44 @@ function createAdminStore() {
         status: input.status,
         caseId: null,
       }];
+    },
+    async listAdminCommunityContent(input) {
+      sensitiveCalls += 1;
+      return {
+        items: [{
+          id: communityTopicId,
+          type: input.type,
+          title: "待复核的公开主题",
+          body: "管理员可以在没有用户举报时主动检查这条公开内容。",
+          status: input.status,
+          authorLabel: "student",
+          publicPath: `/community/topics/${communityTopicId}`,
+          caseId: null,
+          caseStatus: null,
+          allowedActions: ["hide", "delete", "warn", "dismiss"],
+          createdAt: new Date(now).toISOString(),
+          updatedAt: new Date(now).toISOString(),
+        }],
+        nextCursor: null,
+      };
+    },
+    async openDirectCommunityModerationCase(input) {
+      sensitiveCalls += 1;
+      audit.push({
+        action: "admin.community.case_opened",
+        targetType: input.targetType,
+        targetId: input.targetId,
+        reason: input.reason,
+        source: "active_review",
+      });
+      return {
+        id: moderationCaseId,
+        targetType: input.targetType,
+        targetId: input.targetId,
+        status: "reviewing",
+        created: true,
+        allowedActions: ["hide", "delete", "warn", "dismiss"],
+      };
     },
     async openCommunityModerationCase(input) {
       sensitiveCalls += 1;
@@ -790,6 +829,68 @@ test("elevated administrators open and resolve community cases with audit", asyn
         (event) => event.action === "admin.community.suspend",
       ),
     );
+  });
+});
+
+test("elevated administrators find content and open a case without a user report", async () => {
+  await withAdminServer(async ({ baseUrl, store }) => {
+    const cookie = await elevatedCookie(baseUrl, store);
+    const listed = await fetch(
+      `${baseUrl}/api/admin/community/content?type=topic&status=published&query=${encodeURIComponent("公开")}&limit=20`,
+      { headers: { Cookie: cookie } },
+    );
+    assert.equal(listed.status, 200);
+    const listedBody = await listed.json();
+    assert.equal(listedBody.items[0].id, communityTopicId);
+    assert.equal(listedBody.items[0].body.includes("主动检查"), true);
+
+    const opened = await fetch(
+      `${baseUrl}/api/admin/community/content/topic/${communityTopicId}/case`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "https://dufesh.cn",
+          Cookie: cookie,
+        },
+        body: JSON.stringify({ reason: "主动巡查发现内容需要进入人工复核" }),
+      },
+    );
+    assert.equal(opened.status, 201);
+    assert.equal((await opened.json()).case.status, "reviewing");
+    assert.ok(store.audit.some((event) =>
+      event.action === "admin.community.case_opened" && event.source === "active_review"));
+  });
+});
+
+test("active content review rejects malformed filters and direct-case mass assignment", async () => {
+  await withAdminServer(async ({ baseUrl, store }) => {
+    const cookie = await elevatedCookie(baseUrl, store);
+    const before = store.sensitiveCalls;
+    const invalidList = await fetch(
+      `${baseUrl}/api/admin/community/content?type=user&status=published`,
+      { headers: { Cookie: cookie } },
+    );
+    assert.equal(invalidList.status, 400);
+    assert.equal(store.sensitiveCalls, before + 1);
+
+    const invalidOpen = await fetch(
+      `${baseUrl}/api/admin/community/content/topic/${communityTopicId}/case`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "https://dufesh.cn",
+          Cookie: cookie,
+        },
+        body: JSON.stringify({
+          reason: "这条依据本身满足最短长度要求",
+          action: "delete",
+        }),
+      },
+    );
+    assert.equal(invalidOpen.status, 400);
+    assert.equal(store.sensitiveCalls, before + 2);
   });
 });
 
