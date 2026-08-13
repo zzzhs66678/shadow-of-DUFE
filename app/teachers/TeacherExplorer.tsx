@@ -82,8 +82,9 @@ export function TeacherExplorer({ initialQuery = "" }: { initialQuery?: string }
       <PublicMasthead
         navigationLabel="教师页导航"
         items={[
-          { href: "/?view=catalog", label: "课程库" },
-          { href: "/materials", label: "资料档案" },
+          { href: "/?view=catalog", label: "课程" },
+          { href: "/teachers", label: "教师", current: true },
+          { href: "/materials", label: "资料" },
           { href: "/?view=schedule", label: "我的课表", showOnMobile: false },
         ]}
       />
@@ -130,9 +131,19 @@ export function TeacherExplorer({ initialQuery = "" }: { initialQuery?: string }
         )}
         {status === "ready" && items.length === 0 && (
           <div className={styles.state}>
-            <b>没有找到对应教师。</b>
-            <p>试试只输入姓名，不要加入职称或课程名。</p>
-            {query && <button onClick={() => setQuery("")}>查看全部教师</button>}
+            {query ? (
+              <>
+                <b>没有找到对应教师。</b>
+                <p>可能是姓名输入不完整，也可能是该教师档案尚未整理入库。本站不会按同名记录猜测评价归属。</p>
+                <button onClick={() => setQuery("")}>查看全部教师</button>
+              </>
+            ) : (
+              <>
+                <b>教师档案尚未整理入库。</b>
+                <p>课程与资料仍可使用；在稳定教师身份导入前，暂时不能查看或发布教师评价。</p>
+                <Link href="/?view=catalog">返回学习档案</Link>
+              </>
+            )}
           </div>
         )}
         {items.length > 0 && (

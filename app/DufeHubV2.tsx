@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   useCallback,
   useEffect,
@@ -1435,7 +1436,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           key: `teacher-${schedule.teacher}`,
           kind: "teacher",
           title: schedule.teacher,
-          meta: "查看任课课程与时间",
+          meta: "查看教师档案、教学班与评价",
           teacher: schedule.teacher,
           score: normalize(schedule.teacher) === needle ? 0 : 2,
         });
@@ -1543,8 +1544,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
       return;
     }
     if (item.teacher) {
-      setCoursePoolQuery(item.teacher);
-      go("schedule");
+      window.location.assign(`/teachers?q=${encodeURIComponent(item.teacher)}`);
       return;
     }
     if (item.room) {
@@ -1557,7 +1557,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
     { id: "schedule", label: "我的课表", icon: "schedule" },
     { id: "rooms", label: "空教室", icon: "rooms" },
     { id: "home", label: "今日学习台", icon: "home" },
-    { id: "catalog", label: "课程与资料", icon: "catalog" },
+    { id: "catalog", label: "学习档案", icon: "catalog" },
     { id: "me", label: "我的", icon: "user" },
   ];
   const fullDataRequired =
@@ -2667,14 +2667,28 @@ function CatalogPage({
     <div className="page-wrap catalog-page-v2">
       <header className="workspace-heading catalog-heading">
         <div>
-          <h1>课程与资料</h1>
-          <p>按专业浏览四年课程，或直接搜索课程资料。</p>
+          <h1>学习档案</h1>
+          <p>课程、教师和资料各自建档；评价收在对应教师档案中。</p>
         </div>
         <button onClick={() => onSearch("material")}>
           <UiIcon name="search" />
           搜索资料
         </button>
       </header>
+      <nav className="archive-sections" aria-label="学习档案分类">
+        <Link href="/?view=catalog" aria-current="page">
+          <span>课程</span>
+          <small>按专业和学年浏览</small>
+        </Link>
+        <Link href="/teachers">
+          <span>教师</span>
+          <small>教学班、教材与评价</small>
+        </Link>
+        <Link href="/materials">
+          <span>资料</span>
+          <small>检索、预览与下载</small>
+        </Link>
+      </nav>
       <div className="catalog-workspace">
         <aside>
           <label>选择学院</label>

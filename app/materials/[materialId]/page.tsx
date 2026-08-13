@@ -64,8 +64,9 @@ export default async function MaterialDetailPage({ params }: PageProps) {
       <PublicMasthead
         navigationLabel="资料详情导航"
         items={[
-          { href: "/materials", label: "返回资料档案" },
-          { href: "/?view=catalog", label: "课程库", showOnMobile: false },
+          { href: "/?view=catalog", label: "课程", showOnMobile: false },
+          { href: "/teachers", label: "教师", showOnMobile: false },
+          { href: "/materials", label: "资料", current: true },
         ]}
       />
       <article className={styles.detailSheet}>

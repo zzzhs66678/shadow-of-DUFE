@@ -6,6 +6,8 @@ const views = [
   { name: "schedule", path: "/?view=schedule", selector: ".schedule-page" },
   { name: "rooms", path: "/?view=rooms", selector: ".rooms-page" },
   { name: "personal", path: "/?view=me", selector: ".me-page" },
+  { name: "teachers", path: "/teachers", selector: "main#main-content" },
+  { name: "materials", path: "/materials", selector: "main#main-content" },
 ] as const;
 
 test.beforeEach(async ({ page }) => {

@@ -28,7 +28,7 @@ export default function Home() {
         <nav aria-label="快捷入口">
           <Link href="/?view=schedule">我的课表</Link>
           <Link href="/?view=rooms">空教室</Link>
-          <Link href="/?view=catalog">课程与资料</Link>
+          <Link href="/?view=catalog">学习档案</Link>
         </nav>
       </section>
       <DufeHubV2 />

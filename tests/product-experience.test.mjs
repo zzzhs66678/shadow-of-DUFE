@@ -562,6 +562,26 @@ test("customer-facing copy does not expose planning notes", () => {
   assert.doesNotMatch(materialsSource, /autoFocus/);
 });
 
+test("learning records separate courses teachers and materials by object level", () => {
+  assert.match(component, /id: "catalog", label: "学习档案"/);
+  assert.match(component, /aria-label="学习档案分类"/);
+  assert.match(component, /<span>课程<\/span>[\s\S]*?<span>教师<\/span>[\s\S]*?<span>资料<\/span>/);
+  assert.match(component, /评价收在对应教师档案中/);
+  assert.match(redAccessStyles, /\.archive-sections/);
+});
+
+test("global teacher search opens the disambiguating teacher directory", () => {
+  assert.match(component, /window\.location\.assign\(`\/teachers\?q=\$\{encodeURIComponent\(item\.teacher\)\}`\)/);
+  assert.match(component, /查看教师档案、教学班与评价/);
+  assert.doesNotMatch(component, /setCoursePoolQuery\(item\.teacher\);\s*go\("schedule"\)/);
+});
+
+test("an empty teacher catalog does not pretend reviews are usable", () => {
+  assert.match(teacherExplorerSource, /教师档案尚未整理入库/);
+  assert.match(teacherExplorerSource, /暂时不能查看或发布教师评价/);
+  assert.match(teacherExplorerSource, /不会按同名记录猜测评价归属/);
+});
+
 test("public compliance pages expose filing, privacy, terms, and deletion paths", async () => {
   assert.match(component, /辽ICP备2026016653号-1/);
   assert.match(component, /href="\/privacy"/);

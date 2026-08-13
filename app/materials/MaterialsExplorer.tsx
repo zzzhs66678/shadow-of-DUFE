@@ -204,9 +204,10 @@ export function MaterialsExplorer({ initialSearch = {} }: { initialSearch?: Mate
       <PublicMasthead
         navigationLabel="资料页导航"
         items={[
-          { href: "/?view=catalog", label: "课程库" },
+          { href: "/?view=catalog", label: "课程" },
+          { href: "/teachers", label: "教师" },
+          { href: "/materials", label: "资料", current: true },
           { href: "/?view=schedule", label: "我的课表", showOnMobile: false },
-          { href: "/?view=me", label: "我的", showOnMobile: false },
         ]}
       />
 

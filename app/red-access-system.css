@@ -213,6 +213,60 @@ textarea {
   color: #ffffff;
 }
 
+.archive-sections {
+  border-bottom: 1px solid var(--journal-ink);
+  border-top: 1px solid var(--journal-ink);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: -8px 0 28px;
+}
+
+.archive-sections > a {
+  color: var(--journal-ink);
+  display: grid;
+  gap: 6px;
+  min-height: 72px;
+  padding: 15px 18px;
+  position: relative;
+  text-decoration: none;
+}
+
+.archive-sections > a + a {
+  border-left: 1px dotted color-mix(in srgb, var(--journal-ink) 48%, transparent);
+}
+
+.archive-sections > a::after {
+  background: var(--journal-red);
+  bottom: -1px;
+  content: "";
+  height: 3px;
+  left: 18px;
+  position: absolute;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 180ms ease;
+  width: 38px;
+}
+
+.archive-sections > a[aria-current="page"]::after,
+.archive-sections > a:hover::after,
+.archive-sections > a:focus-visible::after {
+  transform: scaleX(1);
+}
+
+.archive-sections span {
+  font: 700 15px/1 var(--journal-body);
+}
+
+.archive-sections > a[aria-current="page"] span {
+  color: var(--journal-red-deep);
+}
+
+.archive-sections small {
+  color: var(--journal-muted);
+  font: 10px/1.35 var(--journal-data);
+}
+
 .profile-dot {
   background: var(--journal-ink);
   border-color: var(--journal-ink);
@@ -902,6 +956,23 @@ body:has(.course-pool.finder-pool.open) .mobile-nav {
   .page-wrap.living-spaces.rooms-v5 {
     padding: 22px 0 96px;
     width: calc(100% - 28px);
+  }
+
+  .archive-sections {
+    margin-top: -2px;
+  }
+
+  .archive-sections > a {
+    min-height: 62px;
+    padding: 13px 10px;
+  }
+
+  .archive-sections > a::after {
+    left: 10px;
+  }
+
+  .archive-sections small {
+    font-size: 8px;
   }
 
   .focus-head.focus-head-v5 {

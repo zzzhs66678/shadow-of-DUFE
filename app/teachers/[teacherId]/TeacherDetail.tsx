@@ -315,13 +315,13 @@ export function TeacherDetail({
   }
 
   if (status === "missing") {
-    return <main className={styles.page}><PublicMasthead navigationLabel="教师详情导航" items={[{ href: "/teachers", label: "教师档案" }]} /><div className={styles.fullState}><b>这份教师档案不存在或已撤下。</b><Link href="/teachers">返回教师索引</Link></div></main>;
+    return <main className={styles.page}><PublicMasthead navigationLabel="教师详情导航" items={[{ href: "/?view=catalog", label: "课程" }, { href: "/teachers", label: "教师", current: true }, { href: "/materials", label: "资料" }]} /><div className={styles.fullState}><b>这份教师档案不存在或已撤下。</b><Link href="/teachers">返回教师索引</Link></div></main>;
   }
   if (status === "error") {
-    return <main className={styles.page}><PublicMasthead navigationLabel="教师详情导航" items={[{ href: "/teachers", label: "教师档案" }]} /><div className={styles.fullState} role="alert"><b>教师档案暂时没有连上。</b><button onClick={() => setRevision((value) => value + 1)}>重新读取</button></div></main>;
+    return <main className={styles.page}><PublicMasthead navigationLabel="教师详情导航" items={[{ href: "/?view=catalog", label: "课程" }, { href: "/teachers", label: "教师", current: true }, { href: "/materials", label: "资料" }]} /><div className={styles.fullState} role="alert"><b>教师档案暂时没有连上。</b><button onClick={() => setRevision((value) => value + 1)}>重新读取</button></div></main>;
   }
   if (!teacher) {
-    return <main className={styles.page}><PublicMasthead navigationLabel="教师详情导航" items={[{ href: "/teachers", label: "教师档案" }]} /><div className={styles.fullState} role="status">正在读取教师档案…</div></main>;
+    return <main className={styles.page}><PublicMasthead navigationLabel="教师详情导航" items={[{ href: "/?view=catalog", label: "课程" }, { href: "/teachers", label: "教师", current: true }, { href: "/materials", label: "资料" }]} /><div className={styles.fullState} role="status">正在读取教师档案…</div></main>;
   }
 
   return (
@@ -329,7 +329,8 @@ export function TeacherDetail({
       <PublicMasthead
         navigationLabel="教师详情导航"
         items={[
-          { href: "/teachers", label: "教师档案" },
+          { href: "/?view=catalog", label: "课程", showOnMobile: false },
+          { href: "/teachers", label: "教师", current: true },
           { href: `/materials?teacher=${encodeURIComponent(teacher.displayName)}`, label: "相关资料" },
           { href: "/?view=schedule", label: "我的课表", showOnMobile: false },
         ]}

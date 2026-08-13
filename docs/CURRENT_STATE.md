@@ -269,6 +269,7 @@
 - 主站应用容器补齐非 root 之外的只读文件系统、64MB 临时目录、禁止提权以及 CPU/内存/PID 限额。生产与 staging 的 Caddy 都只等待主应用健康，小影作为隔离的可选服务，其故障不再阻止主站和账号入口启动。
 - 本地 staging/发布契约 8/8、TypeScript、Compose YAML 解析、生产构建与差异检查通过。PR #10 run `31687272428` 已在 Linux 真实启动隔离 PostgreSQL、执行 20 个迁移并从 HTTPS Caddy 验证主应用、认证健康、教师接口、社区及首页实际引用的全部 JS/CSS 状态、MIME 与长期缓存；verify、PG17、Linux 镜像、CodeQL 和全历史密钥扫描全绿。独立外部 staging 的域名、凭据、SMTP、真实私有数据与回滚演练仍待环境提供。本轮未部署。
 - 2026-08-13 已在 ECS `i-2zej47hn80v6wdsbw4va` 的 `/srv/apps/dufesh-staging` 部署提交 `9e7f5fa1cf8d2057a8c8d7c90885b1d9c8a3bf15`：使用独立 Compose 项目、独立 PostgreSQL 17 卷、独立 600 权限随机凭据与独立空资料目录，未复制或读取正式数据。20 个迁移完成，主站、auth-api 与数据库健康，回环和公网 `https://staging.dufesh.cn` 部署冒烟均通过；小影和 SMTP 暂未启用。公网入口由现有 Caddy 经专用 ingress 网络只连接 staging app/auth-api，网络中没有任何数据库；正式 app/auth-api/PostgreSQL 在接入后仍健康，正式认证健康接口保持 200。
+- 当前工作树已把五项主导航中的“课程与资料”收束为“学习档案”，其内以课程、教师、资料三个同级对象组织；教师评价只在稳定教师详情中查看和发布。全站教师搜索不再错误进入课表找课程，而是进入 `/teachers?q=` 姓名/学院消歧；课程内只有唯一稳定 `teacher_id` 时仍可直达教师详情。当前 staging 教师索引实测为空，未导入稳定教师来源身份，因此页面会明确说明暂时不能查看或发布教师评价，不能以资料清单里的姓名猜测或合并教师。定向教师/体验 40/40、主仓 161 通过且 3 项本机原生 PostgreSQL 明确跳过、auth-api 93/93、浏览器可访问性与目标视口 72/72、生产构建、TypeScript、ESLint、CSS 审计和三个生产依赖审计均通过；本轮尚未部署。
 
 ## 下一阶段
 
