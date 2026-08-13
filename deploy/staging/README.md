@@ -1,12 +1,12 @@
 # 独立 staging 运行说明
 
-这套拓扑用于正式发布前验证，不连接生产数据库、生产资料目录或生产凭据，也不授权生产部署。默认仅监听 `127.0.0.1:8080/8443`；公开绑定必须先取得人工批准，并显式设置 `DUFESH_STAGING_ALLOW_PUBLIC_BIND=YES-I-HAVE-APPROVAL`。
+这套拓扑用于正式发布前验证，不连接生产数据库、生产资料目录或生产凭据，也不授权生产部署。默认仅监听 `127.0.0.1:8443`；公开绑定必须先取得人工批准，并显式设置 `DUFESH_STAGING_ALLOW_PUBLIC_BIND=YES-I-HAVE-APPROVAL`。
 
 ## 准备
 
 1. 在 staging 主机的仓库外创建独立配置目录和资料目录，不从生产复制敏感数据。
 2. 从 `ops/postgres/postgres.env.example`、`services/auth-api/auth.env.example` 和可选的 `xiaoying-executor/xiaoying.env.example` 创建环境文件，分别生成随机凭据，权限设为 `600`。
-3. staging 数据库名必须以 `_staging` 结尾；`AUTH_PUBLIC_ORIGIN`、`AUTH_ALLOWED_ORIGINS`、`DUFESH_STAGING_ORIGIN` 与 `DUFESH_STAGING_SITE_ADDRESS` 必须指向同一 staging 地址，禁止使用生产域名或 IP。
+3. staging 数据库名必须以 `_staging` 结尾；`AUTH_PUBLIC_ORIGIN`、`AUTH_ALLOWED_ORIGINS` 与 `DUFESH_STAGING_ORIGIN` 必须指向同一 HTTPS 浏览器访问地址，禁止使用生产域名或 IP。本机回环验收时公开地址可为 `https://localhost:8443`、Caddy 内部地址为 `https://localhost`；正式 HTTPS staging 时两者相同。
 4. 使用完整 40 位 Git SHA 设置 `DUFESH_IMAGE_TAG`，并设置三个环境文件路径与独立资料目录。未验证小影时保持 `NEXT_PUBLIC_XIAOYING_URL` 为空。
 
 ## 预检与启动

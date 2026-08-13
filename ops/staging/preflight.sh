@@ -41,14 +41,25 @@ esac
 
 require_var DUFESH_STAGING_ORIGIN
 require_var DUFESH_STAGING_SITE_ADDRESS
-[ "$DUFESH_STAGING_ORIGIN" = "$DUFESH_STAGING_SITE_ADDRESS" ] || fail "staging origin and Caddy site address must match"
 case "$DUFESH_STAGING_ORIGIN" in
   https://*) ;;
-  http://localhost|http://127.0.0.1) ;;
-  *) fail "a non-local staging origin must use HTTPS" ;;
+  *) fail "staging origin must use HTTPS" ;;
 esac
-case "$DUFESH_STAGING_ORIGIN" in
+case "$DUFESH_STAGING_ORIGIN,$DUFESH_STAGING_SITE_ADDRESS" in
   *dufesh.cn*|*112.126.75.74*) fail "production hosts are forbidden in staging" ;;
+esac
+case "$DUFESH_STAGING_SITE_ADDRESS" in
+  https://localhost|https://127.0.0.1)
+    case "$DUFESH_STAGING_ORIGIN" in
+      https://localhost*|https://127.0.0.1*) ;;
+      *) fail "the loopback Caddy listener is only valid for a local origin" ;;
+    esac
+    ;;
+  https://*)
+    [ "$DUFESH_STAGING_SITE_ADDRESS" = "$DUFESH_STAGING_ORIGIN" ] || \
+      fail "public Caddy site address must match the staging origin"
+    ;;
+  *) fail "Caddy site address must be :80 locally or the HTTPS staging origin" ;;
 esac
 
 bind_address="${DUFESH_STAGING_BIND_ADDRESS:-127.0.0.1}"

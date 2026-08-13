@@ -15,7 +15,8 @@ test("staging topology is isolated and immutable by default", async () => {
   assert.match(compose, /DUFESH_STAGING_POSTGRES_ENV_FILE:\?set an absolute staging-only path/);
   assert.match(compose, /DUFESH_STAGING_AUTH_ENV_FILE:\?set an absolute staging-only path/);
   assert.match(compose, /DUFESH_STAGING_RESOURCES_DIR:\?set an absolute staging-only path/);
-  assert.match(compose, /127\.0\.0\.1\}:\$\{DUFESH_STAGING_HTTP_PORT:-8080\}:80/);
+  assert.match(compose, /127\.0\.0\.1\}:\$\{DUFESH_STAGING_HTTPS_PORT:-8443\}:443/);
+  assert.doesNotMatch(compose, /DUFESH_STAGING_HTTP_PORT/);
   assert.match(compose, /postgres_staging_data:/);
   assert.match(compose, /xiaoying_staging_data:/);
   assert.doesNotMatch(compose, /\/srv\/apps\/dufesh\/shared/);
@@ -62,6 +63,8 @@ test("staging preflight refuses production targets and unapproved public binds",
 
   assert.match(preflight, /production hosts are forbidden in staging/);
   assert.match(preflight, /public bind requires explicit approval/);
+  assert.match(preflight, /public Caddy site address must match the staging origin/);
+  assert.match(preflight, /staging origin must use HTTPS/);
   assert.match(preflight, /POSTGRES_DB must end in _staging/);
   assert.match(preflight, /must have mode 600/);
   assert.match(smoke, /refusing a production target/);

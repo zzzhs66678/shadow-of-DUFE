@@ -2,7 +2,7 @@
 	admin off
 }
 
-{$DUFESH_STAGING_SITE_ADDRESS:http://localhost} {
+{$DUFESH_STAGING_SITE_ADDRESS:https://localhost} {
 	encode zstd gzip
 
 	header {
