@@ -147,6 +147,39 @@ async function seedTeacher() {
   }
 }
 
+async function teacherReplyDatabaseSnapshot({ reviewId, replyBody }) {
+  const pool = new Pool({
+    host: process.env.PGHOST,
+    port: Number.parseInt(process.env.PGPORT ?? "5432", 10),
+    database: process.env.POSTGRES_DB,
+    user: process.env.POSTGRES_USER,
+    password: process.env.POSTGRES_PASSWORD,
+    max: 1,
+  });
+  try {
+    const result = await pool.query(
+      `SELECT
+         reviews.author_user_id AS review_author_user_id,
+         comments.id AS comment_id,
+         comments.author_user_id AS comment_author_user_id,
+         notifications.recipient_user_id,
+         notifications.notification_type,
+         notifications.body AS notification_body
+       FROM teacher_reviews AS reviews
+       JOIN teacher_review_comments AS comments
+         ON comments.review_id = reviews.id
+        AND comments.body = $2
+       LEFT JOIN community_notifications AS notifications
+         ON notifications.teacher_review_comment_id = comments.id
+       WHERE reviews.id = $1::uuid`,
+      [reviewId, replyBody],
+    );
+    return result.rows[0] ?? null;
+  } finally {
+    await pool.end();
+  }
+}
+
 test("users and an administrator complete the release browser path", async ({
   browser,
 }) => {
@@ -258,19 +291,59 @@ test("users and an administrator complete the release browser path", async ({
     await reviewArticle.getByRole("button", { name: "发布回复" }).click();
     await expect(reviewArticle.getByText(teacherReplyBody)).toBeVisible();
 
+    const [ownerSession, replierSession] = await Promise.all([
+      secondOwner.evaluate(async () => {
+        const response = await fetch("/api/auth/session", {
+          cache: "no-store",
+          headers: { Accept: "application/json" },
+        });
+        return { status: response.status, payload: await response.json() };
+      }),
+      replier.evaluate(async () => {
+        const response = await fetch("/api/auth/session", {
+          cache: "no-store",
+          headers: { Accept: "application/json" },
+        });
+        return { status: response.status, payload: await response.json() };
+      }),
+    ]);
+    expect(ownerSession).toEqual(expect.objectContaining({
+      status: 200,
+      payload: expect.objectContaining({ authenticated: true }),
+    }));
+    expect(replierSession).toEqual(expect.objectContaining({
+      status: 200,
+      payload: expect.objectContaining({ authenticated: true }),
+    }));
+    const teacherReplySnapshot = await teacherReplyDatabaseSnapshot({
+      reviewId: userReview.id,
+      replyBody: teacherReplyBody,
+    });
+    expect(teacherReplySnapshot).toEqual(expect.objectContaining({
+      review_author_user_id: ownerSession.payload.user.id,
+      comment_author_user_id: replierSession.payload.user.id,
+      recipient_user_id: ownerSession.payload.user.id,
+      notification_type: "teacher_review_reply",
+      notification_body: teacherReplyBody,
+    }));
+
     await expect.poll(async () => {
       return secondOwner.evaluate(async (expectedBody) => {
         const response = await fetch("/api/community/notifications?limit=30", {
           cache: "no-store",
           headers: { Accept: "application/json" },
         });
-        if (!response.ok) return false;
+        if (!response.ok) return { status: response.status, found: false };
         const payload = await response.json();
-        return payload.items.some((item) =>
-          item.type === "teacher_review_reply" && item.body === expectedBody
-        );
+        return {
+          status: response.status,
+          found: payload.items.some((item) =>
+            item.type === "teacher_review_reply" && item.body === expectedBody
+          ),
+          types: payload.items.map((item) => item.type),
+        };
       }, teacherReplyBody);
-    }).toBe(true);
+    }).toEqual(expect.objectContaining({ status: 200, found: true }));
 
     await secondOwner.goto("/community");
     await secondOwner.getByRole("button", { name: /通知/u }).click();
