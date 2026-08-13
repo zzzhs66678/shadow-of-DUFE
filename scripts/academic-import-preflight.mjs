@@ -486,6 +486,7 @@ export function analyzeTextbookWorkbook(
         termKey,
         courseId: row.courseId,
         courseTitle: row.courseName,
+        courseCollege: row.courseCollege,
         sectionNo: row.sectionNo,
         teacherName: row.teacherName,
         teacherCollege: row.teacherCollege,

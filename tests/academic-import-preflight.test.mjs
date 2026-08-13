@@ -80,6 +80,7 @@ test("textbook preflight preserves placeholders and section-level variants", () 
   assert.ok(sectionRows.every((row) => row.errorCodes.includes("course_has_multiple_textbook_variants")));
   assert.equal(report.bundle.textbooks.length, 2);
   assert.equal(report.bundle.textbooks[0].termKey, "2026-2027-fall");
+  assert.equal(report.bundle.textbooks[0].courseCollege, "学院");
 });
 
 test("textbook preflight leaves same-college same-name identities unresolved", () => {
