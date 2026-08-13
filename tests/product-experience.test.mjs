@@ -124,6 +124,11 @@ test("teacher directory disambiguates identities without taking over the daily w
   assert.match(teacherDetailSource, /删除后公开页将不再显示/);
   assert.match(teacherDetailSource, /审核期间不能修改正文/);
   assert.match(teacherDetailSource, /<TeacherReviewDiscussion/);
+  assert.match(teacherDetailSource, /role="search"/);
+  assert.match(teacherDetailSource, /reviewSort === "discussed"/);
+  assert.match(teacherDetailSource, /reviewSort === "relevant"/);
+  assert.match(teacherDetailSource, /reviewQuery.*reviewSort/s);
+  assert.match(teacherDetailSource, /discussionCount/);
   assert.match(teacherDiscussionSource, /aria-expanded={open}/);
   assert.match(teacherDiscussionSource, /if \(status === "idle"\) void loadInitial\(\)/);
   assert.doesNotMatch(teacherDiscussionSource, /controller\.abort\(\)/);
@@ -140,6 +145,8 @@ test("teacher directory disambiguates identities without taking over the daily w
   assert.match(teacherStyles, /min-height:\s*44px/);
   assert.match(teacherStyles, /@media \(max-width:\s*820px\)/);
   assert.match(teacherStyles, /\.ratingEditor label span[\s\S]*min-height:\s*44px/);
+  assert.match(teacherStyles, /\.reviewIndex input[\s\S]*min-height:\s*44px/);
+  assert.match(teacherStyles, /\.reviewSort button\[aria-pressed="true"\]/);
 });
 
 test("material pages label catalog time without presenting it as source publication time", () => {

@@ -298,23 +298,56 @@ export function createTeacherStore(pool) {
       };
     },
 
-    async listPublicTeacherReviews({ teacherId, after, limit }) {
+    async listPublicTeacherReviews({ teacherId, query = "", sort = "latest", after, limit }) {
+      const normalizedQuery = query.normalize("NFKC").toLocaleLowerCase("zh-CN");
       const result = await pool.query(
-        `SELECT id, source_type, author_label, body,
-                course_organization_rating, content_clarity_rating,
-                assessment_explanation_rating, classroom_interaction_rating,
-                material_completeness_rating, published_at
-         FROM teacher_reviews
-         WHERE teacher_id = $1
-           AND status = 'published'
-           AND ($2::timestamptz IS NULL OR (published_at, id) < ($2, $3::uuid))
-         ORDER BY published_at DESC, id DESC
-         LIMIT $4`,
-        [teacherId, after?.publishedAt ?? null, after?.id ?? null, limit],
+        `WITH visible_reviews AS (
+           SELECT reviews.id, reviews.source_type, reviews.author_label, reviews.body,
+                  reviews.course_organization_rating, reviews.content_clarity_rating,
+                  reviews.assessment_explanation_rating, reviews.classroom_interaction_rating,
+                  reviews.material_completeness_rating, reviews.published_at,
+                  count(comments.id) FILTER (WHERE comments.status = 'published')::integer AS discussion_count,
+                  CASE WHEN $2 = '' THEN 0 ELSE strpos(lower(reviews.body), $2) END AS match_position
+           FROM teacher_reviews AS reviews
+           LEFT JOIN teacher_review_comments AS comments ON comments.review_id = reviews.id
+           WHERE reviews.teacher_id = $1::uuid
+             AND reviews.status = 'published'
+             AND ($2 = '' OR strpos(lower(reviews.body), $2) > 0)
+           GROUP BY reviews.id
+         )
+         SELECT * FROM visible_reviews
+         WHERE CASE
+           WHEN $3 = 'discussed' THEN
+             $4::integer IS NULL OR (discussion_count, published_at, id) < ($4, $5::timestamptz, $6::uuid)
+           WHEN $3 = 'relevant' THEN
+             $7::integer IS NULL OR match_position > $7
+             OR (match_position = $7 AND (published_at, id) < ($5::timestamptz, $6::uuid))
+           ELSE $5::timestamptz IS NULL OR (published_at, id) < ($5, $6::uuid)
+         END
+         ORDER BY
+           CASE WHEN $3 = 'discussed' THEN discussion_count END DESC,
+           CASE WHEN $3 = 'relevant' THEN match_position END ASC,
+           published_at DESC, id DESC
+         LIMIT $8`,
+        [
+          teacherId,
+          normalizedQuery,
+          sort,
+          after?.discussionCount ?? null,
+          after?.publishedAt ?? null,
+          after?.id ?? null,
+          after?.matchPosition ?? null,
+          limit,
+        ],
       );
       return result.rows.map((row) => ({
         ...mapReview(row),
-        cursor: { publishedAt: iso(row.published_at), id: String(row.id) },
+        discussionCount: Number(row.discussion_count),
+        cursor: sort === "discussed"
+          ? { discussionCount: String(row.discussion_count), publishedAt: iso(row.published_at), id: String(row.id) }
+          : sort === "relevant"
+            ? { matchPosition: String(row.match_position), publishedAt: iso(row.published_at), id: String(row.id) }
+            : { publishedAt: iso(row.published_at), id: String(row.id) },
       }));
     },
 

@@ -101,6 +101,37 @@ test("user teacher reviews are one-per-teacher, versioned, and soft-deleted", as
     });
     assert.equal(other.version, 1);
 
+    await database.query(
+      `INSERT INTO teacher_review_comments (review_id, author_user_id, body)
+       VALUES ($1::uuid, $2::uuid, '第一条公开回复'),
+              ($1::uuid, $2::uuid, '第二条公开回复')`,
+      [updated.id, userB],
+    );
+    const discussedFirstPage = await store.listPublicTeacherReviews({
+      teacherId,
+      sort: "discussed",
+      after: null,
+      limit: 1,
+    });
+    assert.equal(discussedFirstPage[0].id, updated.id);
+    assert.equal(discussedFirstPage[0].discussionCount, 2);
+    const discussedSecondPage = await store.listPublicTeacherReviews({
+      teacherId,
+      sort: "discussed",
+      after: discussedFirstPage[0].cursor,
+      limit: 1,
+    });
+    assert.equal(discussedSecondPage[0].id, other.id);
+
+    const searched = await store.listPublicTeacherReviews({
+      teacherId,
+      query: "课程结构",
+      sort: "relevant",
+      after: null,
+      limit: 20,
+    });
+    assert.deepEqual(searched.map((review) => review.id), [updated.id]);
+
     const removed = await store.deleteUserTeacherReview({
       teacherId,
       userId: userA,

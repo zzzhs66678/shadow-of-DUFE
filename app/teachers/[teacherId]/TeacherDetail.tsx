@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import { FormField } from "../../FormField";
 import { PublicMasthead } from "../../PublicMasthead";
 import { TeacherReviewDiscussion } from "../TeacherReviewDiscussion";
@@ -24,9 +24,11 @@ type TeacherReview = {
   authorLabel: string;
   body: string;
   ratings: Record<RatingKey, number> | null;
+  discussionCount: number;
   publishedAt: string;
 };
-type OwnTeacherReview = Omit<TeacherReview, "ratings"> & {
+type ReviewSort = "latest" | "discussed" | "relevant";
+type OwnTeacherReview = Omit<TeacherReview, "ratings" | "discussionCount"> & {
   ratings: Record<RatingKey, number>;
   status: "published" | "hidden";
   version: number;
@@ -45,10 +47,22 @@ function termLabel(term: string) {
   return term === "fall" ? "上学期" : term === "spring" ? "下学期" : term;
 }
 
-export function TeacherDetail({ teacherId }: { teacherId: string }) {
+export function TeacherDetail({
+  teacherId,
+  initialReviewQuery = "",
+  initialReviewSort = "latest",
+}: {
+  teacherId: string;
+  initialReviewQuery?: string;
+  initialReviewSort?: ReviewSort;
+}) {
   const [teacher, setTeacher] = useState<TeacherDetailData | null>(null);
   const [reviews, setReviews] = useState<TeacherReview[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [reviewListStatus, setReviewListStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [reviewQueryDraft, setReviewQueryDraft] = useState(initialReviewQuery);
+  const [reviewQuery, setReviewQuery] = useState(initialReviewQuery);
+  const [reviewSort, setReviewSort] = useState<ReviewSort>(initialReviewSort);
   const [status, setStatus] = useState<"loading" | "ready" | "missing" | "error">("loading");
   const [accountStatus, setAccountStatus] = useState<"loading" | "guest" | "ready" | "error">("loading");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -67,14 +81,20 @@ export function TeacherDetail({ teacherId }: { teacherId: string }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [revision, setRevision] = useState(0);
 
+  const reviewEndpoint = useCallback((cursor?: string) => {
+    const query = new URLSearchParams({ limit: "20", sort: reviewSort });
+    if (reviewQuery) query.set("q", reviewQuery);
+    if (cursor) query.set("after", cursor);
+    return `/api/teachers/${teacherId}/reviews?${query.toString()}`;
+  }, [reviewQuery, reviewSort, teacherId]);
+
   useEffect(() => {
     const controller = new AbortController();
     async function load() {
       setStatus("loading");
       try {
-        const [detailResponse, reviewResponse, ownReviewResponse, sessionResponse] = await Promise.all([
+        const [detailResponse, ownReviewResponse, sessionResponse] = await Promise.all([
           fetch(`/api/teachers/${teacherId}`, { signal: controller.signal, cache: "no-store", headers: { Accept: "application/json" } }),
-          fetch(`/api/teachers/${teacherId}/reviews?limit=20`, { signal: controller.signal, cache: "no-store", headers: { Accept: "application/json" } }),
           fetch(`/api/teachers/${teacherId}/my-review`, { signal: controller.signal, headers: { Accept: "application/json" } }),
           fetch("/api/auth/session", { signal: controller.signal, cache: "no-store", headers: { Accept: "application/json" } }),
         ]);
@@ -82,11 +102,8 @@ export function TeacherDetail({ teacherId }: { teacherId: string }) {
           setStatus("missing");
           return;
         }
-        if (!detailResponse.ok || !reviewResponse.ok) throw new Error("teacher_unavailable");
+        if (!detailResponse.ok) throw new Error("teacher_unavailable");
         setTeacher(((await detailResponse.json()) as { teacher: TeacherDetailData }).teacher);
-        const reviewPayload = await reviewResponse.json() as { items: TeacherReview[]; nextCursor: string | null };
-        setReviews(reviewPayload.items);
-        setNextCursor(reviewPayload.nextCursor);
         if (ownReviewResponse.status === 401) {
           setAccountStatus("guest");
           setOwnReview(null);
@@ -116,18 +133,73 @@ export function TeacherDetail({ teacherId }: { teacherId: string }) {
     return () => controller.abort();
   }, [teacherId, revision]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    async function loadReviews() {
+      setReviewListStatus("loading");
+      try {
+        const response = await fetch(reviewEndpoint(), {
+          signal: controller.signal,
+          cache: "no-store",
+          headers: { Accept: "application/json" },
+        });
+        if (!response.ok) throw new Error("teacher_reviews_unavailable");
+        const payload = await response.json() as { items: TeacherReview[]; nextCursor: string | null };
+        setReviews(payload.items);
+        setNextCursor(payload.nextCursor);
+        setReviewListStatus("ready");
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") setReviewListStatus("error");
+      }
+    }
+    void loadReviews();
+    return () => controller.abort();
+  }, [reviewEndpoint, revision]);
+
   async function loadMoreReviews() {
     if (!nextCursor) return;
-    const response = await fetch(`/api/teachers/${teacherId}/reviews?limit=20&after=${encodeURIComponent(nextCursor)}`, {
+    const response = await fetch(reviewEndpoint(nextCursor), {
       cache: "no-store",
     });
     if (!response.ok) {
-      setStatus("error");
+      setReviewListStatus("error");
       return;
     }
     const payload = await response.json() as { items: TeacherReview[]; nextCursor: string | null };
     setReviews((current) => [...current, ...payload.items]);
     setNextCursor(payload.nextCursor);
+  }
+
+  function searchReviews(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const query = reviewQueryDraft.normalize("NFKC").trim();
+    setReviewQuery(query);
+    setReviewSort(query ? "relevant" : "latest");
+    const url = new URL(window.location.href);
+    if (query) url.searchParams.set("reviewQuery", query);
+    else url.searchParams.delete("reviewQuery");
+    if (query) url.searchParams.set("reviewSort", "relevant");
+    else url.searchParams.delete("reviewSort");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }
+
+  function chooseReviewSort(sort: ReviewSort) {
+    if (sort === "relevant" && !reviewQuery) return;
+    setReviewSort(sort);
+    const url = new URL(window.location.href);
+    if (sort === "latest") url.searchParams.delete("reviewSort");
+    else url.searchParams.set("reviewSort", sort);
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }
+
+  function clearReviewSearch() {
+    setReviewQueryDraft("");
+    setReviewQuery("");
+    setReviewSort("latest");
+    const url = new URL(window.location.href);
+    url.searchParams.delete("reviewQuery");
+    url.searchParams.delete("reviewSort");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
   }
 
   function openComposer() {
@@ -188,6 +260,7 @@ export function TeacherDetail({ teacherId }: { teacherId: string }) {
             authorLabel: saved.review.authorLabel,
             body: saved.review.body,
             ratings: saved.review.ratings,
+            discussionCount: 0,
             publishedAt: saved.review.publishedAt,
           },
           ...withoutSavedReview,
@@ -317,6 +390,21 @@ export function TeacherDetail({ teacherId }: { teacherId: string }) {
       <section className={styles.reviews} aria-labelledby="teacher-reviews-title">
         <header><span>已公开内容</span><h2 id="teacher-reviews-title">评价</h2><p>历史整理内容经过人工审核后才会出现，并且不会冒充当前学生。</p></header>
         <div>
+          <section className={styles.reviewIndex} aria-label="查找与排列评价">
+            <form role="search" onSubmit={searchReviews}>
+              <label htmlFor="teacher-review-query">在评价里查找</label>
+              <div>
+                <input id="teacher-review-query" type="search" value={reviewQueryDraft} onChange={(event) => setReviewQueryDraft(event.target.value)} maxLength={64} placeholder="课堂组织、考核、资料……" />
+                <button type="submit">查找</button>
+              </div>
+            </form>
+            <div className={styles.reviewSort} role="group" aria-label="评价排序方式">
+              <button type="button" aria-pressed={reviewSort === "latest"} onClick={() => chooseReviewSort("latest")}>最新</button>
+              <button type="button" aria-pressed={reviewSort === "discussed"} onClick={() => chooseReviewSort("discussed")}>热议</button>
+              <button type="button" aria-pressed={reviewSort === "relevant"} disabled={!reviewQuery} onClick={() => chooseReviewSort("relevant")}>相关</button>
+            </div>
+            <p>{reviewQuery ? <>正在查找“{reviewQuery}”{reviewSort === "relevant" ? "，优先显示最接近的内容。" : "。"} <button type="button" onClick={clearReviewSearch}>清除查找</button></> : reviewSort === "discussed" ? "按仍公开的回复数量排列，再按发布时间确定先后。" : "按发布时间从新到旧排列。"}</p>
+          </section>
           <aside className={styles.reviewContribution} aria-label="我的教师评价">
             {accountStatus === "loading" && <p>正在确认是否可以写评价…</p>}
             {accountStatus === "guest" && (
@@ -365,15 +453,17 @@ export function TeacherDetail({ teacherId }: { teacherId: string }) {
             )}
             {reviewNotice && <p className={styles.reviewNotice} role="status">{reviewNotice}</p>}
           </aside>
-          {reviews.length ? reviews.map((review) => (
+          {reviewListStatus === "loading" && <p className={styles.inlineEmpty} role="status">正在读取评价…</p>}
+          {reviewListStatus === "error" && <p className={styles.inlineEmpty} role="alert">评价暂时没有加载成功，不会影响教师档案。 <button type="button" onClick={() => setRevision((value) => value + 1)}>重新读取</button></p>}
+          {reviewListStatus === "ready" && reviews.length ? reviews.map((review) => (
             <article key={review.id}>
-              <div><b>{review.authorLabel}</b><time dateTime={review.publishedAt}>{new Date(review.publishedAt).toLocaleDateString("zh-CN")}</time></div>
+              <div><b>{review.authorLabel}</b><span>{review.discussionCount > 0 ? `${review.discussionCount} 条公开回复 · ` : ""}<time dateTime={review.publishedAt}>{new Date(review.publishedAt).toLocaleDateString("zh-CN")}</time></span></div>
               <p>{review.body}</p>
               <TeacherReviewDiscussion teacherId={teacherId} reviewId={review.id} reviewLabel={`${review.authorLabel}的评价`} canWrite={Boolean(currentUserId)} currentUserId={currentUserId} />
             </article>
-          )) : <p className={styles.inlineEmpty}>还没有公开评价。</p>}
+          )) : reviewListStatus === "ready" && <p className={styles.inlineEmpty}>{reviewQuery ? `没有找到包含“${reviewQuery}”的公开评价。` : "还没有公开评价。"}</p>}
         </div>
-        {nextCursor && <button className={styles.loadMore} onClick={() => void loadMoreReviews()}>继续查看评价</button>}
+        {reviewListStatus === "ready" && nextCursor && <button className={styles.loadMore} onClick={() => void loadMoreReviews()}>继续查看评价</button>}
       </section>
     </main>
   );
