@@ -95,14 +95,15 @@ async function optionalSession(request, store, config) {
 }
 
 async function writeRateAllowed(request, userId, rateLimiters, config) {
-  const limiter = rateLimiters.teacherReviewWrite ?? rateLimiters.write;
+  const accountLimiter = rateLimiters.teacherReviewWrite ?? rateLimiters.write;
+  const networkLimiter = rateLimiters.teacherReviewIp ?? rateLimiters.write;
   const userKey = tokenDigest(`teacher-review:user:${userId}`, config.tokenPepper);
   const ipKey = tokenDigest(
     `teacher-review:ip:${clientAddress(request)}`,
     config.tokenPepper,
   );
-  if (!(await limiter.consume(userKey))) return false;
-  return limiter.consume(ipKey);
+  if (!(await accountLimiter.consume(userKey))) return false;
+  return networkLimiter.consume(ipKey);
 }
 
 function withoutCursor(item) {

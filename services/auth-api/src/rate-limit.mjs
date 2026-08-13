@@ -190,9 +190,16 @@ export function createApiRateLimiters({ store } = {}) {
       idleTtlMs: 2 * 60 * 60_000,
     }),
     teacherReviewWrite: persistentOrLocal(store, {
-      scope: "teacher-review-write",
+      scope: "teacher-review-write-account",
       capacity: 6,
       refillPerSecond: 1 / 300,
+      maxKeys: 30_000,
+      idleTtlMs: 6 * 60 * 60_000,
+    }),
+    teacherReviewIp: persistentOrLocal(store, {
+      scope: "teacher-review-write-network",
+      capacity: 60,
+      refillPerSecond: 1 / 30,
       maxKeys: 30_000,
       idleTtlMs: 6 * 60 * 60_000,
     }),

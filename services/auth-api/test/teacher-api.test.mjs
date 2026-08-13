@@ -125,7 +125,7 @@ function createStore() {
   };
 }
 
-async function withServer(callback) {
+async function withServer(callback, options = {}) {
   const store = createStore();
   const server = createAuthServer({
     store,
@@ -134,6 +134,7 @@ async function withServer(callback) {
     passwordService: null,
     avatarProcessor: null,
     adminSecurity: null,
+    ...options,
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
@@ -301,5 +302,58 @@ test("teacher review input rejects mass assignment and unauthenticated writes", 
       }),
     });
     assert.equal(massAssigned.status, 400);
+  });
+});
+
+test("teacher review writes keep account and shared-network quotas independent", async () => {
+  let accountCalls = 0;
+  let networkCalls = 0;
+  const accountLimiter = {
+    consume() {
+      accountCalls += 1;
+      return accountCalls <= 6;
+    },
+  };
+  const networkLimiter = {
+    consume() {
+      networkCalls += 1;
+      return networkCalls <= 60;
+    },
+  };
+  await withServer(async (baseUrl, store) => {
+    const headers = {
+      "Content-Type": "application/json",
+      Cookie: `${config.sessionCookie}=${store.sessionToken}`,
+      Origin: "https://dufesh.cn",
+    };
+    const body = JSON.stringify({
+      body: "课程结构清楚，课堂示例能帮助理解概念之间的关系。",
+      ratings: {
+        courseOrganization: 5,
+        contentClarity: 4,
+        assessmentExplanation: 4,
+        classroomInteraction: 3,
+        materialCompleteness: 5,
+      },
+    });
+    const statuses = [];
+    for (let attempt = 0; attempt < 7; attempt += 1) {
+      const response = await fetch(`${baseUrl}/api/teachers/${teacherId}/my-review`, {
+        method: "PUT",
+        headers,
+        body,
+      });
+      statuses.push(response.status);
+    }
+    assert.deepEqual(statuses, [201, 201, 201, 201, 201, 201, 429]);
+    assert.equal(accountCalls, 7);
+    assert.equal(networkCalls, 6);
+  }, {
+    rateLimiters: {
+      read: { consume: () => true },
+      write: { consume: () => true },
+      teacherReviewWrite: accountLimiter,
+      teacherReviewIp: networkLimiter,
+    },
   });
 });
