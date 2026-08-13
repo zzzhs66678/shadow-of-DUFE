@@ -737,6 +737,7 @@ test("academic import state guards serialize one active textbook per teaching sl
   );
   assert.match(migration, /DROP INDEX IF EXISTS teaching_section_textbooks_identity_uidx/);
   assert.match(importer, /teaching_section_textbook_scope:/);
+  assert.match(importer, /teacher_course_section_scope:/);
   assert.match(
     importer,
     /WHERE record_status IN \('current', 'needs_review'\)/,

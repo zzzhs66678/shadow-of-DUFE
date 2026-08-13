@@ -5,9 +5,10 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import readExcelFile from "read-excel-file/node";
 
-const MAPPING_VERSION = "academic-workbooks-v1";
+const MAPPING_VERSION = "academic-workbooks-v2";
 const PLACEHOLDER_ISBN = /^97811122233\d{2}$/;
 const PHONE_OR_CONTACT = /(?:1[3-9]\d{9}|[1-9]\d{4,10}|(?:qq|QQ|微信|vx|手机号|电话)\s*[:：]?\s*[A-Za-z0-9_-]{5,})/g;
+const ACADEMIC_YEAR = /^(\d{4})-(\d{4})$/u;
 
 export function normalizeText(value) {
   if (value instanceof Date) return value.toISOString().slice(0, 10);
@@ -158,6 +159,24 @@ function extractSectionNo(sectionId, courseId) {
   return match?.[1] ?? "";
 }
 
+function normalizeAcademicYear(value) {
+  const academicYear = normalizeText(value);
+  const match = academicYear.match(ACADEMIC_YEAR);
+  if (!match || Number(match[2]) !== Number(match[1]) + 1) {
+    throw new Error("学年必须使用连续年份格式，例如 2026-2027");
+  }
+  return academicYear;
+}
+
+function termIdentity(academicYear, termClass) {
+  const season = termClass === "上学期"
+    ? "fall"
+    : termClass === "下学期"
+      ? "spring"
+      : null;
+  return season ? { season, termKey: `${academicYear}-${season}` } : null;
+}
+
 export function analyzeTeacherWorkbook(rows) {
   const results = [];
   const teacherRecords = [];
@@ -282,7 +301,14 @@ export function analyzeTeacherWorkbook(rows) {
   };
 }
 
-export function analyzeTextbookWorkbook(planRows, joinedRows, courseData, teacherRecords = []) {
+export function analyzeTextbookWorkbook(
+  planRows,
+  joinedRows,
+  courseData,
+  teacherRecords = [],
+  academicYearInput,
+) {
+  const academicYear = normalizeAcademicYear(academicYearInput);
   const results = [];
   const textbookRecords = [];
   const courses = new Map(courseData.courses.map((course) => [normalizeText(course.id), course]));
@@ -381,12 +407,14 @@ export function analyzeTextbookWorkbook(planRows, joinedRows, courseData, teache
   let missingSiteSectionRows = 0;
   for (const row of joined) {
     const errors = [];
-    const termKey = row.termClass === "上学期" ? "fall" : row.termClass === "下学期" ? "spring" : row.termClass;
+    const term = termIdentity(academicYear, row.termClass);
+    const termKey = term?.termKey ?? `${academicYear}-unknown`;
+    if (!term) errors.push("academic_term_invalid");
     if (!courses.has(row.courseId)) {
       missingSiteCourseRows += 1;
       errors.push("course_not_in_site_catalog");
     }
-    if (!scheduleKeys.has([termKey, row.courseId, row.sectionNo, row.teacherName].join("|"))) {
+    if (!term || !scheduleKeys.has([term.season, row.courseId, row.sectionNo, row.teacherName].join("|"))) {
       missingSiteSectionRows += 1;
       errors.push("teaching_section_not_in_site_schedule");
     }
@@ -403,7 +431,7 @@ export function analyzeTextbookWorkbook(planRows, joinedRows, courseData, teache
     if (parsePublicationDate(row.publicationDate).status === "invalid") {
       errors.push("invalid_publication_date");
     }
-    const rejected = errors.includes("course_not_in_site_catalog");
+    const rejected = errors.includes("course_not_in_site_catalog") || errors.includes("academic_term_invalid");
     addResult(results, {
       importType: "teaching_section_textbook",
       sourceSheet: "Sheet1",
@@ -496,7 +524,7 @@ function parseArguments(argv) {
     if (!key?.startsWith("--") || !value) throw new Error(`参数格式错误：${key ?? "<empty>"}`);
     values[key.slice(2)] = value;
   }
-  for (const required of ["teacher", "textbook", "course-data", "out"]) {
+  for (const required of ["teacher", "textbook", "course-data", "academic-year", "out"]) {
     if (!values[required]) throw new Error(`缺少参数：--${required}`);
   }
   return values;
@@ -541,12 +569,14 @@ export async function runPreflight(options) {
     requireSheet(textbookWorkbook, "Sheet1"),
     courseData,
     teacher.bundle.teachers,
+    options["academic-year"],
   );
   const results = [...teacher.results, ...textbook.results];
   const summary = {
     generatedAt: new Date().toISOString(),
     dryRun: true,
     mappingVersion: MAPPING_VERSION,
+    academicYear: normalizeAcademicYear(options["academic-year"]),
     sources: {
       teacher: { filename: path.basename(options.teacher), sha256: teacherHash },
       textbook: { filename: path.basename(options.textbook), sha256: textbookHash },

@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 const TEACHER_SOURCE_SYSTEM = "dufe_teacher_review_workbook";
 const UNSANITIZED_CONTACT = /(?:1[3-9]\d{9}|(?:qq|QQ|微信|vx|手机号|电话)\s*[:：]?\s*[A-Za-z0-9_-]{5,})/;
 const STABLE_COURSE_KEY = /^[A-Za-z0-9:_-]+$/u;
+const ACADEMIC_TERM_KEY = /^\d{4}-\d{4}-(?:fall|spring)$/u;
 const COURSE_SECTION_KEYS = [
   "catalogId",
   "externalTeacherKeys",
@@ -51,6 +52,15 @@ function assertPrivateBundle(bundle) {
     }
     assertDigest(candidate.originalBodySha256, "评价原文摘要");
     assertDigest(candidate.normalizedBodySha256, "评价规范化摘要");
+  }
+  for (const [index, textbook] of bundle.textbooks.entries()) {
+    if (!ACADEMIC_TERM_KEY.test(String(textbook.termKey ?? ""))) {
+      throw new Error(`textbooks[${index}].termKey 必须包含具体学年和学期`);
+    }
+    const [startYear, endYear] = textbook.termKey.split("-", 2).map(Number);
+    if (endYear !== startYear + 1) {
+      throw new Error(`textbooks[${index}].termKey 学年不连续`);
+    }
   }
   if (bundle.courseSections !== undefined && !Array.isArray(bundle.courseSections)) {
     throw new Error("导入包 courseSections 必须是数组");
@@ -578,6 +588,22 @@ function textbookScopeKey(record, teacherId) {
   ]);
 }
 
+async function lockTeacherCourseSectionScope(client, scopeKey) {
+  await client.query(
+    "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+    [`teacher_course_section_scope:${scopeKey}`],
+  );
+}
+
+function teacherCourseSectionScopeKey(record, teacherId) {
+  return JSON.stringify([
+    record.termKey,
+    record.courseId,
+    record.sectionNo,
+    teacherId,
+  ]);
+}
+
 function courseScheduleScopeKey(record) {
   return JSON.stringify([record.catalogId, record.scheduleId]);
 }
@@ -633,6 +659,79 @@ async function applyTextbookBatch(database, bundle) {
     });
     const scopeKeys = [...new Set(resolvedTextbooks.map((item) => item.scopeKey))].sort();
     for (const scopeKey of scopeKeys) await lockTextbookScope(client, scopeKey);
+    const sectionScopeKeys = [...new Set(
+      resolvedTextbooks
+        .filter((item) => item.teacherId)
+        .map((item) => teacherCourseSectionScopeKey(item.record, item.teacherId)),
+    )].sort();
+    for (const scopeKey of sectionScopeKeys) await lockTeacherCourseSectionScope(client, scopeKey);
+
+    const existingSectionRows = await client.query(
+      `SELECT id, term_key, course_id, section_no, teacher_id, record_status
+       FROM teacher_course_sections`,
+    );
+    const courseSections = new Map(
+      existingSectionRows.rows.map((row) => [
+        teacherCourseSectionScopeKey({
+          termKey: row.term_key,
+          courseId: row.course_id,
+          sectionNo: row.section_no,
+        }, row.teacher_id),
+        row,
+      ]),
+    );
+    async function ensureTeacherCourseSection({ record, teacherId, importRowId }) {
+      if (!teacherId) return;
+      const sectionScope = teacherCourseSectionScopeKey(record, teacherId);
+      const existingSection = courseSections.get(sectionScope);
+      if (!existingSection) {
+        const sectionId = crypto.randomUUID();
+        await client.query(
+          `INSERT INTO teacher_course_sections (
+             id, teacher_id, term_key, course_id, course_title, section_no,
+             course_college, teacher_name_snapshot, teacher_college_snapshot,
+             source_batch_id, source_row_id, record_status
+           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+          [
+            sectionId,
+            teacherId,
+            record.termKey,
+            record.courseId,
+            record.courseTitle,
+            record.sectionNo,
+            record.courseCollege,
+            record.teacherName,
+            record.teacherCollege,
+            batchId,
+            importRowId,
+            record.recordStatus,
+          ],
+        );
+        await insertMutation(client, {
+          batchId,
+          importRowId,
+          entityType: "teacher_course_section",
+          entityId: sectionId,
+          mutationType: "created",
+        });
+        courseSections.set(sectionScope, { id: sectionId, record_status: record.recordStatus });
+      } else if (existingSection.record_status === "withdrawn") {
+        await client.query(
+          `UPDATE teacher_course_sections
+           SET record_status = $2, last_seen_at = now()
+           WHERE id = $1`,
+          [existingSection.id, record.recordStatus],
+        );
+        await insertMutation(client, {
+          batchId,
+          importRowId,
+          entityType: "teacher_course_section",
+          entityId: existingSection.id,
+          mutationType: "restored",
+        });
+        courseSections.set(sectionScope, { ...existingSection, record_status: record.recordStatus });
+      }
+    }
 
     const existingRows = await client.query(
       `SELECT id, term_key, course_id, section_no, teacher_id, position,
@@ -660,8 +759,9 @@ async function applyTextbookBatch(database, bundle) {
       if (previous?.material_sha256 === record.materialSha256) {
         const locator = parseLocator(record.sourceLocator, "Sheet1");
         const needsReview = record.recordStatus === "needs_review";
+        const importRowId = crypto.randomUUID();
         await insertImportRow(client, {
-          id: crypto.randomUUID(),
+          id: importRowId,
           batchId,
           sourceSheet: locator.sheet,
           sourceRow: locator.row,
@@ -673,6 +773,7 @@ async function applyTextbookBatch(database, bundle) {
           errorCodes: ["existing_teaching_section_textbook"],
           sanitizedPayload: {},
         });
+        await ensureTeacherCourseSection({ record, teacherId, importRowId });
         if (needsReview) warning += 1;
         else accepted += 1;
         continue;
@@ -701,6 +802,7 @@ async function applyTextbookBatch(database, bundle) {
         appliedEntityType: "teaching_section_textbook",
         appliedEntityId: textbookId,
       });
+      await ensureTeacherCourseSection({ record, teacherId, importRowId });
       if (previous) {
         await client.query(
           "UPDATE teaching_section_textbooks SET record_status = 'superseded', updated_at = now() WHERE id = $1",
@@ -991,6 +1093,10 @@ export async function rollbackImportBatch(database, batchId) {
            WHERE record_status <> 'withdrawn'
            UNION ALL
            SELECT teacher_id, source_batch_id
+           FROM teacher_course_sections
+           WHERE record_status <> 'withdrawn'
+           UNION ALL
+           SELECT teacher_id, source_batch_id
            FROM course_schedule_teachers
            WHERE record_status = 'current'
          ) AS dependency
@@ -1068,6 +1174,34 @@ export async function rollbackImportBatch(database, batchId) {
           entityType: mutation.entity_type,
           entityId: mutation.entity_id,
           mutationType: "restored",
+        });
+      } else if (mutation.entity_type === "teacher_course_section" && mutation.mutation_type === "created") {
+        await client.query(
+          `UPDATE teacher_course_sections
+           SET record_status = 'withdrawn', last_seen_at = now()
+           WHERE id = $1 AND record_status <> 'withdrawn'`,
+          [mutation.entity_id],
+        );
+        await insertMutation(client, {
+          batchId,
+          importRowId: mutation.import_row_id,
+          entityType: mutation.entity_type,
+          entityId: mutation.entity_id,
+          mutationType: "withdrawn",
+        });
+      } else if (mutation.entity_type === "teacher_course_section" && mutation.mutation_type === "restored") {
+        await client.query(
+          `UPDATE teacher_course_sections
+           SET record_status = 'withdrawn', last_seen_at = now()
+           WHERE id = $1`,
+          [mutation.entity_id],
+        );
+        await insertMutation(client, {
+          batchId,
+          importRowId: mutation.import_row_id,
+          entityType: mutation.entity_type,
+          entityId: mutation.entity_id,
+          mutationType: "withdrawn",
         });
       } else if (mutation.entity_type === "teaching_section_textbook" && mutation.mutation_type === "created") {
         await client.query(

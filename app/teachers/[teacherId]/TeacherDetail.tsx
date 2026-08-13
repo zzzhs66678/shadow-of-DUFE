@@ -44,7 +44,11 @@ const ratingLabels: Array<[RatingKey, string]> = [
 ];
 
 function termLabel(term: string) {
-  return term === "fall" ? "上学期" : term === "spring" ? "下学期" : term;
+  const match = term.match(/^(\d{4})-(\d{4})-(fall|spring)$/u);
+  if (match) {
+    return `${match[1]}—${match[2]} 学年 · ${match[3] === "fall" ? "第一学期" : "第二学期"}`;
+  }
+  return term === "fall" ? "上学期（学年待核对）" : term === "spring" ? "下学期（学年待核对）" : term;
 }
 
 export function TeacherDetail({

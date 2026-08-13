@@ -9,7 +9,7 @@
 | 教师评价 | `教师评价（学长学姐）.xlsx` | `802f2f5f062601eee3c0c5b14c648ac70e4f1307cadf196a8155fefd52d1ad2d` |
 | 教材计划 | `附件：2026-2027学年第一学期本科教材使用计划 (1).xlsx` | `4557fcd0c32507d1b1af3a92425b2b64f5cfd80afbf948386750af23c346e8b7` |
 
-字段映射版本：`academic-workbooks-v1`。
+首次报告字段映射版本：`academic-workbooks-v1`；重新生成可写私有包时使用强制具体学年的 `academic-workbooks-v2`。
 
 ## 教师与历史评价
 
@@ -44,10 +44,10 @@
 ## 可复现命令
 
 ```powershell
-npm run import:academic:preflight -- --teacher "<教师评价.xlsx>" --textbook "<教材计划.xlsx>" --course-data "public/data/course-data.json" --out "<输出目录>"
+npm run import:academic:preflight -- --teacher "<教师评价.xlsx>" --textbook "<教材计划.xlsx>" --course-data "public/data/course-data.json" --academic-year "2026-2027" --out "<输出目录>"
 ```
 
-命令生成 `preflight-summary.json`、可用 Excel 打开的 `preflight-errors.csv` 和权限受限的 `private-import-bundle.json`。CSV 只包含工作表、行列、处置状态、稳定错误码和实体键，不包含评价正文，并防止公式注入；私有包包含脱敏候选正文，只能保存在非公开目录，不得提交 Git 或放入 `public/`。
+命令生成 `preflight-summary.json`、可用 Excel 打开的 `preflight-errors.csv` 和权限受限的 `private-import-bundle.json`。`--academic-year` 必须显式使用连续年份，导入后的教学班和教材会保存为 `2026-2027-fall` 一类具体学期，不再以脱离学年的 `fall/spring` 混淆不同年度。CSV 只包含工作表、行列、处置状态、稳定错误码和实体键，不包含评价正文，并防止公式注入；私有包包含脱敏候选正文，只能保存在非公开目录，不得提交 Git 或放入 `public/`。
 
 数据库写入必须使用专用 importer 角色，并显式开启写入开关：
 

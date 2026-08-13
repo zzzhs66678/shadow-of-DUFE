@@ -142,6 +142,7 @@ function integrationTextbookBundle(label, sourceRevision, materialRevision = sou
     termKey: "2026-fall",
     courseId: `CI-COURSE-${label}`,
     courseTitle: `并发教材课程-${label}`,
+    courseCollege: `并发课程学院-${label}`,
     sectionNo: "01",
     teacherName: `并发导入教师-${label}`,
     teacherCollege: `并发测试学院-${label}`,

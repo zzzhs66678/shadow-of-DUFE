@@ -72,14 +72,14 @@ test("textbook preflight preserves placeholders and section-level variants", () 
       { term: "fall", courseId: "C1", sectionId: "fall-C1-02-2", teacher: "甲" },
     ],
   };
-  const report = analyzeTextbookWorkbook(plan, [joinedHeader, joinedA, joinedB], courseData);
+  const report = analyzeTextbookWorkbook(plan, [joinedHeader, joinedA, joinedB], courseData, [], "2026-2027");
   assert.equal(report.facts.coursesWithMultipleTextbookVariants, 1);
   assert.equal(report.facts.placeholderIsbnRows, 1);
   assert.equal(report.facts.invalidPublicationDateRows, 1);
   const sectionRows = report.results.filter((row) => row.importType === "teaching_section_textbook");
   assert.ok(sectionRows.every((row) => row.errorCodes.includes("course_has_multiple_textbook_variants")));
   assert.equal(report.bundle.textbooks.length, 2);
-  assert.equal(report.bundle.textbooks[0].termKey, "fall");
+  assert.equal(report.bundle.textbooks[0].termKey, "2026-2027-fall");
 });
 
 test("textbook preflight leaves same-college same-name identities unresolved", () => {
@@ -123,6 +123,7 @@ test("textbook preflight leaves same-college same-name identities unresolved", (
     [header, joined],
     courseData,
     teacherRecords,
+    "2026-2027",
   );
   const result = report.results.find(
     (row) => row.importType === "teaching_section_textbook",
@@ -131,4 +132,16 @@ test("textbook preflight leaves same-college same-name identities unresolved", (
   assert.ok(result.errorCodes.includes("teacher_source_identity_ambiguous"));
   assert.equal(report.bundle.textbooks[0].externalTeacherKey, null);
   assert.equal(report.bundle.textbooks[0].recordStatus, "needs_review");
+});
+
+test("textbook preflight requires an explicit continuous academic year", () => {
+  const courseData = { courses: [], schedules: [] };
+  assert.throws(
+    () => analyzeTextbookWorkbook([], [], courseData, [], "2026"),
+    /连续年份格式/u,
+  );
+  assert.throws(
+    () => analyzeTextbookWorkbook([], [], courseData, [], "2026-2028"),
+    /连续年份格式/u,
+  );
 });

@@ -66,9 +66,10 @@ function fixtureBundle() {
       {
         sourceLocator: "Sheet1!A2:Y2",
         sourceRow: 2,
-        termKey: "fall",
+        termKey: "2026-2027-fall",
         courseId: "C1",
         courseTitle: "测试课程",
+        courseCollege: "课程学院",
         sectionNo: "01",
         teacherName: "同名教师",
         teacherCollege: "同一学院",
@@ -91,9 +92,10 @@ function fixtureBundle() {
       {
         sourceLocator: "Sheet1!A3:Y3",
         sourceRow: 3,
-        termKey: "fall",
+        termKey: "2026-2027-fall",
         courseId: "C1",
         courseTitle: "测试课程",
+        courseCollege: "课程学院",
         sectionNo: "01",
         teacherName: "同名教师",
         teacherCollege: "同一学院",
@@ -150,6 +152,15 @@ test("private bundle refuses unsanitized contact data before database access", a
   await assert.rejects(
     applyPrivateBundle({}, bundle),
     /历史评价候选未完成脱敏/,
+  );
+});
+
+test("private bundle refuses textbooks without a concrete academic year", async () => {
+  const bundle = fixtureBundle();
+  bundle.textbooks[0].termKey = "fall";
+  await assert.rejects(
+    applyPrivateBundle({}, bundle, fixtureCourseCatalog(bundle)),
+    /必须包含具体学年和学期/u,
   );
 });
 
@@ -213,6 +224,17 @@ test("private academic bundle applies idempotently and rolls back in dependency 
       { position: 1, record_status: "current" },
       { position: 2, record_status: "current" },
     ]);
+    const textbookTeacher = await database.query(
+      `SELECT teacher_id AS id
+       FROM teacher_source_identities
+       WHERE external_teacher_key = '同一学院同名教师甲'`,
+    );
+    const teacherDetail = await createTeacherStore(database).getPublicTeacherDetail(
+      textbookTeacher.rows[0].id,
+    );
+    assert.equal(teacherDetail.courseCount, 1);
+    assert.equal(teacherDetail.sections.length, 1);
+    assert.equal(teacherDetail.sections[0].termKey, "2026-2027-fall");
     const publicStore = createTeacherStore(database);
     const scheduleTeachers = await publicStore.listPublicTeachersBySchedule({
       catalogId: "C1",
@@ -249,7 +271,7 @@ test("private academic bundle applies idempotently and rolls back in dependency 
       withdrawn_course_links: 2,
       retired_teachers: 2,
       rolled_back_candidates: 1,
-      mutation_events: 18,
+      mutation_events: 20,
     });
 
     const reapplied = await applyPrivateBundle(database, bundle, courseCatalog);
@@ -407,7 +429,7 @@ test("textbook slot keeps one active revision and permits A to B to A", async ()
     const versions = await database.query(
       `SELECT material_sha256, record_status
        FROM teaching_section_textbooks
-       WHERE term_key = 'fall' AND course_id = 'C1' AND section_no = '01'
+       WHERE term_key = '2026-2027-fall' AND course_id = 'C1' AND section_no = '01'
          AND position = 1
        ORDER BY created_at, id`,
     );
@@ -435,6 +457,40 @@ test("textbook slot keeps one active revision and permits A to B to A", async ()
       ),
       /duplicate key|unique constraint/u,
     );
+  } finally {
+    await database.close();
+  }
+});
+
+test("a later idempotent textbook record restores a missing teacher section fact", async () => {
+  const database = await createDatabase();
+  try {
+    const initial = textbookRevision(fixtureBundle(), {
+      sourceDigest: digest("b"),
+      materialDigest: digest("1"),
+      title: "教材 A",
+    });
+    const courseCatalog = fixtureCourseCatalog(initial);
+    await applyPrivateBundle(database, initial, courseCatalog);
+    await database.query(
+      "UPDATE teacher_course_sections SET record_status = 'withdrawn'",
+    );
+
+    const laterSource = textbookRevision(initial, {
+      sourceDigest: digest("5"),
+      materialDigest: digest("1"),
+      title: "教材 A",
+    });
+    await applyPrivateBundle(database, laterSource, courseCatalog);
+    const sections = await database.query(
+      `SELECT term_key, record_status
+       FROM teacher_course_sections
+       WHERE course_id = 'C1' AND section_no = '01'`,
+    );
+    assert.deepEqual(sections.rows, [{
+      term_key: "2026-2027-fall",
+      record_status: "current",
+    }]);
   } finally {
     await database.close();
   }
