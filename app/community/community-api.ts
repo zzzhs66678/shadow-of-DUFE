@@ -77,6 +77,21 @@ export type CommunitySession = {
   user: null | (CommunityAuthor & { role: "user" | "moderator" | "admin" });
 };
 
+export type CommunitySavedTopic = {
+  topicId: string;
+  status: "available" | "unavailable";
+  title: string | null;
+  bodyPreview: string | null;
+  author: CommunityAuthor | null;
+  publicPath: string;
+  bookmarkedAt: string;
+};
+
+export type CommunityBlockedUser = {
+  user: CommunityAuthor;
+  blockedAt: string;
+};
+
 export type CommunityApiError = Error & {
   status?: number;
   code?: string;
