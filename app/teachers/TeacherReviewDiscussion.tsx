@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useState } from "react";
 import Link from "next/link";
 import { FormField } from "../FormField";
 import { ReportDialog } from "../community/CommunityShared";
@@ -67,18 +67,24 @@ export function TeacherReviewDiscussion({
     setNextCursor(payload.nextCursor);
   }, [reviewId, teacherId]);
 
-  useEffect(() => {
-    if (!open || status !== "idle") return;
-    const controller = new AbortController();
-    const frame = window.requestAnimationFrame(() => {
-      setStatus("loading");
-      void load(undefined, false, controller.signal).then(
-        () => setStatus("ready"),
-        (error: Error) => { if (error.name !== "AbortError") setStatus("error"); },
-      );
-    });
-    return () => { window.cancelAnimationFrame(frame); controller.abort(); };
-  }, [load, open, status]);
+  const loadInitial = useCallback(async () => {
+    setStatus("loading");
+    try {
+      await load();
+      setStatus("ready");
+    } catch {
+      setStatus("error");
+    }
+  }, [load]);
+
+  function toggleDiscussion() {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    setOpen(true);
+    if (status === "idle") void loadInitial();
+  }
 
   function beginReply(comment?: TeacherReviewComment) {
     setReplyTo(comment ?? null);
@@ -145,7 +151,7 @@ export function TeacherReviewDiscussion({
   return (
     <section className={styles.reviewDiscussion} aria-label={`关于${reviewLabel}的讨论`}>
       <div className={styles.reviewDiscussionBar}>
-        <button type="button" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+        <button type="button" aria-expanded={open} onClick={toggleDiscussion}>
           {open ? "收起讨论" : "展开讨论"}
         </button>
         {canWrite && <button type="button" onClick={() => setReportTarget({ type: "teacher_review", id: reviewId, label: reviewLabel })}>举报评价</button>}
@@ -154,7 +160,7 @@ export function TeacherReviewDiscussion({
       {open && (
         <div className={styles.reviewThread}>
           {status === "loading" && <p role="status">正在读取讨论…</p>}
-          {status === "error" && <p role="alert">讨论暂时没有加载成功。<button onClick={() => { setStatus("idle"); setFeedback(""); }}>重试</button></p>}
+          {status === "error" && <p role="alert">讨论暂时没有加载成功。<button onClick={() => { setFeedback(""); void loadInitial(); }}>重试</button></p>}
           {status === "ready" && items.length === 0 && <p>还没有回复。可以从具体课堂体验继续讨论。</p>}
           {status === "ready" && items.length > 0 && (
             <ol>

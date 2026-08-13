@@ -125,7 +125,8 @@ test("teacher directory disambiguates identities without taking over the daily w
   assert.match(teacherDetailSource, /审核期间不能修改正文/);
   assert.match(teacherDetailSource, /<TeacherReviewDiscussion/);
   assert.match(teacherDiscussionSource, /aria-expanded={open}/);
-  assert.match(teacherDiscussionSource, /if \(!open \|\| status !== "idle"\) return/);
+  assert.match(teacherDiscussionSource, /if \(status === "idle"\) void loadInitial\(\)/);
+  assert.doesNotMatch(teacherDiscussionSource, /controller\.abort\(\)/);
   assert.match(
     teacherDiscussionSource,
     /\.\.\.current\.filter\(\(item\) => !payload\.items\.some\(\(loaded\) => loaded\.id === item\.id\)\)/,
