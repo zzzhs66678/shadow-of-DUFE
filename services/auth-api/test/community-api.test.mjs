@@ -512,7 +512,8 @@ test("comment writes preserve reply targets and version conflicts are explicit",
 });
 
 test("community mutations consume independent user and IP rate-limit keys", async () => {
-  const keys = [];
+  const accountKeys = [];
+  const networkKeys = [];
   const allow = { consume: () => true };
   await withServer(async ({ baseUrl, store }) => {
     const response = await fetch(`${baseUrl}/api/community/topics`, {
@@ -525,15 +526,22 @@ test("community mutations consume independent user and IP rate-limit keys", asyn
       body: JSON.stringify({ title: "这是限流测试主题", body: "正文" }),
     });
     assert.equal(response.status, 201);
-    assert.equal(keys.length, 2);
-    assert.notEqual(keys[0], keys[1]);
+    assert.equal(accountKeys.length, 1);
+    assert.equal(networkKeys.length, 1);
+    assert.notEqual(accountKeys[0], networkKeys[0]);
   }, {
     rateLimiters: {
       read: allow,
       write: allow,
       communityWrite: {
         consume(key) {
-          keys.push(key);
+          accountKeys.push(key);
+          return true;
+        },
+      },
+      communityWriteIp: {
+        consume(key) {
+          networkKeys.push(key);
           return true;
         },
       },
@@ -577,7 +585,8 @@ test("likes, bookmarks, and blocks use idempotent PUT and DELETE endpoints", asy
 });
 
 test("reports are validated, authenticated, and use the dedicated limiter", async () => {
-  const reportKeys = [];
+  const reportAccountKeys = [];
+  const reportNetworkKeys = [];
   const allow = { consume: () => true };
   await withServer(async ({ baseUrl, store }) => {
     const headers = {
@@ -608,7 +617,8 @@ test("reports are validated, authenticated, and use the dedicated limiter", asyn
     });
     assert.equal(report.status, 201);
     assert.equal((await report.json()).report.status, "open");
-    assert.equal(reportKeys.length, 4);
+    assert.equal(reportAccountKeys.length, 2);
+    assert.equal(reportNetworkKeys.length, 2);
     const stored = store.calls.find(([name]) => name === "createCommunityReport")[1];
     assert.equal(stored.reporterUserId, userId);
     assert.equal(stored.reasonCode, "spam");
@@ -618,7 +628,13 @@ test("reports are validated, authenticated, and use the dedicated limiter", asyn
       write: allow,
       communityReport: {
         consume(key) {
-          reportKeys.push(key);
+          reportAccountKeys.push(key);
+          return true;
+        },
+      },
+      communityReportIp: {
+        consume(key) {
+          reportNetworkKeys.push(key);
           return true;
         },
       },
