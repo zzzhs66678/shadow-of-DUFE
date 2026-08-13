@@ -878,8 +878,17 @@ test("auth traffic combines bounded burst protection with persistent high-risk q
   assert.match(limiter, /capacity: 2_400/);
   assert.match(limiter, /capacity: 300/);
   assert.match(limiter, /communityWrite:[\s\S]*?capacity: 12/);
+  assert.match(limiter, /communityWriteIp:[\s\S]*?capacity: 120/);
   assert.match(limiter, /communityReaction:[\s\S]*?capacity: 60/);
+  assert.match(limiter, /communityReactionIp:[\s\S]*?capacity: 600/);
   assert.match(limiter, /communityReport:[\s\S]*?capacity: 5/);
+  assert.match(limiter, /communityReportIp:[\s\S]*?capacity: 50/);
+  assert.match(limiter, /scope: "community-write-account"/);
+  assert.match(limiter, /scope: "community-write-network"/);
+  assert.match(limiter, /scope: "community-reaction-account"/);
+  assert.match(limiter, /scope: "community-reaction-network"/);
+  assert.match(limiter, /scope: "community-report-account"/);
+  assert.match(limiter, /scope: "community-report-network"/);
   assert.match(limiter, /teacherReviewModeration:[\s\S]*?capacity: 30/);
   assert.match(limiter, /teacherReviewWrite:[\s\S]*?capacity: 6/);
   assert.match(limiter, /teacherReviewIp:[\s\S]*?capacity: 60/);

@@ -141,7 +141,8 @@ async function writeRateAllowed(
   config,
   limiterName = "communityWrite",
 ) {
-  const limiter = rateLimiters[limiterName] ?? rateLimiters.write;
+  const accountLimiter = rateLimiters[limiterName] ?? rateLimiters.write;
+  const networkLimiter = rateLimiters[`${limiterName}Ip`] ?? rateLimiters.write;
   const userKey = tokenDigest(
     `${limiterName}:user:${userId}`,
     config.tokenPepper,
@@ -150,8 +151,8 @@ async function writeRateAllowed(
     `${limiterName}:ip:${clientAddress(request)}`,
     config.tokenPepper,
   );
-  if (!(await limiter.consume(userKey))) return false;
-  return limiter.consume(ipKey);
+  if (!(await accountLimiter.consume(userKey))) return false;
+  return networkLimiter.consume(ipKey);
 }
 
 function handleStoreError(error, response) {
