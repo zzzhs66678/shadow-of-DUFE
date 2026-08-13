@@ -60,7 +60,10 @@ export function TeacherReviewDiscussion({
     );
     setItems((current) => append
       ? [...current, ...payload.items.filter((item) => !current.some((existing) => existing.id === item.id))]
-      : payload.items);
+      : [
+          ...payload.items,
+          ...current.filter((item) => !payload.items.some((loaded) => loaded.id === item.id)),
+        ]);
     setNextCursor(payload.nextCursor);
   }, [reviewId, teacherId]);
 
