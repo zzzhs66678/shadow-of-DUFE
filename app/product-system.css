@@ -4906,6 +4906,17 @@ body:has(.hub-v2) .preload-intro {
 .community-corridor-entry:hover b,
 .community-corridor-entry:focus-visible b { color: var(--journal-red-deep); }
 .community-corridor-entry:focus-visible { outline: 2px solid var(--journal-red); outline-offset: 5px; }
+.community-personal-entry {
+  color: var(--journal-muted);
+  display: block;
+  font-size: 11px;
+  margin: 14px 0 0 52px;
+  text-decoration: none;
+  width: fit-content;
+}
+.community-personal-entry span { color: var(--journal-red-deep); margin-left: 8px; }
+.community-personal-entry:hover,
+.community-personal-entry:focus-visible { color: var(--journal-red-deep); text-decoration: underline; text-underline-offset: 4px; }
 
 .today-community-note {
   align-items: center;
@@ -4934,6 +4945,7 @@ body:has(.hub-v2) .preload-intro {
   .community-corridor-entry span { padding-left: 12px; }
   .community-corridor-entry b { font-size: 17px; }
   .community-corridor-entry em { font-size: 9px; }
+  .community-personal-entry { margin-left: 40px; min-height: 44px; padding-top: 10px; }
   .today-community-note { gap: 8px; grid-template-columns: 1fr auto; margin-top: 24px; }
   .today-community-note span { grid-column: 1 / -1; }
 }

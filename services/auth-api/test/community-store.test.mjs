@@ -76,6 +76,81 @@ test("community store uses bounded keyset pagination and maps viewer state", asy
   assert.match(queries[0].sql, /community_user_blocks/u);
 });
 
+test("private community indexes page relationships and redact unavailable bookmarks", async () => {
+  const blockedUserId = "00000000-0000-4000-8000-000000000012";
+  const unavailableTopicId = "00000000-0000-4000-8000-000000000022";
+  const pool = {
+    async query(sql, values) {
+      if (sql.includes("FROM community_topic_bookmarks")) {
+        assert.deepEqual(values, [viewerId, null, null, 3]);
+        return { rows: [
+          {
+            topic_id: topicId,
+            bookmarked_at: new Date("2026-08-12T08:00:00.000Z"),
+            title: "值得再读的讨论",
+            body_preview: "只返回列表需要的正文摘要。",
+            status: "published",
+            author_user_id: blockedUserId,
+            author_username: "student-b",
+            author_display_name: "同学乙",
+            author_avatar_url: null,
+            blocked: false,
+          },
+          {
+            topic_id: unavailableTopicId,
+            bookmarked_at: new Date("2026-08-11T08:00:00.000Z"),
+            title: "不应泄露",
+            body_preview: "不应泄露",
+            status: "hidden",
+            author_user_id: blockedUserId,
+            author_username: "student-b",
+            author_display_name: "同学乙",
+            author_avatar_url: null,
+            blocked: false,
+          },
+          {
+            topic_id: "00000000-0000-4000-8000-000000000023",
+            bookmarked_at: new Date("2026-08-10T08:00:00.000Z"),
+            status: "published",
+            blocked: true,
+          },
+        ] };
+      }
+      assert.match(sql, /FROM community_user_blocks AS blocks/u);
+      assert.deepEqual(values, [viewerId, null, null, 2]);
+      return { rows: [{
+        blocked_user_id: blockedUserId,
+        blocked_at: new Date("2026-08-12T07:00:00.000Z"),
+        username: "student-b",
+        display_name: "同学乙",
+        avatar_url: null,
+      }] };
+    },
+  };
+  const store = createCommunityStore(pool);
+  const bookmarks = await store.listCommunityBookmarks({ userId: viewerId, limit: 2 });
+  assert.equal(bookmarks.items.length, 2);
+  assert.equal(bookmarks.items[0].status, "available");
+  assert.equal(bookmarks.items[0].bodyPreview, "只返回列表需要的正文摘要。");
+  assert.deepEqual(bookmarks.items[1], {
+    topicId: unavailableTopicId,
+    status: "unavailable",
+    title: null,
+    bodyPreview: null,
+    author: null,
+    publicPath: "/community",
+    bookmarkedAt: "2026-08-11T08:00:00.000Z",
+  });
+  assert.deepEqual(bookmarks.nextCursor, {
+    createdAt: "2026-08-11T08:00:00.000Z",
+    id: unavailableTopicId,
+  });
+
+  const blocks = await store.listCommunityBlocks({ userId: viewerId, limit: 1 });
+  assert.equal(blocks.items[0].user.id, blockedUserId);
+  assert.equal(blocks.nextCursor, null);
+});
+
 test("community hot feed ranks real engagement against one bounded snapshot", async () => {
   const queries = [];
   const rankedAt = "2026-08-11T08:00:00.000Z";

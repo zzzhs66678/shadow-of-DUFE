@@ -5556,6 +5556,11 @@ function MePage({
         </span>
         <em>进入 →</em>
       </a>
+      {account.status === "authenticated" && (
+        <a className="community-personal-entry" href="/community/saved">
+          管理我的社区收藏与屏蔽 <span aria-hidden="true">→</span>
+        </a>
+      )}
       <section className="campus-gateway" aria-labelledby="campus-gateway-title">
         <header>
           <span>东财常用</span>

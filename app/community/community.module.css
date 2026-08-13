@@ -165,6 +165,40 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .profileRecords small { color: var(--red-deep); font: 8px/1.5 var(--mono); }
 .profileRecords b { color: var(--muted); font-size: 9px; font-weight: 400; }
 
+.savedHero { border-bottom: 1px solid var(--ink); margin: 0 auto; max-width: 1450px; padding: clamp(70px, 9vw, 130px) clamp(22px, 7vw, 110px) clamp(48px, 7vw, 82px); position: relative; }
+.savedHero::before { background: var(--red); content: ""; height: 5px; left: clamp(22px, 7vw, 110px); position: absolute; top: clamp(42px, 6vw, 82px); transform: skewX(-28deg); width: min(190px, 34vw); }
+.savedHero > span { color: var(--red); font: 700 9px/1 var(--mono); letter-spacing: .14em; }
+.savedHero h1 { font: 500 clamp(46px, 7vw, 96px)/1 var(--serif); letter-spacing: -.055em; margin: 24px 0; }
+.savedHero p { color: var(--muted); font-size: 11px; line-height: 1.9; margin: 0; max-width: 620px; }
+.savedWorkspace { margin: 0 auto; max-width: 1120px; min-height: 520px; padding: clamp(46px, 7vw, 84px) 24px 110px; }
+.savedWorkspace > header { align-items: end; border-bottom: 1px solid var(--ink); display: flex; justify-content: space-between; margin-bottom: 32px; padding-bottom: 22px; }
+.savedWorkspace > header span { color: var(--red); font: 700 9px/1 var(--mono); letter-spacing: .14em; }
+.savedWorkspace > header h2 { font: 500 clamp(32px, 5vw, 54px)/1 var(--serif); margin: 13px 0 0; }
+.savedTabs { display: flex; gap: 8px; }
+.savedTabs button { background: transparent; border: 0; border-bottom: 1px solid var(--line); color: var(--muted); min-height: 44px; padding: 0 14px; }
+.savedTabs button[aria-pressed="true"] { border-bottom-color: var(--red); color: var(--red-deep); font-weight: 700; }
+.savedState { border-bottom: 1px solid var(--line); padding: clamp(42px, 7vw, 74px) 0; }
+.savedState b { display: block; font: 500 clamp(24px, 4vw, 39px)/1.3 var(--serif); }
+.savedState p { color: var(--muted); font-size: 11px; line-height: 1.8; max-width: 550px; }
+.savedState a,
+.savedState button { background: transparent; border: 0; border-bottom: 1px solid var(--red); color: var(--red-deep); display: inline-block; min-height: 44px; padding: 12px 0 4px; text-decoration: none; }
+.savedList { list-style: none; margin: 0; padding: 0; }
+.savedList > li { border-bottom: 1px solid var(--line); display: grid; gap: clamp(22px, 4vw, 56px); grid-template-columns: 110px minmax(0, 1fr); padding: 32px 0; }
+.savedList time { color: var(--gold); font: 8px/1.5 var(--mono); padding-top: 8px; }
+.savedList > li > div { min-width: 0; }
+.savedList a { color: inherit; display: block; text-decoration: none; }
+.savedList h3 { font: 500 clamp(24px, 4vw, 39px)/1.3 var(--serif); margin: 0 0 13px; }
+.savedList p { color: var(--muted); display: -webkit-box; font-size: 12px; line-height: 1.85; margin: 11px 0 16px; overflow: hidden; white-space: pre-wrap; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.savedList small { color: var(--red-deep); font: 8px/1.5 var(--mono); }
+.savedList button { background: transparent; border: 0; border-bottom: 1px solid var(--line); color: var(--muted); margin-top: 17px; min-height: 44px; padding: 9px 0 4px; }
+.savedList button:hover,
+.savedList button:focus-visible { border-bottom-color: var(--red); color: var(--red-deep); }
+.savedUnavailable { border-left: 2px solid var(--line); padding-left: 18px; }
+.savedUnavailable h3 { color: var(--muted); }
+.blockedIdentity { align-items: center; display: flex; gap: 14px; }
+.blockedIdentity > i { align-items: center; background: var(--paper-deep); border: 1px solid var(--line); border-radius: 50%; display: flex; flex: 0 0 44px; font: 500 17px/1 var(--serif); height: 44px; justify-content: center; width: 44px; }
+.blockedIdentity h3 { margin: 0 0 4px; }
+
 .topicCrumb { align-items: center; display: flex; gap: 10px; margin: 28px auto 0; max-width: 1120px; padding: 0 24px; }
 .topicCrumb a { color: var(--red-deep); font-size: 10px; }
 .topicCrumb span { color: var(--mist); }
@@ -220,6 +254,11 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .replies .commentNode { left: -42px; }
 .replies .commentNode i { height: 11px; width: 11px; }
 .replies .commentNode span { display: none; }
+.threadContent[hidden] { display: none; }
+.foldedThread { border-bottom: 1px solid var(--line); min-height: 116px; padding: 24px 0 26px; }
+.foldedThread > header { align-items: center; display: flex; justify-content: space-between; }
+.foldedThread time { color: var(--muted); font: 8px/1 var(--mono); }
+.foldedThread > button { background: transparent; border: 0; border-bottom: 1px solid var(--red); color: var(--red-deep); margin-top: 18px; min-height: 44px; padding: 8px 0 4px; }
 
 .panelBackdrop { background: rgba(16, 17, 15, .58); inset: 0; position: fixed; z-index: 100; }
 .reportSheet { background: var(--paper); border: 1px solid var(--ink); box-shadow: 17px 18px 0 rgba(0, 0, 0, .18); max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); max-width: 560px; overscroll-behavior: contain; overflow-y: auto; padding: clamp(26px, 4vw, 46px); width: 100%; }
@@ -299,6 +338,15 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   .profileTabs button { flex: 1; }
   .profileRecords li { gap: 9px; grid-template-columns: 1fr; padding: 28px 0; }
   .profileRecords time { padding-top: 0; }
+  .savedHero { padding-left: 28px; padding-right: 20px; }
+  .savedHero::before { left: 28px; }
+  .savedHero h1 { font-size: clamp(42px, 13vw, 62px); }
+  .savedWorkspace { padding: 42px 18px 80px 28px; }
+  .savedWorkspace > header { align-items: flex-start; flex-direction: column; gap: 22px; }
+  .savedTabs { width: 100%; }
+  .savedTabs button { flex: 1; }
+  .savedList > li { gap: 8px; grid-template-columns: 1fr; padding: 28px 0; }
+  .savedList time { padding-top: 0; }
   .topicCrumb { margin-top: 18px; padding: 0 18px; }
   .topicReading { margin-top: 56px; padding: 0 18px 50px 48px; }
   .readingSpine { left: 17px; width: 25px; }
@@ -322,6 +370,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   .commentNode span { display: none; }
   .replies { margin-left: 6px; padding-left: 20px; }
   .replies .commentNode { left: -28px; }
+  .foldedThread > header { align-items: flex-start; flex-direction: column; gap: 9px; }
   .commentEntry > header,
   .commentUnavailable > header { align-items: flex-start; flex-direction: column; gap: 9px; }
   .reportSheet { border-bottom: 0; border-left: 0; border-right: 0; box-shadow: none; max-height: 92vh; max-height: 92dvh; max-width: none; padding-bottom: max(26px, env(safe-area-inset-bottom)); }

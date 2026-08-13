@@ -420,6 +420,30 @@ test("community stays outside primary navigation and uses a quiet today-page exi
   assert.doesNotMatch(component, /id: "community"/);
 });
 
+test("signed-in users can manage private community bookmarks and blocks away from Today", async () => {
+  const savedSource = await readFile(
+    new URL("../app/community/saved/CommunitySavedView.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(savedSource, /\/api\/community\/me\/bookmarks/);
+  assert.match(savedSource, /\/api\/community\/me\/blocks/);
+  assert.match(savedSource, /"移出收藏"/u);
+  assert.match(savedSource, /"解除屏蔽"/u);
+  assert.match(component, /community-personal-entry/);
+  assert.match(productStyles, /\.community-personal-entry/);
+  assert.doesNotMatch(savedSource, /localStorage/);
+});
+
+test("discussion threads can be folded without deleting or reclassifying content", () => {
+  assert.match(communityTopicSource, /collapsedThreadIds/);
+  assert.match(communityTopicSource, /aria-expanded="false"/);
+  assert.match(communityTopicSource, /aria-controls={`community-thread-\${root\.id}`}/);
+  assert.match(communityTopicSource, />收起本章</u);
+  assert.match(communityTopicSource, /展开本章/);
+  assert.match(communityStyles, /\.threadContent\[hidden\]/);
+  assert.doesNotMatch(communityTopicSource, /localStorage/);
+});
+
 test("community topics share through the system sheet with a copy fallback", () => {
   assert.match(communityTopicSource, /navigator\.share/);
   assert.match(communityTopicSource, /navigator\.clipboard\.writeText/);

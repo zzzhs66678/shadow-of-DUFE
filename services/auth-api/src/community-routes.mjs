@@ -98,6 +98,11 @@ function decodeCursor(value) {
   return { id: parsed.id, createdAt: new Date(parsed.createdAt).toISOString() };
 }
 
+function hasOnlyQueryKeys(searchParams, allowed) {
+  const keys = [...searchParams.keys()];
+  return keys.every((key) => allowed.has(key)) && new Set(keys).size === keys.length;
+}
+
 function decodeTopicCursor(value, sort) {
   if (sort === "latest") return decodeCursor(value);
   const parsed = parseCursor(value);
@@ -253,6 +258,35 @@ export function createCommunityRequestHandler({ store, config, rateLimiters }) {
       if (session) return true;
       sendJson(response, 401, { error: "authentication_required" });
       return false;
+    }
+
+    if (
+      url.pathname === "/api/community/me/bookmarks" ||
+      url.pathname === "/api/community/me/blocks"
+    ) {
+      if (request.method !== "GET") {
+        methodNotAllowed(response, "GET");
+        return true;
+      }
+      if (!requireSession()) return true;
+      if (!hasOnlyQueryKeys(url.searchParams, new Set(["limit", "cursor"]))) {
+        sendJson(response, 400, { error: "invalid_community_query" });
+        return true;
+      }
+      const limit = pageLimit(url.searchParams.get("limit"));
+      const cursor = decodeCursor(url.searchParams.get("cursor"));
+      if (limit === null || cursor === false) {
+        sendJson(response, 400, { error: "invalid_community_query" });
+        return true;
+      }
+      const result = url.pathname.endsWith("/bookmarks")
+        ? await store.listCommunityBookmarks({ userId: session.userId, cursor, limit })
+        : await store.listCommunityBlocks({ userId: session.userId, cursor, limit });
+      sendJson(response, 200, {
+        items: result.items,
+        nextCursor: encodeCursor(result.nextCursor),
+      });
+      return true;
     }
 
     if (url.pathname === "/api/community/notifications") {

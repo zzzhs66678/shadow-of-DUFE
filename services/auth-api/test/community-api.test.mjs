@@ -62,6 +62,23 @@ function createCommunityStore() {
             },
       };
     },
+    async listCommunityBookmarks(input) {
+      calls.push(["listCommunityBookmarks", structuredClone(input)]);
+      return {
+        items: [{ topicId, status: "available", title: "公开主题" }],
+        nextCursor: {
+          id: nextTopicId,
+          createdAt: "2026-08-09T08:00:00.000Z",
+        },
+      };
+    },
+    async listCommunityBlocks(input) {
+      calls.push(["listCommunityBlocks", structuredClone(input)]);
+      return {
+        items: [{ user: { id: otherUserId, username: "corridor-student" } }],
+        nextCursor: null,
+      };
+    },
     async getCommunityUserProfile(input) {
       calls.push(["getCommunityUserProfile", structuredClone(input)]);
       if (input.userId !== otherUserId) return null;
@@ -581,6 +598,37 @@ test("likes, bookmarks, and blocks use idempotent PUT and DELETE endpoints", asy
       { method: "PUT", headers },
     );
     assert.equal(selfBlock.status, 400);
+  });
+});
+
+test("private bookmark and block indexes require a session and use strict cursors", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    const anonymous = await fetch(`${baseUrl}/api/community/me/bookmarks`);
+    assert.equal(anonymous.status, 401);
+
+    const headers = { Cookie: `${sessionCookie}=${store.sessionToken}` };
+    const bookmarks = await fetch(`${baseUrl}/api/community/me/bookmarks?limit=12`, { headers });
+    assert.equal(bookmarks.status, 200);
+    const bookmarkPayload = await bookmarks.json();
+    assert.equal(bookmarkPayload.items[0].topicId, topicId);
+    assert.equal(typeof bookmarkPayload.nextCursor, "string");
+    assert.deepEqual(
+      store.calls.find(([name]) => name === "listCommunityBookmarks")[1],
+      { userId, cursor: null, limit: 12 },
+    );
+
+    const blocks = await fetch(`${baseUrl}/api/community/me/blocks`, { headers });
+    assert.equal(blocks.status, 200);
+    assert.equal((await blocks.json()).items[0].user.id, otherUserId);
+    assert.deepEqual(
+      store.calls.find(([name]) => name === "listCommunityBlocks")[1],
+      { userId, cursor: null, limit: 20 },
+    );
+
+    const unknown = await fetch(`${baseUrl}/api/community/me/blocks?include=email`, { headers });
+    assert.equal(unknown.status, 400);
+    const repeated = await fetch(`${baseUrl}/api/community/me/bookmarks?limit=10&limit=20`, { headers });
+    assert.equal(repeated.status, 400);
   });
 });
 

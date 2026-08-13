@@ -70,6 +70,38 @@ function mapProfileComment(row) {
   };
 }
 
+function mapSavedTopic(row) {
+  const available = row.status === "published" && !row.blocked;
+  return {
+    topicId: String(row.topic_id),
+    status: available ? "available" : "unavailable",
+    title: available ? row.title : null,
+    bodyPreview: available ? row.body_preview : null,
+    author: available && row.author_user_id
+      ? {
+          id: String(row.author_user_id),
+          username: row.author_username,
+          displayName: row.author_display_name,
+          avatarUrl: row.author_avatar_url,
+        }
+      : null,
+    publicPath: available ? `/community/topics/${row.topic_id}` : "/community",
+    bookmarkedAt: iso(row.bookmarked_at),
+  };
+}
+
+function mapBlockedUser(row) {
+  return {
+    user: {
+      id: String(row.blocked_user_id),
+      username: row.username,
+      displayName: row.display_name,
+      avatarUrl: row.avatar_url,
+    },
+    blockedAt: iso(row.blocked_at),
+  };
+}
+
 function mapAnnouncement(row) {
   return {
     id: String(row.id),
@@ -753,6 +785,62 @@ const topicSelect = `
 
 export function createCommunityStore(pool) {
   return {
+    async listCommunityBookmarks({ userId, cursor = null, limit = 20 }) {
+      const result = await pool.query(
+        `SELECT bookmarks.topic_id, bookmarks.created_at AS bookmarked_at,
+                topics.title, left(topics.body, 320) AS body_preview,
+                topics.status, topics.author_user_id,
+                authors.username AS author_username,
+                authors.display_name AS author_display_name,
+                authors.avatar_url AS author_avatar_url,
+                EXISTS (
+                  SELECT 1 FROM community_user_blocks AS blocks
+                  WHERE (blocks.blocker_user_id = $1::uuid AND blocks.blocked_user_id = topics.author_user_id)
+                     OR (blocks.blocker_user_id = topics.author_user_id AND blocks.blocked_user_id = $1::uuid)
+                ) AS blocked
+         FROM community_topic_bookmarks AS bookmarks
+         JOIN community_topics AS topics ON topics.id = bookmarks.topic_id
+         LEFT JOIN app_users AS authors ON authors.id = topics.author_user_id
+         WHERE bookmarks.user_id = $1::uuid
+           AND ($2::timestamptz IS NULL OR (bookmarks.created_at, bookmarks.topic_id) < ($2, $3::uuid))
+         ORDER BY bookmarks.created_at DESC, bookmarks.topic_id DESC
+         LIMIT $4`,
+        [userId, cursor?.createdAt ?? null, cursor?.id ?? null, limit + 1],
+      );
+      const hasMore = result.rows.length > limit;
+      const rows = result.rows.slice(0, limit);
+      const last = rows.at(-1);
+      return {
+        items: rows.map(mapSavedTopic),
+        nextCursor: hasMore && last
+          ? { createdAt: iso(last.bookmarked_at), id: String(last.topic_id) }
+          : null,
+      };
+    },
+
+    async listCommunityBlocks({ userId, cursor = null, limit = 20 }) {
+      const result = await pool.query(
+        `SELECT blocks.blocked_user_id, blocks.created_at AS blocked_at,
+                users.username, users.display_name, users.avatar_url
+         FROM community_user_blocks AS blocks
+         JOIN app_users AS users ON users.id = blocks.blocked_user_id
+         WHERE blocks.blocker_user_id = $1::uuid
+           AND ($2::timestamptz IS NULL OR (blocks.created_at, blocks.blocked_user_id) < ($2, $3::uuid))
+         ORDER BY blocks.created_at DESC, blocks.blocked_user_id DESC
+         LIMIT $4`,
+        [userId, cursor?.createdAt ?? null, cursor?.id ?? null, limit + 1],
+      );
+      const hasMore = result.rows.length > limit;
+      const rows = result.rows.slice(0, limit);
+      const last = rows.at(-1);
+      return {
+        items: rows.map(mapBlockedUser),
+        nextCursor: hasMore && last
+          ? { createdAt: iso(last.blocked_at), id: String(last.blocked_user_id) }
+          : null,
+      };
+    },
+
     async listAdminCommunityContent({ type, status, query = "", cursor = null, limit = 20 }) {
       const normalizedQuery = query.normalize("NFKC").toLocaleLowerCase("zh-CN");
       const isTopic = type === "topic";
@@ -1677,7 +1765,7 @@ export function createCommunityStore(pool) {
            FOR SHARE`,
           [blockedUserId],
         );
-        if (target.rowCount !== 1) {
+        if (target.rows.length !== 1) {
           throw communityError("COMMUNITY_CONTENT_NOT_FOUND");
         }
         await client.query(
