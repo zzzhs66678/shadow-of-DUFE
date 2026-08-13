@@ -1,0 +1,11 @@
+[Unit]
+Description=Weekly Dufesh PostgreSQL restore drill
+
+[Timer]
+OnCalendar=Sun *-*-* 05:30:00 Asia/Shanghai
+Persistent=true
+RandomizedDelaySec=30m
+Unit=dufesh-db-restore-drill.service
+
+[Install]
+WantedBy=timers.target

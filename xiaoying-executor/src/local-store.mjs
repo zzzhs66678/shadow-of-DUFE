@@ -1,5 +1,6 @@
 import {
   createHash,
+  createHmac,
   randomBytes,
   randomUUID,
   scryptSync,
@@ -8,9 +9,12 @@ import {
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { contentHash } from "./security.mjs";
 import { decryptSecret, encryptSecret } from "./secret-vault.mjs";
 
 const DAY_MS = 86_400_000;
+const READ_LEASE_MS = 2 * 60_000;
+const WRITE_LEASE_MS = 3 * 60_000;
 
 function nowIso(clock) {
   return new Date(clock()).toISOString();
@@ -45,6 +49,7 @@ export class XiaoyingLocalStore {
     databasePath,
     masterKey,
     defaultInviteCode = "fjbadguy",
+    defaultInviteMaxUses = 20,
     clock = () => Date.now(),
   }) {
     if (databasePath !== ":memory:") mkdirSync(dirname(databasePath), { recursive: true });
@@ -53,11 +58,85 @@ export class XiaoyingLocalStore {
     this.clock = clock;
     this.db.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;");
     this.#migrate();
-    this.#seedDefaultInvite(defaultInviteCode);
+    this.#seedDefaultInvite(defaultInviteCode, defaultInviteMaxUses);
   }
 
   close() {
     this.db.close();
+  }
+
+  consumePublicRateLimit({ scope, key, limit, windowMs }) {
+    if (!/^[a-z][a-z0-9._-]{0,63}$/u.test(scope)) {
+      throw new TypeError("public rate limit scope is invalid");
+    }
+    if (typeof key !== "string" || key.length < 1 || key.length > 512) {
+      throw new TypeError("public rate limit key is invalid");
+    }
+    if (!Number.isInteger(limit) || limit < 1 || limit > 10_000) {
+      throw new TypeError("public rate limit allowance is invalid");
+    }
+    if (!Number.isInteger(windowMs) || windowMs < 1_000 || windowMs > DAY_MS) {
+      throw new TypeError("public rate limit window is invalid");
+    }
+
+    const now = this.clock();
+    const keyDigest = createHmac("sha256", this.masterKey)
+      .update(`${scope}\0${key}`)
+      .digest("hex");
+    let allowed = false;
+
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const current = this.db
+        .prepare(
+          `SELECT request_count, window_expires_at
+           FROM public_rate_limits
+           WHERE scope = ? AND key_digest = ?`,
+        )
+        .get(scope, keyDigest);
+
+      if (!current || current.window_expires_at <= now) {
+        this.db
+          .prepare(
+            `INSERT INTO public_rate_limits (
+               scope, key_digest, request_count, window_expires_at, last_seen_at
+             ) VALUES (?, ?, 1, ?, ?)
+             ON CONFLICT(scope, key_digest) DO UPDATE SET
+               request_count = 1,
+               window_expires_at = excluded.window_expires_at,
+               last_seen_at = excluded.last_seen_at`,
+          )
+          .run(scope, keyDigest, now + windowMs, now);
+        allowed = true;
+      } else {
+        const consumed = this.db
+          .prepare(
+            `UPDATE public_rate_limits
+             SET request_count = request_count + 1, last_seen_at = ?
+             WHERE scope = ? AND key_digest = ? AND request_count < ?`,
+          )
+          .run(now, scope, keyDigest, limit);
+        if (consumed.changes === 0) {
+          this.db
+            .prepare(
+              `UPDATE public_rate_limits
+               SET last_seen_at = ?
+               WHERE scope = ? AND key_digest = ?`,
+            )
+            .run(now, scope, keyDigest);
+        }
+        allowed = consumed.changes === 1;
+      }
+
+      this.db
+        .prepare("DELETE FROM public_rate_limits WHERE last_seen_at < ?")
+        .run(now - DAY_MS);
+      this.db.exec("COMMIT");
+      return allowed;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
   }
 
   unlockVip({ inviteCode, displayName }) {
@@ -79,6 +158,16 @@ export class XiaoyingLocalStore {
 
     this.db.exec("BEGIN IMMEDIATE");
     try {
+      const consumed = this.db
+        .prepare(
+          `UPDATE invite_codes SET use_count = use_count + 1
+           WHERE id = ? AND enabled = 1
+             AND max_uses IS NOT NULL AND use_count < max_uses`,
+        )
+        .run(invite.id);
+      if (consumed.changes !== 1) {
+        throw new Error("邀请码无效或已达到使用上限");
+      }
       this.db
         .prepare("INSERT INTO users (id, display_name, created_at) VALUES (?, ?, ?)")
         .run(userId, cleanDisplayName(displayName), createdAt);
@@ -92,9 +181,6 @@ export class XiaoyingLocalStore {
           "INSERT INTO sessions (id, user_id, token_hash, created_at, expires_at) VALUES (?, ?, ?, ?, ?)",
         )
         .run(sessionId, userId, hashToken(sessionToken), createdAt, expiresAt);
-      this.db
-        .prepare("UPDATE invite_codes SET use_count = use_count + 1 WHERE id = ?")
-        .run(invite.id);
       this.db.exec("COMMIT");
     } catch (error) {
       this.db.exec("ROLLBACK");
@@ -634,27 +720,63 @@ export class XiaoyingLocalStore {
            seat_label AS seatLabel
          FROM seat_watches
          WHERE status = 'watching' AND next_check_at <= ?
+           AND (lease_expires_at IS NULL OR lease_expires_at <= ?)
          ORDER BY next_check_at LIMIT ?`,
       )
-      .all(nowIso(this.clock), Math.max(1, Math.min(Number(limit) || 20, 100)));
+      .all(
+        nowIso(this.clock),
+        nowIso(this.clock),
+        Math.max(1, Math.min(Number(limit) || 20, 100)),
+      );
   }
 
-  finishSeatWatchCheck(watchId, { available, errorCode = null, intervalMinutes = 5 }) {
+  claimSeatWatch(watchId, leaseMs = READ_LEASE_MS) {
+    const leaseToken = randomUUID();
+    const claimedAt = nowIso(this.clock);
+    const leaseExpiresAt = new Date(
+      this.clock() + Math.max(30_000, Number(leaseMs) || READ_LEASE_MS),
+    ).toISOString();
+    const result = this.db
+      .prepare(
+        `UPDATE seat_watches SET
+           lease_token = ?, lease_expires_at = ?, updated_at = ?
+         WHERE id = ? AND status = 'watching' AND next_check_at <= ?
+           AND (lease_expires_at IS NULL OR lease_expires_at <= ?)`,
+      )
+      .run(leaseToken, leaseExpiresAt, claimedAt, watchId, claimedAt, claimedAt);
+    return result.changes === 1 ? leaseToken : null;
+  }
+
+  finishSeatWatchCheck(
+    watchId,
+    { available, errorCode = null, intervalMinutes = 5, leaseToken },
+  ) {
     const checkedAt = nowIso(this.clock);
     const nextCheckAt = new Date(
       this.clock() + Math.max(5, Math.min(Number(intervalMinutes) || 5, 60)) * 60_000,
     ).toISOString();
-    this.db
+    const result = this.db
       .prepare(
         `UPDATE seat_watches SET
            status = CASE WHEN ? THEN 'available' ELSE 'watching' END,
            last_checked_at = ?,
            next_check_at = ?,
            last_error_code = ?,
+           lease_token = NULL,
+           lease_expires_at = NULL,
            updated_at = ?
-         WHERE id = ?`,
+         WHERE id = ? AND lease_token = ?`,
       )
-      .run(available ? 1 : 0, checkedAt, nextCheckAt, errorCode, checkedAt, watchId);
+      .run(
+        available ? 1 : 0,
+        checkedAt,
+        nextCheckAt,
+        errorCode,
+        checkedAt,
+        watchId,
+        leaseToken,
+      );
+    return result.changes === 1;
   }
 
   listScheduledReservations(userId) {
@@ -667,7 +789,8 @@ export class XiaoyingLocalStore {
            last_error_code AS lastErrorCode, created_at AS createdAt,
            completed_at AS completedAt
          FROM scheduled_library_actions
-         WHERE user_id = ? AND status IN ('scheduled', 'running', 'succeeded', 'failed')
+         WHERE user_id = ? AND status IN
+           ('scheduled', 'running', 'succeeded', 'failed', 'review_required')
          ORDER BY run_at DESC LIMIT 30`,
       )
       .all(userId);
@@ -723,7 +846,8 @@ export class XiaoyingLocalStore {
     this.db
       .prepare(
         `UPDATE scheduled_library_actions SET
-           status = 'cancelled', updated_at = ?
+           status = 'cancelled', lease_token = NULL, lease_expires_at = NULL,
+           updated_at = ?
          WHERE user_id = ? AND id = ? AND status IN ('scheduled', 'running')`,
       )
       .run(nowIso(this.clock), userId, String(actionId ?? ""));
@@ -746,19 +870,39 @@ export class XiaoyingLocalStore {
   }
 
   claimScheduledReservation(actionId) {
+    const leaseToken = randomUUID();
+    const claimedAt = nowIso(this.clock);
+    const leaseExpiresAt = new Date(this.clock() + WRITE_LEASE_MS).toISOString();
     const result = this.db
       .prepare(
         `UPDATE scheduled_library_actions SET
-           status = 'running', attempt_count = attempt_count + 1, updated_at = ?
+           status = 'running', attempt_count = attempt_count + 1,
+           lease_token = ?, lease_expires_at = ?, updated_at = ?
          WHERE id = ? AND status = 'scheduled'`,
       )
-      .run(nowIso(this.clock), actionId);
-    return result.changes === 1;
+      .run(leaseToken, leaseExpiresAt, claimedAt, actionId);
+    return result.changes === 1 ? leaseToken : null;
+  }
+
+  recoverExpiredScheduledReservationLeases() {
+    const recoveredAt = nowIso(this.clock);
+    return this.db
+      .prepare(
+        `UPDATE scheduled_library_actions SET
+           status = 'review_required',
+           last_error_code = 'LEASE_EXPIRED_RECONCILE_REQUIRED',
+           completed_at = ?, lease_token = NULL, lease_expires_at = NULL,
+           updated_at = ?
+         WHERE status = 'running' AND lease_expires_at <= ?
+         RETURNING id, user_id AS userId, library_name AS libraryName,
+           seat_label AS seatLabel`,
+      )
+      .all(recoveredAt, recoveredAt, recoveredAt);
   }
 
   finishScheduledReservation(
     actionId,
-    { succeeded, errorCode = null, retryDelayMs = 2_000 },
+    { succeeded, errorCode = null, retryDelayMs = 2_000, leaseToken },
   ) {
     const action = this.db
       .prepare(
@@ -769,15 +913,17 @@ export class XiaoyingLocalStore {
     if (!action) return;
     const retry = !succeeded && action.attempt_count < action.max_attempts;
     const updatedAt = nowIso(this.clock);
-    this.db
+    const result = this.db
       .prepare(
         `UPDATE scheduled_library_actions SET
            status = ?,
            run_at = CASE WHEN ? THEN ? ELSE run_at END,
            last_error_code = ?,
            completed_at = CASE WHEN ? THEN ? ELSE NULL END,
+           lease_token = NULL,
+           lease_expires_at = NULL,
            updated_at = ?
-         WHERE id = ?`,
+         WHERE id = ? AND status = 'running' AND lease_token = ?`,
       )
       .run(
         succeeded ? "succeeded" : retry ? "scheduled" : "failed",
@@ -788,7 +934,9 @@ export class XiaoyingLocalStore {
         updatedAt,
         updatedAt,
         actionId,
+        leaseToken,
       );
+    return result.changes === 1;
   }
 
   getReservationGuard(userId) {
@@ -863,32 +1011,58 @@ export class XiaoyingLocalStore {
   }
 
   claimReservationGuard(guardId) {
+    const leaseToken = randomUUID();
+    const claimedAt = nowIso(this.clock);
+    const leaseExpiresAt = new Date(this.clock() + WRITE_LEASE_MS).toISOString();
     const result = this.db
       .prepare(
-        `UPDATE reservation_guards SET status = 'running', updated_at = ?
+        `UPDATE reservation_guards SET status = 'running', lease_token = ?,
+           lease_expires_at = ?, updated_at = ?
          WHERE id = ? AND status = 'active'`,
       )
-      .run(nowIso(this.clock), guardId);
-    return result.changes === 1;
+      .run(leaseToken, leaseExpiresAt, claimedAt, guardId);
+    return result.changes === 1 ? leaseToken : null;
+  }
+
+  recoverExpiredReservationGuardLeases() {
+    const recoveredAt = nowIso(this.clock);
+    return this.db
+      .prepare(
+        `UPDATE reservation_guards SET
+           status = 'paused',
+           last_error_code = 'LEASE_EXPIRED_RECONCILE_REQUIRED',
+           lease_token = NULL, lease_expires_at = NULL, updated_at = ?
+         WHERE status = 'running' AND lease_expires_at <= ?
+         RETURNING id, user_id AS userId`,
+      )
+      .all(recoveredAt, recoveredAt);
   }
 
   finishReservationGuardCheck(
     guardId,
-    { status = "active", errorCode = null, delayMs = 60_000, incrementCycle = false },
+    {
+      status = "active",
+      errorCode = null,
+      delayMs = 60_000,
+      incrementCycle = false,
+      leaseToken,
+    },
   ) {
     const allowedStatus = ["active", "paused", "completed"].includes(status)
       ? status
       : "paused";
     const updatedAt = nowIso(this.clock);
-    this.db
+    const result = this.db
       .prepare(
         `UPDATE reservation_guards SET
            status = ?,
            cycle_count = cycle_count + ?,
            next_check_at = ?,
            last_error_code = ?,
+           lease_token = NULL,
+           lease_expires_at = NULL,
            updated_at = ?
-         WHERE id = ? AND status = 'running'`,
+         WHERE id = ? AND status = 'running' AND lease_token = ?`,
       )
       .run(
         allowedStatus,
@@ -897,7 +1071,9 @@ export class XiaoyingLocalStore {
         errorCode,
         updatedAt,
         guardId,
+        leaseToken,
       );
+    return result.changes === 1;
   }
 
   exportUserData(userId) {
@@ -958,6 +1134,130 @@ export class XiaoyingLocalStore {
         : 0) +
       (["active", "running"].includes(backup.reservationGuard?.status) ? 1 : 0);
     return summary;
+  }
+
+  claimTaskExecution(userId, task, leaseMs = WRITE_LEASE_MS) {
+    const idempotencyKey = String(task?.idempotencyKey ?? "").trim();
+    if (!idempotencyKey || idempotencyKey.length > 160) {
+      throw new Error("幂等键格式无效");
+    }
+    const keyHash = hashToken(idempotencyKey);
+    const requestDigest = contentHash({
+      type: String(task?.type ?? ""),
+      payload: task?.payload ?? null,
+    });
+    const claimedAt = nowIso(this.clock);
+    const leaseToken = randomUUID();
+    const leaseExpiresAt = new Date(
+      this.clock() + Math.max(30_000, Number(leaseMs) || WRITE_LEASE_MS),
+    ).toISOString();
+    const expiresAt = new Date(this.clock() + 30 * DAY_MS).toISOString();
+
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.db
+        .prepare("DELETE FROM task_executions WHERE expires_at <= ?")
+        .run(claimedAt);
+      const existing = this.db
+        .prepare(
+          `SELECT request_digest, status, result_json, lease_expires_at
+           FROM task_executions
+           WHERE user_id = ? AND idempotency_key_hash = ?`,
+        )
+        .get(userId, keyHash);
+
+      if (existing) {
+        if (existing.request_digest !== requestDigest) {
+          this.db.exec("COMMIT");
+          return { state: "conflict" };
+        }
+        if (["succeeded", "failed"].includes(existing.status) && existing.result_json) {
+          const result = JSON.parse(existing.result_json);
+          this.db.exec("COMMIT");
+          return { state: "replay", result };
+        }
+        if (existing.status === "review_required") {
+          this.db.exec("COMMIT");
+          return { state: "review_required" };
+        }
+        if (
+          existing.status === "running" &&
+          Date.parse(existing.lease_expires_at ?? "") > this.clock()
+        ) {
+          this.db.exec("COMMIT");
+          return { state: "in_progress" };
+        }
+        this.db
+          .prepare(
+            `UPDATE task_executions SET
+               status = 'review_required', lease_token = NULL,
+               lease_expires_at = NULL, updated_at = ?
+             WHERE user_id = ? AND idempotency_key_hash = ?`,
+          )
+          .run(claimedAt, userId, keyHash);
+        this.db.exec("COMMIT");
+        return { state: "review_required" };
+      }
+
+      this.db
+        .prepare(
+          `INSERT INTO task_executions
+            (id, user_id, idempotency_key_hash, request_digest, task_type,
+             status, lease_token, lease_expires_at, expires_at, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, 'running', ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          randomUUID(),
+          userId,
+          keyHash,
+          requestDigest,
+          String(task?.type ?? "unknown").slice(0, 100),
+          leaseToken,
+          leaseExpiresAt,
+          expiresAt,
+          claimedAt,
+          claimedAt,
+        );
+      this.db.exec("COMMIT");
+      return { state: "claimed", leaseToken };
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  finishTaskExecution(userId, idempotencyKey, leaseToken, result, auditRecord) {
+    const keyHash = hashToken(String(idempotencyKey ?? "").trim());
+    const updatedAt = nowIso(this.clock);
+    const resultJson = JSON.stringify(result);
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const updated = this.db
+        .prepare(
+          `UPDATE task_executions SET status = ?, result_json = ?,
+             lease_token = NULL, lease_expires_at = NULL, updated_at = ?
+           WHERE user_id = ? AND idempotency_key_hash = ?
+             AND status = 'running' AND lease_token = ?`,
+        )
+        .run(
+          result?.status === "succeeded" ? "succeeded" : "failed",
+          resultJson,
+          updatedAt,
+          userId,
+          keyHash,
+          leaseToken,
+        );
+      if (updated.changes !== 1) {
+        this.db.exec("ROLLBACK");
+        return false;
+      }
+      this.appendAudit(userId, auditRecord);
+      this.db.exec("COMMIT");
+      return true;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
   }
 
   appendAudit(userId, record) {
@@ -1204,18 +1504,43 @@ export class XiaoyingLocalStore {
     return { courses, assignments, events, notifications, syncState };
   }
 
-  #seedDefaultInvite(defaultInviteCode) {
+  #seedDefaultInvite(defaultInviteCode, defaultInviteMaxUses) {
+    const maxUses = Math.max(1, Math.min(Number(defaultInviteMaxUses) || 20, 500));
     const exists = this.db
-      .prepare("SELECT 1 AS ok FROM invite_codes WHERE label = 'default-local-vip'")
+      .prepare(
+        `SELECT id, code_hash, max_uses AS maxUses
+         FROM invite_codes WHERE label = 'default-local-vip'`,
+      )
       .get();
-    if (exists) return;
+    if (exists) {
+      const codeMatches = verifyInviteCode(defaultInviteCode, exists.code_hash);
+      this.db
+        .prepare(
+          `UPDATE invite_codes SET code_hash = ?, max_uses = ?,
+             use_count = CASE WHEN ? THEN use_count ELSE 0 END,
+             enabled = 1
+           WHERE id = ?`,
+        )
+        .run(
+          codeMatches ? exists.code_hash : hashInviteCode(defaultInviteCode),
+          maxUses,
+          codeMatches ? 1 : 0,
+          exists.id,
+        );
+      return;
+    }
     this.db
       .prepare(
         `INSERT INTO invite_codes
           (id, label, code_hash, max_uses, use_count, enabled, created_at)
-         VALUES (?, 'default-local-vip', ?, NULL, 0, 1, ?)`,
+         VALUES (?, 'default-local-vip', ?, ?, 0, 1, ?)`,
       )
-      .run(randomUUID(), hashInviteCode(defaultInviteCode), nowIso(this.clock));
+      .run(
+        randomUUID(),
+        hashInviteCode(defaultInviteCode),
+        maxUses,
+        nowIso(this.clock),
+      );
   }
 
   #migrate() {
@@ -1234,6 +1559,18 @@ export class XiaoyingLocalStore {
         enabled INTEGER NOT NULL DEFAULT 1,
         created_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS public_rate_limits (
+        scope TEXT NOT NULL,
+        key_digest TEXT NOT NULL,
+        request_count INTEGER NOT NULL,
+        window_expires_at INTEGER NOT NULL,
+        last_seen_at INTEGER NOT NULL,
+        PRIMARY KEY (scope, key_digest),
+        CHECK (length(key_digest) = 64),
+        CHECK (request_count >= 1)
+      );
+      CREATE INDEX IF NOT EXISTS idx_public_rate_limits_last_seen
+        ON public_rate_limits(last_seen_at);
       CREATE TABLE IF NOT EXISTS vip_entitlements (
         user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
         source TEXT NOT NULL,
@@ -1295,6 +1632,23 @@ export class XiaoyingLocalStore {
         created_at TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_audit_user_time ON audit_logs(user_id, created_at DESC);
+      CREATE TABLE IF NOT EXISTS task_executions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        idempotency_key_hash TEXT NOT NULL,
+        request_digest TEXT NOT NULL,
+        task_type TEXT NOT NULL,
+        status TEXT NOT NULL,
+        result_json TEXT,
+        lease_token TEXT,
+        lease_expires_at TEXT,
+        expires_at TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE(user_id, idempotency_key_hash)
+      );
+      CREATE INDEX IF NOT EXISTS idx_task_executions_expiry
+        ON task_executions(expires_at);
       CREATE TABLE IF NOT EXISTS user_settings (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -1328,6 +1682,8 @@ export class XiaoyingLocalStore {
         next_check_at TEXT NOT NULL,
         last_checked_at TEXT,
         last_error_code TEXT,
+        lease_token TEXT,
+        lease_expires_at TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         UNIQUE(user_id, library_id, seat_key)
@@ -1347,6 +1703,8 @@ export class XiaoyingLocalStore {
         attempt_count INTEGER NOT NULL DEFAULT 0,
         max_attempts INTEGER NOT NULL DEFAULT 3,
         last_error_code TEXT,
+        lease_token TEXT,
+        lease_expires_at TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         completed_at TEXT
@@ -1363,6 +1721,8 @@ export class XiaoyingLocalStore {
         cycle_count INTEGER NOT NULL DEFAULT 0,
         next_check_at TEXT NOT NULL,
         last_error_code TEXT,
+        lease_token TEXT,
+        lease_expires_at TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
@@ -1435,6 +1795,28 @@ export class XiaoyingLocalStore {
         UNIQUE(user_id, provider)
       );
     `);
+    this.#ensureColumn("seat_watches", "lease_token", "TEXT");
+    this.#ensureColumn("seat_watches", "lease_expires_at", "TEXT");
+    this.#ensureColumn("scheduled_library_actions", "lease_token", "TEXT");
+    this.#ensureColumn("scheduled_library_actions", "lease_expires_at", "TEXT");
+    this.#ensureColumn("reservation_guards", "lease_token", "TEXT");
+    this.#ensureColumn("reservation_guards", "lease_expires_at", "TEXT");
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_seat_watches_lease
+        ON seat_watches(status, next_check_at, lease_expires_at);
+      CREATE INDEX IF NOT EXISTS idx_scheduled_library_actions_lease
+        ON scheduled_library_actions(status, lease_expires_at);
+      CREATE INDEX IF NOT EXISTS idx_reservation_guards_lease
+        ON reservation_guards(status, lease_expires_at);
+    `);
+  }
+
+  #ensureColumn(table, column, definition) {
+    const exists = this.db
+      .prepare(`PRAGMA table_info(${table})`)
+      .all()
+      .some((item) => item.name === column);
+    if (!exists) this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
   }
 }
 

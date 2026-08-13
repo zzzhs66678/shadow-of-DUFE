@@ -7,11 +7,15 @@
     "node": ">=22.13.0"
   },
   "scripts": {
+    "admin:bootstrap": "node bin/bootstrap-admin.mjs",
     "start": "node src/index.mjs",
     "test": "node --test test/*.test.mjs",
     "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
-    "pg": "8.22.0"
+    "@node-rs/argon2": "2.0.2",
+    "nodemailer": "9.0.3",
+    "pg": "8.22.0",
+    "sharp": "0.35.3"
   }
 }

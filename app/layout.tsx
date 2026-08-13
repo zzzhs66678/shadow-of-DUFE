@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./product-system.css";
+import "./red-access-system.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://dufesh.cn"),
@@ -43,8 +44,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#eaf1f2",
-  colorScheme: "light dark",
+  themeColor: "#f4f4ef",
+  colorScheme: "light",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",

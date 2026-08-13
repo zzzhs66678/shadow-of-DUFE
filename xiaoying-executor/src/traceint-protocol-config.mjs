@@ -70,7 +70,7 @@ export function validateTraceIntProtocol(input = {}) {
       input.cookieEndpoint ?? TRACEINT_PROTOCOL.cookieEndpoint,
       "cookieEndpoint",
       {
-        protocols: ["http:", "https:"],
+        protocols: ["https:"],
         hostname: "wechat.v2.traceint.com",
         pathPrefix: "/index.php/urlNew/",
       },

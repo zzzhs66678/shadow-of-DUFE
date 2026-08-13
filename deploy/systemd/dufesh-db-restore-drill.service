@@ -1,0 +1,14 @@
+[Unit]
+Description=Restore and validate a Dufesh PostgreSQL backup in a temporary database
+After=docker.service dufesh-db-backup.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/srv/apps/dufesh/current/ops/postgres/restore-drill.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+PrivateTmp=true
+NoNewPrivileges=true
+TimeoutStartSec=30min

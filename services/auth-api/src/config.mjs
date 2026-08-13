@@ -7,13 +7,63 @@ function positiveInteger(value, fallback, name) {
   return resolved;
 }
 
+function booleanValue(value, fallback, name) {
+  if (value === undefined || value === "") return fallback;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  throw new Error(`${name} must be true or false`);
+}
+
+function adminKeyring(value, activeKeyId) {
+  let parsed;
+  try {
+    parsed = JSON.parse(value || "{}");
+  } catch {
+    throw new Error("AUTH_ADMIN_MFA_KEYS must be a JSON object");
+  }
+  if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
+    throw new Error("AUTH_ADMIN_MFA_KEYS must be a JSON object");
+  }
+  const entries = Object.entries(parsed);
+  for (const [keyId, encoded] of entries) {
+    const decoded = Buffer.from(String(encoded), "base64");
+    if (
+      !/^[A-Za-z0-9._-]{1,48}$/u.test(keyId) ||
+      decoded.length !== 32 ||
+      decoded.toString("base64") !== encoded
+    ) {
+      throw new Error(
+        "AUTH_ADMIN_MFA_KEYS must map safe key IDs to exactly 32 base64-encoded bytes",
+      );
+    }
+  }
+  if (!activeKeyId || !Object.hasOwn(parsed, activeKeyId)) {
+    throw new Error("AUTH_ADMIN_MFA_ACTIVE_KEY_ID must select a configured key");
+  }
+  return parsed;
+}
+
+function plainEmailAddress(value, name) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (
+    normalized.length > 254 ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(normalized) ||
+    /[\r\n]/u.test(normalized)
+  ) {
+    throw new Error(`${name} must be a plain email address`);
+  }
+  return normalized;
+}
+
 export function loadConfig(env = process.env) {
+  const nodeEnv = env.NODE_ENV || "development";
   const tokenPepper = env.AUTH_TOKEN_PEPPER ?? "";
   if (tokenPepper.length < 32) {
     throw new Error("AUTH_TOKEN_PEPPER must contain at least 32 characters");
   }
-  if (!env.POSTGRES_PASSWORD) {
-    throw new Error("POSTGRES_PASSWORD is required");
+  const databasePassword = env.AUTH_DB_PASSWORD || env.POSTGRES_PASSWORD;
+  if (!databasePassword) {
+    throw new Error("AUTH_DB_PASSWORD or POSTGRES_PASSWORD is required");
   }
 
   const publicOrigin = new URL(
@@ -44,6 +94,90 @@ export function loadConfig(env = process.env) {
 
   if (allowedOrigins.size === 0) {
     throw new Error("AUTH_ALLOWED_ORIGINS must not be empty");
+  }
+
+  const passwordResetMode =
+    env.AUTH_PASSWORD_RESET_MODE ||
+    (nodeEnv === "production" ? "disabled" : "response");
+  if (!["disabled", "response", "smtp"].includes(passwordResetMode)) {
+    throw new Error(
+      "AUTH_PASSWORD_RESET_MODE must be disabled, response, or smtp",
+    );
+  }
+  if (nodeEnv === "production" && passwordResetMode === "response") {
+    throw new Error(
+      "AUTH_PASSWORD_RESET_MODE=response is forbidden in production",
+    );
+  }
+
+  const emailVerificationMode =
+    env.AUTH_EMAIL_VERIFICATION_MODE ||
+    (nodeEnv === "production" ? "disabled" : "response");
+  if (!["disabled", "response", "smtp"].includes(emailVerificationMode)) {
+    throw new Error(
+      "AUTH_EMAIL_VERIFICATION_MODE must be disabled, response, or smtp",
+    );
+  }
+  if (nodeEnv === "production" && emailVerificationMode === "response") {
+    throw new Error(
+      "AUTH_EMAIL_VERIFICATION_MODE=response is forbidden in production",
+    );
+  }
+
+  const smtpRequired =
+    passwordResetMode === "smtp" || emailVerificationMode === "smtp";
+  let smtp = null;
+  if (smtpRequired) {
+    const host = String(env.AUTH_SMTP_HOST ?? "").trim().toLowerCase();
+    const secure = booleanValue(
+      env.AUTH_SMTP_SECURE,
+      true,
+      "AUTH_SMTP_SECURE",
+    );
+    const user = String(env.AUTH_SMTP_USER ?? "").trim();
+    const password = String(env.AUTH_SMTP_PASSWORD ?? "");
+    if (!/^[a-z0-9.-]+$/u.test(host) || !host.includes(".")) {
+      throw new Error("AUTH_SMTP_HOST must be a DNS hostname");
+    }
+    if (!user || !password) {
+      throw new Error("AUTH_SMTP_USER and AUTH_SMTP_PASSWORD are required");
+    }
+    smtp = {
+      host,
+      port: positiveInteger(
+        env.AUTH_SMTP_PORT,
+        secure ? 465 : 587,
+        "AUTH_SMTP_PORT",
+      ),
+      secure,
+      user,
+      password,
+      from: plainEmailAddress(env.AUTH_EMAIL_FROM, "AUTH_EMAIL_FROM"),
+    };
+  }
+
+  const adminEnabled = booleanValue(
+    env.AUTH_ADMIN_ENABLED,
+    false,
+    "AUTH_ADMIN_ENABLED",
+  );
+  const adminMfaActiveKeyId = String(
+    env.AUTH_ADMIN_MFA_ACTIVE_KEY_ID ?? "",
+  ).trim();
+  const adminRecoveryPepper = String(
+    env.AUTH_ADMIN_RECOVERY_PEPPER ?? "",
+  );
+  let adminMfaKeys = {};
+  if (adminEnabled) {
+    adminMfaKeys = adminKeyring(
+      env.AUTH_ADMIN_MFA_KEYS,
+      adminMfaActiveKeyId,
+    );
+    if (adminRecoveryPepper.length < 32) {
+      throw new Error(
+        "AUTH_ADMIN_RECOVERY_PEPPER must contain at least 32 characters when admin access is enabled",
+      );
+    }
   }
 
   return {
@@ -79,10 +213,48 @@ export function loadConfig(env = process.env) {
       host: env.PGHOST || "postgres",
       port: positiveInteger(env.PGPORT, 5432, "PGPORT"),
       database: env.POSTGRES_DB || "dufesh",
-      user: env.POSTGRES_USER || "dufesh_app",
-      password: env.POSTGRES_PASSWORD,
+      user: env.AUTH_DB_USER || env.POSTGRES_USER || "dufesh_runtime",
+      password: databasePassword,
     },
     publicOrigin: publicOrigin.origin,
+    credentialsEnabled: booleanValue(
+      env.AUTH_CREDENTIALS_ENABLED,
+      true,
+      "AUTH_CREDENTIALS_ENABLED",
+    ),
+    passwordResetMode,
+    passwordResetTtlSeconds: Math.min(
+      positiveInteger(
+        env.AUTH_PASSWORD_RESET_TTL_SECONDS,
+        1_800,
+        "AUTH_PASSWORD_RESET_TTL_SECONDS",
+      ),
+      3_600,
+    ),
+    emailVerificationMode,
+    emailVerificationTtlSeconds: Math.min(
+      positiveInteger(
+        env.AUTH_EMAIL_VERIFICATION_TTL_SECONDS,
+        86_400,
+        "AUTH_EMAIL_VERIFICATION_TTL_SECONDS",
+      ),
+      86_400,
+    ),
+    adminEnabled,
+    adminCookie:
+      env.AUTH_ADMIN_COOKIE || "__Host-dufesh_admin_elevation",
+    adminMfaActiveKeyId,
+    adminMfaKeys,
+    adminRecoveryPepper,
+    adminElevationTtlSeconds: Math.min(
+      positiveInteger(
+        env.AUTH_ADMIN_ELEVATION_TTL_SECONDS,
+        600,
+        "AUTH_ADMIN_ELEVATION_TTL_SECONDS",
+      ),
+      900,
+    ),
+    smtp,
     wechatMode,
     mockLoginSecret,
   };

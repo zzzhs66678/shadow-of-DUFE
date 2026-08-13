@@ -9,12 +9,266 @@ permissions:
   contents: read
 
 jobs:
+  container-builds:
+    name: linux-production-images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Build production images
+        run: |
+          docker build \
+            --build-arg NODE_IMAGE=node:22-alpine \
+            --build-arg NEXT_PUBLIC_XIAOYING_URL=/campus-lab/ \
+            --tag dufesh-app:ci \
+            .
+          docker build \
+            --build-arg NODE_IMAGE=node:22-alpine \
+            --tag dufesh-auth-api:ci \
+            services/auth-api
+          docker build \
+            --build-arg NODE_IMAGE=node:22-alpine \
+            --tag dufesh-xiaoying:ci \
+            xiaoying-executor
+      - name: Verify non-root runtime and native dependencies
+        run: |
+          for image in dufesh-app:ci dufesh-auth-api:ci dufesh-xiaoying:ci; do
+            test "$(docker image inspect --format '{{.Config.User}}' "$image")" = "node"
+          done
+          docker run --rm --entrypoint node dufesh-auth-api:ci \
+            --input-type=module \
+            --eval "await Promise.all([import('@node-rs/argon2'), import('nodemailer'), import('sharp'), import('pg')]); console.log('auth runtime dependencies loaded')"
+          docker run --rm --entrypoint node dufesh-xiaoying:ci \
+            --input-type=module \
+            --eval "await import('qrcode'); console.log('xiaoying runtime dependencies loaded')"
+          docker run --rm --entrypoint npm dufesh-app:ci \
+            ls image-size --all
+          docker run --rm --entrypoint node dufesh-app:ci \
+            --input-type=module \
+            --eval "const manifest = JSON.parse(await (await import('node:fs/promises')).readFile(new URL('./node_modules/image-size/package.json', import.meta.url), 'utf8')); if (manifest.version !== '2.0.3-dufesh.0') throw new Error('unexpected image-size version: ' + manifest.version); console.log('fail-closed image-size package loaded')"
+      - name: Smoke-test the production gateway
+        run: |
+          container_id="$(docker run --detach --publish 127.0.0.1:3000:3000 dufesh-app:ci)"
+          trap 'docker logs "$container_id"; docker rm --force "$container_id" >/dev/null' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error --output /dev/null http://127.0.0.1:3000/; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Production gateway did not become ready" >&2
+          exit 1
+      - name: Start and smoke-test the isolated staging stack
+        run: |
+          docker tag dufesh-app:ci "dufesh-app:$GITHUB_SHA"
+          docker tag dufesh-auth-api:ci "dufesh-auth-api:$GITHUB_SHA"
+          config_dir="$(mktemp -d)"
+          resources_dir="$(mktemp -d)"
+          postgres_env="$config_dir/postgres.env"
+          auth_env="$config_dir/auth.env"
+          cat > "$postgres_env" <<'EOF'
+          POSTGRES_DB=dufesh_ci_staging
+          POSTGRES_USER=dufesh_owner
+          POSTGRES_PASSWORD=ci-owner-password
+          PGDATA=/var/lib/postgresql/data/pgdata
+          MIGRATION_DB_ROLE=dufesh_schema_owner_ci
+          MIGRATION_DB_USER=dufesh_migrator_ci
+          MIGRATION_DB_PASSWORD=ci-migrator-password
+          AUTH_DB_USER=dufesh_runtime_ci
+          AUTH_DB_PASSWORD=ci-runtime-password
+          IMPORT_DB_USER=dufesh_import_ci
+          IMPORT_DB_PASSWORD=ci-import-password
+          BACKUP_DB_USER=dufesh_backup_ci
+          BACKUP_DB_PASSWORD=ci-backup-password
+          EOF
+          cat > "$auth_env" <<'EOF'
+          AUTH_TOKEN_PEPPER=ci-token-pepper-that-is-longer-than-thirty-two-characters
+          AUTH_ALLOWED_ORIGINS=https://localhost:8443
+          AUTH_PUBLIC_ORIGIN=https://localhost:8443
+          AUTH_CREDENTIALS_ENABLED=true
+          AUTH_PASSWORD_RESET_MODE=disabled
+          AUTH_EMAIL_VERIFICATION_MODE=disabled
+          AUTH_ADMIN_ENABLED=false
+          AUTH_ADMIN_MFA_KEYS={"ci":"0123456789abcdef0123456789abcdef"}
+          AUTH_ADMIN_RECOVERY_PEPPER=ci-recovery-pepper-that-is-longer-than-thirty-two-characters
+          AUTH_WECHAT_MODE=disabled
+          EOF
+          chmod 600 "$postgres_env" "$auth_env"
+          export DUFESH_IMAGE_TAG="$GITHUB_SHA"
+          export DUFESH_STAGING_ORIGIN=https://localhost:8443
+          export DUFESH_STAGING_SITE_ADDRESS=https://localhost
+          export DUFESH_STAGING_POSTGRES_ENV_FILE="$postgres_env"
+          export DUFESH_STAGING_AUTH_ENV_FILE="$auth_env"
+          export DUFESH_STAGING_RESOURCES_DIR="$resources_dir"
+          project="dufesh-staging-${GITHUB_SHA:0:8}"
+          cleanup() {
+            docker compose -p "$project" -f docker-compose.staging.yml down --volumes || true
+            rm -rf "$config_dir" "$resources_dir"
+          }
+          trap cleanup EXIT
+          sh ops/staging/preflight.sh
+          docker compose -p "$project" -f docker-compose.staging.yml --profile tools run --rm migrate
+          docker compose -p "$project" -f docker-compose.staging.yml up -d --no-build
+          for attempt in $(seq 1 45); do
+            if sh ops/staging/smoke.sh; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose -p "$project" -f docker-compose.staging.yml ps
+          docker compose -p "$project" -f docker-compose.staging.yml logs --no-color --tail 100
+          exit 1
+
+  postgres-integration:
+    name: postgres-17-integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: dufesh_ci
+          POSTGRES_USER: dufesh_owner
+          POSTGRES_PASSWORD: ci-owner-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dufesh_owner -d dufesh_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      POSTGRES_DB: dufesh_ci
+      POSTGRES_USER: dufesh_owner
+      POSTGRES_PASSWORD: ci-owner-password
+      MIGRATION_DB_ROLE: dufesh_schema_owner_ci
+      MIGRATION_DB_USER: dufesh_migrator_ci
+      MIGRATION_DB_PASSWORD: ci-migrator-password
+      AUTH_DB_USER: dufesh_runtime_ci
+      AUTH_DB_PASSWORD: ci-runtime-password
+      IMPORT_DB_USER: dufesh_import_ci
+      IMPORT_DB_PASSWORD: ci-import-password
+      BACKUP_DB_USER: dufesh_backup_ci
+      BACKUP_DB_PASSWORD: ci-backup-password
+      POSTGRES_INTEGRATION: "true"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install PostgreSQL client and Node dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ca-certificates curl
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl --fail --silent --show-error \
+            --output /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client-17
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm ci --prefix services/auth-api --ignore-scripts --no-audit --no-fund
+      - name: Apply migrations twice
+        run: |
+          MIGRATIONS_DIR="$GITHUB_WORKSPACE/ops/postgres/migrations" sh ops/postgres/run-migrations.sh
+          MIGRATIONS_DIR="$GITHUB_WORKSPACE/ops/postgres/migrations" sh ops/postgres/run-migrations.sh
+      - name: Verify PostgreSQL roles and real auth/community flows
+        run: node --test tests/postgres-runtime-integration.test.mjs
+      - name: Install Chromium for authenticated browser checks
+        run: npx playwright install --with-deps chromium
+      - name: Run the PostgreSQL-backed browser critical path
+        env:
+          NODE_ENV: test
+          AUTH_API_PORT: "3100"
+          AUTH_TOKEN_PEPPER: ci-token-pepper-that-is-longer-than-thirty-two-characters
+          AUTH_ALLOWED_ORIGINS: http://localhost:3000
+          AUTH_PUBLIC_ORIGIN: https://dufesh.cn
+          AUTH_WECHAT_MODE: disabled
+          AUTH_PASSWORD_RESET_MODE: response
+          AUTH_EMAIL_VERIFICATION_MODE: response
+          AUTH_ADMIN_ENABLED: "true"
+          AUTH_ADMIN_MFA_ACTIVE_KEY_ID: ci-key
+          AUTH_ADMIN_MFA_KEYS: '{"ci-key":"REREREREREREREREREREREREREREREREREREREREREQ="}'
+          AUTH_ADMIN_RECOVERY_PEPPER: ci-recovery-pepper-that-is-longer-than-thirty-two-characters
+        run: |
+          auth_log="$RUNNER_TEMP/auth-api-browser.log"
+          app_log="$RUNNER_TEMP/app-browser.log"
+          node services/auth-api/src/index.mjs >"$auth_log" 2>&1 &
+          auth_pid=$!
+          AUTH_API_DEV_TARGET=http://127.0.0.1:3100 npm run dev >"$app_log" 2>&1 &
+          app_pid=$!
+          cleanup() {
+            status=$?
+            trap - EXIT
+            kill "$app_pid" "$auth_pid" 2>/dev/null || true
+            wait "$app_pid" "$auth_pid" 2>/dev/null || true
+            if [ "$status" -ne 0 ]; then
+              cat "$auth_log" "$app_log"
+            fi
+            exit "$status"
+          }
+          trap cleanup EXIT
+          ready=0
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent --output /dev/null http://localhost:3000/api/auth/health; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          test "$ready" = "1"
+          PLAYWRIGHT_BASE_URL=http://localhost:3000 \
+            npx playwright test --config playwright.postgres.config.ts
+      - name: Run isolated backup restore drill
+        run: |
+          drill_dir="$RUNNER_TEMP/postgres-restore-drill"
+          backup_file="$drill_dir/${POSTGRES_DB}-ci.dump"
+          env_file="$drill_dir/postgres.env"
+          mkdir -p "$drill_dir"
+          PGPASSWORD="$BACKUP_DB_PASSWORD" pg_dump \
+            --host "$PGHOST" \
+            --port "$PGPORT" \
+            --username "$BACKUP_DB_USER" \
+            --dbname "$POSTGRES_DB" \
+            --format custom \
+            --compress 9 \
+            --no-owner \
+            --no-privileges \
+            --file "$backup_file"
+          (cd "$drill_dir" && sha256sum "$(basename "$backup_file")" > "$(basename "$backup_file").sha256")
+          printf 'POSTGRES_DB=%s\nPOSTGRES_USER=%s\nPOSTGRES_PASSWORD=%s\nPGHOST=%s\nPGPORT=%s\n' \
+            "$POSTGRES_DB" "$POSTGRES_USER" "$POSTGRES_PASSWORD" "$PGHOST" "$PGPORT" > "$env_file"
+          chmod 600 "$env_file"
+          DUFESH_POSTGRES_ENV_FILE="$env_file" \
+            BACKUP_DIR="$drill_dir" \
+            RESTORE_DRILL_MODE=native \
+            RESTORE_DRILL_MAX_SECONDS=120 \
+            sh ops/postgres/restore-drill.sh "$backup_file"
+          remaining="$(PGPASSWORD="$POSTGRES_PASSWORD" psql \
+            --host "$PGHOST" --port "$PGPORT" \
+            --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
+            --tuples-only --no-align \
+            --command "SELECT count(*) FROM pg_database WHERE datname LIKE 'dufesh_restore_drill_%'")"
+          test "$remaining" = "0"
+
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 22
           cache: npm
@@ -22,31 +276,103 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Install Xiaoying service
         run: npm ci --prefix xiaoying-executor --ignore-scripts --no-audit --no-fund
+      - name: Install auth API
+        run: npm ci --prefix services/auth-api --ignore-scripts --no-audit --no-fund
+      - name: Install browser for accessibility checks
+        run: npx playwright install --with-deps chromium
       - name: Check production dependencies
         run: |
           npm audit --omit=dev --omit=optional --audit-level=high
+          npm audit --prefix services/auth-api --omit=dev --audit-level=high
           npm audit --prefix xiaoying-executor --omit=dev --audit-level=high
       - name: Run regression tests
         run: |
           node --test tests/course-schedule-logic.test.mjs
+          node --test tests/course-core-data.test.mjs
           node --test tests/product-experience.test.mjs
+          node --test tests/performance-budget.test.mjs
           node --test tests/infrastructure-contract.test.mjs
+          node --test tests/environment-contract.test.mjs
+          node --test tests/release-readiness.test.mjs
+          node --test tests/staging-release-contract.test.mjs
+          node --test tests/personal-storage.test.ts tests/personal-sync.test.ts
+          npm test --prefix services/auth-api
           npm run test:xiaoying
+      - name: Validate the isolated staging topology
+        run: |
+          config_dir="$(mktemp -d)"
+          resources_dir="$(mktemp -d)"
+          trap 'rm -rf "$config_dir" "$resources_dir"' EXIT
+          postgres_env="$config_dir/postgres.env"
+          auth_env="$config_dir/auth.env"
+          cat > "$postgres_env" <<'EOF'
+          POSTGRES_DB=dufesh_ci_staging
+          POSTGRES_USER=dufesh_owner
+          POSTGRES_PASSWORD=ci-owner-password
+          MIGRATION_DB_ROLE=dufesh_schema_owner_ci
+          MIGRATION_DB_USER=dufesh_migrator_ci
+          MIGRATION_DB_PASSWORD=ci-migrator-password
+          AUTH_DB_USER=dufesh_runtime_ci
+          AUTH_DB_PASSWORD=ci-runtime-password
+          IMPORT_DB_USER=dufesh_import_ci
+          IMPORT_DB_PASSWORD=ci-import-password
+          BACKUP_DB_USER=dufesh_backup_ci
+          BACKUP_DB_PASSWORD=ci-backup-password
+          EOF
+          cat > "$auth_env" <<'EOF'
+          AUTH_TOKEN_PEPPER=ci-token-pepper-that-is-longer-than-thirty-two-characters
+          AUTH_ALLOWED_ORIGINS=https://localhost:8443
+          AUTH_PUBLIC_ORIGIN=https://localhost:8443
+          AUTH_ADMIN_MFA_KEYS={"ci":"0123456789abcdef0123456789abcdef"}
+          AUTH_ADMIN_RECOVERY_PEPPER=ci-recovery-pepper-that-is-longer-than-thirty-two-characters
+          EOF
+          chmod 600 "$postgres_env" "$auth_env"
+          DUFESH_IMAGE_TAG="$GITHUB_SHA" \
+            DUFESH_STAGING_ORIGIN=https://localhost:8443 \
+            DUFESH_STAGING_SITE_ADDRESS=https://localhost \
+            DUFESH_STAGING_POSTGRES_ENV_FILE="$postgres_env" \
+            DUFESH_STAGING_AUTH_ENV_FILE="$auth_env" \
+            DUFESH_STAGING_RESOURCES_DIR="$resources_dir" \
+            sh ops/staging/preflight.sh
       - name: Build production app
         run: npm run build
+      - name: Type-check TypeScript
+        run: npm run typecheck
       - name: Check rendered HTML
-        run: node --test tests/rendered-html.test.mjs
+        run: |
+          node --test tests/rendered-html.test.mjs
+          node --test tests/production-server.test.mjs
+      - name: Check browser accessibility and responsive layouts
+        run: npm run test:browser
+
+  secret-scan:
+    name: full-history-secret-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "false"
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
 
   codeql:
     name: codeql
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
+      contents: read
       security-events: write
       packages: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: github/codeql-action/init@v3
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
         with:
           languages: javascript-typescript
-      - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6

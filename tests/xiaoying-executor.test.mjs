@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { createServer as createNetServer } from "node:net";
@@ -16,6 +17,10 @@ import { DemoLibraryAdapter } from "../xiaoying-executor/src/demo-library-adapte
 import { XiaoyingExecutor } from "../xiaoying-executor/src/executor.mjs";
 import { XiaoyingLocalStore } from "../xiaoying-executor/src/local-store.mjs";
 import { PairingService } from "../xiaoying-executor/src/pairing-service.mjs";
+import {
+  toPublicHttpError,
+  toPublicTaskError,
+} from "../xiaoying-executor/src/public-errors.mjs";
 import { SeatWatchRunner } from "../xiaoying-executor/src/seat-watch-runner.mjs";
 import { ScheduledReservationRunner } from "../xiaoying-executor/src/scheduled-reservation-runner.mjs";
 import { ReservationGuardRunner } from "../xiaoying-executor/src/reservation-guard-runner.mjs";
@@ -55,6 +60,30 @@ test("X1 local console inline script remains valid JavaScript", () => {
   assert.doesNotThrow(() => new Function(scripts[0][1]));
 });
 
+test("production requires an explicit bounded invite allowance", async () => {
+  const env = {
+    ...process.env,
+    NODE_ENV: "production",
+    XIAOYING_DEFAULT_INVITE_CODE: "production-invite-code",
+    XIAOYING_MASTER_KEY: Buffer.alloc(32, 23).toString("base64"),
+    XIAOYING_PUBLIC_BASE_URL: "https://dufesh.cn/campus-lab",
+  };
+  delete env.XIAOYING_DEFAULT_INVITE_MAX_USES;
+  const child = spawn(process.execPath, ["xiaoying-executor/bin/server.mjs"], {
+    cwd: new URL("..", import.meta.url),
+    env,
+    stdio: ["ignore", "ignore", "pipe"],
+  });
+  let stderr = "";
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk;
+  });
+  const exitCode = await new Promise((resolve) => child.once("exit", resolve));
+
+  assert.equal(exitCode, 1);
+  assert.match(stderr, /XIAOYING_DEFAULT_INVITE_MAX_USES/);
+});
+
 test("production HTTP surface isolates cookies, paths, origins, and invite bursts", async () => {
   const directory = await mkdtemp(join(tmpdir(), "xiaoying-http-"));
   const port = await freePort();
@@ -69,6 +98,7 @@ test("production HTTP surface isolates cookies, paths, origins, and invite burst
       XIAOYING_PUBLIC_BASE_URL: "https://dufesh.cn/campus-lab",
       XIAOYING_BASE_PATH: "/campus-lab",
       XIAOYING_DEFAULT_INVITE_CODE: inviteCode,
+      XIAOYING_DEFAULT_INVITE_MAX_USES: "20",
       XIAOYING_MASTER_KEY: Buffer.alloc(32, 19).toString("base64"),
       XIAOYING_DATABASE_PATH: join(directory, "xiaoying.sqlite"),
       XIAOYING_TRACEINT_PROTOCOL_PATH: join(directory, "protocol.json"),
@@ -92,6 +122,16 @@ test("production HTTP surface isolates cookies, paths, origins, and invite burst
     const html = await page.text();
     assert.equal(page.headers.get("x-robots-tag"), "noindex, nofollow, noarchive");
     assert.match(html, /\/campus-lab\/v1\/me/);
+    const contentSecurityPolicy = page.headers.get("content-security-policy") ?? "";
+    assert.doesNotMatch(contentSecurityPolicy, /'unsafe-inline'/);
+    for (const source of html.matchAll(/<(script|style)[^>]*>([\s\S]*?)<\/\1>/g)) {
+      const hash = createHash("sha256").update(source[2]).digest("base64");
+      assert.equal(contentSecurityPolicy.includes(`'sha256-${hash}'`), true);
+    }
+    for (const source of html.matchAll(/\sstyle="([^"]*)"/g)) {
+      const hash = createHash("sha256").update(source[1]).digest("base64");
+      assert.equal(contentSecurityPolicy.includes(`'sha256-${hash}'`), true);
+    }
 
     const missingOrigin = await fetch(
       `http://127.0.0.1:${port}/v1/auth/invite`,
@@ -121,6 +161,92 @@ test("production HTTP surface isolates cookies, paths, origins, and invite burst
       headers: { cookie: sessionCookie },
     });
     assert.equal(currentUser.status, 200);
+
+    const issuedAt = Date.now();
+    const previewResponse = await fetch(
+      `http://127.0.0.1:${port}/v1/tasks/execute`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: sessionCookie,
+          origin: "https://dufesh.cn",
+        },
+        body: JSON.stringify({
+          taskId: "http-preview-1",
+          type: "library.preview_reservation",
+          issuedAt: new Date(issuedAt - 1_000).toISOString(),
+          expiresAt: new Date(issuedAt + 60_000).toISOString(),
+          payload: { seatId: "LIB-3F-032", date: "2026-08-10" },
+        }),
+      },
+    );
+    const preview = await previewResponse.json();
+    assert.equal(previewResponse.status, 200);
+    const confirmedTask = {
+      taskId: "http-confirm-1",
+      type: "library.confirm_reservation",
+      issuedAt: new Date(issuedAt - 1_000).toISOString(),
+      expiresAt: new Date(issuedAt + 60_000).toISOString(),
+      payload: { previewDigest: preview.data.previewDigest },
+      idempotencyKey: "http-confirm-reservation-1",
+      confirmation: {
+        confirmed: true,
+        confirmedAt: new Date(issuedAt).toISOString(),
+      },
+    };
+    const confirmedResponse = await fetch(
+      `http://127.0.0.1:${port}/v1/tasks/execute`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: sessionCookie,
+          origin: "https://dufesh.cn",
+        },
+        body: JSON.stringify(confirmedTask),
+      },
+    );
+    const confirmed = await confirmedResponse.json();
+    const replayResponse = await fetch(
+      `http://127.0.0.1:${port}/v1/tasks/execute`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: sessionCookie,
+          origin: "https://dufesh.cn",
+        },
+        body: JSON.stringify(confirmedTask),
+      },
+    );
+    const replay = await replayResponse.json();
+    assert.equal(confirmedResponse.status, 200);
+    assert.equal(replayResponse.status, 200);
+    assert.deepEqual(replay, confirmed);
+    const auditResponse = await fetch(`http://127.0.0.1:${port}/v1/audit`, {
+      headers: { cookie: sessionCookie },
+    });
+    const audit = await auditResponse.json();
+    assert.equal(
+      audit.records.filter((item) => item.type === "library.confirm_reservation").length,
+      1,
+    );
+
+    const malformedSecret = "private-provider-token";
+    const malformed = await fetch(`http://127.0.0.1:${port}/v1/preferences`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        cookie: sessionCookie,
+        origin: "https://dufesh.cn",
+      },
+      body: `{${malformedSecret}`,
+    });
+    const malformedBody = await malformed.json();
+    assert.equal(malformed.status, 400);
+    assert.equal(malformedBody.code, "INVALID_REQUEST");
+    assert.equal(JSON.stringify(malformedBody).includes(malformedSecret), false);
 
     const missingDeleteOrigin = await fetch(
       `http://127.0.0.1:${port}/v1/me`,
@@ -190,6 +316,13 @@ test("TraceInt protocol overrides reject untrusted endpoints", () => {
       }),
     /协议不受支持/,
   );
+  assert.throws(
+    () =>
+      validateTraceIntProtocol({
+        cookieEndpoint: "http://wechat.v2.traceint.com/index.php/urlNew/auth.html",
+      }),
+    /协议不受支持/,
+  );
 });
 
 test("TraceInt protocol configuration is versioned and can roll back", async () => {
@@ -250,6 +383,121 @@ test("X0 executor exposes only the narrow read surface", async () => {
   assert.equal(favorites.data.seats.length, 2);
   assert.equal(forbidden.status, "failed");
   assert.equal(forbidden.error.code, "TASK_NOT_ALLOWED");
+});
+
+test("public error boundaries never return raw exception messages", async () => {
+  const secret = "private-session-cookie";
+  const internal = toPublicHttpError(new Error(secret));
+  const invalid = toPublicHttpError(
+    Object.assign(new Error(`invalid ${secret}`), { statusCode: 400 }),
+  );
+  const taskError = toPublicTaskError("UNRECOGNIZED_INTERNAL_CODE");
+
+  assert.deepEqual(internal, {
+    status: 500,
+    code: "INTERNAL_ERROR",
+    message: "服务暂时无法处理请求，请稍后重试",
+  });
+  assert.equal(invalid.code, "INVALID_REQUEST");
+  assert.equal(JSON.stringify([internal, invalid, taskError]).includes(secret), false);
+
+  const executor = new XiaoyingExecutor({
+    libraryAdapter: {
+      async getStatus() {
+        throw new Error(`upstream failed with ${secret}`);
+      },
+    },
+    clock: () => baseTime,
+  });
+  const result = await executor.execute(task("library.get_status"));
+  assert.equal(result.error.code, "TASK_FAILED");
+  assert.equal(result.error.message, "任务执行失败，请稍后重试");
+  assert.equal(JSON.stringify(result).includes(secret), false);
+  assert.equal(JSON.stringify(executor.getAuditLog()).includes(secret), false);
+});
+
+test("durable confirmation results replay and expired executions require review after restart", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "xiaoying-task-ledger-"));
+  const databasePath = join(directory, "xiaoying.sqlite");
+  const masterKey = Buffer.alloc(32, 18);
+  let now = baseTime;
+  let store = new XiaoyingLocalStore({
+    databasePath,
+    masterKey,
+    defaultInviteCode: "fjbadguy",
+    clock: () => now,
+  });
+
+  try {
+    const { user } = store.unlockVip({
+      inviteCode: "fjbadguy",
+      displayName: "持久幂等测试",
+    });
+    const completedTask = task(
+      "library.confirm_reservation",
+      { previewDigest: "preview-one" },
+      { idempotencyKey: "durable-confirm-one" },
+    );
+    const completedClaim = store.claimTaskExecution(user.id, completedTask, 30_000);
+    const completedResult = {
+      taskId: completedTask.taskId,
+      type: completedTask.type,
+      status: "succeeded",
+      completedAt: new Date(now).toISOString(),
+      data: { reservationId: "reservation-one" },
+    };
+    assert.equal(completedClaim.state, "claimed");
+    assert.equal(
+      store.finishTaskExecution(
+        user.id,
+        completedTask.idempotencyKey,
+        completedClaim.leaseToken,
+        completedResult,
+        {
+          type: completedTask.type,
+          status: "succeeded",
+          idempotencyKey: completedTask.idempotencyKey,
+          completedAt: completedResult.completedAt,
+        },
+      ),
+      true,
+    );
+
+    const interruptedTask = task(
+      "library.confirm_cancellation",
+      { previewDigest: "preview-two" },
+      { idempotencyKey: "durable-confirm-two" },
+    );
+    assert.equal(
+      store.claimTaskExecution(user.id, interruptedTask, 30_000).state,
+      "claimed",
+    );
+    store.close();
+
+    now += 30_001;
+    store = new XiaoyingLocalStore({
+      databasePath,
+      masterKey,
+      defaultInviteCode: "fjbadguy",
+      clock: () => now,
+    });
+    const replay = store.claimTaskExecution(user.id, completedTask, 30_000);
+    const conflict = store.claimTaskExecution(
+      user.id,
+      { ...completedTask, payload: { previewDigest: "different-preview" } },
+      30_000,
+    );
+    const uncertain = store.claimTaskExecution(user.id, interruptedTask, 30_000);
+
+    assert.equal(replay.state, "replay");
+    assert.deepEqual(replay.result, completedResult);
+    assert.equal(conflict.state, "conflict");
+    assert.equal(uncertain.state, "review_required");
+    assert.equal(store.listAudit(user.id).length, 1);
+  } finally {
+    store.close();
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("reservation requires a fresh preview and explicit confirmation", async () => {
@@ -383,6 +631,123 @@ test("VIP invite creates an expiring local session without storing the raw code"
   store.revokeSession(unlocked.sessionToken);
   assert.equal(store.authenticate(unlocked.sessionToken), null);
   store.close();
+});
+
+test("default invite allowance survives restart and code rotation resets it safely", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "xiaoying-invite-limit-"));
+  const databasePath = join(directory, "xiaoying.sqlite");
+  const masterKey = Buffer.alloc(32, 24);
+  let store = new XiaoyingLocalStore({
+    databasePath,
+    masterKey,
+    defaultInviteCode: "bounded-invite-one",
+    defaultInviteMaxUses: 2,
+    clock: () => baseTime,
+  });
+
+  try {
+    store.unlockVip({ inviteCode: "bounded-invite-one", displayName: "第一位" });
+    store.unlockVip({ inviteCode: "bounded-invite-one", displayName: "第二位" });
+    assert.throws(
+      () =>
+        store.unlockVip({ inviteCode: "bounded-invite-one", displayName: "第三位" }),
+      /使用上限/,
+    );
+    store.close();
+
+    store = new XiaoyingLocalStore({
+      databasePath,
+      masterKey,
+      defaultInviteCode: "bounded-invite-one",
+      defaultInviteMaxUses: 2,
+      clock: () => baseTime,
+    });
+    assert.throws(
+      () => store.unlockVip({ inviteCode: "bounded-invite-one", displayName: "重启后" }),
+      /使用上限/,
+    );
+    store.close();
+
+    store = new XiaoyingLocalStore({
+      databasePath,
+      masterKey,
+      defaultInviteCode: "bounded-invite-two",
+      defaultInviteMaxUses: 1,
+      clock: () => baseTime,
+    });
+    assert.throws(
+      () => store.unlockVip({ inviteCode: "bounded-invite-one", displayName: "旧码" }),
+      /无效/,
+    );
+    store.unlockVip({ inviteCode: "bounded-invite-two", displayName: "新码" });
+    assert.throws(
+      () => store.unlockVip({ inviteCode: "bounded-invite-two", displayName: "超额" }),
+      /使用上限/,
+    );
+  } finally {
+    store.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("public rate limits survive restart without storing raw network identifiers", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "xiaoying-public-limit-"));
+  const databasePath = join(directory, "xiaoying.sqlite");
+  const masterKey = Buffer.alloc(32, 29);
+  let now = baseTime;
+  let store = new XiaoyingLocalStore({
+    databasePath,
+    masterKey,
+    defaultInviteCode: "bounded-rate-limit",
+    defaultInviteMaxUses: 20,
+    clock: () => now,
+  });
+  const input = {
+    scope: "invite",
+    key: "203.0.113.42",
+    limit: 2,
+    windowMs: 15 * 60_000,
+  };
+
+  try {
+    assert.equal(store.consumePublicRateLimit(input), true);
+    assert.equal(store.consumePublicRateLimit(input), true);
+    assert.equal(store.consumePublicRateLimit(input), false);
+    const stored = store.db
+      .prepare(
+        `SELECT key_digest, request_count
+         FROM public_rate_limits
+         WHERE scope = 'invite'`,
+      )
+      .get();
+    assert.equal(stored.key_digest.length, 64);
+    assert.equal(stored.key_digest.includes(input.key), false);
+    assert.equal(stored.request_count, 2);
+
+    store.close();
+    store = new XiaoyingLocalStore({
+      databasePath,
+      masterKey,
+      defaultInviteCode: "bounded-rate-limit",
+      defaultInviteMaxUses: 20,
+      clock: () => now,
+    });
+    assert.equal(store.consumePublicRateLimit(input), false);
+    assert.equal(
+      store.consumePublicRateLimit({ ...input, key: "203.0.113.43" }),
+      true,
+    );
+    assert.equal(
+      store.consumePublicRateLimit({ ...input, scope: "public-pairing" }),
+      true,
+    );
+
+    now += input.windowMs;
+    assert.equal(store.consumePublicRateLimit(input), true);
+  } finally {
+    store.close();
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("per-user model key is encrypted and API summaries never expose plaintext", () => {
@@ -576,6 +941,34 @@ test("TraceInt client exchanges authorization and maps normal library data", asy
     bookedSeats: 5,
   });
   assert.equal(requests.some((request) => request.options.headers?.cookie === cookie), true);
+  assert.equal(requests[0].url.startsWith("https://wechat.v2.traceint.com/"), true);
+});
+
+test("TraceInt authorization rejects plaintext redirects before sending cookies", async () => {
+  const requests = [];
+  const client = new TraceIntClient({
+    fetchImpl: async (url) => {
+      requests.push(String(url));
+      return {
+        status: 302,
+        ok: false,
+        headers: {
+          getSetCookie: () => ["wechatSESS_ID=private-session; Path=/"],
+          get: (name) =>
+            name === "location"
+              ? "http://web.traceint.com/web/index.html"
+              : null,
+        },
+      };
+    },
+  });
+
+  await assert.rejects(
+    client.exchangeAuthorization("abcdefgh1234"),
+    (error) => error?.code === "UNTRUSTED_REDIRECT",
+  );
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].startsWith("https://"), true);
 });
 
 test("TraceInt client maps layouts and reports expired sessions without leaking cookies", async () => {
@@ -946,6 +1339,50 @@ test("venue discovery reports available counts without writing reservations", as
   store.close();
 });
 
+test("expired read leases can be reclaimed without accepting stale results", () => {
+  let now = baseTime;
+  const store = new XiaoyingLocalStore({
+    databasePath: ":memory:",
+    masterKey: Buffer.alloc(32, 15),
+    defaultInviteCode: "fjbadguy",
+    clock: () => now,
+  });
+  const { user } = store.unlockVip({
+    inviteCode: "fjbadguy",
+    displayName: "读取租约测试",
+  });
+  store.saveSeatWatch(user.id, {
+    libraryId: "8",
+    libraryName: "四楼",
+    seatKey: "A-09",
+    seatLabel: "009",
+  });
+  const watch = store.listDueSeatWatches(1)[0];
+  const firstLease = store.claimSeatWatch(watch.id, 30_000);
+
+  assert.equal(typeof firstLease, "string");
+  assert.equal(store.claimSeatWatch(watch.id, 30_000), null);
+  now += 30_001;
+  const recoveredLease = store.claimSeatWatch(watch.id, 30_000);
+  assert.notEqual(recoveredLease, firstLease);
+  assert.equal(
+    store.finishSeatWatchCheck(watch.id, {
+      available: true,
+      leaseToken: firstLease,
+    }),
+    false,
+  );
+  assert.equal(
+    store.finishSeatWatchCheck(watch.id, {
+      available: true,
+      leaseToken: recoveredLease,
+    }),
+    true,
+  );
+  assert.equal(store.listSeatWatches(user.id)[0].status, "available");
+  store.close();
+});
+
 test("scheduled reservations claim once and persist a user notification", async () => {
   const store = new XiaoyingLocalStore({
     databasePath: ":memory:",
@@ -985,6 +1422,58 @@ test("scheduled reservations claim once and persist a user notification", async 
   assert.equal(reserveCount, 1);
   assert.equal(action.status, "succeeded");
   assert.equal(notification.title.includes("预约成功"), true);
+  store.close();
+});
+
+test("expired scheduled write leases require review instead of replaying", async () => {
+  let now = baseTime;
+  const store = new XiaoyingLocalStore({
+    databasePath: ":memory:",
+    masterKey: Buffer.alloc(32, 16),
+    defaultInviteCode: "fjbadguy",
+    clock: () => now,
+  });
+  const { user } = store.unlockVip({
+    inviteCode: "fjbadguy",
+    displayName: "定时预约恢复测试",
+  });
+  store.saveScheduledReservation(user.id, {
+    libraryId: "12",
+    libraryName: "北区三楼",
+    seatKey: "B-20",
+    seatLabel: "020",
+    runAt: new Date(now).toISOString(),
+  });
+  const action = store.listDueScheduledReservations(1)[0];
+  const staleLease = store.claimScheduledReservation(action.id);
+  let reserveCount = 0;
+  const runner = new ScheduledReservationRunner({
+    store,
+    adapterForUser: () => ({
+      reserve: async () => {
+        reserveCount += 1;
+      },
+    }),
+  });
+
+  now += 3 * 60_000 + 1;
+  await runner.runDue();
+  await runner.runDue();
+  const recovered = store.listScheduledReservations(user.id)[0];
+  const notifications = store.listNotifications(user.id);
+
+  assert.equal(reserveCount, 0);
+  assert.equal(recovered.status, "review_required");
+  assert.equal(recovered.lastErrorCode, "LEASE_EXPIRED_RECONCILE_REQUIRED");
+  assert.equal(notifications.length, 1);
+  assert.equal(notifications[0].title.includes("需要确认"), true);
+  assert.equal(
+    store.finishScheduledReservation(action.id, {
+      succeeded: true,
+      leaseToken: staleLease,
+    }),
+    false,
+  );
   store.close();
 });
 
@@ -1041,6 +1530,53 @@ test("reservation guard performs only the user-approved number of rebook cycles"
   assert.equal(reserveCount, 1);
   assert.equal(guard.status, "completed");
   assert.equal(guard.cycleCount, 1);
+  store.close();
+});
+
+test("expired guard leases pause without repeating cancel or reserve", async () => {
+  let now = baseTime;
+  const store = new XiaoyingLocalStore({
+    databasePath: ":memory:",
+    masterKey: Buffer.alloc(32, 17),
+    defaultInviteCode: "fjbadguy",
+    clock: () => now,
+  });
+  const { user } = store.unlockVip({
+    inviteCode: "fjbadguy",
+    displayName: "守护恢复测试",
+  });
+  const guard = store.enableReservationGuard(user.id);
+  const staleLease = store.claimReservationGuard(guard.id);
+  let remoteCalls = 0;
+  const runner = new ReservationGuardRunner({
+    store,
+    clock: () => now,
+    adapterForUser: () => ({
+      getStatus: async () => {
+        remoteCalls += 1;
+        return {};
+      },
+    }),
+  });
+
+  now += 3 * 60_000 + 1;
+  await runner.runDue();
+  await runner.runDue();
+  const recovered = store.getReservationGuard(user.id);
+  const notifications = store.listNotifications(user.id);
+
+  assert.equal(remoteCalls, 0);
+  assert.equal(recovered.status, "paused");
+  assert.equal(recovered.lastErrorCode, "LEASE_EXPIRED_RECONCILE_REQUIRED");
+  assert.equal(notifications.length, 1);
+  assert.equal(notifications[0].title.includes("请确认"), true);
+  assert.equal(
+    store.finishReservationGuardCheck(guard.id, {
+      status: "completed",
+      leaseToken: staleLease,
+    }),
+    false,
+  );
   store.close();
 });
 

@@ -72,7 +72,14 @@ type CloudSnapshot = {
   deduplicated?: boolean;
 };
 
-const SYNC_METADATA_KEY = "dufesh:personal-sync:v1";
+const LEGACY_SYNC_METADATA_KEY = "dufesh:personal-sync:v1";
+const SYNC_METADATA_PREFIX = "dufesh:personal-sync:v2:user";
+
+type MetadataStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+
+function syncMetadataKey(userId: string) {
+  return `${SYNC_METADATA_PREFIX}:${encodeURIComponent(userId)}`;
+}
 
 function unique(values: string[], limit?: number) {
   const result = [...new Set(values)];
@@ -478,17 +485,29 @@ export async function synchronizePersonalState({
   };
 }
 
-export function loadPersonalSyncMetadata(): PersonalSyncMetadata | null {
+export function loadPersonalSyncMetadata(
+  userId: string,
+  storage: MetadataStorage = localStorage,
+): PersonalSyncMetadata | null {
   try {
-    const parsed = JSON.parse(
-      localStorage.getItem(SYNC_METADATA_KEY) ?? "null",
-    ) as PersonalSyncMetadata | null;
+    const key = syncMetadataKey(userId);
+    const scoped = storage.getItem(key);
+    const legacy = scoped === null
+      ? storage.getItem(LEGACY_SYNC_METADATA_KEY)
+      : null;
+    const parsed = JSON.parse(scoped ?? legacy ?? "null") as
+      | PersonalSyncMetadata
+      | null;
     if (
       parsed?.schemaVersion !== 1 ||
-      typeof parsed.userId !== "string" ||
+      parsed.userId !== userId ||
       !Number.isSafeInteger(parsed.revision)
     ) {
       return null;
+    }
+    if (scoped === null && legacy !== null) {
+      storage.setItem(key, legacy);
+      storage.removeItem(LEGACY_SYNC_METADATA_KEY);
     }
     return {
       ...parsed,
@@ -502,10 +521,18 @@ export function loadPersonalSyncMetadata(): PersonalSyncMetadata | null {
   }
 }
 
-export function savePersonalSyncMetadata(value: PersonalSyncMetadata) {
-  localStorage.setItem(SYNC_METADATA_KEY, JSON.stringify(value));
+export function savePersonalSyncMetadata(
+  value: PersonalSyncMetadata,
+  storage: MetadataStorage = localStorage,
+) {
+  storage.setItem(syncMetadataKey(value.userId), JSON.stringify(value));
+  storage.removeItem(LEGACY_SYNC_METADATA_KEY);
 }
 
-export function clearPersonalSyncMetadata() {
-  localStorage.removeItem(SYNC_METADATA_KEY);
+export function clearPersonalSyncMetadata(
+  userId?: string,
+  storage: MetadataStorage = localStorage,
+) {
+  if (userId) storage.removeItem(syncMetadataKey(userId));
+  storage.removeItem(LEGACY_SYNC_METADATA_KEY);
 }

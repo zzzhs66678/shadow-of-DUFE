@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createServer } from "node:http";
-import { timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { networkInterfaces } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -11,7 +11,8 @@ import { DemoLibraryAdapter } from "../src/demo-library-adapter.mjs";
 import { XiaoyingExecutor } from "../src/executor.mjs";
 import { XiaoyingLocalStore } from "../src/local-store.mjs";
 import { loadOrCreateMasterKey } from "../src/secret-vault.mjs";
-import { PairingError, PairingService } from "../src/pairing-service.mjs";
+import { PairingService } from "../src/pairing-service.mjs";
+import { toPublicHttpError, toPublicTaskError } from "../src/public-errors.mjs";
 import { SeatWatchRunner } from "../src/seat-watch-runner.mjs";
 import { ScheduledReservationRunner } from "../src/scheduled-reservation-runner.mjs";
 import { ReservationGuardRunner } from "../src/reservation-guard-runner.mjs";
@@ -21,12 +22,29 @@ import { loadTraceIntProtocolConfig } from "../src/traceint-protocol-config.mjs"
 
 const host = process.env.XIAOYING_EXECUTOR_HOST ?? "127.0.0.1";
 const port = Number.parseInt(process.env.XIAOYING_EXECUTOR_PORT ?? "43120", 10);
-const bearerToken = process.env.XIAOYING_EXECUTOR_TOKEN ?? "";
 const isProduction = process.env.NODE_ENV === "production";
 const defaultInviteCode =
   process.env.XIAOYING_DEFAULT_INVITE_CODE ?? (isProduction ? "" : "fjbadguy");
+const defaultInviteMaxUses = Number.parseInt(
+  process.env.XIAOYING_DEFAULT_INVITE_MAX_USES ?? (isProduction ? "" : "20"),
+  10,
+);
 const configuredPublicBaseUrl = process.env.XIAOYING_PUBLIC_BASE_URL ?? "";
 const configuredBasePath = process.env.XIAOYING_BASE_PATH ?? "";
+const DURABLE_CONFIRM_TASKS = new Set([
+  "library.confirm_reservation",
+  "library.confirm_cancellation",
+]);
+
+function failedTaskResult(task, code) {
+  return {
+    taskId: typeof task?.taskId === "string" ? task.taskId : "invalid-task",
+    type: typeof task?.type === "string" ? task.type : "unknown",
+    status: "failed",
+    completedAt: new Date().toISOString(),
+    error: toPublicTaskError(code),
+  };
+}
 
 function normalizeBasePath(value) {
   const trimmed = String(value ?? "").trim();
@@ -47,6 +65,14 @@ const sessionCookieName = secureCookie
 
 if (isProduction && defaultInviteCode.length < 12) {
   console.error("生产环境必须配置至少 12 位的 XIAOYING_DEFAULT_INVITE_CODE");
+  process.exit(1);
+}
+if (
+  !Number.isInteger(defaultInviteMaxUses) ||
+  defaultInviteMaxUses < 1 ||
+  defaultInviteMaxUses > 500
+) {
+  console.error("必须配置 1-500 之间的 XIAOYING_DEFAULT_INVITE_MAX_USES");
   process.exit(1);
 }
 if (isProduction && !process.env.XIAOYING_MASTER_KEY) {
@@ -82,6 +108,27 @@ function htmlForBasePath(html) {
 }
 const servedUiHtml = htmlForBasePath(uiHtml);
 const servedPairHtml = htmlForBasePath(pairHtml);
+function inlineHashes(html, expression) {
+  return [...html.matchAll(expression)].map(
+    (match) => `'sha256-${createHash("sha256").update(match[1]).digest("base64")}'`,
+  );
+}
+const servedDocuments = `${servedUiHtml}\n${servedPairHtml}`;
+const scriptHashes = inlineHashes(servedDocuments, /<script[^>]*>([\s\S]*?)<\/script>/g);
+const styleHashes = inlineHashes(servedDocuments, /<style[^>]*>([\s\S]*?)<\/style>/g);
+const styleAttributeHashes = inlineHashes(servedDocuments, /\sstyle="([^"]*)"/g);
+const xiaoyingContentSecurityPolicy = [
+  "default-src 'self'",
+  "base-uri 'none'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "img-src 'self' data:",
+  "connect-src 'self'",
+  `script-src 'self' ${scriptHashes.join(" ")}`,
+  `style-src 'self' ${styleHashes.join(" ")}`,
+  `style-src-attr 'unsafe-hashes' ${styleAttributeHashes.join(" ")}`,
+].join("; ");
 const localDataDirectory = fileURLToPath(new URL("../.local-data/", import.meta.url));
 const databasePath =
   process.env.XIAOYING_DATABASE_PATH ??
@@ -105,6 +152,7 @@ const store = new XiaoyingLocalStore({
   databasePath,
   masterKey,
   defaultInviteCode,
+  defaultInviteMaxUses,
 });
 const pairingService = new PairingService();
 
@@ -179,7 +227,7 @@ function applySecurityHeaders(response) {
   response.setHeader("referrer-policy", "no-referrer");
   response.setHeader(
     "content-security-policy",
-    "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data:; connect-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
+    xiaoyingContentSecurityPolicy,
   );
   response.setHeader(
     "permissions-policy",
@@ -237,12 +285,6 @@ function clearSessionCookie(response) {
   );
 }
 
-function legacyBearerAuthorized(request) {
-  return Boolean(
-    bearerToken && request.headers.authorization === `Bearer ${bearerToken}`,
-  );
-}
-
 async function readJson(request, maxBytes = 64 * 1024) {
   const contentType = String(request.headers["content-type"] ?? "")
     .split(";", 1)[0]
@@ -257,31 +299,37 @@ async function readJson(request, maxBytes = 64 * 1024) {
   let size = 0;
   for await (const chunk of request) {
     size += chunk.length;
-    if (size > maxBytes) throw new Error("请求内容过大");
+    if (size > maxBytes) {
+      const error = new Error("请求内容过大");
+      error.statusCode = 413;
+      throw error;
+    }
     chunks.push(chunk);
   }
-  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  } catch {
+    const error = new Error("请求 JSON 格式无效");
+    error.statusCode = 400;
+    throw error;
+  }
 }
-
-const rateLimits = new Map();
 
 function requestIp(request) {
   const forwarded = String(request.headers["x-forwarded-for"] ?? "")
-    .split(",", 1)[0]
-    .trim();
-  return forwarded || request.socket.remoteAddress || "unknown";
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return forwarded.at(-1) || request.socket.remoteAddress || "unknown";
 }
 
 function withinRateLimit(request, bucket, limit, windowMs) {
-  const now = Date.now();
-  const key = `${bucket}:${requestIp(request)}`;
-  const current = rateLimits.get(key);
-  if (!current || current.resetAt <= now) {
-    rateLimits.set(key, { count: 1, resetAt: now + windowMs });
-    return true;
-  }
-  current.count += 1;
-  return current.count <= limit;
+  return store.consumePublicRateLimit({
+    scope: bucket,
+    key: requestIp(request),
+    limit,
+    windowMs,
+  });
 }
 
 function sameOriginRequest(request) {
@@ -419,11 +467,8 @@ const server = createServer(async (request, response) => {
       return sendJson(response, 200, { deleted: true });
     }
 
-    if (!user && !legacyBearerAuthorized(request)) {
-      return sendJson(response, 401, { error: "vip_required" });
-    }
     if (!user) {
-      return sendJson(response, 401, { error: "local_session_required" });
+      return sendJson(response, 401, { error: "vip_required" });
     }
 
     if (request.method === "PUT" && requestUrl.pathname === "/v1/me/model-key") {
@@ -680,10 +725,45 @@ const server = createServer(async (request, response) => {
     }
     if (request.method === "POST" && requestUrl.pathname === "/v1/tasks/execute") {
       const task = await readJson(request);
+      const durable = DURABLE_CONFIRM_TASKS.has(task?.type);
+      const claim = durable ? store.claimTaskExecution(user.id, task) : null;
+      if (claim?.state === "replay") {
+        return sendJson(
+          response,
+          claim.result.status === "succeeded" ? 200 : 400,
+          claim.result,
+        );
+      }
+      if (claim?.state && claim.state !== "claimed") {
+        const code =
+          claim.state === "in_progress"
+            ? "EXECUTION_IN_PROGRESS"
+            : claim.state === "conflict"
+              ? "IDEMPOTENCY_CONFLICT"
+              : "EXECUTION_REVIEW_REQUIRED";
+        return sendJson(response, 409, failedTaskResult(task, code));
+      }
       const executor = executorFor(user);
       const result = await executor.execute(task);
       const latestAudit = executor.getAuditLog().at(-1);
-      if (latestAudit) store.appendAudit(user.id, latestAudit);
+      if (durable && latestAudit) {
+        const stored = store.finishTaskExecution(
+          user.id,
+          task.idempotencyKey,
+          claim.leaseToken,
+          result,
+          latestAudit,
+        );
+        if (!stored) {
+          return sendJson(
+            response,
+            409,
+            failedTaskResult(task, "EXECUTION_REVIEW_REQUIRED"),
+          );
+        }
+      } else if (latestAudit) {
+        store.appendAudit(user.id, latestAudit);
+      }
       return sendJson(response, result.status === "succeeded" ? 200 : 400, result);
     }
     if (request.method === "POST" && requestUrl.pathname === "/v1/baiguo/normalize") {
@@ -717,9 +797,10 @@ const server = createServer(async (request, response) => {
     }
     return sendJson(response, 404, { error: "not_found" });
   } catch (error) {
-    return sendJson(response, Number(error?.statusCode) || 400, {
-      error: error instanceof Error ? error.message : "请求无法处理",
-      ...(error instanceof PairingError ? { code: error.code } : {}),
+    const publicError = toPublicHttpError(error, { fallbackStatus: 400 });
+    return sendJson(response, publicError.status, {
+      error: publicError.message,
+      code: publicError.code,
     });
   }
 });

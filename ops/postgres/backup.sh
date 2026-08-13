@@ -24,7 +24,8 @@ fi
 set +a
 
 : "${POSTGRES_DB:?POSTGRES_DB is required}"
-: "${POSTGRES_USER:?POSTGRES_USER is required}"
+: "${BACKUP_DB_USER:?BACKUP_DB_USER is required}"
+: "${BACKUP_DB_PASSWORD:?BACKUP_DB_PASSWORD is required}"
 
 disk_percent="$(df -P "$APP_ROOT" | awk 'NR == 2 {gsub("%", "", $5); print $5}')"
 if [ "$disk_percent" -ge "$MAX_DISK_PERCENT" ]; then
@@ -44,9 +45,10 @@ cleanup_tmp() {
 trap cleanup_tmp EXIT INT TERM
 
 cd "$COMPOSE_DIR"
-docker compose -p "$COMPOSE_PROJECT_NAME" exec -T postgres \
+docker compose -p "$COMPOSE_PROJECT_NAME" exec -T \
+  -e PGPASSWORD="$BACKUP_DB_PASSWORD" postgres \
   pg_dump \
-    --username "$POSTGRES_USER" \
+    --username "$BACKUP_DB_USER" \
     --dbname "$POSTGRES_DB" \
     --format=custom \
     --compress=9 \
@@ -55,7 +57,10 @@ docker compose -p "$COMPOSE_PROJECT_NAME" exec -T postgres \
 
 docker compose -p "$COMPOSE_PROJECT_NAME" exec -T postgres pg_restore --list < "$tmp_file" >/dev/null
 mv "$tmp_file" "$backup_file"
-sha256sum "$backup_file" > "$checksum_file"
+(
+  cd "$BACKUP_DIR"
+  sha256sum "$(basename "$backup_file")" > "$(basename "$checksum_file")"
+)
 
 uploaded=0
 if [ -n "${OSS_BACKUP_URI:-}" ]; then

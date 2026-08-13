@@ -1,0 +1,740 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { __test } from "../src/community-routes.mjs";
+import { createAuthServer } from "../src/server.mjs";
+import { createOpaqueToken, tokenDigest } from "../src/tokens.mjs";
+
+const tokenPepper = "community-test-pepper-that-is-longer-than-thirty-two";
+const sessionCookie = "__Host-dufesh_session";
+const userId = "00000000-0000-4000-8000-000000000011";
+const otherUserId = "00000000-0000-4000-8000-000000000012";
+const topicId = "00000000-0000-4000-8000-000000000021";
+const commentId = "00000000-0000-4000-8000-000000000031";
+const nextTopicId = "00000000-0000-4000-8000-000000000022";
+const notificationId = "00000000-0000-4000-8000-000000000051";
+
+const config = {
+  tokenPepper,
+  allowedOrigins: new Set(["https://dufesh.cn"]),
+  sessionCookie,
+  deviceCookie: "__Host-dufesh_device",
+  oauthCookie: "__Host-dufesh_oauth",
+  adminCookie: "__Host-dufesh_admin_elevation",
+  adminEnabled: false,
+  sessionMaxAgeSeconds: 2_592_000,
+  deviceMaxAgeSeconds: 31_536_000,
+  oauthTtlSeconds: 600,
+  credentialsEnabled: false,
+  passwordResetMode: "disabled",
+  emailVerificationMode: "disabled",
+  wechatMode: "disabled",
+};
+
+function createCommunityStore() {
+  const sessionToken = createOpaqueToken();
+  const calls = [];
+  let sessionLookups = 0;
+  return {
+    sessionToken,
+    calls,
+    get sessionLookups() {
+      return sessionLookups;
+    },
+    async getActiveSession(hash) {
+      sessionLookups += 1;
+      if (hash !== tokenDigest(sessionToken, tokenPepper)) return null;
+      return { id: "session-1", userId, role: "user" };
+    },
+    async listCommunityTopics(input) {
+      calls.push(["listCommunityTopics", structuredClone(input)]);
+      return {
+        items: [{ id: topicId, title: "选课之后，你会怎样整理一周？" }],
+        nextCursor: input.sort === "hot"
+          ? {
+              id: nextTopicId,
+              createdAt: "2026-08-09T08:00:00.000Z",
+              rankedAt: "2026-08-11T08:00:00.000Z",
+              score: "17",
+            }
+          : {
+              id: nextTopicId,
+              createdAt: "2026-08-09T08:00:00.000Z",
+            },
+      };
+    },
+    async listCommunityBookmarks(input) {
+      calls.push(["listCommunityBookmarks", structuredClone(input)]);
+      return {
+        items: [{ topicId, status: "available", title: "公开主题" }],
+        nextCursor: {
+          id: nextTopicId,
+          createdAt: "2026-08-09T08:00:00.000Z",
+        },
+      };
+    },
+    async listCommunityBlocks(input) {
+      calls.push(["listCommunityBlocks", structuredClone(input)]);
+      return {
+        items: [{ user: { id: otherUserId, username: "corridor-student" } }],
+        nextCursor: null,
+      };
+    },
+    async getCommunityUserProfile(input) {
+      calls.push(["getCommunityUserProfile", structuredClone(input)]);
+      if (input.userId !== otherUserId) return null;
+      return {
+        id: otherUserId,
+        username: "corridor-student",
+        displayName: "回廊同学",
+        avatarUrl: null,
+        joinedAt: "2026-08-01T08:00:00.000Z",
+        topicCount: 1,
+        commentCount: 1,
+      };
+    },
+    async listCommunityUserContent(input) {
+      calls.push(["listCommunityUserContent", structuredClone(input)]);
+      return {
+        items: input.kind === "comments"
+          ? [{ id: commentId, topicId, topicTitle: "主题", body: "公开回复" }]
+          : [{ id: topicId, title: "公开主题" }],
+        nextCursor: null,
+      };
+    },
+    async getCommunityTopic(input) {
+      calls.push(["getCommunityTopic", structuredClone(input)]);
+      if (input.topicId === nextTopicId) {
+        return {
+          id: nextTopicId,
+          status: "deleted",
+          fallbackPath: "/community",
+        };
+      }
+      if (input.topicId !== topicId) return null;
+      return { id: topicId, status: "published", title: "主题" };
+    },
+    async listCommunityComments(input) {
+      calls.push(["listCommunityComments", structuredClone(input)]);
+      return {
+        items: [{ id: commentId, topicId, body: "把课表先排清楚。" }],
+        nextCursor: null,
+      };
+    },
+    async createCommunityTopic(input) {
+      calls.push(["createCommunityTopic", structuredClone(input)]);
+      return { id: topicId, status: "published", version: 1 };
+    },
+    async updateCommunityTopic(input) {
+      calls.push(["updateCommunityTopic", structuredClone(input)]);
+      if (input.expectedVersion === 99) {
+        throw Object.assign(new Error("conflict"), {
+          code: "COMMUNITY_VERSION_CONFLICT",
+          currentVersion: 2,
+        });
+      }
+      return { id: topicId, status: "published", version: 2 };
+    },
+    async deleteCommunityTopic(input) {
+      calls.push(["deleteCommunityTopic", structuredClone(input)]);
+      return { id: topicId, status: "deleted", version: 3 };
+    },
+    async createCommunityComment(input) {
+      calls.push(["createCommunityComment", structuredClone(input)]);
+      return { id: commentId, topicId, status: "published", version: 1 };
+    },
+    async updateCommunityComment(input) {
+      calls.push(["updateCommunityComment", structuredClone(input)]);
+      return { id: commentId, topicId, status: "published", version: 2 };
+    },
+    async deleteCommunityComment(input) {
+      calls.push(["deleteCommunityComment", structuredClone(input)]);
+      return { id: commentId, topicId, status: "deleted", version: 3 };
+    },
+    async setCommunityLike(input) {
+      calls.push(["setCommunityLike", structuredClone(input)]);
+      return { active: input.active, total: input.active ? 3 : 2 };
+    },
+    async setCommunityBookmark(input) {
+      calls.push(["setCommunityBookmark", structuredClone(input)]);
+      return { active: input.active };
+    },
+    async setCommunityBlock(input) {
+      calls.push(["setCommunityBlock", structuredClone(input)]);
+      if (input.blockerUserId === input.blockedUserId) {
+        throw Object.assign(new Error("self"), { code: "COMMUNITY_BLOCK_SELF" });
+      }
+      return { active: input.active };
+    },
+    async createCommunityReport(input) {
+      calls.push(["createCommunityReport", structuredClone(input)]);
+      return {
+        id: "00000000-0000-4000-8000-000000000041",
+        targetType: input.targetType,
+        targetId: input.targetId,
+        reasonCode: input.reasonCode,
+        status: "open",
+        created: true,
+      };
+    },
+    async listCommunityNotifications(input) {
+      calls.push(["listCommunityNotifications", structuredClone(input)]);
+      return {
+        items: [{
+          id: notificationId,
+          type: "topic_reply",
+          title: "有人回复了你的主题",
+          read: false,
+          fallbackPath: `/community/topics/${topicId}`,
+        }],
+        nextCursor: null,
+      };
+    },
+    async getCommunityUnreadCount(inputUserId) {
+      calls.push(["getCommunityUnreadCount", inputUserId]);
+      return 1;
+    },
+    async markCommunityNotificationRead(input) {
+      calls.push(["markCommunityNotificationRead", structuredClone(input)]);
+      return input.notificationId === notificationId
+        ? { id: notificationId, readAt: "2026-08-09T12:00:00.000Z" }
+        : null;
+    },
+    async markAllCommunityNotificationsRead(inputUserId) {
+      calls.push(["markAllCommunityNotificationsRead", inputUserId]);
+      return { updated: 1 };
+    },
+    async dismissCommunityNotification(input) {
+      calls.push(["dismissCommunityNotification", structuredClone(input)]);
+      return input.notificationId === notificationId;
+    },
+  };
+}
+
+async function withServer(callback, options = {}) {
+  const store = createCommunityStore();
+  const server = createAuthServer({
+    store,
+    config,
+    wechatProvider: { mode: "disabled" },
+    passwordService: null,
+    avatarProcessor: null,
+    adminSecurity: null,
+    ...options,
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  try {
+    await callback({ baseUrl: `http://127.0.0.1:${address.port}`, store });
+  } finally {
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+}
+
+test("community cursors are bounded, opaque, and schema-checked", () => {
+  const encoded = __test.encodeCursor({
+    id: topicId,
+    createdAt: "2026-08-09T08:00:00.000Z",
+  });
+  assert.deepEqual(__test.decodeCursor(encoded), {
+    id: topicId,
+    createdAt: "2026-08-09T08:00:00.000Z",
+  });
+  assert.equal(__test.decodeCursor("not-json"), false);
+  assert.equal(__test.decodeCursor("a".repeat(257)), false);
+  assert.equal(
+    __test.decodeCursor(__test.encodeCursor({
+      id: topicId,
+      createdAt: "2026-08-09T08:00:00.000Z",
+      score: "9",
+    })),
+    false,
+  );
+  const hot = __test.encodeCursor({
+    id: topicId,
+    createdAt: "2026-08-09T08:00:00.000Z",
+    rankedAt: "2026-08-11T08:00:00.000Z",
+    score: "17",
+  });
+  assert.deepEqual(__test.decodeTopicCursor(hot, "hot"), {
+    id: topicId,
+    createdAt: "2026-08-09T08:00:00.000Z",
+    rankedAt: "2026-08-11T08:00:00.000Z",
+    score: "17",
+  });
+  assert.equal(__test.decodeTopicCursor(encoded, "hot"), false);
+  assert.equal(__test.pageLimit("30"), 30);
+  assert.equal(__test.pageLimit("31"), null);
+});
+
+test("topic list is public and authenticated viewers receive scoped state", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    const anonymous = await fetch(`${baseUrl}/api/community/topics?limit=12`);
+    assert.equal(anonymous.status, 200);
+    const first = await anonymous.json();
+    assert.equal(first.items[0].id, topicId);
+    assert.equal(typeof first.nextCursor, "string");
+    assert.deepEqual(store.calls[0][1], {
+      viewerUserId: null,
+      cursor: null,
+      limit: 12,
+      sort: "latest",
+    });
+
+    const signedIn = await fetch(`${baseUrl}/api/community/topics`, {
+      headers: { Cookie: `${sessionCookie}=${store.sessionToken}` },
+    });
+    assert.equal(signedIn.status, 200);
+    assert.equal(store.calls[1][1].viewerUserId, userId);
+
+    const hot = await fetch(`${baseUrl}/api/community/topics?sort=hot`);
+    assert.equal(hot.status, 200);
+    const hotPayload = await hot.json();
+    assert.equal(typeof hotPayload.nextCursor, "string");
+    assert.equal(store.calls[2][1].sort, "hot");
+    assert.equal(
+      __test.decodeTopicCursor(hotPayload.nextCursor, "hot").score,
+      "17",
+    );
+  });
+});
+
+test("public user profiles expose only published paginated community content", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    const anonymous = await fetch(
+      `${baseUrl}/api/community/users/${otherUserId}?kind=topics&limit=12`,
+    );
+    assert.equal(anonymous.status, 200);
+    const first = await anonymous.json();
+    assert.equal(first.profile.displayName, "回廊同学");
+    assert.equal(first.items[0].id, topicId);
+    assert.equal(Object.hasOwn(first.profile, "email"), false);
+    assert.equal(Object.hasOwn(first.profile, "schoolAccount"), false);
+    assert.equal(Object.hasOwn(first.profile, "role"), false);
+    assert.deepEqual(
+      store.calls.find(([name]) => name === "getCommunityUserProfile")[1],
+      { userId: otherUserId, viewerUserId: null },
+    );
+
+    const signedIn = await fetch(
+      `${baseUrl}/api/community/users/${otherUserId}?kind=comments`,
+      { headers: { Cookie: `${sessionCookie}=${store.sessionToken}` } },
+    );
+    assert.equal(signedIn.status, 200);
+    const second = await signedIn.json();
+    assert.equal(second.kind, "comments");
+    assert.equal(second.items[0].id, commentId);
+    assert.deepEqual(
+      store.calls.filter(([name]) => name === "listCommunityUserContent").at(-1)[1],
+      {
+        userId: otherUserId,
+        viewerUserId: userId,
+        kind: "comments",
+        cursor: null,
+        limit: 20,
+      },
+    );
+
+    const invalidKind = await fetch(
+      `${baseUrl}/api/community/users/${otherUserId}?kind=private`,
+    );
+    assert.equal(invalidKind.status, 400);
+    const missing = await fetch(
+      `${baseUrl}/api/community/users/${userId}`,
+    );
+    assert.equal(missing.status, 404);
+  });
+});
+
+test("invalid community queries fail before data access", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    const invalidLimit = await fetch(
+      `${baseUrl}/api/community/topics?limit=999`,
+    );
+    assert.equal(invalidLimit.status, 400);
+    const invalidSort = await fetch(
+      `${baseUrl}/api/community/topics?sort=popular`,
+    );
+    assert.equal(invalidSort.status, 400);
+    assert.equal(store.calls.length, 0);
+  });
+});
+
+test("topic detail and root-page comments preserve unavailable fallbacks", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    const detail = await fetch(
+      `${baseUrl}/api/community/topics/${topicId}`,
+    );
+    assert.equal(detail.status, 200);
+
+    const comments = await fetch(
+      `${baseUrl}/api/community/topics/${topicId}/comments`,
+    );
+    assert.equal(comments.status, 200);
+    assert.equal((await comments.json()).items[0].id, commentId);
+
+    const deleted = await fetch(
+      `${baseUrl}/api/community/topics/${nextTopicId}`,
+    );
+    assert.equal(deleted.status, 410);
+    assert.deepEqual(await deleted.json(), {
+      error: "community_topic_unavailable",
+      status: "deleted",
+      fallbackPath: "/community",
+    });
+    assert.ok(store.calls.some(([name]) => name === "listCommunityComments"));
+  });
+});
+
+test("community writes reject cross-site and anonymous requests before mutation", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    const crossSite = await fetch(`${baseUrl}/api/community/topics`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: `${sessionCookie}=${store.sessionToken}`,
+        Origin: "https://attacker.example",
+      },
+      body: JSON.stringify({ title: "这是一个主题", body: "正文" }),
+    });
+    assert.equal(crossSite.status, 403);
+    assert.equal(store.sessionLookups, 0);
+
+    const anonymous = await fetch(`${baseUrl}/api/community/topics`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "https://dufesh.cn",
+      },
+      body: JSON.stringify({ title: "这是一个主题", body: "正文" }),
+    });
+    assert.equal(anonymous.status, 401);
+    assert.equal(
+      store.calls.some(([name]) => name === "createCommunityTopic"),
+      false,
+    );
+  });
+});
+
+test("signed-in users create, edit, and soft-delete topics with exact input", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    const headers = {
+      "Content-Type": "application/json",
+      Cookie: `${sessionCookie}=${store.sessionToken}`,
+      Origin: "https://dufesh.cn",
+    };
+    const created = await fetch(`${baseUrl}/api/community/topics`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        title: "  图书馆闭馆后去哪？ ",
+        body: " 想找个安静的地方。 ",
+        visibility: "public",
+      }),
+    });
+    assert.equal(created.status, 201);
+    assert.deepEqual(
+      store.calls.find(([name]) => name === "createCommunityTopic")[1],
+      {
+        userId,
+        title: "图书馆闭馆后去哪?",
+        body: "想找个安静的地方。",
+        visibility: "public",
+      },
+    );
+
+    const massAssignment = await fetch(`${baseUrl}/api/community/topics`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        title: "这是另一个主题",
+        body: "正文",
+        authorUserId: nextTopicId,
+      }),
+    });
+    assert.equal(massAssignment.status, 400);
+
+    const edited = await fetch(
+      `${baseUrl}/api/community/topics/${topicId}`,
+      {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ body: "更新后的正文", version: 1 }),
+      },
+    );
+    assert.equal(edited.status, 200);
+
+    const deleted = await fetch(
+      `${baseUrl}/api/community/topics/${topicId}`,
+      {
+        method: "DELETE",
+        headers,
+        body: JSON.stringify({ version: 2 }),
+      },
+    );
+    assert.equal(deleted.status, 200);
+    assert.ok(store.calls.some(([name]) => name === "deleteCommunityTopic"));
+  });
+});
+
+test("comment writes preserve reply targets and version conflicts are explicit", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    const headers = {
+      "Content-Type": "application/json",
+      Cookie: `${sessionCookie}=${store.sessionToken}`,
+      Origin: "https://dufesh.cn",
+    };
+    const reply = await fetch(
+      `${baseUrl}/api/community/topics/${topicId}/comments`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ body: "我也会去那里。", replyToCommentId: commentId }),
+      },
+    );
+    assert.equal(reply.status, 201);
+    assert.deepEqual(
+      store.calls.find(([name]) => name === "createCommunityComment")[1],
+      { topicId, userId, body: "我也会去那里。", replyToCommentId: commentId },
+    );
+
+    const conflict = await fetch(
+      `${baseUrl}/api/community/topics/${topicId}`,
+      {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ body: "冲突修改", version: 99 }),
+      },
+    );
+    assert.equal(conflict.status, 409);
+    assert.deepEqual(await conflict.json(), {
+      error: "community_version_conflict",
+      currentVersion: 2,
+    });
+
+    const edited = await fetch(`${baseUrl}/api/community/comments/${commentId}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ body: "修改后的回复", version: 1 }),
+    });
+    assert.equal(edited.status, 200);
+    const deleted = await fetch(`${baseUrl}/api/community/comments/${commentId}`, {
+      method: "DELETE",
+      headers,
+      body: JSON.stringify({ version: 2 }),
+    });
+    assert.equal(deleted.status, 200);
+  });
+});
+
+test("community mutations consume independent user and IP rate-limit keys", async () => {
+  const accountKeys = [];
+  const networkKeys = [];
+  const allow = { consume: () => true };
+  await withServer(async ({ baseUrl, store }) => {
+    const response = await fetch(`${baseUrl}/api/community/topics`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: `${sessionCookie}=${store.sessionToken}`,
+        Origin: "https://dufesh.cn",
+      },
+      body: JSON.stringify({ title: "这是限流测试主题", body: "正文" }),
+    });
+    assert.equal(response.status, 201);
+    assert.equal(accountKeys.length, 1);
+    assert.equal(networkKeys.length, 1);
+    assert.notEqual(accountKeys[0], networkKeys[0]);
+  }, {
+    rateLimiters: {
+      read: allow,
+      write: allow,
+      communityWrite: {
+        consume(key) {
+          accountKeys.push(key);
+          return true;
+        },
+      },
+      communityWriteIp: {
+        consume(key) {
+          networkKeys.push(key);
+          return true;
+        },
+      },
+    },
+  });
+});
+
+test("likes, bookmarks, and blocks use idempotent PUT and DELETE endpoints", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    const headers = {
+      Cookie: `${sessionCookie}=${store.sessionToken}`,
+      Origin: "https://dufesh.cn",
+    };
+    for (const [path, storeMethod] of [
+      [`/api/community/topics/${topicId}/like`, "setCommunityLike"],
+      [`/api/community/topics/${topicId}/bookmark`, "setCommunityBookmark"],
+      [`/api/community/comments/${commentId}/like`, "setCommunityLike"],
+      [`/api/community/users/${otherUserId}/block`, "setCommunityBlock"],
+    ]) {
+      const enabled = await fetch(`${baseUrl}${path}`, {
+        method: "PUT",
+        headers,
+      });
+      assert.equal(enabled.status, 200, path);
+      const disabled = await fetch(`${baseUrl}${path}`, {
+        method: "DELETE",
+        headers,
+      });
+      assert.equal(disabled.status, 200, path);
+      const calls = store.calls.filter(([name]) => name === storeMethod);
+      assert.ok(calls.some(([, input]) => input.active === true));
+      assert.ok(calls.some(([, input]) => input.active === false));
+    }
+
+    const selfBlock = await fetch(
+      `${baseUrl}/api/community/users/${userId}/block`,
+      { method: "PUT", headers },
+    );
+    assert.equal(selfBlock.status, 400);
+  });
+});
+
+test("private bookmark and block indexes require a session and use strict cursors", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    const anonymous = await fetch(`${baseUrl}/api/community/me/bookmarks`);
+    assert.equal(anonymous.status, 401);
+
+    const headers = { Cookie: `${sessionCookie}=${store.sessionToken}` };
+    const bookmarks = await fetch(`${baseUrl}/api/community/me/bookmarks?limit=12`, { headers });
+    assert.equal(bookmarks.status, 200);
+    const bookmarkPayload = await bookmarks.json();
+    assert.equal(bookmarkPayload.items[0].topicId, topicId);
+    assert.equal(typeof bookmarkPayload.nextCursor, "string");
+    assert.deepEqual(
+      store.calls.find(([name]) => name === "listCommunityBookmarks")[1],
+      { userId, cursor: null, limit: 12 },
+    );
+
+    const blocks = await fetch(`${baseUrl}/api/community/me/blocks`, { headers });
+    assert.equal(blocks.status, 200);
+    assert.equal((await blocks.json()).items[0].user.id, otherUserId);
+    assert.deepEqual(
+      store.calls.find(([name]) => name === "listCommunityBlocks")[1],
+      { userId, cursor: null, limit: 20 },
+    );
+
+    const unknown = await fetch(`${baseUrl}/api/community/me/blocks?include=email`, { headers });
+    assert.equal(unknown.status, 400);
+    const repeated = await fetch(`${baseUrl}/api/community/me/bookmarks?limit=10&limit=20`, { headers });
+    assert.equal(repeated.status, 400);
+  });
+});
+
+test("reports are validated, authenticated, and use the dedicated limiter", async () => {
+  const reportAccountKeys = [];
+  const reportNetworkKeys = [];
+  const allow = { consume: () => true };
+  await withServer(async ({ baseUrl, store }) => {
+    const headers = {
+      "Content-Type": "application/json",
+      Cookie: `${sessionCookie}=${store.sessionToken}`,
+      Origin: "https://dufesh.cn",
+    };
+    const invalid = await fetch(`${baseUrl}/api/community/reports`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        targetType: "topic",
+        targetId: topicId,
+        reasonCode: "other",
+      }),
+    });
+    assert.equal(invalid.status, 400);
+
+    const report = await fetch(`${baseUrl}/api/community/reports`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        targetType: "topic",
+        targetId: topicId,
+        reasonCode: "spam",
+        detail: "同一广告内容被重复发布多次。",
+      }),
+    });
+    assert.equal(report.status, 201);
+    assert.equal((await report.json()).report.status, "open");
+    assert.equal(reportAccountKeys.length, 2);
+    assert.equal(reportNetworkKeys.length, 2);
+    const stored = store.calls.find(([name]) => name === "createCommunityReport")[1];
+    assert.equal(stored.reporterUserId, userId);
+    assert.equal(stored.reasonCode, "spam");
+  }, {
+    rateLimiters: {
+      read: allow,
+      write: allow,
+      communityReport: {
+        consume(key) {
+          reportAccountKeys.push(key);
+          return true;
+        },
+      },
+      communityReportIp: {
+        consume(key) {
+          reportNetworkKeys.push(key);
+          return true;
+        },
+      },
+    },
+  });
+});
+
+test("notifications are account-scoped with unread, single, all-read, and dismiss flows", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    const anonymous = await fetch(`${baseUrl}/api/community/notifications`);
+    assert.equal(anonymous.status, 401);
+
+    const headers = {
+      Cookie: `${sessionCookie}=${store.sessionToken}`,
+      Origin: "https://dufesh.cn",
+    };
+    const list = await fetch(`${baseUrl}/api/community/notifications?limit=10`, {
+      headers,
+    });
+    assert.equal(list.status, 200);
+    assert.equal((await list.json()).items[0].id, notificationId);
+    assert.deepEqual(
+      store.calls.find(([name]) => name === "listCommunityNotifications")[1],
+      { userId, cursor: null, limit: 10 },
+    );
+
+    const count = await fetch(
+      `${baseUrl}/api/community/notifications/unread-count`,
+      { headers },
+    );
+    assert.deepEqual(await count.json(), { unread: 1 });
+
+    const read = await fetch(
+      `${baseUrl}/api/community/notifications/${notificationId}`,
+      { method: "PUT", headers },
+    );
+    assert.equal(read.status, 200);
+    const allRead = await fetch(
+      `${baseUrl}/api/community/notifications/read-all`,
+      { method: "PUT", headers },
+    );
+    assert.deepEqual(await allRead.json(), { updated: 1 });
+    const dismissed = await fetch(
+      `${baseUrl}/api/community/notifications/${notificationId}`,
+      { method: "DELETE", headers },
+    );
+    assert.deepEqual(await dismissed.json(), { dismissed: true });
+
+    const missing = await fetch(
+      `${baseUrl}/api/community/notifications/${nextTopicId}`,
+      { method: "PUT", headers },
+    );
+    assert.equal(missing.status, 404);
+  });
+});

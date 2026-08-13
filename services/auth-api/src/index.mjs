@@ -1,13 +1,38 @@
 import { loadConfig } from "./config.mjs";
 import { createAuthStore, createDatabasePool } from "./db.mjs";
 import { createWechatProvider } from "./providers/mock-wechat.mjs";
+import { createPasswordService } from "./passwords.mjs";
+import { createAvatarProcessor } from "./avatars.mjs";
+import { createAdminSecurity } from "./admin-security.mjs";
 import { createAuthServer } from "./server.mjs";
+import { createApiRateLimiters } from "./rate-limit.mjs";
+import { createMailDelivery } from "./mail-delivery.mjs";
 
 const config = loadConfig();
 const pool = createDatabasePool(config);
 const store = createAuthStore(pool);
+const rateLimiters = createApiRateLimiters({ store });
 const wechatProvider = createWechatProvider(config);
-const server = createAuthServer({ store, config, wechatProvider });
+const passwordService = createPasswordService();
+const avatarProcessor = createAvatarProcessor();
+const mailDelivery = createMailDelivery(config);
+const adminSecurity = config.adminEnabled
+  ? createAdminSecurity({
+      activeKeyId: config.adminMfaActiveKeyId,
+      keyring: config.adminMfaKeys,
+      recoveryPepper: config.adminRecoveryPepper,
+    })
+  : null;
+const server = createAuthServer({
+  store,
+  config,
+  wechatProvider,
+  passwordService,
+  avatarProcessor,
+  mailDelivery,
+  adminSecurity,
+  rateLimiters,
+});
 
 server.listen(config.port, "0.0.0.0", () => {
   console.log(`Dufesh auth API listening on port ${config.port}`);
@@ -16,6 +41,7 @@ server.listen(config.port, "0.0.0.0", () => {
 async function shutdown(signal) {
   console.log(`Received ${signal}; closing auth API`);
   server.close(async () => {
+    mailDelivery?.close();
     await store.close();
     process.exit(0);
   });

@@ -11,6 +11,16 @@ import {
 } from "./tokens.mjs";
 import { validateSyncWrite } from "./sync-contract.mjs";
 import { createApiRateLimiters } from "./rate-limit.mjs";
+import { createAdminRequestHandler } from "./admin-routes.mjs";
+import { createCommunityRequestHandler } from "./community-routes.mjs";
+import { createTeacherRequestHandler } from "./teacher-routes.mjs";
+import {
+  normalizeLoginIdentifier,
+  validateLogin,
+  validateNewPassword,
+  validateProfileUpdate,
+  validateRegistration,
+} from "./credentials.mjs";
 
 function sendJson(response, statusCode, body, setCookies = []) {
   const payload = JSON.stringify(body);
@@ -115,6 +125,27 @@ async function readJsonBody(request, maxBytes = 524_288) {
   }
 }
 
+async function readRawBody(request, maxBytes) {
+  const declaredLength = Number(request.headers["content-length"] ?? 0);
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+    const error = new Error("request body is too large");
+    error.code = "REQUEST_BODY_TOO_LARGE";
+    throw error;
+  }
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of request) {
+    size += chunk.length;
+    if (size > maxBytes) {
+      const error = new Error("request body is too large");
+      error.code = "REQUEST_BODY_TOO_LARGE";
+      throw error;
+    }
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
 async function resolveSession(request, store, config) {
   const cookies = parseCookies(request.headers.cookie);
   const sessionToken = cookies.get(config.sessionCookie);
@@ -152,8 +183,35 @@ export function createAuthServer({
   store,
   config,
   wechatProvider,
+  passwordService,
+  avatarProcessor,
+  mailDelivery,
+  adminSecurity,
   rateLimiters = createApiRateLimiters(),
 }) {
+  if (
+    (config.passwordResetMode === "smtp" ||
+      config.emailVerificationMode === "smtp") &&
+    !mailDelivery
+  ) {
+    throw new Error("SMTP delivery mode requires a mail delivery adapter");
+  }
+  const dummyPasswordHash = passwordService
+    ? passwordService.hash("not-a-real-user-password-9f24")
+    : Promise.resolve("");
+  const handleAdminRequest = createAdminRequestHandler({
+    store,
+    config,
+    adminSecurity,
+    rateLimiters,
+  });
+  const handleCommunityRequest = createCommunityRequestHandler({
+    store,
+    config,
+    rateLimiters,
+  });
+  const handleTeacherRequest = createTeacherRequestHandler({ store, config, rateLimiters });
+
   return createServer(async (request, response) => {
     try {
       const url = new URL(request.url ?? "/", "http://auth-api.local");
@@ -183,11 +241,15 @@ export function createAuthServer({
         `rate:${clientAddress(request)}`,
         config.tokenPepper,
       );
-      if (!limiter.consume(rateKey)) {
+      if (!(await limiter.consume(rateKey))) {
         response.setHeader("Retry-After", "15");
         sendJson(response, 429, { error: "rate_limit_exceeded" });
         return;
       }
+
+      if (await handleAdminRequest(request, response, url)) return;
+      if (await handleCommunityRequest(request, response, url)) return;
+      if (await handleTeacherRequest(request, response, url)) return;
 
       if (url.pathname === "/api/auth/session") {
         if (request.method !== "GET") {
@@ -210,7 +272,14 @@ export function createAuthServer({
               authenticated: false,
               deviceId: device.deviceId,
               user: null,
-              login: { wechatAvailable: config.wechatMode === "wechat" },
+              login: {
+                credentialsAvailable: config.credentialsEnabled !== false,
+                passwordResetAvailable:
+                  config.passwordResetMode !== "disabled",
+                emailVerificationAvailable:
+                  (config.emailVerificationMode ?? "disabled") !== "disabled",
+                wechatAvailable: config.wechatMode === "wechat",
+              },
             },
             setCookies,
           );
@@ -230,7 +299,14 @@ export function createAuthServer({
               authenticated: false,
               deviceId: device.deviceId,
               user: null,
-              login: { wechatAvailable: config.wechatMode === "wechat" },
+              login: {
+                credentialsAvailable: config.credentialsEnabled !== false,
+                passwordResetAvailable:
+                  config.passwordResetMode !== "disabled",
+                emailVerificationAvailable:
+                  (config.emailVerificationMode ?? "disabled") !== "disabled",
+                wechatAvailable: config.wechatMode === "wechat",
+              },
             },
             setCookies,
           );
@@ -245,16 +321,752 @@ export function createAuthServer({
             deviceId: device.deviceId,
             user: {
               id: session.userId,
+              username: session.username,
               displayName: session.displayName,
               avatarUrl: session.avatarUrl,
+              email: session.email,
+              emailVerified: session.emailVerified,
+              schoolAccount: session.schoolAccount,
+              schoolAccountVerified: session.schoolAccountVerified,
+              createdAt: session.createdAt,
+              lastLoginAt: session.lastLoginAt,
+              status: session.status,
+              role: session.role ?? "user",
             },
             session: {
               expiresAt: session.expiresAt,
               deviceId: session.deviceId,
             },
-            login: { wechatAvailable: config.wechatMode === "wechat" },
+            login: {
+              credentialsAvailable: config.credentialsEnabled !== false,
+              passwordResetAvailable:
+                config.passwordResetMode !== "disabled",
+              emailVerificationAvailable:
+                (config.emailVerificationMode ?? "disabled") !== "disabled",
+              wechatAvailable: config.wechatMode === "wechat",
+            },
           },
           setCookies,
+        );
+        return;
+      }
+
+      const avatarMatch = url.pathname.match(
+        /^\/api\/auth\/avatars\/([0-9a-f-]{36})$/i,
+      );
+      if (avatarMatch) {
+        if (request.method !== "GET" && request.method !== "HEAD") {
+          methodNotAllowed(response, "GET, HEAD");
+          return;
+        }
+        if (!isUuid(avatarMatch[1])) {
+          sendJson(response, 404, { error: "avatar_not_found" });
+          return;
+        }
+        const avatar = await store.getUserAvatar(avatarMatch[1]);
+        if (!avatar) {
+          sendJson(response, 404, { error: "avatar_not_found" });
+          return;
+        }
+        const etag = `"${avatar.sha256}"`;
+        const hasCurrentVersion =
+          url.searchParams.get("v") === avatar.sha256.slice(0, 16);
+        const cacheControl = hasCurrentVersion
+          ? "public, max-age=300, must-revalidate"
+          : "no-cache";
+        if (request.headers["if-none-match"] === etag) {
+          response.statusCode = 304;
+          response.setHeader("ETag", etag);
+          response.setHeader("Cache-Control", cacheControl);
+          response.end();
+          return;
+        }
+        response.statusCode = 200;
+        response.setHeader("Content-Type", avatar.contentType);
+        response.setHeader("Content-Length", String(avatar.byteSize));
+        response.setHeader("X-Content-Type-Options", "nosniff");
+        response.setHeader("ETag", etag);
+        response.setHeader("Cache-Control", cacheControl);
+        if (request.method === "HEAD") response.end();
+        else response.end(avatar.bytes);
+        return;
+      }
+
+      if (url.pathname === "/api/auth/profile/avatar") {
+        if (request.method !== "PUT" && request.method !== "DELETE") {
+          methodNotAllowed(response, "PUT, DELETE");
+          return;
+        }
+        if (!avatarProcessor) {
+          sendJson(response, 503, { error: "avatar_service_unavailable" });
+          return;
+        }
+        if (!trustedOrigin(request, config.allowedOrigins)) {
+          sendJson(response, 403, { error: "untrusted_origin" });
+          return;
+        }
+        const session = await resolveSession(request, store, config);
+        if (!session) {
+          sendJson(response, 401, { error: "authentication_required" });
+          return;
+        }
+        const uploadRateKey = tokenDigest(
+          `avatar:${clientAddress(request)}:${session.userId}`,
+          config.tokenPepper,
+        );
+        if (
+          !(await (rateLimiters.upload ?? rateLimiters.write).consume(
+            uploadRateKey,
+          ))
+        ) {
+          response.setHeader("Retry-After", "300");
+          sendJson(response, 429, { error: "avatar_rate_limit_exceeded" });
+          return;
+        }
+        if (request.method === "DELETE") {
+          await store.deleteUserAvatar(session.userId);
+          sendJson(response, 200, { ok: true, avatarUrl: null });
+          return;
+        }
+
+        const contentType = String(request.headers["content-type"] ?? "")
+          .split(";", 1)[0]
+          .trim()
+          .toLowerCase();
+        if (!avatarProcessor.acceptedContentTypes.has(contentType)) {
+          sendJson(response, 415, { error: "avatar_type_unsupported" });
+          return;
+        }
+        let rawAvatar;
+        try {
+          rawAvatar = await readRawBody(
+            request,
+            avatarProcessor.maxInputBytes,
+          );
+        } catch (error) {
+          if (error?.code === "REQUEST_BODY_TOO_LARGE") {
+            sendJson(response, 413, { error: "avatar_too_large" });
+            return;
+          }
+          throw error;
+        }
+        let avatar;
+        try {
+          avatar = await avatarProcessor.process(rawAvatar, contentType);
+        } catch (error) {
+          const clientErrors = new Map([
+            ["AVATAR_TOO_LARGE", [413, "avatar_too_large"]],
+            ["AVATAR_TYPE_UNSUPPORTED", [415, "avatar_type_unsupported"]],
+            ["AVATAR_EMPTY", [400, "avatar_invalid"]],
+            ["AVATAR_INVALID_IMAGE", [400, "avatar_invalid"]],
+            ["AVATAR_OUTPUT_TOO_LARGE", [400, "avatar_invalid"]],
+          ]);
+          const mapped = clientErrors.get(error?.code);
+          if (mapped) {
+            sendJson(response, mapped[0], { error: mapped[1] });
+            return;
+          }
+          throw error;
+        }
+        const saved = await store.saveUserAvatar(session.userId, avatar);
+        sendJson(
+          response,
+          saved ? 200 : 404,
+          saved ?? { error: "profile_not_found" },
+        );
+        return;
+      }
+
+      if (url.pathname === "/api/auth/profile") {
+        if (request.method !== "GET" && request.method !== "PUT") {
+          methodNotAllowed(response, "GET, PUT");
+          return;
+        }
+        if (
+          request.method === "PUT" &&
+          !trustedOrigin(request, config.allowedOrigins)
+        ) {
+          sendJson(response, 403, { error: "untrusted_origin" });
+          return;
+        }
+        const session = await resolveSession(request, store, config);
+        if (!session) {
+          sendJson(response, 401, { error: "authentication_required" });
+          return;
+        }
+        if (request.method === "GET") {
+          const profile = await store.getUserProfile(session.userId);
+          sendJson(
+            response,
+            profile ? 200 : 404,
+            profile ? { profile } : { error: "profile_not_found" },
+          );
+          return;
+        }
+
+        let body;
+        try {
+          body = await readJsonBody(request, 16_384);
+        } catch (error) {
+          if (
+            error?.code === "JSON_CONTENT_TYPE_REQUIRED" ||
+            error?.code === "JSON_BODY_INVALID"
+          ) {
+            sendJson(response, 400, { error: "invalid_profile" });
+            return;
+          }
+          if (error?.code === "REQUEST_BODY_TOO_LARGE") {
+            sendJson(response, 413, { error: "request_too_large" });
+            return;
+          }
+          throw error;
+        }
+        const update = validateProfileUpdate(body);
+        if (!update.ok) {
+          sendJson(response, 400, {
+            error: "invalid_profile",
+            fields: update.fields,
+          });
+          return;
+        }
+        try {
+          const profile = await store.updateUserProfile(
+            session.userId,
+            update.value,
+          );
+          sendJson(
+            response,
+            profile ? 200 : 404,
+            profile ? { profile } : { error: "profile_not_found" },
+          );
+        } catch (error) {
+          if (error?.code === "AUTH_USERNAME_TAKEN") {
+            sendJson(response, 409, {
+              error: "profile_conflict",
+              fields: { username: "这个用户名已被使用" },
+            });
+            return;
+          }
+          throw error;
+        }
+        return;
+      }
+
+      if (url.pathname === "/api/auth/register") {
+        if (request.method !== "POST") {
+          methodNotAllowed(response, "POST");
+          return;
+        }
+        if (config.credentialsEnabled === false || !passwordService) {
+          sendJson(response, 503, { error: "credential_login_not_ready" });
+          return;
+        }
+        if (!trustedOrigin(request, config.allowedOrigins)) {
+          sendJson(response, 403, { error: "untrusted_origin" });
+          return;
+        }
+
+        let body;
+        try {
+          body = await readJsonBody(request, 16_384);
+        } catch (error) {
+          if (
+            error?.code === "JSON_CONTENT_TYPE_REQUIRED" ||
+            error?.code === "JSON_BODY_INVALID"
+          ) {
+            sendJson(response, 400, { error: "invalid_registration" });
+            return;
+          }
+          if (error?.code === "REQUEST_BODY_TOO_LARGE") {
+            sendJson(response, 413, { error: "request_too_large" });
+            return;
+          }
+          throw error;
+        }
+
+        const registration = validateRegistration(body);
+        if (!registration.ok) {
+          sendJson(response, 400, {
+            error: "invalid_registration",
+            fields: registration.fields,
+          });
+          return;
+        }
+        const credentialRateKey = tokenDigest(
+          `register:${clientAddress(request)}:${registration.value.normalizedUsername}`,
+          config.tokenPepper,
+        );
+        if (
+          !(await (rateLimiters.credential ?? rateLimiters.write).consume(
+            credentialRateKey,
+          ))
+        ) {
+          response.setHeader("Retry-After", "60");
+          sendJson(response, 429, { error: "credential_rate_limit_exceeded" });
+          return;
+        }
+
+        const device = await resolveDevice(request, store, config);
+        const sessionToken = createOpaqueToken();
+        const sessionExpiresAt = new Date(
+          Date.now() + config.sessionMaxAgeSeconds * 1000,
+        );
+        const passwordHash = await passwordService.hash(
+          registration.value.password,
+        );
+
+        let registered;
+        try {
+          registered = await store.registerCredentialUser({
+            ...registration.value,
+            passwordHash,
+            anonymousDeviceId: device.id,
+            sessionTokenHash: tokenDigest(
+              sessionToken,
+              config.tokenPepper,
+            ),
+            sessionExpiresAt,
+          });
+        } catch (error) {
+          if (error?.code === "AUTH_USERNAME_TAKEN") {
+            sendJson(response, 409, {
+              error: "registration_conflict",
+              fields: { username: "这个用户名已被使用" },
+            });
+            return;
+          }
+          if (error?.code === "AUTH_EMAIL_TAKEN") {
+            sendJson(response, 409, {
+              error: "registration_conflict",
+              fields: { email: "这个邮箱已注册" },
+            });
+            return;
+          }
+          throw error;
+        }
+
+        const setCookies = [
+          serializeSecureCookie(
+            config.sessionCookie,
+            sessionToken,
+            config.sessionMaxAgeSeconds,
+          ),
+        ];
+        if (device.setCookie) setCookies.unshift(device.setCookie);
+        sendJson(
+          response,
+          201,
+          {
+            authenticated: true,
+            user: registered.user,
+            session: { expiresAt: registered.expiresAt },
+          },
+          setCookies,
+        );
+        return;
+      }
+
+      if (url.pathname === "/api/auth/login") {
+        if (request.method !== "POST") {
+          methodNotAllowed(response, "POST");
+          return;
+        }
+        if (config.credentialsEnabled === false || !passwordService) {
+          sendJson(response, 503, { error: "credential_login_not_ready" });
+          return;
+        }
+        if (!trustedOrigin(request, config.allowedOrigins)) {
+          sendJson(response, 403, { error: "untrusted_origin" });
+          return;
+        }
+
+        let body;
+        try {
+          body = await readJsonBody(request, 16_384);
+        } catch (error) {
+          if (
+            error?.code === "JSON_CONTENT_TYPE_REQUIRED" ||
+            error?.code === "JSON_BODY_INVALID"
+          ) {
+            sendJson(response, 401, { error: "invalid_credentials" });
+            return;
+          }
+          if (error?.code === "REQUEST_BODY_TOO_LARGE") {
+            sendJson(response, 413, { error: "request_too_large" });
+            return;
+          }
+          throw error;
+        }
+
+        const login = validateLogin(body);
+        const identifier = login?.identifier ?? "invalid";
+        const credentialRateKey = tokenDigest(
+          `login:${clientAddress(request)}:${identifier}`,
+          config.tokenPepper,
+        );
+        if (
+          !(await (rateLimiters.credential ?? rateLimiters.write).consume(
+            credentialRateKey,
+          ))
+        ) {
+          response.setHeader("Retry-After", "60");
+          sendJson(response, 429, { error: "credential_rate_limit_exceeded" });
+          return;
+        }
+
+        const principal = login
+          ? await store.getCredentialPrincipal(login.identifier)
+          : null;
+        const passwordMatches = principal
+          ? await passwordService.verify(principal.passwordHash, login.password)
+          : await passwordService.verify(await dummyPasswordHash, login?.password ?? "");
+        const locked = principal?.lockedUntil
+          ? new Date(principal.lockedUntil).getTime() > Date.now()
+          : false;
+        if (
+          !principal ||
+          !passwordMatches ||
+          locked ||
+          principal.status !== "active"
+        ) {
+          if (principal && !locked && principal.status === "active") {
+            await store.recordCredentialFailure(principal.id);
+          }
+          sendJson(response, 401, { error: "invalid_credentials" });
+          return;
+        }
+
+        const device = await resolveDevice(request, store, config);
+        const sessionToken = createOpaqueToken();
+        const sessionExpiresAt = new Date(
+          Date.now() + config.sessionMaxAgeSeconds * 1000,
+        );
+        try {
+          await store.createCredentialSession({
+            userId: principal.id,
+            anonymousDeviceId: device.id,
+            sessionTokenHash: tokenDigest(
+              sessionToken,
+              config.tokenPepper,
+            ),
+            sessionExpiresAt,
+          });
+        } catch (error) {
+          if (error?.code === "AUTH_CREDENTIAL_LOGIN_REJECTED") {
+            sendJson(response, 401, { error: "invalid_credentials" });
+            return;
+          }
+          throw error;
+        }
+
+        const setCookies = [
+          serializeSecureCookie(
+            config.sessionCookie,
+            sessionToken,
+            config.sessionMaxAgeSeconds,
+          ),
+        ];
+        if (device.setCookie) setCookies.unshift(device.setCookie);
+        sendJson(
+          response,
+          200,
+          {
+            authenticated: true,
+            user: {
+              id: principal.id,
+              username: principal.username,
+              displayName: principal.displayName,
+            },
+            session: { expiresAt: sessionExpiresAt.toISOString() },
+          },
+          setCookies,
+        );
+        return;
+      }
+
+      if (url.pathname === "/api/auth/email/verification/request") {
+        if (request.method !== "POST") {
+          methodNotAllowed(response, "POST");
+          return;
+        }
+        if (!trustedOrigin(request, config.allowedOrigins)) {
+          sendJson(response, 403, { error: "untrusted_origin" });
+          return;
+        }
+        if ((config.emailVerificationMode ?? "disabled") === "disabled") {
+          sendJson(response, 503, {
+            error: "email_verification_delivery_unavailable",
+          });
+          return;
+        }
+        const session = await resolveSession(request, store, config);
+        if (!session) {
+          sendJson(response, 401, { error: "authentication_required" });
+          return;
+        }
+        if (session.emailVerified) {
+          sendJson(response, 200, { ok: true, alreadyVerified: true });
+          return;
+        }
+        if (!session.email) {
+          sendJson(response, 409, { error: "email_verification_unavailable" });
+          return;
+        }
+        const verificationRateKey = tokenDigest(
+          `email-verification:${clientAddress(request)}:${session.userId}`,
+          config.tokenPepper,
+        );
+        if (
+          !(await (
+            rateLimiters.emailVerification ?? rateLimiters.write
+          ).consume(verificationRateKey))
+        ) {
+          response.setHeader("Retry-After", "120");
+          sendJson(response, 429, {
+            error: "email_verification_rate_limit_exceeded",
+          });
+          return;
+        }
+        const verificationToken = createOpaqueToken();
+        const verificationExpiresAt = new Date(
+          Date.now() +
+            (config.emailVerificationTtlSeconds ?? 86_400) * 1_000,
+        );
+        const created = await store.createEmailVerification({
+          userId: session.userId,
+          tokenHash: tokenDigest(verificationToken, config.tokenPepper),
+          expiresAt: verificationExpiresAt,
+        });
+        if (!created) {
+          sendJson(response, 409, { error: "email_verification_unavailable" });
+          return;
+        }
+        if (config.emailVerificationMode === "smtp") {
+          if (!mailDelivery) {
+            sendJson(response, 503, {
+              error: "email_verification_delivery_unavailable",
+            });
+            return;
+          }
+          try {
+            await mailDelivery.sendEmailVerification({
+              to: session.email,
+              token: verificationToken,
+              expiresAt: verificationExpiresAt,
+            });
+          } catch {
+            sendJson(response, 503, {
+              error: "email_verification_delivery_failed",
+            });
+            return;
+          }
+        }
+        sendJson(response, 202, {
+          ok: true,
+          ...(config.emailVerificationMode === "response"
+            ? { debugToken: verificationToken }
+            : {}),
+        });
+        return;
+      }
+
+      if (url.pathname === "/api/auth/email/verification/confirm") {
+        if (request.method !== "POST") {
+          methodNotAllowed(response, "POST");
+          return;
+        }
+        if (!trustedOrigin(request, config.allowedOrigins)) {
+          sendJson(response, 403, { error: "untrusted_origin" });
+          return;
+        }
+        const session = await resolveSession(request, store, config);
+        if (!session) {
+          sendJson(response, 401, { error: "authentication_required" });
+          return;
+        }
+        let body;
+        try {
+          body = await readJsonBody(request, 8_192);
+        } catch (error) {
+          if (
+            error?.code === "JSON_CONTENT_TYPE_REQUIRED" ||
+            error?.code === "JSON_BODY_INVALID"
+          ) {
+            sendJson(response, 400, { error: "invalid_email_verification" });
+            return;
+          }
+          if (error?.code === "REQUEST_BODY_TOO_LARGE") {
+            sendJson(response, 413, { error: "request_too_large" });
+            return;
+          }
+          throw error;
+        }
+        if (!isOpaqueToken(body?.token)) {
+          sendJson(response, 400, { error: "invalid_email_verification" });
+          return;
+        }
+        const consumed = await store.consumeEmailVerification({
+          userId: session.userId,
+          tokenHash: tokenDigest(body.token, config.tokenPepper),
+        });
+        sendJson(
+          response,
+          consumed ? 200 : 400,
+          consumed ? { ok: true } : { error: "invalid_email_verification" },
+        );
+        return;
+      }
+
+      if (url.pathname === "/api/auth/password/reset/request") {
+        if (request.method !== "POST") {
+          methodNotAllowed(response, "POST");
+          return;
+        }
+        if (config.credentialsEnabled === false || !passwordService) {
+          sendJson(response, 503, { error: "credential_login_not_ready" });
+          return;
+        }
+        if (!trustedOrigin(request, config.allowedOrigins)) {
+          sendJson(response, 403, { error: "untrusted_origin" });
+          return;
+        }
+        if (config.passwordResetMode === "disabled") {
+          sendJson(response, 503, {
+            error: "password_reset_delivery_unavailable",
+          });
+          return;
+        }
+
+        let body;
+        try {
+          body = await readJsonBody(request, 8_192);
+        } catch (error) {
+          if (
+            error?.code === "JSON_CONTENT_TYPE_REQUIRED" ||
+            error?.code === "JSON_BODY_INVALID"
+          ) {
+            sendJson(response, 202, { ok: true });
+            return;
+          }
+          if (error?.code === "REQUEST_BODY_TOO_LARGE") {
+            sendJson(response, 413, { error: "request_too_large" });
+            return;
+          }
+          throw error;
+        }
+        const identifier = normalizeLoginIdentifier(body?.identifier);
+        const resetRateKey = tokenDigest(
+          `reset:${clientAddress(request)}:${identifier || "invalid"}`,
+          config.tokenPepper,
+        );
+        if (
+          !(await (rateLimiters.passwordReset ?? rateLimiters.write).consume(
+            resetRateKey,
+          ))
+        ) {
+          response.setHeader("Retry-After", "60");
+          sendJson(response, 429, { error: "password_reset_rate_limit_exceeded" });
+          return;
+        }
+
+        const principal = identifier
+          ? await store.getCredentialPrincipal(identifier)
+          : null;
+        let debugToken;
+        if (principal?.status === "active") {
+          const resetToken = createOpaqueToken();
+          const resetExpiresAt = new Date(
+            Date.now() + config.passwordResetTtlSeconds * 1000,
+          );
+          await store.createPasswordReset({
+            userId: principal.id,
+            tokenHash: tokenDigest(resetToken, config.tokenPepper),
+            expiresAt: resetExpiresAt,
+          });
+          if (config.passwordResetMode === "response") {
+            debugToken = resetToken;
+          } else if (config.passwordResetMode === "smtp" && mailDelivery) {
+            void mailDelivery
+              .sendPasswordReset({
+                to: principal.email,
+                token: resetToken,
+                expiresAt: resetExpiresAt,
+              })
+              .catch(() => {
+                // Keep the anti-enumeration response and timing independent from
+                // SMTP. Staging monitors delivery without logging account data.
+              });
+          }
+        }
+        sendJson(response, 202, {
+          ok: true,
+          ...(debugToken ? { debugToken } : {}),
+        });
+        return;
+      }
+
+      if (url.pathname === "/api/auth/password/reset/confirm") {
+        if (request.method !== "POST") {
+          methodNotAllowed(response, "POST");
+          return;
+        }
+        if (config.credentialsEnabled === false || !passwordService) {
+          sendJson(response, 503, { error: "credential_login_not_ready" });
+          return;
+        }
+        if (!trustedOrigin(request, config.allowedOrigins)) {
+          sendJson(response, 403, { error: "untrusted_origin" });
+          return;
+        }
+
+        let body;
+        try {
+          body = await readJsonBody(request, 16_384);
+        } catch (error) {
+          if (
+            error?.code === "JSON_CONTENT_TYPE_REQUIRED" ||
+            error?.code === "JSON_BODY_INVALID"
+          ) {
+            sendJson(response, 400, { error: "invalid_password_reset" });
+            return;
+          }
+          if (error?.code === "REQUEST_BODY_TOO_LARGE") {
+            sendJson(response, 413, { error: "request_too_large" });
+            return;
+          }
+          throw error;
+        }
+        if (!isOpaqueToken(body?.token)) {
+          sendJson(response, 400, { error: "invalid_password_reset" });
+          return;
+        }
+        const resetTokenHash = tokenDigest(body.token, config.tokenPepper);
+        const resetPrincipal = await store.getPasswordResetPrincipal(
+          resetTokenHash,
+        );
+        if (
+          !resetPrincipal ||
+          !validateNewPassword(body?.password, [
+            resetPrincipal.username,
+            resetPrincipal.email,
+          ])
+        ) {
+          sendJson(response, 400, { error: "invalid_password_reset" });
+          return;
+        }
+        const passwordHash = await passwordService.hash(body.password);
+        const consumed = await store.consumePasswordReset({
+          tokenHash: resetTokenHash,
+          passwordHash,
+        });
+        sendJson(
+          response,
+          consumed ? 200 : 400,
+          consumed ? { ok: true } : { error: "invalid_password_reset" },
+          [
+            clearSecureCookie(config.sessionCookie),
+            clearSecureCookie(config.adminCookie, { sameSite: "Strict" }),
+          ],
         );
         return;
       }
@@ -385,7 +1197,10 @@ export function createAuthServer({
           200,
           { ok: true, currentSessionRevoked: revoked.current },
           revoked.current
-            ? [clearSecureCookie(config.sessionCookie)]
+            ? [
+                clearSecureCookie(config.sessionCookie),
+                clearSecureCookie(config.adminCookie, { sameSite: "Strict" }),
+              ]
             : [],
         );
         return;
@@ -433,7 +1248,10 @@ export function createAuthServer({
           response,
           deleted ? 200 : 404,
           deleted ? { ok: true, deleted: true } : { error: "account_not_found" },
-          [clearSecureCookie(config.sessionCookie)],
+          [
+            clearSecureCookie(config.sessionCookie),
+            clearSecureCookie(config.adminCookie, { sameSite: "Strict" }),
+          ],
         );
         return;
       }
@@ -651,7 +1469,10 @@ export function createAuthServer({
           );
         }
 
-        const setCookies = [clearSecureCookie(config.sessionCookie)];
+        const setCookies = [
+          clearSecureCookie(config.sessionCookie),
+          clearSecureCookie(config.adminCookie, { sameSite: "Strict" }),
+        ];
         if (device.setCookie) setCookies.unshift(device.setCookie);
         sendJson(
           response,

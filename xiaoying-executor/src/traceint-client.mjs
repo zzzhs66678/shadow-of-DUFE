@@ -339,6 +339,7 @@ export class TraceIntClient {
   #assertAllowedTraceIntUrl(url) {
     const hostname = url.hostname.toLowerCase();
     if (
+      url.protocol !== "https:" ||
       hostname !== "wechat.v2.traceint.com" &&
       hostname !== "web.traceint.com"
     ) {
