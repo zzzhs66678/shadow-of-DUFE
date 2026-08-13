@@ -1578,7 +1578,7 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
     assert.equal(ownerProfileBody.profile.id, owner.body.user.id);
     assert.equal(ownerProfileBody.profile.topicCount >= 1, true);
     assert.equal(ownerProfileBody.items[0].id, topicBody.topic.id);
-    assert.equal(ownerProfileBody.items[0].title, topicBody.topic.title);
+    assert.equal(ownerProfileBody.items[0].title, "PostgreSQL 集成测试主题");
     assert.equal(ownerProfileBody.nextCursor, null);
 
     const replierProfileResponse = await fetch(
