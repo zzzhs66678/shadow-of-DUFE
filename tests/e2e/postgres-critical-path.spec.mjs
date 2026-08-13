@@ -444,7 +444,10 @@ test("users and an administrator complete the release browser path", async ({
     await expect(
       administrator.getByRole("heading", { name: "教师评价复核" }),
     ).toBeVisible();
-    await administrator
+    const teacherReviewDesk = administrator.locator("section").filter({
+      has: administrator.getByRole("heading", { name: "教师评价复核" }),
+    });
+    await teacherReviewDesk
       .getByRole("button", { name: new RegExp(teacher.displayName, "u") })
       .click();
     const teacherReviewDialog = administrator.getByRole("dialog", {
