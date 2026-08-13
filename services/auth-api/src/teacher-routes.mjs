@@ -419,10 +419,32 @@ export function createTeacherRequestHandler({ store, config, rateLimiters }) {
         sendJson(response, 404, { error: "teacher_not_found" });
         return true;
       }
+      const keys = [...url.searchParams.keys()];
+      const allowedKeys = new Set(["q", "sort", "limit", "after"]);
+      const query = boundedText(url.searchParams.get("q"), 64);
+      const sort = url.searchParams.get("sort") ?? "latest";
       const limitValue = url.searchParams.get("limit") ?? "20";
       const limit = /^\d{1,2}$/u.test(limitValue) ? Number(limitValue) : 0;
-      const after = decodeCursor(url.searchParams.get("after"), ["publishedAt", "id"]);
-      if (limit < 1 || limit > 30 || after === undefined) {
+      const cursorFields = sort === "discussed"
+        ? ["discussionCount", "publishedAt", "id"]
+        : sort === "relevant"
+          ? ["matchPosition", "publishedAt", "id"]
+          : ["publishedAt", "id"];
+      const after = decodeCursor(url.searchParams.get("after"), cursorFields);
+      const invalidCursorValue = after && (
+        !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u.test(after.publishedAt) ||
+        Number.isNaN(Date.parse(after.publishedAt)) ||
+        (sort === "discussed" && !/^\d{1,10}$/u.test(after.discussionCount)) ||
+        (sort === "relevant" && !/^[1-9]\d{0,4}$/u.test(after.matchPosition))
+      );
+      if (
+        keys.some((key) => !allowedKeys.has(key)) ||
+        [...new Set(keys)].some((key) => url.searchParams.getAll(key).length !== 1) ||
+        query === null ||
+        !["latest", "discussed", "relevant"].includes(sort) ||
+        (sort === "relevant" && !query) ||
+        limit < 1 || limit > 30 || after === undefined || invalidCursorValue
+      ) {
         sendJson(response, 400, { error: "invalid_teacher_review_query" });
         return true;
       }
@@ -433,6 +455,8 @@ export function createTeacherRequestHandler({ store, config, rateLimiters }) {
       }
       const reviews = await store.listPublicTeacherReviews({
         teacherId: reviewsMatch[1],
+        query,
+        sort,
         after,
         limit,
       });

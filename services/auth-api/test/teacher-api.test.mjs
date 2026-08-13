@@ -84,12 +84,15 @@ function createStore() {
     async listPublicTeacherReviews(input) {
       calls += 1;
       assert.equal(input.teacherId, teacherId);
+      assert.equal(typeof input.query, "string");
+      assert.ok(["latest", "discussed", "relevant"].includes(input.sort));
       return [{
         id: reviewId,
         sourceType: "legacy_approved",
         authorLabel: "历史整理内容",
         body: "已经通过人工审核的历史评价。",
         ratings: null,
+        discussionCount: 2,
         publishedAt: "2026-08-09T00:00:00.000Z",
         cursor: { publishedAt: "2026-08-09T00:00:00.000Z", id: reviewId },
       }];
@@ -167,6 +170,12 @@ test("teacher index and detail expose only public catalog facts", async () => {
     const reviewBody = await reviews.json();
     assert.equal(reviewBody.items[0].authorLabel, "历史整理内容");
     assert.equal(reviewBody.items[0].ratings, null);
+    assert.equal(reviewBody.items[0].discussionCount, 2);
+
+    const searched = await fetch(
+      `${baseUrl}/api/teachers/${teacherId}/reviews?q=${encodeURIComponent("课堂组织")}&sort=relevant&limit=20`,
+    );
+    assert.equal(searched.status, 200);
   });
 });
 
@@ -200,6 +209,23 @@ test("teacher routes reject malformed filters before data access", async () => {
       `${baseUrl}/api/teachers/${teacherId}/reviews?after=not-valid%21`,
     );
     assert.equal(invalidCursor.status, 400);
+    const relevantWithoutQuery = await fetch(
+      `${baseUrl}/api/teachers/${teacherId}/reviews?sort=relevant`,
+    );
+    assert.equal(relevantWithoutQuery.status, 400);
+    const repeatedQuery = await fetch(
+      `${baseUrl}/api/teachers/${teacherId}/reviews?q=a&q=b`,
+    );
+    assert.equal(repeatedQuery.status, 400);
+    const invalidDiscussionCursor = Buffer.from(JSON.stringify({
+      discussionCount: "not-a-count",
+      publishedAt: "2026-08-09T00:00:00.000Z",
+      id: reviewId,
+    }), "utf8").toString("base64url");
+    const invalidDiscussionPage = await fetch(
+      `${baseUrl}/api/teachers/${teacherId}/reviews?sort=discussed&after=${invalidDiscussionCursor}`,
+    );
+    assert.equal(invalidDiscussionPage.status, 400);
     const missingSchedule = await fetch(
       `${baseUrl}/api/teachers/by-schedule?catalogId=C1`,
     );

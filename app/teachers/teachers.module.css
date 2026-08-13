@@ -155,6 +155,7 @@
 .textbooks article code { display: block; margin-top: 8px; }
 .reviews > div article { border-top: 1px solid var(--dufe-line); padding: 24px 0 28px; }
 .reviews > div article > div { display: flex; justify-content: space-between; }
+.reviews > div article > div > span { color: var(--dufe-muted); font-size: 9px; }
 .reviews time { color: var(--dufe-muted); font-size: 9px; }
 .reviews article p { font: 15px/1.9 var(--journal-body, sans-serif); margin: 18px 0 0; white-space: pre-wrap; }
 .reviewDiscussion { border-top: 1px solid color-mix(in srgb, var(--dufe-line) 72%, transparent); margin-top: 22px; padding-top: 14px; }
@@ -174,6 +175,20 @@
 .reviewReplyForm > header { align-items: center; display: flex; justify-content: space-between; }
 .reviewReplyForm textarea { resize: vertical; width: 100%; }
 .inlineEmpty { color: var(--dufe-muted); padding: 28px 0; }
+.inlineEmpty button { background: transparent; border: 0; border-bottom: 1px solid var(--dufe-red); color: var(--dufe-red-deep); min-height: 44px; padding: 0 2px; }
+
+.reviewIndex { border-top: 1px solid var(--dufe-ink); display: grid; gap: 18px 28px; grid-template-columns: minmax(220px, 1fr) auto; margin-bottom: 36px; padding-top: 18px; }
+.reviewIndex form label { color: var(--dufe-muted); display: block; font-size: 10px; margin-bottom: 8px; }
+.reviewIndex form > div { align-items: end; display: flex; gap: 12px; }
+.reviewIndex input { background: transparent; border: 0; border-bottom: 1px solid var(--dufe-ink); border-radius: 0; color: var(--dufe-ink); min-height: 44px; min-width: 0; padding: 0 2px; width: 100%; }
+.reviewIndex button { background: transparent; border: 0; border-bottom: 1px solid var(--dufe-red); color: var(--dufe-red-deep); min-height: 44px; padding: 0 2px; }
+.reviewIndex input:focus-visible, .reviewIndex button:focus-visible { outline: 2px solid var(--dufe-red); outline-offset: 3px; }
+.reviewSort { align-items: end; display: flex; gap: 18px; }
+.reviewSort button { border-bottom-color: transparent; color: var(--dufe-muted); }
+.reviewSort button[aria-pressed="true"] { border-bottom-color: var(--dufe-red); color: var(--dufe-red-deep); font-weight: 700; }
+.reviewSort button:disabled { cursor: not-allowed; opacity: .4; }
+.reviewIndex > p { color: var(--dufe-muted); font-size: 10px; grid-column: 1 / -1; line-height: 1.7; margin: -8px 0 0; }
+.reviewIndex > p button { display: inline-flex; }
 
 .reviewContribution { border-top: 4px solid var(--dufe-red); margin-bottom: 38px; padding: 22px 0 28px; }
 .reviewContribution > div > b, .reviewContribution form > header b { font: 500 22px/1.35 var(--journal-display, serif); }
@@ -225,6 +240,8 @@
   .profileGrid { grid-template-columns: 1fr; }
   .ratings { border-bottom: 1px solid var(--dufe-ink); border-right: 0; }
   .textbooks, .reviews { grid-template-columns: 1fr; }
+  .reviewIndex { grid-template-columns: 1fr; }
+  .reviewSort { align-items: center; }
 }
 
 @media (max-width: 560px) {
