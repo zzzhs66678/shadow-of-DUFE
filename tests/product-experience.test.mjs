@@ -126,6 +126,10 @@ test("teacher directory disambiguates identities without taking over the daily w
   assert.match(teacherDetailSource, /<TeacherReviewDiscussion/);
   assert.match(teacherDiscussionSource, /aria-expanded={open}/);
   assert.match(teacherDiscussionSource, /if \(!open \|\| status !== "idle"\) return/);
+  assert.match(
+    teacherDiscussionSource,
+    /\.\.\.current\.filter\(\(item\) => !payload\.items\.some\(\(loaded\) => loaded\.id === item\.id\)\)/,
+  );
   assert.match(teacherDiscussionSource, /teacher_review_comment/);
   assert.match(teacherDiscussionSource, /comment\.author\?\.id === currentUserId/);
   assert.match(component, /<TeacherRecordLink/);
