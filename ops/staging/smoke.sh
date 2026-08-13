@@ -12,8 +12,11 @@ case "$base_url" in
   https://*) ;;
   *) fail "refusing a non-local HTTP target" ;;
 esac
-case "$base_url" in
-  *dufesh.cn*|*112.126.75.74*) fail "refusing a production target" ;;
+authority="${base_url#*://}"
+authority="${authority%%/*}"
+host="${authority%%:*}"
+case "$host" in
+  dufesh.cn|www.dufesh.cn|112.126.75.74) fail "refusing a production target" ;;
 esac
 
 tmp_headers="$(mktemp)"

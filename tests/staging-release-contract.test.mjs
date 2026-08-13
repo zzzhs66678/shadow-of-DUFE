@@ -61,7 +61,9 @@ test("staging preflight refuses production targets and unapproved public binds",
   const smoke = await read("ops/staging/smoke.sh");
   const caddy = await read("deploy/staging/Caddyfile");
 
-  assert.match(preflight, /production hosts are forbidden in staging/);
+  assert.match(preflight, /points at a production host/);
+  assert.match(preflight, /dufesh\.cn\|www\.dufesh\.cn\|112\.126\.75\.74/);
+  assert.doesNotMatch(preflight, /\*dufesh\.cn\*/);
   assert.match(preflight, /public bind requires explicit approval/);
   assert.match(preflight, /public Caddy site address must match the staging origin/);
   assert.match(preflight, /staging origin must use HTTPS/);

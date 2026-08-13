@@ -33,6 +33,17 @@ env_value() {
   awk -F= -v key="$key" '$1 == key { sub(/^[^=]*=/, ""); print; exit }' "$file"
 }
 
+require_non_production_origin() {
+  value="$1"
+  label="$2"
+  authority="${value#*://}"
+  authority="${authority%%/*}"
+  host="${authority%%:*}"
+  case "$host" in
+    dufesh.cn|www.dufesh.cn|112.126.75.74) fail "$label points at a production host" ;;
+  esac
+}
+
 require_var DUFESH_IMAGE_TAG
 case "$DUFESH_IMAGE_TAG" in
   *[!0-9a-f]*|'') fail "DUFESH_IMAGE_TAG must be a lowercase full Git SHA" ;;
@@ -45,9 +56,8 @@ case "$DUFESH_STAGING_ORIGIN" in
   https://*) ;;
   *) fail "staging origin must use HTTPS" ;;
 esac
-case "$DUFESH_STAGING_ORIGIN,$DUFESH_STAGING_SITE_ADDRESS" in
-  *dufesh.cn*|*112.126.75.74*) fail "production hosts are forbidden in staging" ;;
-esac
+require_non_production_origin "$DUFESH_STAGING_ORIGIN" "staging origin"
+require_non_production_origin "$DUFESH_STAGING_SITE_ADDRESS" "Caddy site address"
 case "$DUFESH_STAGING_SITE_ADDRESS" in
   https://localhost|https://127.0.0.1)
     case "$DUFESH_STAGING_ORIGIN" in
@@ -96,9 +106,14 @@ esac
 for secret_name in AUTH_TOKEN_PEPPER AUTH_ADMIN_MFA_KEYS AUTH_ADMIN_RECOVERY_PEPPER; do
   [ -n "$(env_value "$secret_name" "$DUFESH_STAGING_AUTH_ENV_FILE")" ] || fail "$secret_name is missing"
 done
-case "$auth_origin,$allowed_origins" in
-  *dufesh.cn*|*112.126.75.74*) fail "production origins are forbidden in staging auth configuration" ;;
-esac
+require_non_production_origin "$auth_origin" "auth public origin"
+old_ifs="$IFS"
+IFS=,
+for allowed_origin in $allowed_origins; do
+  allowed_origin="$(printf '%s' "$allowed_origin" | tr -d '[:space:]')"
+  require_non_production_origin "$allowed_origin" "auth allowed origin"
+done
+IFS="$old_ifs"
 
 require_var DUFESH_STAGING_RESOURCES_DIR
 case "$DUFESH_STAGING_RESOURCES_DIR" in
