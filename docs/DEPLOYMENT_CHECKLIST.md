@@ -1,12 +1,13 @@
 # 东财之影部署检查表
 
-最后更新：2026-08-11
+最后更新：2026-08-13
 
 当前结论：**尚不具备生产部署条件。本轮未部署。** 只有全部“生产前门禁”通过，且没有不可接受的高危项，才允许进入人工生产发布审批。
 
 ## 1. 环境与凭据
 
 - [ ] 明确 staging 域名、数据库、文件存储和回调地址，与生产完全隔离。
+  - 已提供失败关闭的独立 staging Compose、预检与冒烟脚本；默认仅回环监听并拒绝生产目标。真实地址、凭据和外部服务仍待提供。
 - [ ] `POSTGRES_PASSWORD`、`AUTH_TOKEN_PEPPER`、`AUTH_ADMIN_MFA_KEYS`、`AUTH_ADMIN_RECOVERY_PEPPER`、邮件凭据、微信 AppSecret、上传存储密钥和小影主密钥只存在于受限环境文件或密钥管理服务。
 - [ ] 小影正式环境同时设置至少 12 位随机 `XIAOYING_DEFAULT_INVITE_CODE` 与 1—500 的 `XIAOYING_DEFAULT_INVITE_MAX_USES`；使用前复核本批计划人数，轮换时确认旧码立即失效。
 - [ ] `.env.example` 列全变量但不含真实值；服务器环境文件权限为 600。
@@ -53,8 +54,8 @@
 - [x] 干净安装后 `npm ls image-size --all` 只显示 `2.0.3-dufesh.0 -> vendor/image-size-disabled` 且 vinext 去重；构建日志无本地图片探测错误，镜像中不存在上游 `image-size@2.0.2`。
 - [x] auth-api 与小影镜像在 Linux/Alpine 目标架构验证原生依赖可加载。
 - [x] GitHub `linux-production-images` 作业实际全绿：三套镜像均从生产 Dockerfile 构建，最终用户为 `node`，auth-api 的 Argon2id/Sharp/PG、小影运行依赖、主站失败关闭 `image-size` 与生产网关冒烟全部通过。
-- [ ] 容器使用非 root、只读文件系统、受限 tmpfs、CPU/内存/PID 与日志轮转。
-- [ ] Caddy 只依赖主站核心服务启动；小影故障不会阻止主站和账号入口。
+- [x] 长期运行的应用/API/小影/网关容器使用非 root、只读根文件系统、受限 tmpfs、CPU/内存/PID 与日志轮转；PostgreSQL 数据卷和 Caddy 持久状态是明确写入例外。
+- [x] Caddy 只依赖主站核心服务启动；小影故障不会阻止主站和账号入口。
 - [ ] `curl -I` 验证 `http://112.126.75.74/<path>?<query>` 与 `https://www.dufesh.cn/<path>?<query>` 均只经一次 308 到 `https://dufesh.cn` 同路径/查询；IP 响应不含应用正文或 `Set-Cookie`。
 - [ ] PostgreSQL、auth-api、小影不映射公网端口。
 - [ ] 静态资料和上传目录只授予所需读写权限，路径遍历测试通过。
@@ -127,7 +128,7 @@
 ## 8. 当前外部条件
 
 - 微信开放平台正式 AppID/AppSecret 与最终审核状态：未提供，本地不需要等待；生产微信入口受此阻塞。
-- 独立 staging 环境与凭据：尚未确认，未擅自创建付费资源。
+- 独立 staging 环境与凭据：运行拓扑、失败关闭预检和冒烟脚本已实现；真实地址/主机/凭据尚未确认，未擅自创建付费资源或部署。
 - 邮件发送服务凭据：尚未提供；失败关闭 SMTP 适配器和本地投递契约已实现，生产验证/重置邮件的真实服务商投递仍受此阻塞。
 - 当前开发机未安装 `sh`、Docker/PostgreSQL 或 WSL；PR #10 run `31470482243` 已完成空库 18 个迁移双执行、角色 ACL、教材不同来源并发/版本循环/教师回滚重导、完整真实账号浏览器路径、现场备份恢复和 Linux musl 原生模块验证。当前分支新增 `0019_course_schedule_teacher_overlay.sql` 并把恢复门槛提升为 19，必须取得新 runner 的目录覆盖、0/1/多教师、ACL、逆序回滚和隔离恢复证据；既有数据库升级副本、真实私有导入包、生产备份和外部服务仍须 staging 验收。
 - 主站已用仓库内失败关闭包隔离 vinext 的 `image-size@2.0.2`；Linux PR CI 已复核实际去重、构建、生产审计与网关冒烟。正式镜像摘要和上一版本回滚仍须 staging 记录。

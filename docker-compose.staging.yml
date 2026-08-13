@@ -4,8 +4,8 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_XIAOYING_URL: ${NEXT_PUBLIC_XIAOYING_URL:-/campus-lab/}
-    image: dufesh-app:${DUFESH_IMAGE_TAG:-latest}
+        NEXT_PUBLIC_XIAOYING_URL: ${NEXT_PUBLIC_XIAOYING_URL:-}
+    image: dufesh-app:${DUFESH_IMAGE_TAG:?set a full 40-character Git SHA}
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -27,49 +27,7 @@ services:
       - /tmp:size=64m,mode=1777
     security_opt:
       - no-new-privileges:true
-    logging:
-      driver: json-file
-      options:
-        max-size: "20m"
-        max-file: "3"
-
-  xiaoying:
-    build:
-      context: ./xiaoying-executor
-      dockerfile: Dockerfile
-    image: dufesh-xiaoying:${DUFESH_IMAGE_TAG:-latest}
-    restart: unless-stopped
-    env_file:
-      - ${DUFESH_XIAOYING_ENV_FILE:-/srv/apps/dufesh/shared/config/xiaoying.env}
-    environment:
-      NODE_ENV: production
-      XIAOYING_EXECUTOR_HOST: 0.0.0.0
-      XIAOYING_EXECUTOR_PORT: "43120"
-      XIAOYING_BASE_PATH: /campus-lab
-      XIAOYING_PUBLIC_BASE_URL: https://dufesh.cn/campus-lab
-      XIAOYING_DATABASE_PATH: /data/xiaoying.sqlite
-      XIAOYING_MASTER_KEY_PATH: /data/master-key
-      XIAOYING_TRACEINT_PROTOCOL_PATH: /data/traceint-protocol.json
-    expose:
-      - "43120"
-    volumes:
-      - xiaoying_data:/data
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:43120/health || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 8
-      start_period: 20s
-    mem_limit: 192m
-    mem_reservation: 48m
-    cpus: 0.50
-    pids_limit: 128
-    read_only: true
-    tmpfs:
-      - /tmp:size=32m,mode=1777
-    security_opt:
-      - no-new-privileges:true
-    logging:
+    logging: &default-logging
       driver: json-file
       options:
         max-size: "10m"
@@ -79,12 +37,12 @@ services:
     image: docker.m.daocloud.io/library/postgres:17-alpine
     restart: unless-stopped
     env_file:
-      - ${DUFESH_POSTGRES_ENV_FILE:-/srv/apps/dufesh/shared/config/postgres.env}
+      - ${DUFESH_STAGING_POSTGRES_ENV_FILE:?set an absolute staging-only path}
     command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
     expose:
       - "5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_staging_data:/var/lib/postgresql/data
       - ./ops/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
@@ -98,11 +56,7 @@ services:
     cpus: 0.75
     pids_limit: 128
     stop_grace_period: 60s
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *default-logging
 
   migrate:
     image: docker.m.daocloud.io/library/postgres:17-alpine
@@ -111,7 +65,7 @@ services:
       postgres:
         condition: service_healthy
     env_file:
-      - ${DUFESH_POSTGRES_ENV_FILE:-/srv/apps/dufesh/shared/config/postgres.env}
+      - ${DUFESH_STAGING_POSTGRES_ENV_FILE:?set an absolute staging-only path}
     environment:
       PGHOST: postgres
       PGPORT: "5432"
@@ -120,24 +74,20 @@ services:
     entrypoint: ["/bin/sh", "/opt/dufesh-postgres/run-migrations.sh"]
     mem_limit: 128m
     pids_limit: 64
-    logging:
-      driver: json-file
-      options:
-        max-size: "5m"
-        max-file: "2"
+    logging: *default-logging
 
   auth-api:
     build:
       context: ./services/auth-api
       dockerfile: Dockerfile
-    image: dufesh-auth-api:${DUFESH_IMAGE_TAG:-latest}
+    image: dufesh-auth-api:${DUFESH_IMAGE_TAG:?set a full 40-character Git SHA}
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
     env_file:
-      - ${DUFESH_POSTGRES_ENV_FILE:-/srv/apps/dufesh/shared/config/postgres.env}
-      - ${DUFESH_AUTH_ENV_FILE:-/srv/apps/dufesh/shared/config/auth.env}
+      - ${DUFESH_STAGING_POSTGRES_ENV_FILE:?set an absolute staging-only path}
+      - ${DUFESH_STAGING_AUTH_ENV_FILE:?set an absolute staging-only path}
     environment:
       NODE_ENV: production
       PGHOST: postgres
@@ -160,11 +110,46 @@ services:
       - /tmp:size=16m,mode=1777
     security_opt:
       - no-new-privileges:true
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *default-logging
+
+  xiaoying:
+    profiles: ["xiaoying"]
+    build:
+      context: ./xiaoying-executor
+      dockerfile: Dockerfile
+    image: dufesh-xiaoying:${DUFESH_IMAGE_TAG:?set a full 40-character Git SHA}
+    restart: unless-stopped
+    env_file:
+      - ${DUFESH_STAGING_XIAOYING_ENV_FILE:-./deploy/staging/xiaoying.disabled}
+    environment:
+      NODE_ENV: production
+      XIAOYING_EXECUTOR_HOST: 0.0.0.0
+      XIAOYING_EXECUTOR_PORT: "43120"
+      XIAOYING_BASE_PATH: /campus-lab
+      XIAOYING_PUBLIC_BASE_URL: ${DUFESH_STAGING_ORIGIN:?set the staging origin}/campus-lab
+      XIAOYING_DATABASE_PATH: /data/xiaoying.sqlite
+      XIAOYING_MASTER_KEY_PATH: /data/master-key
+      XIAOYING_TRACEINT_PROTOCOL_PATH: /data/traceint-protocol.json
+    expose:
+      - "43120"
+    volumes:
+      - xiaoying_staging_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:43120/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+    mem_limit: 192m
+    mem_reservation: 48m
+    cpus: 0.50
+    pids_limit: 128
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
 
   web:
     image: docker.m.daocloud.io/library/caddy:2.10-alpine
@@ -173,14 +158,15 @@ services:
       app:
         condition: service_healthy
     ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
+      - "${DUFESH_STAGING_BIND_ADDRESS:-127.0.0.1}:${DUFESH_STAGING_HTTP_PORT:-8080}:80"
+      - "${DUFESH_STAGING_BIND_ADDRESS:-127.0.0.1}:${DUFESH_STAGING_HTTPS_PORT:-8443}:443"
+    environment:
+      DUFESH_STAGING_SITE_ADDRESS: ${DUFESH_STAGING_SITE_ADDRESS:-http://localhost}
     volumes:
-      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - /srv/apps/dufesh/shared/resources/published:/srv/resources:ro
-      - caddy_data:/data
-      - caddy_config:/config
+      - ./deploy/staging/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${DUFESH_STAGING_RESOURCES_DIR:?set an absolute staging-only path}:/srv/resources:ro
+      - caddy_staging_data:/data
+      - caddy_staging_config:/config
     mem_limit: 128m
     mem_reservation: 32m
     cpus: 0.50
@@ -190,14 +176,10 @@ services:
       - /tmp:size=16m,mode=1777
     security_opt:
       - no-new-privileges:true
-    logging:
-      driver: json-file
-      options:
-        max-size: "20m"
-        max-file: "3"
+    logging: *default-logging
 
 volumes:
-  caddy_data:
-  caddy_config:
-  postgres_data:
-  xiaoying_data:
+  caddy_staging_data:
+  caddy_staging_config:
+  postgres_staging_data:
+  xiaoying_staging_data:
