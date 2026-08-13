@@ -10,7 +10,6 @@ base_url="${DUFESH_STAGING_ORIGIN:-}"
 [ -n "$base_url" ] || fail "DUFESH_STAGING_ORIGIN is required"
 case "$base_url" in
   https://*) ;;
-  http://localhost|http://127.0.0.1) ;;
   *) fail "refusing a non-local HTTP target" ;;
 esac
 case "$base_url" in
@@ -20,12 +19,18 @@ esac
 tmp_headers="$(mktemp)"
 trap 'rm -f "$tmp_headers"' EXIT HUP INT TERM
 
-curl --fail --silent --show-error --max-time 15 -D "$tmp_headers" -o /dev/null "$base_url/"
+curl_tls=""
+case "$base_url" in
+  https://localhost*|https://127.0.0.1*) curl_tls="--insecure" ;;
+esac
+
+# --insecure is limited above to the loopback-only local certificate path.
+curl $curl_tls --fail --silent --show-error --max-time 15 -D "$tmp_headers" -o /dev/null "$base_url/"
 grep -qi '^X-Content-Type-Options: nosniff' "$tmp_headers" || fail "homepage security headers are incomplete"
 grep -qi '^X-Robots-Tag: noindex' "$tmp_headers" || fail "staging robots exclusion is missing"
 
-curl --fail --silent --show-error --max-time 15 -o /dev/null "$base_url/api/auth/health"
-curl --fail --silent --show-error --max-time 15 -o /dev/null "$base_url/api/teachers?limit=1"
-curl --fail --silent --show-error --max-time 15 -o /dev/null "$base_url/community"
+curl $curl_tls --fail --silent --show-error --max-time 15 -o /dev/null "$base_url/api/auth/health"
+curl $curl_tls --fail --silent --show-error --max-time 15 -o /dev/null "$base_url/api/teachers?limit=1"
+curl $curl_tls --fail --silent --show-error --max-time 15 -o /dev/null "$base_url/community"
 
 printf 'staging smoke: OK (%s)\n' "$base_url"

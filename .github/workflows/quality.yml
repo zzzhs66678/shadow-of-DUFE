@@ -60,6 +60,66 @@ jobs:
           done
           echo "Production gateway did not become ready" >&2
           exit 1
+      - name: Start and smoke-test the isolated staging stack
+        run: |
+          docker tag dufesh-app:ci "dufesh-app:$GITHUB_SHA"
+          docker tag dufesh-auth-api:ci "dufesh-auth-api:$GITHUB_SHA"
+          config_dir="$(mktemp -d)"
+          resources_dir="$(mktemp -d)"
+          postgres_env="$config_dir/postgres.env"
+          auth_env="$config_dir/auth.env"
+          cat > "$postgres_env" <<'EOF'
+          POSTGRES_DB=dufesh_ci_staging
+          POSTGRES_USER=dufesh_owner
+          POSTGRES_PASSWORD=ci-owner-password
+          PGDATA=/var/lib/postgresql/data/pgdata
+          MIGRATION_DB_ROLE=dufesh_schema_owner_ci
+          MIGRATION_DB_USER=dufesh_migrator_ci
+          MIGRATION_DB_PASSWORD=ci-migrator-password
+          AUTH_DB_USER=dufesh_runtime_ci
+          AUTH_DB_PASSWORD=ci-runtime-password
+          IMPORT_DB_USER=dufesh_import_ci
+          IMPORT_DB_PASSWORD=ci-import-password
+          BACKUP_DB_USER=dufesh_backup_ci
+          BACKUP_DB_PASSWORD=ci-backup-password
+          EOF
+          cat > "$auth_env" <<'EOF'
+          AUTH_TOKEN_PEPPER=ci-token-pepper-that-is-longer-than-thirty-two-characters
+          AUTH_ALLOWED_ORIGINS=https://localhost:8443
+          AUTH_PUBLIC_ORIGIN=https://localhost:8443
+          AUTH_CREDENTIALS_ENABLED=true
+          AUTH_PASSWORD_RESET_MODE=disabled
+          AUTH_EMAIL_VERIFICATION_MODE=disabled
+          AUTH_ADMIN_ENABLED=false
+          AUTH_ADMIN_MFA_KEYS={"ci":"0123456789abcdef0123456789abcdef"}
+          AUTH_ADMIN_RECOVERY_PEPPER=ci-recovery-pepper-that-is-longer-than-thirty-two-characters
+          AUTH_WECHAT_MODE=disabled
+          EOF
+          chmod 600 "$postgres_env" "$auth_env"
+          export DUFESH_IMAGE_TAG="$GITHUB_SHA"
+          export DUFESH_STAGING_ORIGIN=https://localhost:8443
+          export DUFESH_STAGING_SITE_ADDRESS=https://localhost
+          export DUFESH_STAGING_POSTGRES_ENV_FILE="$postgres_env"
+          export DUFESH_STAGING_AUTH_ENV_FILE="$auth_env"
+          export DUFESH_STAGING_RESOURCES_DIR="$resources_dir"
+          project="dufesh-staging-${GITHUB_SHA:0:8}"
+          cleanup() {
+            docker compose -p "$project" -f docker-compose.staging.yml down --volumes || true
+            rm -rf "$config_dir" "$resources_dir"
+          }
+          trap cleanup EXIT
+          sh ops/staging/preflight.sh
+          docker compose -p "$project" -f docker-compose.staging.yml --profile tools run --rm migrate
+          docker compose -p "$project" -f docker-compose.staging.yml up -d --no-build
+          for attempt in $(seq 1 45); do
+            if sh ops/staging/smoke.sh; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose -p "$project" -f docker-compose.staging.yml ps
+          docker compose -p "$project" -f docker-compose.staging.yml logs --no-color --tail 100
+          exit 1
 
   postgres-integration:
     name: postgres-17-integration
@@ -261,15 +321,15 @@ jobs:
           EOF
           cat > "$auth_env" <<'EOF'
           AUTH_TOKEN_PEPPER=ci-token-pepper-that-is-longer-than-thirty-two-characters
-          AUTH_ALLOWED_ORIGINS=http://localhost
-          AUTH_PUBLIC_ORIGIN=http://localhost
+          AUTH_ALLOWED_ORIGINS=https://localhost:8443
+          AUTH_PUBLIC_ORIGIN=https://localhost:8443
           AUTH_ADMIN_MFA_KEYS={"ci":"0123456789abcdef0123456789abcdef"}
           AUTH_ADMIN_RECOVERY_PEPPER=ci-recovery-pepper-that-is-longer-than-thirty-two-characters
           EOF
           chmod 600 "$postgres_env" "$auth_env"
           DUFESH_IMAGE_TAG="$GITHUB_SHA" \
-            DUFESH_STAGING_ORIGIN=http://localhost \
-            DUFESH_STAGING_SITE_ADDRESS=http://localhost \
+            DUFESH_STAGING_ORIGIN=https://localhost:8443 \
+            DUFESH_STAGING_SITE_ADDRESS=https://localhost \
             DUFESH_STAGING_POSTGRES_ENV_FILE="$postgres_env" \
             DUFESH_STAGING_AUTH_ENV_FILE="$auth_env" \
             DUFESH_STAGING_RESOURCES_DIR="$resources_dir" \

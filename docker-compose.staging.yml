@@ -158,10 +158,9 @@ services:
       app:
         condition: service_healthy
     ports:
-      - "${DUFESH_STAGING_BIND_ADDRESS:-127.0.0.1}:${DUFESH_STAGING_HTTP_PORT:-8080}:80"
       - "${DUFESH_STAGING_BIND_ADDRESS:-127.0.0.1}:${DUFESH_STAGING_HTTPS_PORT:-8443}:443"
     environment:
-      DUFESH_STAGING_SITE_ADDRESS: ${DUFESH_STAGING_SITE_ADDRESS:-http://localhost}
+      DUFESH_STAGING_SITE_ADDRESS: ${DUFESH_STAGING_SITE_ADDRESS:-https://localhost}
     volumes:
       - ./deploy/staging/Caddyfile:/etc/caddy/Caddyfile:ro
       - ${DUFESH_STAGING_RESOURCES_DIR:?set an absolute staging-only path}:/srv/resources:ro
