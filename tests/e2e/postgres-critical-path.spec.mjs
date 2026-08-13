@@ -289,7 +289,7 @@ test("users and an administrator complete the release browser path", async ({
     const teacherReplyBody = "这条回复由另一名真实注册用户补充具体课堂体验。";
     await reviewArticle.getByLabel("只讨论具体教学体验").fill(teacherReplyBody);
     await reviewArticle.getByRole("button", { name: "发布回复" }).click();
-    await expect(reviewArticle.getByRole("status")).toHaveText("回复已发布。");
+    await expect(reviewArticle.getByText("回复已发布。", { exact: true })).toBeVisible();
     await expect(
       reviewArticle.locator("ol > li").filter({ hasText: teacherReplyBody }),
     ).toBeVisible();
