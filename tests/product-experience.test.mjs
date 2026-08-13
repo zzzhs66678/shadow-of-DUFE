@@ -434,6 +434,16 @@ test("signed-in users can manage private community bookmarks and blocks away fro
   assert.doesNotMatch(savedSource, /localStorage/);
 });
 
+test("discussion threads can be folded without deleting or reclassifying content", () => {
+  assert.match(communityTopicSource, /collapsedThreadIds/);
+  assert.match(communityTopicSource, /aria-expanded="false"/);
+  assert.match(communityTopicSource, /aria-controls={`community-thread-\${root\.id}`}/);
+  assert.match(communityTopicSource, />收起本章</u);
+  assert.match(communityTopicSource, /展开本章/);
+  assert.match(communityStyles, /\.threadContent\[hidden\]/);
+  assert.doesNotMatch(communityTopicSource, /localStorage/);
+});
+
 test("community topics share through the system sheet with a copy fallback", () => {
   assert.match(communityTopicSource, /navigator\.share/);
   assert.match(communityTopicSource, /navigator\.clipboard\.writeText/);

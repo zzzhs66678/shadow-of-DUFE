@@ -254,6 +254,11 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .replies .commentNode { left: -42px; }
 .replies .commentNode i { height: 11px; width: 11px; }
 .replies .commentNode span { display: none; }
+.threadContent[hidden] { display: none; }
+.foldedThread { border-bottom: 1px solid var(--line); min-height: 116px; padding: 24px 0 26px; }
+.foldedThread > header { align-items: center; display: flex; justify-content: space-between; }
+.foldedThread time { color: var(--muted); font: 8px/1 var(--mono); }
+.foldedThread > button { background: transparent; border: 0; border-bottom: 1px solid var(--red); color: var(--red-deep); margin-top: 18px; min-height: 44px; padding: 8px 0 4px; }
 
 .panelBackdrop { background: rgba(16, 17, 15, .58); inset: 0; position: fixed; z-index: 100; }
 .reportSheet { background: var(--paper); border: 1px solid var(--ink); box-shadow: 17px 18px 0 rgba(0, 0, 0, .18); max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); max-width: 560px; overscroll-behavior: contain; overflow-y: auto; padding: clamp(26px, 4vw, 46px); width: 100%; }
@@ -365,6 +370,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   .commentNode span { display: none; }
   .replies { margin-left: 6px; padding-left: 20px; }
   .replies .commentNode { left: -28px; }
+  .foldedThread > header { align-items: flex-start; flex-direction: column; gap: 9px; }
   .commentEntry > header,
   .commentUnavailable > header { align-items: flex-start; flex-direction: column; gap: 9px; }
   .reportSheet { border-bottom: 0; border-left: 0; border-right: 0; box-shadow: none; max-height: 92vh; max-height: 92dvh; max-width: none; padding-bottom: max(26px, env(safe-area-inset-bottom)); }

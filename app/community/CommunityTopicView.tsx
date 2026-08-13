@@ -42,6 +42,7 @@ export function CommunityTopicView({ topicId }: { topicId: string }) {
   const [feedback, setFeedback] = useState("");
   const [unread, setUnread] = useState(0);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [collapsedThreadIds, setCollapsedThreadIds] = useState<Set<string>>(() => new Set());
   const [reportTarget, setReportTarget] = useState<{ type: "topic" | "comment" | "user"; id: string; label: string } | null>(null);
   const closeEditComment = useCallback(() => setEditingComment(null), []);
   const editCommentRef = useModalFocus<HTMLFormElement>(Boolean(editingComment), closeEditComment, busy.startsWith("comment-edit:"));
@@ -103,6 +104,15 @@ export function CommunityTopicView({ topicId }: { topicId: string }) {
   }, [comments]);
 
   const isOwner = Boolean(topic?.author?.id && topic.author.id === session?.user?.id);
+
+  function setThreadCollapsed(threadId: string, collapsed: boolean) {
+    setCollapsedThreadIds((current) => {
+      const next = new Set(current);
+      if (collapsed) next.add(threadId);
+      else next.delete(threadId);
+      return next;
+    });
+  }
 
   async function toggleTopic(action: "like" | "bookmark") {
     if (!topic) return;
@@ -338,18 +348,28 @@ export function CommunityTopicView({ topicId }: { topicId: string }) {
         <ol className={styles.commentThreads}>
           {threads.map(({ root, replies }, threadIndex) => (
             <li key={root.id}>
-              <CommentEntry
-                comment={root}
-                mark={`章 ${threadIndex + 1}`}
-                session={session}
-                busy={busy}
-                onReply={setReplyTo}
-                onLike={toggleCommentLike}
-                onEdit={(comment) => { setEditingComment(comment); setEditCommentBody(comment.body ?? ""); }}
-                onDelete={deleteComment}
-                onReport={(comment) => setReportTarget({ type: "comment", id: comment.id, label: `回复 ${comment.body?.slice(0, 24) || "已删除内容"}` })}
-              />
-              {replies.length > 0 && <ol className={styles.replies}>{replies.map((reply) => <li key={reply.id}><CommentEntry comment={reply} mark="回应" session={session} busy={busy} onReply={setReplyTo} onLike={toggleCommentLike} onEdit={(comment) => { setEditingComment(comment); setEditCommentBody(comment.body ?? ""); }} onDelete={deleteComment} onReport={(comment) => setReportTarget({ type: "comment", id: comment.id, label: `回复 ${comment.body?.slice(0, 24) || "已删除内容"}` })} /></li>)}</ol>}
+              <div className={styles.threadContent} id={`community-thread-${root.id}`} hidden={collapsedThreadIds.has(root.id)}>
+                <CommentEntry
+                  comment={root}
+                  mark={`章 ${threadIndex + 1}`}
+                  session={session}
+                  busy={busy}
+                  onReply={setReplyTo}
+                  onLike={toggleCommentLike}
+                  onEdit={(comment) => { setEditingComment(comment); setEditCommentBody(comment.body ?? ""); }}
+                  onDelete={deleteComment}
+                  onReport={(comment) => setReportTarget({ type: "comment", id: comment.id, label: `回复 ${comment.body?.slice(0, 24) || "已删除内容"}` })}
+                  onCollapse={() => setThreadCollapsed(root.id, true)}
+                  collapseControls={`community-thread-${root.id}`}
+                />
+                {replies.length > 0 && <ol className={styles.replies}>{replies.map((reply) => <li key={reply.id}><CommentEntry comment={reply} mark="回应" session={session} busy={busy} onReply={setReplyTo} onLike={toggleCommentLike} onEdit={(comment) => { setEditingComment(comment); setEditCommentBody(comment.body ?? ""); }} onDelete={deleteComment} onReport={(comment) => setReportTarget({ type: "comment", id: comment.id, label: `回复 ${comment.body?.slice(0, 24) || "已删除内容"}` })} /></li>)}</ol>}
+              </div>
+              {collapsedThreadIds.has(root.id) && (
+                <article className={styles.foldedThread}>
+                  <header><AuthorBadge author={root.author} /><time suppressHydrationWarning dateTime={root.createdAt}>{formatCommunityTime(root.createdAt)}</time></header>
+                  <button aria-expanded="false" aria-controls={`community-thread-${root.id}`} onClick={() => setThreadCollapsed(root.id, false)}>展开本章{replies.length > 0 ? ` · ${replies.length} 条回应` : ""}</button>
+                </article>
+              )}
             </li>
           ))}
         </ol>
@@ -383,6 +403,8 @@ function CommentEntry({
   onEdit,
   onDelete,
   onReport,
+  onCollapse,
+  collapseControls,
 }: {
   comment: CommunityComment;
   mark: string;
@@ -393,6 +415,8 @@ function CommentEntry({
   onEdit: (comment: CommunityComment) => void;
   onDelete: (comment: CommunityComment) => Promise<void>;
   onReport: (comment: CommunityComment) => void;
+  onCollapse?: () => void;
+  collapseControls?: string;
 }) {
   const own = Boolean(comment.author?.id && comment.author.id === session?.user?.id);
   const unavailable = comment.status !== "published" || !comment.body;
@@ -405,6 +429,7 @@ function CommentEntry({
         <button className={comment.liked ? styles.activeAction : undefined} onClick={() => void onLike(comment)} disabled={busy === `comment-like:${comment.id}`} aria-pressed={comment.liked}>赞同 {comment.likeCount}</button>
         {session?.authenticated && <button onClick={() => onReply(comment)}>回复</button>}
         {own ? <><button onClick={() => onEdit(comment)}>编辑</button><button onClick={() => void onDelete(comment)} disabled={busy === `comment-delete:${comment.id}`}>删除</button></> : session?.authenticated ? <button onClick={() => onReport(comment)}>举报</button> : null}
+        {onCollapse && <button aria-expanded="true" aria-controls={collapseControls} onClick={onCollapse}>收起本章</button>}
       </footer>}
     </article>
   );
