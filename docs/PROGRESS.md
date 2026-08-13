@@ -603,4 +603,4 @@
 
 - 新增独立 `docker-compose.staging.yml`、staging Caddy 配置、失败关闭预检和只读冒烟脚本。自建镜像必须绑定完整 Git SHA；PostgreSQL、资料、小影与 Caddy 状态独立于生产，默认只回环监听，公开绑定需要人工批准标志。
 - 预检拒绝生产域名/IP/共享目录、非 staging 数据库、非 600 凭据、未批准公网监听和非 HTTPS 公网地址。主应用补齐只读根文件系统、受限临时目录、禁止提权和资源上限；Caddy 不再等待可选小影健康。
-- 本地证据：staging/发布契约 8/8、TypeScript、Compose YAML 解析、生产构建与差异检查通过。PR #10 run `31686377667` 已通过第一层 Linux `docker compose config`；下一提交将复用已构建镜像启动隔离 PostgreSQL、执行迁移并从 HTTPS Caddy 冒烟，独立外部 staging 地址/凭据仍未提供，本轮未部署。
+- 本地证据：staging/发布契约 8/8、TypeScript、Compose YAML 解析、生产构建与差异检查通过。PR #10 run `31686974470` 已复用生产镜像启动隔离 PostgreSQL、执行 20 个迁移，并通过主应用、认证 API、HTTPS Caddy、教师接口和社区冒烟；verify、PG17、Linux 镜像、CodeQL 与全历史密钥扫描全绿。独立外部 staging 地址/凭据仍未提供，本轮未部署。

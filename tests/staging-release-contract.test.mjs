@@ -68,5 +68,7 @@ test("staging preflight refuses production targets and unapproved public binds",
   assert.match(preflight, /POSTGRES_DB must end in _staging/);
   assert.match(preflight, /must have mode 600/);
   assert.match(smoke, /refusing a production target/);
+  assert.match(smoke, /homepage does not reference any JS\/CSS assets/);
+  assert.match(smoke, /compiled asset cache policy is missing/);
   assert.match(caddy, /X-Robots-Tag "noindex, nofollow, noarchive"/);
 });
