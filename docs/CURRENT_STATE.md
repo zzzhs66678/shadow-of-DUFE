@@ -268,7 +268,7 @@
 - 预检按精确主机名拒绝正式根域、`www` 和生产 IP，允许独立 staging 子域；不会再把 `staging.dufesh.cn` 一类隔离入口误判为正式站。
 - 主站应用容器补齐非 root 之外的只读文件系统、64MB 临时目录、禁止提权以及 CPU/内存/PID 限额。生产与 staging 的 Caddy 都只等待主应用健康，小影作为隔离的可选服务，其故障不再阻止主站和账号入口启动。
 - 本地 staging/发布契约 8/8、TypeScript、Compose YAML 解析、生产构建与差异检查通过。PR #10 run `31687272428` 已在 Linux 真实启动隔离 PostgreSQL、执行 20 个迁移并从 HTTPS Caddy 验证主应用、认证健康、教师接口、社区及首页实际引用的全部 JS/CSS 状态、MIME 与长期缓存；verify、PG17、Linux 镜像、CodeQL 和全历史密钥扫描全绿。独立外部 staging 的域名、凭据、SMTP、真实私有数据与回滚演练仍待环境提供。本轮未部署。
-- 2026-08-13 已在 ECS `i-2zej47hn80v6wdsbw4va` 的 `/srv/apps/dufesh-staging` 部署提交 `9e7f5fa1cf8d2057a8c8d7c90885b1d9c8a3bf15`：使用独立 Compose 项目、独立 PostgreSQL 17 卷、独立 600 权限随机凭据与独立空资料目录，未复制或读取正式数据。20 个迁移完成，主站、auth-api 与数据库健康，`https://localhost:8443` 部署冒烟通过；staging 网关仅监听 `127.0.0.1:8443`，小影和 SMTP 暂未启用。公网 `staging.dufesh.cn` 尚未接入，因为该步骤需要经审批热重载现有 production Caddy。
+- 2026-08-13 已在 ECS `i-2zej47hn80v6wdsbw4va` 的 `/srv/apps/dufesh-staging` 部署提交 `9e7f5fa1cf8d2057a8c8d7c90885b1d9c8a3bf15`：使用独立 Compose 项目、独立 PostgreSQL 17 卷、独立 600 权限随机凭据与独立空资料目录，未复制或读取正式数据。20 个迁移完成，主站、auth-api 与数据库健康，回环和公网 `https://staging.dufesh.cn` 部署冒烟均通过；小影和 SMTP 暂未启用。公网入口由现有 Caddy 经专用 ingress 网络只连接 staging app/auth-api，网络中没有任何数据库；正式 app/auth-api/PostgreSQL 在接入后仍健康，正式认证健康接口保持 200。
 
 ## 下一阶段
 
