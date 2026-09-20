@@ -95,11 +95,11 @@ export function TeacherExplorer({ initialQuery = "" }: { initialQuery?: string }
         </div>
         <div className={styles.heroCopy}>
           <span>东财教师档案</span>
-          <h1 id="teachers-title">先找到正确的人，再看他的课。</h1>
-          <p>同名教师会按学院分别展示。教学班、教材和评价都来自已记录的事实。</p>
+          <h1 id="teachers-title">这门课，听听上过的人。</h1>
+          <p>查找东财教师，阅读课堂体验。同名教师请按学院区分。</p>
         </div>
         <label className={styles.searchField}>
-          <span>教师姓名</span>
+          <span>查找教师</span>
           <input
             ref={inputRef}
             value={query}
@@ -111,7 +111,8 @@ export function TeacherExplorer({ initialQuery = "" }: { initialQuery?: string }
               }
             }}
             autoComplete="off"
-            placeholder="输入姓名，课表入口也会来到这里…"
+            type="search"
+            placeholder="输入教师姓名…"
           />
           {query && <button onClick={() => setQuery("")} aria-label="清空教师搜索">清空</button>}
         </label>
@@ -120,7 +121,7 @@ export function TeacherExplorer({ initialQuery = "" }: { initialQuery?: string }
       <section className={styles.results} aria-live="polite" aria-busy={status === "loading"}>
         <header>
           <div><span>检索结果</span><b>{status === "ready" ? `${items.length} 位` : "读取中"}</b></div>
-          <p>点击姓名进入教师档案。姓名相同但学院不同的记录不会合并。</p>
+          <p>进入教师页面即可阅读评价，也可以查看课程与教材。</p>
         </header>
         {status === "error" && (
           <div className={styles.state} role="alert">
@@ -159,7 +160,7 @@ export function TeacherExplorer({ initialQuery = "" }: { initialQuery?: string }
                   <div><dt>教学班</dt><dd>{teacher.courseCount}</dd></div>
                   <div><dt>公开评价</dt><dd>{teacher.reviewCount}</dd></div>
                 </dl>
-                <span className={styles.openLabel}>查看档案 →</span>
+                <span className={styles.openLabel}>阅读评价 →</span>
               </Link>
             ))}
           </div>

@@ -21,5 +21,6 @@ export default async function TeacherDetailPage({ params, searchParams }: PagePr
     : rawSort === "relevant" && reviewQuery
       ? "relevant"
       : "latest";
-  return <TeacherDetail teacherId={(await params).teacherId} initialReviewQuery={reviewQuery} initialReviewSort={reviewSort} />;
+  const panel = query.panel === "teaching" ? "teaching" : "reviews";
+  return <TeacherDetail teacherId={(await params).teacherId} initialReviewQuery={reviewQuery} initialReviewSort={reviewSort} initialPanel={panel} />;
 }

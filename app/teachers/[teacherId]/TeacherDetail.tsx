@@ -55,11 +55,14 @@ export function TeacherDetail({
   teacherId,
   initialReviewQuery = "",
   initialReviewSort = "latest",
+  initialPanel = "reviews",
 }: {
   teacherId: string;
   initialReviewQuery?: string;
   initialReviewSort?: ReviewSort;
+  initialPanel?: "reviews" | "teaching";
 }) {
+  const [panel, setPanel] = useState(initialPanel);
   const [teacher, setTeacher] = useState<TeacherDetailData | null>(null);
   const [reviews, setReviews] = useState<TeacherReview[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -344,7 +347,7 @@ export function TeacherDetail({
         <div>
           <p>{teacher.collegeName}</p>
           <h1>{teacher.displayName}</h1>
-          <small>同名教师按学院和来源分别建档 · 当前展示已记录事实</small>
+          <small>课堂体验 · 课程与教材</small>
         </div>
         <dl>
           <div><dt>教学班</dt><dd>{teacher.courseCount}</dd></div>
@@ -352,6 +355,22 @@ export function TeacherDetail({
         </dl>
       </header>
 
+      <div className={styles.profileNavigation} role="group" aria-label="教师档案内容">
+        <button type="button" aria-pressed={panel === "reviews"} onClick={() => {
+          setPanel("reviews");
+          const url = new URL(window.location.href);
+          url.searchParams.delete("panel");
+          window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+        }}>学生评价 <span>{teacher.reviewCount}</span></button>
+        <button type="button" aria-pressed={panel === "teaching"} onClick={() => {
+          setPanel("teaching");
+          const url = new URL(window.location.href);
+          url.searchParams.set("panel", "teaching");
+          window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+        }}>课程与教材</button>
+        <Link href="/teachers">查找其他教师</Link>
+      </div>
+      <div hidden={panel !== "teaching"}>
       <section className={styles.profileGrid}>
         <article className={styles.ratings}>
           <header><span>五项教学维度</span><p>只统计当前用户提交的五维评分；历史整理内容不参与均分。</p></header>
@@ -392,8 +411,10 @@ export function TeacherDetail({
         </div>
       </section>
 
+      </div>
+      <div hidden={panel !== "reviews"}>
       <section className={styles.reviews} aria-labelledby="teacher-reviews-title">
-        <header><span>已公开内容</span><h2 id="teacher-reviews-title">评价</h2><p>历史整理内容经过人工审核后才会出现，并且不会冒充当前学生。</p></header>
+        <header><span>课堂里的声音</span><h2 id="teacher-reviews-title">学生评价</h2><p>课堂体验供选课参考。历史评价单独标注，考核方式以当学期说明为准。</p></header>
         <div>
           <section className={styles.reviewIndex} aria-label="查找与排列评价">
             <form role="search" onSubmit={searchReviews}>
@@ -462,7 +483,7 @@ export function TeacherDetail({
           {reviewListStatus === "error" && <p className={styles.inlineEmpty} role="alert">评价暂时没有加载成功，不会影响教师档案。 <button type="button" onClick={() => setRevision((value) => value + 1)}>重新读取</button></p>}
           {reviewListStatus === "ready" && reviews.length ? reviews.map((review) => (
             <article key={review.id}>
-              <div><b>{review.authorLabel}</b><span>{review.discussionCount > 0 ? `${review.discussionCount} 条公开回复 · ` : ""}<time dateTime={review.publishedAt}>{new Date(review.publishedAt).toLocaleDateString("zh-CN")}</time></span></div>
+              <div><b>{review.sourceType === "legacy_approved" ? "学长学姐 · 历史评价" : review.authorLabel}</b><span>{review.discussionCount > 0 ? `${review.discussionCount} 条公开回复 · ` : ""}{review.sourceType === "legacy_approved" ? "站内公开于 " : ""}<time dateTime={review.publishedAt}>{new Date(review.publishedAt).toLocaleDateString("zh-CN")}</time></span></div>
               <p>{review.body}</p>
               <TeacherReviewDiscussion teacherId={teacherId} reviewId={review.id} reviewLabel={`${review.authorLabel}的评价`} canWrite={Boolean(currentUserId)} currentUserId={currentUserId} />
             </article>
@@ -470,6 +491,7 @@ export function TeacherDetail({
         </div>
         {reviewListStatus === "ready" && nextCursor && <button className={styles.loadMore} onClick={() => void loadMoreReviews()}>继续查看评价</button>}
       </section>
+      </div>
     </main>
   );
 }
