@@ -122,7 +122,7 @@
 .profileBracket { align-items: center; border-left: 10px solid var(--dufe-red); border-top: 1px solid var(--dufe-red); display: flex; height: 116px; justify-content: center; position: relative; width: 108px; }
 .profileBracket::after { border-bottom: 1px solid var(--dufe-red); bottom: 0; content: ""; left: 0; position: absolute; width: 38px; }
 .profileBracket span { color: var(--dufe-red-deep); font: 500 54px/1 var(--journal-display, serif); }
-.profileHeader h1 { font: 500 clamp(34px, 5vw, 58px)/1.1 var(--journal-display, serif); letter-spacing: -.04em; margin: 9px 0 12px; }
+.profileHeader h1 { font: 500 clamp(28px, 3vw, 40px)/1.25 var(--journal-display, serif); overflow-wrap: anywhere; margin: 6px 0; }
 .profileHeader dl { display: flex; gap: 34px; margin: 0; }
 .profileHeader dl div { border-left: 1px solid var(--dufe-line); padding-left: 18px; }
 .profileHeader dt { color: var(--dufe-muted); font-size: 9px; }
@@ -213,7 +213,7 @@
 .reviewIndex form label { color: var(--dufe-muted); display: block; font-size: 10px; margin-bottom: 8px; }
 .reviewIndex form > div { align-items: end; display: flex; gap: 12px; }
 .reviewIndex input { background: transparent; border: 0; border-bottom: 1px solid var(--dufe-ink); border-radius: 0; color: var(--dufe-ink); min-height: 44px; min-width: 0; padding: 0 2px; width: 100%; }
-.reviewIndex button { background: transparent; border: 0; border-bottom: 1px solid var(--dufe-red); color: var(--dufe-red-deep); min-height: 44px; padding: 0 2px; }
+.reviewIndex button { background: transparent; border: 0; border-bottom: 1px solid var(--dufe-red); color: var(--dufe-red-deep); min-height: 44px; padding: 0 2px; flex-shrink: 0; white-space: nowrap; }
 .reviewIndex input:focus-visible, .reviewIndex button:focus-visible { outline: 2px solid var(--dufe-red); outline-offset: 3px; }
 .reviewSort { align-items: end; display: flex; gap: 18px; }
 .reviewSort button { border-bottom-color: transparent; color: var(--dufe-muted); }
@@ -222,7 +222,18 @@
 .reviewIndex > p { color: var(--dufe-muted); font-size: 10px; grid-column: 1 / -1; line-height: 1.7; margin: -8px 0 0; }
 .reviewIndex > p button { display: inline-flex; }
 
-.reviewContribution { border-top: 4px solid var(--dufe-red); margin-bottom: 38px; padding: 22px 0 28px; }
+.reviewContribution { border-bottom: 1px solid var(--dufe-line); margin-bottom: 16px; padding: 0; }
+.reviewContribution[open] { padding-bottom: 20px; }
+.reviewContribution summary, .reviewTools summary { cursor: pointer; min-height: 44px; padding: 12px 0; font: 13px/1.5 var(--journal-body, sans-serif); color: var(--dufe-red-deep); }
+.reviewContribution summary:focus-visible, .reviewTools summary:focus-visible { outline: 2px solid var(--dufe-red); outline-offset: 2px; }
+.reviews { grid-template-columns: minmax(0, 760px); justify-content: center; gap: 16px; padding-top: 24px; }
+.reviews > header h2 { font-size: 24px; margin: 0 0 8px; }
+.reviews > div article > div { flex-wrap: wrap; gap: 8px; }
+.reviews article p { overflow-wrap: anywhere; }
+.bookFacts { margin: 12px 0 0; font: 13px/1.65 var(--journal-body, sans-serif); }
+.bookFacts > div { display: grid; grid-template-columns: 4em minmax(0, 1fr); gap: 12px; margin-top: 4px; }
+.bookFacts dt { color: var(--dufe-muted); }
+.bookFacts dd { margin: 0; overflow-wrap: anywhere; }
 .reviewContribution > div > b, .reviewContribution form > header b { font: 500 22px/1.35 var(--journal-display, serif); }
 .reviewContribution > div > p, .reviewContribution > p { color: var(--dufe-muted); line-height: 1.7; margin: 8px 0 0; }
 .reviewContribution > div > a, .reviewContribution > div > button {
@@ -287,8 +298,11 @@
   .profileHeader { align-items: start; grid-template-columns: 64px 1fr; }
   .profileBracket { border-left-width: 7px; height: 72px; width: 62px; }
   .profileBracket span { font-size: 34px; }
-  .profileHeader h1 { font-size: 52px; }
-  .profileHeader dl { grid-column: 1 / -1; }
+  .profileHeader h1 { font-size: 28px; }
+  .profileHeader { gap: 12px; padding-top: 18px; padding-bottom: 18px; }
+  .profileHeader dl { grid-column: 1 / -1; gap: 20px; }
+  .profileHeader dl div { display: flex; align-items: baseline; gap: 8px; border: 0; padding: 0; }
+  .profileHeader dd { font-size: 18px; margin: 0; }
   .courseLedger > div:not(.inlineEmpty) { grid-template-columns: 70px 1fr; }
   .courseLedger > div > small { grid-column: 2; text-align: left; }
   .textbooks > div { grid-template-columns: 1fr; }

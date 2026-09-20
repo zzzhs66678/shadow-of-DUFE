@@ -4426,12 +4426,38 @@ function RoomsPage({
                   ? "★ 已收藏"
                   : "☆ 设为常用"}
               </button>
+              <a href="#room-week-schedule">查看这一周的课表 ↓</a>
             </div>
           )}
           <p>{data.disclaimer}</p>
         </aside>
       </section>
 
+      {selectedRoomInfo && (
+        <section className="room-week-schedule" id="room-week-schedule" aria-labelledby="room-week-title">
+          <header>
+            <h3 id="room-week-title">{selectedRoomInfo.building} {selectedRoomInfo.room} · 一周课表</h3>
+            <p>{date} 所在周{selectedWeek.state === "active" ? ` · 第 ${selectedWeek.week} 教学周` : " · 不在当前学期教学周内"}。仅反映已收录课程，不代表教室开放或预约状态。</p>
+          </header>
+          {selectedWeek.state === "active" ? <div className="room-week-days">
+            {Array.from({ length: 7 }, (_, index) => {
+              const day = index + 1;
+              const lessons = (schedulesByRoom.get(selectedRoomInfo.key) ?? [])
+                .filter((item) => item.weekday === day && activeThisWeek(item))
+                .sort((a, b) => a.block - b.block || a.title.localeCompare(b.title, "zh-CN"));
+              return <section key={day} aria-label={weekdayLabels[day % 7]}>
+                <h4>{weekdayLabels[day % 7]}{day === weekday ? " · 所选日" : ""}</h4>
+                {lessons.length ? <ul>{lessons.map((lesson) => <li key={lesson.id}>
+                  <time>{data.periods[lesson.block - 1]?.short}</time>
+                  <strong>{lesson.title}</strong>
+                  <span>{lesson.teacher || "教师未提供"}</span>
+                  <small>{lesson.timeText}</small>
+                </li>)}</ul> : <p>未收录课程</p>}
+              </section>;
+            })}
+          </div> : <p>请在上方选择学期内日期，再查看对应教学周。</p>}
+        </section>
+      )}
       {(saved.favoriteRooms.length > 0 || saved.recentRooms.length > 0) && (
         <nav className="room-memory" aria-label="常用和最近查看的教室">
           <span>{saved.favoriteRooms.length ? "常用" : "最近看过"}</span>

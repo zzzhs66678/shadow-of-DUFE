@@ -404,8 +404,12 @@ export function TeacherDetail({
             <article key={book.id}>
               <small>{termLabel(book.termKey)} · {book.courseTitle} · {book.sectionNo}</small>
               <h3>{book.selectionStatus === "not_specified" ? "不指定教材" : book.title ?? "教材待核对"}</h3>
-              <p>{[book.author, book.publisher, book.edition].filter(Boolean).join(" · ") || "未提供出版信息"}</p>
-              {book.isbn && <code>ISBN {book.isbn}</code>}
+              {book.selectionStatus !== "not_specified" && <dl className={styles.bookFacts}>
+                <div><dt>版次</dt><dd>{book.edition || "原表未提供"}</dd></div>
+                {book.author && <div><dt>作者</dt><dd>{book.author}</dd></div>}
+                {book.publisher && <div><dt>出版社</dt><dd>{book.publisher}</dd></div>}
+                {book.isbn && <div><dt>ISBN</dt><dd>{book.isbn}</dd></div>}
+              </dl>}
             </article>
           )) : <p className={styles.inlineEmpty}>暂未记录教材。</p>}
         </div>
@@ -414,8 +418,10 @@ export function TeacherDetail({
       </div>
       <div hidden={panel !== "reviews"}>
       <section className={styles.reviews} aria-labelledby="teacher-reviews-title">
-        <header><span>课堂里的声音</span><h2 id="teacher-reviews-title">学生评价</h2><p>课堂体验供选课参考。历史评价单独标注，考核方式以当学期说明为准。</p></header>
+        <header><h2 id="teacher-reviews-title">学长学姐怎么说</h2><p>历史评价供参考，考核方式以当学期说明为准。</p></header>
         <div>
+          <details className={styles.reviewTools}>
+          <summary>查找与排列评价</summary>
           <section className={styles.reviewIndex} aria-label="查找与排列评价">
             <form role="search" onSubmit={searchReviews}>
               <label htmlFor="teacher-review-query">在评价里查找</label>
@@ -431,7 +437,9 @@ export function TeacherDetail({
             </div>
             <p>{reviewQuery ? <>正在查找“{reviewQuery}”{reviewSort === "relevant" ? "，优先显示最接近的内容。" : "。"} <button type="button" onClick={clearReviewSearch}>清除查找</button></> : reviewSort === "discussed" ? "按仍公开的回复数量排列，再按发布时间确定先后。" : "按发布时间从新到旧排列。"}</p>
           </section>
-          <aside className={styles.reviewContribution} aria-label="我的教师评价">
+          </details>
+          <details className={styles.reviewContribution}>
+            <summary>写评价 / 管理我的评价</summary>
             {accountStatus === "loading" && <p>正在确认是否可以写评价…</p>}
             {accountStatus === "guest" && (
               <div><b>登录后写下真实的课堂体验</b><p>每位登录用户对同一位教师保留一份评价，可以之后修改或删除。</p><Link href="/?view=me">去登录或创建账号</Link></div>
@@ -478,7 +486,7 @@ export function TeacherDetail({
               </form>
             )}
             {reviewNotice && <p className={styles.reviewNotice} role="status">{reviewNotice}</p>}
-          </aside>
+          </details>
           {reviewListStatus === "loading" && <p className={styles.inlineEmpty} role="status">正在读取评价…</p>}
           {reviewListStatus === "error" && <p className={styles.inlineEmpty} role="alert">评价暂时没有加载成功，不会影响教师档案。 <button type="button" onClick={() => setRevision((value) => value + 1)}>重新读取</button></p>}
           {reviewListStatus === "ready" && reviews.length ? reviews.map((review) => (
