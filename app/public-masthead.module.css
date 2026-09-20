@@ -76,6 +76,13 @@
   padding: 0 4px;
 }
 
+.wordmark:focus-visible,
+.navigation > a:focus-visible,
+.navigation > button:focus-visible {
+  outline: 2px solid var(--dufe-red);
+  outline-offset: -4px;
+}
+
 @media (max-width: 640px) {
   .masthead {
     min-height: 68px;
@@ -93,7 +100,7 @@
 
   .navigation > a,
   .navigation > button {
-    font-size: 10px;
+    font-size: 12px;
     padding: 0 8px;
   }
 }

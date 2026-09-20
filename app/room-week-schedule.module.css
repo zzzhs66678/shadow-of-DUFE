@@ -1,0 +1,260 @@
+.schedule {
+  border-top: 1px solid var(--dufe-line);
+  color: var(--dufe-ink);
+  container-type: inline-size;
+  font-family: var(--journal-body, "Microsoft YaHei", sans-serif);
+  margin: 24px 0;
+  min-width: 0;
+  padding: 24px 0 0;
+  scroll-margin-top: 90px;
+}
+
+.heading {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  justify-content: space-between;
+}
+
+.heading > div {
+  min-width: 0;
+}
+
+.heading h3 {
+  font: 600 clamp(19px, 2vw, 23px)/1.5 var(--journal-display, SimSun, serif);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.heading h3 > span {
+  display: inline-block;
+  font-size: .8em;
+  font-weight: 500;
+}
+
+.weekContext {
+  color: var(--dufe-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: 4px;
+  line-height: 1.7;
+  margin: 6px 0 0;
+}
+
+.weekContext > span {
+  border-left: 1px solid var(--dufe-line);
+  color: var(--dufe-red-deep);
+  margin-left: 4px;
+  padding-left: 8px;
+}
+
+.weekToggle {
+  background: transparent;
+  border: 1px solid var(--dufe-line);
+  border-radius: 0;
+  color: var(--dufe-ink);
+  cursor: pointer;
+  flex: 0 0 auto;
+  font: 600 12px/1.5 var(--journal-body, "Microsoft YaHei", sans-serif);
+  min-height: 44px;
+  padding: 10px 15px;
+}
+
+.weekToggle[aria-pressed="true"] {
+  background: var(--dufe-red-soft);
+  border-color: var(--dufe-red);
+  color: var(--dufe-red-deep);
+}
+
+.dayPicker {
+  border-bottom: 1px solid var(--dufe-line);
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  margin-top: 20px;
+}
+
+.dayButton {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  color: var(--dufe-muted);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: 600 13px/1.5 var(--journal-body, "Microsoft YaHei", sans-serif);
+  gap: 3px;
+  justify-content: center;
+  min-height: 62px;
+  min-width: 0;
+  padding: 8px 2px;
+}
+
+.dayButton small {
+  font: 11px/1.5 var(--journal-data, ui-monospace, monospace);
+}
+
+.dayButton[aria-pressed="true"] {
+  background: var(--dufe-paper-raised);
+  border-bottom-color: var(--dufe-red);
+  color: var(--dufe-red-deep);
+}
+
+.dayButton:hover,
+.weekToggle:hover {
+  background: var(--dufe-paper-raised);
+  color: var(--dufe-red-deep);
+}
+
+.dayButton:focus-visible,
+.weekToggle:focus-visible {
+  outline: 2px solid var(--dufe-red);
+  outline-offset: 2px;
+  position: relative;
+  z-index: 1;
+}
+
+.days {
+  margin-top: 18px;
+  min-width: 0;
+}
+
+.wholeWeek {
+  display: grid;
+  gap: 20px 28px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.day {
+  min-width: 0;
+}
+
+.dayHeading {
+  align-items: baseline;
+  border-bottom: 1px solid var(--dufe-line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  justify-content: space-between;
+  padding-bottom: 10px;
+}
+
+.dayHeading h4 {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 14px;
+  font-weight: 600;
+  gap: 8px;
+  margin: 0;
+}
+
+.dayHeading > span,
+.dayHeading h4 > span {
+  color: var(--dufe-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.dayHeading h4 > span {
+  color: var(--dufe-red-deep);
+}
+
+.lessonList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lesson {
+  align-items: start;
+  border-bottom: 1px solid var(--dufe-line);
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 68px) minmax(0, 1fr);
+  padding: 13px 0;
+}
+
+.period {
+  color: var(--dufe-red-deep);
+  font: 600 12px/1.65 var(--journal-data, ui-monospace, monospace);
+  overflow-wrap: anywhere;
+  padding-top: 1px;
+}
+
+.lessonContent {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lessonContent > strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.lessonDetails {
+  color: var(--dufe-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: 2px 14px;
+  line-height: 1.6;
+  margin: 3px 0 0;
+}
+
+.emptyDay,
+.outsideTerm {
+  color: var(--dufe-muted);
+  font-size: 13px;
+  line-height: 1.8;
+  margin: 0;
+  padding: 18px 0;
+}
+
+.outsideTerm {
+  border-bottom: 1px solid var(--dufe-line);
+  margin-top: 12px;
+}
+
+.disclaimer {
+  color: var(--dufe-muted);
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 14px 0 0;
+}
+
+.screenReaderOnly {
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+@container (max-width: 600px) {
+  .wholeWeek {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container (max-width: 360px) {
+  .dayPicker {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .dayButton {
+    min-height: 54px;
+  }
+
+  .lesson {
+    gap: 10px;
+    grid-template-columns: minmax(0, 56px) minmax(0, 1fr);
+  }
+}

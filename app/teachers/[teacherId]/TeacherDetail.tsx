@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState, type CSSProperties, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { FormField } from "../../FormField";
 import { PublicMasthead } from "../../PublicMasthead";
 import { TeacherReviewDiscussion } from "../TeacherReviewDiscussion";
@@ -67,6 +67,9 @@ export function TeacherDetail({
   const [reviews, setReviews] = useState<TeacherReview[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [reviewListStatus, setReviewListStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [reviewMoreStatus, setReviewMoreStatus] = useState<"idle" | "loading" | "error">("idle");
+  const reviewGeneration = useRef(0);
+  const reviewMoreRequest = useRef<AbortController | null>(null);
   const [reviewQueryDraft, setReviewQueryDraft] = useState(initialReviewQuery);
   const [reviewQuery, setReviewQuery] = useState(initialReviewQuery);
   const [reviewSort, setReviewSort] = useState<ReviewSort>(initialReviewSort);
@@ -141,7 +144,10 @@ export function TeacherDetail({
   }, [teacherId, revision]);
 
   useEffect(() => {
+    const generation = ++reviewGeneration.current;
     const controller = new AbortController();
+    reviewMoreRequest.current?.abort();
+    reviewMoreRequest.current = null;
     async function loadReviews() {
       setReviewListStatus("loading");
       try {
@@ -152,36 +158,67 @@ export function TeacherDetail({
         });
         if (!response.ok) throw new Error("teacher_reviews_unavailable");
         const payload = await response.json() as { items: TeacherReview[]; nextCursor: string | null };
+        if (controller.signal.aborted || generation !== reviewGeneration.current) return;
         setReviews(payload.items);
         setNextCursor(payload.nextCursor);
+        setReviewMoreStatus("idle");
         setReviewListStatus("ready");
       } catch (error) {
-        if ((error as Error).name !== "AbortError") setReviewListStatus("error");
+        if (!controller.signal.aborted && generation === reviewGeneration.current && (error as Error).name !== "AbortError") setReviewListStatus("error");
       }
     }
     void loadReviews();
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      reviewMoreRequest.current?.abort();
+      reviewMoreRequest.current = null;
+      if (generation === reviewGeneration.current) reviewGeneration.current += 1;
+    };
   }, [reviewEndpoint, revision]);
 
   async function loadMoreReviews() {
-    if (!nextCursor) return;
-    const response = await fetch(reviewEndpoint(nextCursor), {
-      cache: "no-store",
-    });
-    if (!response.ok) {
-      setReviewListStatus("error");
-      return;
+    if (!nextCursor || reviewListStatus !== "ready" || reviewMoreRequest.current) return;
+    const generation = reviewGeneration.current;
+    const controller = new AbortController();
+    reviewMoreRequest.current = controller;
+    setReviewMoreStatus("loading");
+    try {
+      const response = await fetch(reviewEndpoint(nextCursor), {
+        signal: controller.signal,
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) throw new Error("teacher_reviews_unavailable");
+      const payload = await response.json() as { items: TeacherReview[]; nextCursor: string | null };
+      if (controller.signal.aborted || generation !== reviewGeneration.current) return;
+      setReviews((current) => {
+        const knownIds = new Set(current.map((review) => review.id));
+        return [...current, ...payload.items.filter((review) => !knownIds.has(review.id))];
+      });
+      setNextCursor(payload.nextCursor);
+      setReviewMoreStatus("idle");
+    } catch (error) {
+      if (!controller.signal.aborted && generation === reviewGeneration.current && (error as Error).name !== "AbortError") setReviewMoreStatus("error");
+    } finally {
+      if (reviewMoreRequest.current === controller) reviewMoreRequest.current = null;
     }
-    const payload = await response.json() as { items: TeacherReview[]; nextCursor: string | null };
-    setReviews((current) => [...current, ...payload.items]);
-    setNextCursor(payload.nextCursor);
+  }
+
+  function invalidateReviewRequests() {
+    reviewGeneration.current += 1;
+    reviewMoreRequest.current?.abort();
+    reviewMoreRequest.current = null;
+    setReviewMoreStatus("idle");
+    setReviewListStatus("loading");
   }
 
   function searchReviews(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const query = reviewQueryDraft.normalize("NFKC").trim();
+    const sort = query ? "relevant" : "latest";
+    if (query !== reviewQuery || sort !== reviewSort) invalidateReviewRequests();
     setReviewQuery(query);
-    setReviewSort(query ? "relevant" : "latest");
+    setReviewSort(sort);
     const url = new URL(window.location.href);
     if (query) url.searchParams.set("reviewQuery", query);
     else url.searchParams.delete("reviewQuery");
@@ -192,6 +229,7 @@ export function TeacherDetail({
 
   function chooseReviewSort(sort: ReviewSort) {
     if (sort === "relevant" && !reviewQuery) return;
+    if (sort !== reviewSort) invalidateReviewRequests();
     setReviewSort(sort);
     const url = new URL(window.location.href);
     if (sort === "latest") url.searchParams.delete("reviewSort");
@@ -200,6 +238,7 @@ export function TeacherDetail({
   }
 
   function clearReviewSearch() {
+    if (reviewQuery || reviewSort !== "latest") invalidateReviewRequests();
     setReviewQueryDraft("");
     setReviewQuery("");
     setReviewSort("latest");
@@ -421,7 +460,7 @@ export function TeacherDetail({
         <header><h2 id="teacher-reviews-title">学长学姐怎么说</h2><p>历史评价供参考，考核方式以当学期说明为准。</p></header>
         <div>
           <details className={styles.reviewTools}>
-          <summary>查找与排列评价</summary>
+          <summary>查找与排列评价{reviewQuery ? ` · “${reviewQuery}”` : ""}{reviewSort !== "latest" ? ` · ${reviewSort === "discussed" ? "热议" : "相关"}` : ""}</summary>
           <section className={styles.reviewIndex} aria-label="查找与排列评价">
             <form role="search" onSubmit={searchReviews}>
               <label htmlFor="teacher-review-query">在评价里查找</label>
@@ -490,14 +529,21 @@ export function TeacherDetail({
           {reviewListStatus === "loading" && <p className={styles.inlineEmpty} role="status">正在读取评价…</p>}
           {reviewListStatus === "error" && <p className={styles.inlineEmpty} role="alert">评价暂时没有加载成功，不会影响教师档案。 <button type="button" onClick={() => setRevision((value) => value + 1)}>重新读取</button></p>}
           {reviewListStatus === "ready" && reviews.length ? reviews.map((review) => (
-            <article key={review.id}>
-              <div><b>{review.sourceType === "legacy_approved" ? "学长学姐 · 历史评价" : review.authorLabel}</b><span>{review.discussionCount > 0 ? `${review.discussionCount} 条公开回复 · ` : ""}{review.sourceType === "legacy_approved" ? "站内公开于 " : ""}<time dateTime={review.publishedAt}>{new Date(review.publishedAt).toLocaleDateString("zh-CN")}</time></span></div>
-              <p>{review.body}</p>
+            <article className={styles.reviewEntry} key={review.id}>
+              <div className={styles.reviewEntryMeta}><b>{review.sourceType === "legacy_approved" ? "学长学姐 · 历史评价" : review.authorLabel}</b><span>{review.discussionCount > 0 ? `${review.discussionCount} 条公开回复 · ` : ""}{review.sourceType === "legacy_approved" ? "站内公开于 " : ""}<time dateTime={review.publishedAt}>{new Date(review.publishedAt).toLocaleDateString("zh-CN")}</time></span></div>
+              <p className={styles.reviewEntryBody}>{review.body}</p>
               <TeacherReviewDiscussion teacherId={teacherId} reviewId={review.id} reviewLabel={`${review.authorLabel}的评价`} canWrite={Boolean(currentUserId)} currentUserId={currentUserId} />
             </article>
           )) : reviewListStatus === "ready" && <p className={styles.inlineEmpty}>{reviewQuery ? `没有找到包含“${reviewQuery}”的公开评价。` : "还没有公开评价。"}</p>}
         </div>
-        {reviewListStatus === "ready" && nextCursor && <button className={styles.loadMore} onClick={() => void loadMoreReviews()}>继续查看评价</button>}
+        {reviewListStatus === "ready" && nextCursor && (
+          <div className={styles.reviewPagination} aria-busy={reviewMoreStatus === "loading"}>
+            {reviewMoreStatus === "error" && <p role="status">后续评价暂时没有加载成功，已读内容仍保留。</p>}
+            <button className={styles.loadMore} disabled={reviewMoreStatus === "loading"} onClick={() => void loadMoreReviews()}>
+              {reviewMoreStatus === "loading" ? "正在读取…" : reviewMoreStatus === "error" ? "重新读取更多评价" : "继续查看评价"}
+            </button>
+          </div>
+        )}
       </section>
       </div>
     </main>

@@ -37,7 +37,7 @@
 .textbooks > header span,
 .reviews > header span {
   color: var(--dufe-red-deep);
-  font: 700 10px/1.4 var(--journal-data, ui-monospace, monospace);
+  font: 700 12px/1.4 var(--journal-data, ui-monospace, monospace);
   letter-spacing: .14em;
   text-transform: uppercase;
 }
@@ -69,7 +69,7 @@
   padding: 0 0 12px;
 }
 
-.searchField > span { color: var(--dufe-muted); font-size: 10px; grid-column: 1 / -1; }
+.searchField > span { color: var(--dufe-muted); font-size: 12px; grid-column: 1 / -1; }
 .searchField input { background: transparent; border: 0; color: var(--dufe-ink); font: 18px/1.4 var(--journal-body, sans-serif); min-width: 0; outline: 0; }
 .searchField button { background: transparent; border: 0; color: var(--dufe-red); min-height: 44px; padding: 0 8px; }
 .searchField:focus-within { border-bottom-color: var(--dufe-red); }
@@ -92,15 +92,16 @@
   padding: 16px 12px 16px 0;
   text-decoration: none;
 }
-.teacherList > a:hover, .teacherList > a:focus-visible { background: color-mix(in srgb, var(--dufe-red) 5%, transparent); outline: 2px solid transparent; }
+.teacherList > a:hover, .teacherList > a:focus-visible { background: color-mix(in srgb, var(--dufe-red) 5%, transparent); }
+.teacherList > a:focus-visible { outline: 2px solid var(--dufe-red); outline-offset: 3px; }
 .nameMark { align-items: center; border-left: 5px solid var(--dufe-red); color: var(--dufe-red-deep); display: flex; font: 500 30px/1 var(--journal-display, serif); height: 62px; justify-content: center; }
-.teacherList small { color: var(--dufe-muted); font-size: 10px; }
+.teacherList small { color: var(--dufe-muted); font-size: 12px; }
 .teacherList h2 { font: 500 28px/1.2 var(--journal-display, serif); margin: 7px 0 0; }
 .teacherList dl { display: flex; gap: 26px; margin: 0; }
 .teacherList dl div { display: flex; flex-direction: column; gap: 6px; }
-.teacherList dt { color: var(--dufe-muted); font-size: 9px; }
+.teacherList dt { color: var(--dufe-muted); font-size: 12px; }
 .teacherList dd { font: 600 18px/1 var(--journal-data, monospace); margin: 0; }
-.openLabel { color: var(--dufe-red-deep); font-size: 11px; white-space: nowrap; }
+.openLabel { color: var(--dufe-red-deep); font-size: 12px; white-space: nowrap; }
 
 .state, .fullState { border-left: 4px solid var(--dufe-red); margin: 52px auto; max-width: 760px; padding: 24px 30px; }
 .state b, .fullState b { display: block; font: 500 24px/1.35 var(--journal-display, serif); }
@@ -125,7 +126,7 @@
 .profileHeader h1 { font: 500 clamp(28px, 3vw, 40px)/1.25 var(--journal-display, serif); overflow-wrap: anywhere; margin: 6px 0; }
 .profileHeader dl { display: flex; gap: 34px; margin: 0; }
 .profileHeader dl div { border-left: 1px solid var(--dufe-line); padding-left: 18px; }
-.profileHeader dt { color: var(--dufe-muted); font-size: 9px; }
+.profileHeader dt { color: var(--dufe-muted); font-size: 12px; }
 .profileHeader dd { font: 500 30px/1 var(--journal-display, serif); margin: 8px 0 0; }
 
 .profileNavigation {
@@ -173,7 +174,7 @@
 .courseLedger header { align-items: end; border-bottom: 1px solid var(--dufe-ink); display: flex; justify-content: space-between; padding-bottom: 16px; }
 .courseLedger header b { font: 500 28px/1 var(--journal-display, serif); }
 .courseLedger > div:not(.inlineEmpty) { border-bottom: 1px solid var(--dufe-line); display: grid; gap: 12px; grid-template-columns: 86px 1fr auto; padding: 20px 0; }
-.courseLedger > div > span { color: var(--dufe-red-deep); font-size: 10px; }
+.courseLedger > div > span { color: var(--dufe-red-deep); font-size: 12px; }
 .courseLedger > div > strong { font: 500 17px/1.35 var(--journal-display, serif); }
 .courseLedger > div > small { color: var(--dufe-muted); text-align: right; }
 
@@ -181,15 +182,14 @@
 .textbooks > header h2, .reviews > header h2 { font: 500 36px/1.1 var(--journal-display, serif); margin: 12px 0 16px; }
 .textbooks > div { display: grid; gap: 1px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .textbooks article { border-left: 1px solid var(--dufe-line); padding: 8px 26px 30px; }
-.textbooks article small { color: var(--dufe-red-deep); font-size: 9px; }
+.textbooks article small { color: var(--dufe-red-deep); font-size: 12px; }
 .textbooks article h3 { font: 500 19px/1.45 var(--journal-display, serif); margin: 13px 0 9px; }
-.textbooks article p, .textbooks article code { color: var(--dufe-muted); font-size: 10px; line-height: 1.6; }
+.textbooks article p, .textbooks article code { color: var(--dufe-muted); font-size: 12px; line-height: 1.6; }
 .textbooks article code { display: block; margin-top: 8px; }
-.reviews > div article { border-top: 1px solid var(--dufe-line); padding: 24px 0 28px; }
-.reviews > div article > div { display: flex; justify-content: space-between; }
-.reviews > div article > div > span { color: var(--dufe-muted); font-size: 9px; }
-.reviews time { color: var(--dufe-muted); font-size: 9px; }
-.reviews article p { font: 15px/1.9 var(--journal-body, sans-serif); margin: 18px 0 0; white-space: pre-wrap; }
+.reviewEntry { border-top: 1px solid var(--dufe-line); padding: 24px 0 28px; }
+.reviewEntryMeta { align-items: baseline; display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; }
+.reviewEntryMeta > span, .reviewEntryMeta time { color: var(--dufe-muted); font-size: 12px; }
+.reviewEntryBody { font: 15px/1.9 var(--journal-body, sans-serif); margin: 18px 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
 .reviewDiscussion { border-top: 1px solid color-mix(in srgb, var(--dufe-line) 72%, transparent); margin-top: 22px; padding-top: 14px; }
 .reviewDiscussionBar { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; }
 .reviewDiscussionBar button, .reviewThread button, .reviewThread a { background: transparent; border: 0; border-bottom: 1px solid var(--dufe-red); color: var(--dufe-red-deep); min-height: 44px; padding: 0 2px; text-decoration: none; }
@@ -197,11 +197,12 @@
 .reviewDiscussionBar button:focus-visible, .reviewThread button:focus-visible, .reviewThread a:focus-visible { outline: 2px solid var(--dufe-red); outline-offset: 3px; }
 .reviewThread { margin-top: 12px; }
 .reviewThread > p { color: var(--dufe-muted); font-size: 12px; }
+.reviewThread time { color: var(--dufe-muted); font-size: 12px; }
 .reviewThread > ol { list-style: none; margin: 0; padding: 0; }
 .reviewThread > ol > li { border-top: 1px solid var(--dufe-line); margin: 0; padding: 18px 0; }
 .reviewThread > ol > li[data-reply="true"] { margin-left: clamp(18px, 5vw, 48px); }
 .reviewThread > ol > li > div { align-items: baseline; display: flex; gap: 12px; justify-content: space-between; }
-.reviewThread > ol > li > p { overflow-wrap: anywhere; font-size: 13px; margin-top: 9px; }
+.reviewThread > ol > li > p { overflow-wrap: anywhere; font: 14px/1.8 var(--journal-body, sans-serif); margin: 9px 0 0; white-space: pre-wrap; }
 .reviewThread menu { display: flex; flex-wrap: wrap; gap: 12px; list-style: none; margin: 8px 0 0; padding: 0; }
 .reviewReplyForm { border-left: 2px solid var(--dufe-red); margin-top: 20px; padding-left: clamp(14px, 3vw, 24px); }
 .reviewReplyForm > header { align-items: center; display: flex; justify-content: space-between; }
@@ -210,7 +211,7 @@
 .inlineEmpty button { background: transparent; border: 0; border-bottom: 1px solid var(--dufe-red); color: var(--dufe-red-deep); min-height: 44px; padding: 0 2px; }
 
 .reviewIndex { border-top: 1px solid var(--dufe-ink); display: grid; gap: 18px 28px; grid-template-columns: minmax(220px, 1fr) auto; margin-bottom: 36px; padding-top: 18px; }
-.reviewIndex form label { color: var(--dufe-muted); display: block; font-size: 10px; margin-bottom: 8px; }
+.reviewIndex form label { color: var(--dufe-muted); display: block; font-size: 12px; margin-bottom: 8px; }
 .reviewIndex form > div { align-items: end; display: flex; gap: 12px; }
 .reviewIndex input { background: transparent; border: 0; border-bottom: 1px solid var(--dufe-ink); border-radius: 0; color: var(--dufe-ink); min-height: 44px; min-width: 0; padding: 0 2px; width: 100%; }
 .reviewIndex button { background: transparent; border: 0; border-bottom: 1px solid var(--dufe-red); color: var(--dufe-red-deep); min-height: 44px; padding: 0 2px; flex-shrink: 0; white-space: nowrap; }
@@ -219,17 +220,18 @@
 .reviewSort button { border-bottom-color: transparent; color: var(--dufe-muted); }
 .reviewSort button[aria-pressed="true"] { border-bottom-color: var(--dufe-red); color: var(--dufe-red-deep); font-weight: 700; }
 .reviewSort button:disabled { cursor: not-allowed; opacity: .4; }
-.reviewIndex > p { color: var(--dufe-muted); font-size: 10px; grid-column: 1 / -1; line-height: 1.7; margin: -8px 0 0; }
+.reviewIndex > p { color: var(--dufe-muted); font-size: 12px; grid-column: 1 / -1; line-height: 1.7; margin: -8px 0 0; }
 .reviewIndex > p button { display: inline-flex; }
 
 .reviewContribution { border-bottom: 1px solid var(--dufe-line); margin-bottom: 16px; padding: 0; }
 .reviewContribution[open] { padding-bottom: 20px; }
-.reviewContribution summary, .reviewTools summary { cursor: pointer; min-height: 44px; padding: 12px 0; font: 13px/1.5 var(--journal-body, sans-serif); color: var(--dufe-red-deep); }
+.reviewContribution summary, .reviewTools summary { cursor: pointer; min-height: 44px; padding: 12px 0; font: 13px/1.5 var(--journal-body, sans-serif); color: var(--dufe-red-deep); overflow-wrap: anywhere; }
 .reviewContribution summary:focus-visible, .reviewTools summary:focus-visible { outline: 2px solid var(--dufe-red); outline-offset: 2px; }
 .reviews { grid-template-columns: minmax(0, 760px); justify-content: center; gap: 16px; padding-top: 24px; }
 .reviews > header h2 { font-size: 24px; margin: 0 0 8px; }
-.reviews > div article > div { flex-wrap: wrap; gap: 8px; }
-.reviews article p { overflow-wrap: anywhere; }
+.reviewPagination > p { color: var(--dufe-muted); font-size: 13px; line-height: 1.7; margin: 0; text-align: center; }
+.reviewPagination .loadMore { margin-top: 18px; }
+.reviewPagination .loadMore:disabled { cursor: progress; opacity: .65; }
 .bookFacts { margin: 12px 0 0; font: 13px/1.65 var(--journal-body, sans-serif); }
 .bookFacts > div { display: grid; grid-template-columns: 4em minmax(0, 1fr); gap: 12px; margin-top: 4px; }
 .bookFacts dt { color: var(--dufe-muted); }
@@ -251,7 +253,7 @@
 .reviewContribution form > header button { background: transparent; border: 0; color: var(--dufe-muted); min-height: 44px; padding: 0 8px; }
 .ratingEditor { display: grid; gap: 18px 32px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 26px; }
 .ratingEditor fieldset { border: 0; margin: 0; min-width: 0; padding: 0; }
-.ratingEditor legend { color: var(--dufe-muted); font-size: 10px; margin-bottom: 8px; }
+.ratingEditor legend { color: var(--dufe-muted); font-size: 12px; margin-bottom: 8px; }
 .ratingEditor fieldset > div { display: grid; grid-template-columns: repeat(5, 1fr); }
 .ratingEditor label { cursor: pointer; min-width: 0; position: relative; }
 .ratingEditor input { inset: 0; opacity: 0; position: absolute; }
@@ -270,10 +272,10 @@
 .reviewActions button { background: transparent; border: 0; border-bottom: 1px solid var(--dufe-ink); color: var(--dufe-ink); min-height: 44px; padding: 0; }
 .reviewActions button:first-child { border-bottom-color: var(--dufe-red); color: var(--dufe-red-deep); font-weight: 700; }
 .reviewActions button:disabled { cursor: progress; opacity: .55; }
-.reviewActions span { color: var(--dufe-muted); font-size: 10px; }
+.reviewActions span { color: var(--dufe-muted); font-size: 12px; }
 .reviewNotice { border-left: 3px solid var(--dufe-red); color: var(--dufe-ink) !important; margin-top: 18px !important; padding: 8px 0 8px 14px; }
 
-@media (max-width: 820px) {
+@media (max-width: 900px) {
   .hero { align-items: stretch; grid-template-columns: 54px 1fr; }
   .searchField { grid-column: 1 / -1; }
   .results > header { align-items: start; flex-direction: column; }
@@ -285,6 +287,8 @@
   .textbooks, .reviews { grid-template-columns: 1fr; }
   .reviewIndex { grid-template-columns: 1fr; }
   .reviewSort { align-items: center; }
+  .reviewIndex input, .reviewContribution textarea, .reviewReplyForm textarea { font-size: 16px; }
+  .reviewEntryBody { font-size: 16px; }
 }
 
 @media (max-width: 560px) {

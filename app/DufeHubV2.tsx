@@ -32,6 +32,8 @@ import {
 } from "./personal-sync";
 import { FormField } from "./FormField";
 import { TeacherRecordLink } from "./TeacherRecordLink";
+import homeStyles from "./home-workspace.module.css";
+import RoomWeekSchedule from "./RoomWeekSchedule";
 import {
   anonymousPersonalScope,
   migrateLegacyPersonalStorage,
@@ -618,13 +620,7 @@ function UiIcon({ name }: { name: UiIconName }) {
   );
 }
 
-function CampusTimeMark({
-  nextLabel,
-  nextMeta,
-}: {
-  nextLabel: string;
-  nextMeta: string;
-}) {
+function CampusTimeMark() {
   const now = new Date();
   const minutes = now.getHours() * 60 + now.getMinutes();
   const dayProgress = Math.max(0, Math.min(1, (minutes - 360) / 960));
@@ -643,19 +639,14 @@ function CampusTimeMark({
           "--sun-x": `${4 + dayProgress * 92}%`,
         } as CSSProperties
       }
-      aria-label={`校园时间 ${displayTime}，${nextLabel}，${nextMeta}`}
+      aria-label={`校园时间 ${displayTime}`}
     >
       <div className="time-mark-head">
-        <span>DUFE · CAMPUS TIME</span>
+        <span>校园时间</span>
         <time dateTime={now.toISOString()}>{displayTime}</time>
       </div>
       <div className="time-mark-track" aria-hidden="true">
         <i />
-      </div>
-      <div className="time-mark-copy">
-        <span>下一项</span>
-        <b>{nextLabel}</b>
-        <small>{nextMeta}</small>
       </div>
     </aside>
   );
@@ -2140,6 +2131,7 @@ function HomePage({
   const profileMajor = data.majors.find(
     (item) => item.id === saved.profile?.majorId,
   );
+  const hasTimetable = Boolean(saved.profile) || activeSchedules.length > 0;
   const today = weekdayNumber(new Date());
   const nowBlock = currentBlock();
   const todayCourses = activeSchedules
@@ -2316,7 +2308,7 @@ function HomePage({
         };
 
   return (
-    <div className="page-wrap today-page focus-page focus-page-v5">
+    <div className={`page-wrap today-page focus-page focus-page-v5 ${homeStyles.workspace}`}>
       <header className="focus-head focus-head-v5">
         <div>
           <span>东财日月志 · {dateText}</span>
@@ -2334,20 +2326,7 @@ function HomePage({
             </small>
           )}
         </p>
-        <CampusTimeMark
-          nextLabel={
-            primaryClass
-              ? primaryClass.title
-              : saved.profile
-                ? "今天没有后续课程"
-                : "先选班级，我来排出今天"
-          }
-          nextMeta={
-            primaryClass
-              ? `${data.periods[primaryClass.block - 1]?.short || `第 ${primaryClass.block} 大节`} · ${primaryClass.building}${primaryClass.room}`
-              : "课表、日程和空教室都会排到这里"
-          }
-        />
+        <CampusTimeMark />
       </header>
 
       <nav className="campus-pins" aria-label="东财常用服务">
@@ -2369,21 +2348,14 @@ function HomePage({
         </a>
       </nav>
 
-      {!saved.profile && (
-        <button className="focus-setup" onClick={onSetup}>
-          <span>选好专业和班级，就能带入本学期课程</span>
-          <b>设置我的课表 →</b>
-        </button>
-      )}
-
-      <section className="today-command-deck" aria-label="今日关键信息">
+      <section className="today-command-deck" aria-label="今日关键信息" data-has-agenda={nextThree.length > 0}>
         <article className="now-card">
           <header>
             <span>{primaryClass ? "接下来" : "此刻"}</span>
             <small>
               {primaryClass
                 ? data.periods[primaryClass.block - 1]?.short
-                : "今天没有后续课程"}
+                : hasTimetable ? "今天没有后续课程" : "尚未设置课表"}
             </small>
           </header>
           <div>
@@ -2392,14 +2364,14 @@ function HomePage({
               <h2>
                 {primaryClass
                   ? primaryClass.title
-                  : saved.profile
+                  : hasTimetable
                     ? "把今天留给自己的安排"
                     : "先选专业和班级"}
               </h2>
               <p>
                 {primaryClass
                   ? `${data.periods[primaryClass.block - 1]?.time} · ${primaryClass.building}${primaryClass.room}`
-                  : "选好班级后，这里会显示下一节课。"}
+                  : hasTimetable ? "可以安排自习、记录作业，或看看哪里适合坐一会儿。" : "选择专业和班级，带入本学期课程。也可以手动添加。"}
               </p>
               {primaryClass && (
                 <small>
@@ -2410,7 +2382,7 @@ function HomePage({
             </span>
           </div>
           <footer>
-            <button onClick={() => onGo("schedule")}>打开课表</button>
+            <button onClick={() => !hasTimetable ? onSetup() : onGo("schedule")}>{!hasTimetable ? "设置我的课表" : "打开课表"}</button>
             <button onClick={() => onGo("rooms")}>找空教室</button>
           </footer>
         </article>
@@ -2443,7 +2415,7 @@ function HomePage({
           </button>
         </div>
 
-        <article className="agenda-glance">
+        {nextThree.length > 0 && <article className="agenda-glance">
           <header>
             <div>
               <span>今天余下</span>
@@ -2479,7 +2451,7 @@ function HomePage({
               </div>
             )}
           </div>
-        </article>
+        </article>}
       </section>
 
       <section className="focus-timeline unified-agenda">
@@ -4434,29 +4406,16 @@ function RoomsPage({
       </section>
 
       {selectedRoomInfo && (
-        <section className="room-week-schedule" id="room-week-schedule" aria-labelledby="room-week-title">
-          <header>
-            <h3 id="room-week-title">{selectedRoomInfo.building} {selectedRoomInfo.room} · 一周课表</h3>
-            <p>{date} 所在周{selectedWeek.state === "active" ? ` · 第 ${selectedWeek.week} 教学周` : " · 不在当前学期教学周内"}。仅反映已收录课程，不代表教室开放或预约状态。</p>
-          </header>
-          {selectedWeek.state === "active" ? <div className="room-week-days">
-            {Array.from({ length: 7 }, (_, index) => {
-              const day = index + 1;
-              const lessons = (schedulesByRoom.get(selectedRoomInfo.key) ?? [])
-                .filter((item) => item.weekday === day && activeThisWeek(item))
-                .sort((a, b) => a.block - b.block || a.title.localeCompare(b.title, "zh-CN"));
-              return <section key={day} aria-label={weekdayLabels[day % 7]}>
-                <h4>{weekdayLabels[day % 7]}{day === weekday ? " · 所选日" : ""}</h4>
-                {lessons.length ? <ul>{lessons.map((lesson) => <li key={lesson.id}>
-                  <time>{data.periods[lesson.block - 1]?.short}</time>
-                  <strong>{lesson.title}</strong>
-                  <span>{lesson.teacher || "教师未提供"}</span>
-                  <small>{lesson.timeText}</small>
-                </li>)}</ul> : <p>未收录课程</p>}
-              </section>;
-            })}
-          </div> : <p>请在上方选择学期内日期，再查看对应教学周。</p>}
-        </section>
+        <RoomWeekSchedule
+          building={selectedRoomInfo.building}
+          room={selectedRoomInfo.room}
+          date={date}
+          week={selectedWeek.state === "active" ? selectedWeek.week : null}
+          selectedWeekday={weekday}
+          lessons={(schedulesByRoom.get(selectedRoomInfo.key) ?? [])
+            .filter(activeThisWeek)
+            .map((item) => ({ ...item, periodLabel: data.periods[item.block - 1]?.short ?? "" }))}
+        />
       )}
       {(saved.favoriteRooms.length > 0 || saved.recentRooms.length > 0) && (
         <nav className="room-memory" aria-label="常用和最近查看的教室">

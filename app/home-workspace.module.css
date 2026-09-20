@@ -1,0 +1,68 @@
+/* Daily workspace: a small campus-time rail, one next action, no repeated setup panels. */
+.workspace :global(.focus-head.focus-head-v5) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px;
+  gap: 10px 28px;
+  min-height: 0;
+  padding: 12px 0 22px;
+  margin-bottom: 16px;
+}
+.workspace :global(.focus-head.focus-head-v5)::before { display: none; }
+.workspace :global(.focus-head.focus-head-v5 h1) {
+  font: 600 clamp(30px, 4vw, 44px)/1.2 var(--journal-display);
+  letter-spacing: -.035em;
+  margin: 8px 0 0;
+}
+.workspace :global(.focus-head > div > span) { font-size: 12px; letter-spacing: .025em; }
+.workspace :global(.focus-head > p) { margin: 0; font-size: 13px; grid-column: 1; }
+.workspace :global(.focus-head > button) { display: none; } /* The persistent top bar already provides search. */
+.workspace :global(.campus-time-mark) { border: 0; padding: 0; margin: 0; gap: 16px; grid-column: 2; grid-row: 1 / 3; }
+.workspace :global(.time-mark-head) { flex-direction: column; align-items: flex-end; gap: 10px; }
+.workspace :global(.time-mark-head span) { font-size: 11px; font-weight: 400; color: var(--journal-muted); }
+.workspace :global(.time-mark-head time) { font-size: 28px; font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
+.workspace :global(.campus-pins) { margin: 0; padding-bottom: 0; gap: 8px; }
+.workspace :global(.campus-pins a) { clip-path: none; border-radius: 8px; padding: 8px 12px; font-size: 13px; min-width: 0; }
+.workspace :global(.campus-pins a:focus-visible) { outline: 2px solid var(--journal-red); outline-offset: 3px; }
+.workspace :global(.today-command-deck) { margin: 20px 0 28px; grid-template-rows: auto auto; }
+.workspace :global(.today-command-deck[data-has-agenda="false"]) { grid-template-areas: "main side"; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); grid-template-rows: auto; }
+.workspace :global(.now-card) { min-height: 0; padding: 24px; box-shadow: none; border-radius: 0 44px 0 0; }
+.workspace :global(.now-card::before) { display: none; }
+.workspace :global(.now-card > div) { display: flex; flex-direction: row; align-items: flex-start; justify-content: flex-start; gap: 18px; padding: 24px 0; min-height: 0; margin: 0; }
+.workspace :global(.now-card > div > i) { flex: 0 0 44px; width: 44px; height: 44px; font-size: 22px; }
+.workspace :global(.now-card > div > span) { min-width: 0; flex: 1; }
+.workspace :global(.now-card h2) { font: 600 clamp(23px, 2.5vw, 30px)/1.4 var(--journal-display); letter-spacing: -.025em; overflow-wrap: anywhere; margin: 0; }
+.workspace :global(.now-card p) { font-size: 14px; line-height: 1.8; }
+.workspace :global(.now-card > div small), .workspace :global(.now-card header small) { font-size: 12px; }
+.workspace :global(.now-card > footer) { position: static; inset: auto; width: auto; margin-top: 0; padding-top: 0; gap: 12px; }
+.workspace :global(.now-card > footer button) { font-size: 14px; min-height: 44px; }
+.workspace :global(.today-side-stack) { border-radius: 0 0 0 24px; min-height: 0; }
+.workspace :global(.today-side-stack > button) { min-height: 0; padding: 22px; }
+.workspace :global(.today-side-stack b) { font-size: 21px; line-height: 1.5; }
+.workspace :global(.today-side-stack small) { font-size: 13px; line-height: 1.7; }
+.workspace :global(.agenda-glance) { min-height: 0; border-radius: 24px 0 0 0; }
+.workspace :global(.unified-agenda), .workspace :global(.week-ahead), .workspace :global(.study-management) { background: transparent; margin-top: 28px; padding-top: 0; }
+.workspace :global(.unified-agenda > header), .workspace :global(.week-ahead > header) { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 0 0 14px; }
+.workspace :global(.unified-agenda > header > div), .workspace :global(.week-ahead > header > div) { display: flex; align-items: baseline; gap: 10px; }
+.workspace :global(.unified-agenda > div), .workspace :global(.week-ahead > div) { background: transparent; }
+.workspace :global(.week-ahead > div > p) { min-height: 0; padding: 20px 0; margin: 0; font-size: 14px; }
+.workspace :global(.agenda-empty) { display: block; min-height: 0; padding: 20px 0; background: transparent; }
+.workspace :global(.agenda-empty b) { font-size: 16px; }
+.workspace :global(.agenda-empty p) { font-size: 14px; margin: 8px 0; }
+.workspace :global(.agenda-empty button) { width: auto; height: auto; min-height: 44px; margin: 8px 0 0; padding: 0 16px; border: 1px solid var(--journal-line); border-radius: 999px; background: var(--journal-paper-raised); color: var(--journal-red-deep); font-size: 13px; }
+.workspace :global(.unified-agenda > header span), .workspace :global(.week-ahead > header span) { font-size: 13px; }
+.workspace :global(.unified-agenda > header b), .workspace :global(.week-ahead > header b), .workspace :global(.week-ahead > header button) { font-size: 12px; }
+.workspace :global(.timeline-empty) { min-height: 0; }
+@media (max-width: 900px) {
+  .workspace :global(.today-command-deck[data-has-agenda="false"]) { grid-template-areas: "main" "side"; grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .workspace :global(.focus-head.focus-head-v5) { grid-template-columns: minmax(0, 1fr) 86px; gap: 10px 12px; padding-top: 8px; }
+  .workspace :global(.time-mark-head time) { font-size: 23px; }
+  .workspace :global(.campus-pins) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .workspace :global(.campus-pins a) { font-size: 12px; gap: 5px; padding: 8px 6px; justify-content: center; }
+  .workspace :global(.campus-pins i) { display: none; }
+  .workspace :global(.now-card) { padding: 20px; }
+  .workspace :global(.now-card > div) { gap: 12px; padding: 20px 0; }
+  .workspace :global(.now-card > div > i) { flex-basis: 36px; width: 36px; height: 36px; font-size: 19px; }
+  .workspace :global(.now-card > footer) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
