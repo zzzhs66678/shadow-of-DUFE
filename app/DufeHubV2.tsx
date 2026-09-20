@@ -6108,6 +6108,13 @@ function CourseDrawer({
                       </div>
                     </div>
                     <footer>
+                      {first.teacher && <>
+                        <TeacherRecordLink catalogId={catalogId} scheduleId={first.id}
+                          teacherName={first.teacher} label="学生评价" className="teacher-record-link" />
+                        <TeacherRecordLink catalogId={catalogId} scheduleId={first.id}
+                          teacherName={first.teacher} label="课程教材" destination="teaching"
+                          courseId={course.id} className="teacher-record-link" />
+                      </>}
                       <button
                         className={`compare-button ${compared ? "active" : ""}`}
                         onClick={() => toggleCompare(section.id)}

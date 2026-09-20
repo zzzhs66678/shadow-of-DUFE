@@ -230,6 +230,17 @@ try {
     await expect(page.getByRole('button', { name: '继续查看评价', exact: true })).toHaveCount(0);
     await noOverflow(page);
   });
+  await withPage(390, 'race', async (page) => {
+    await page.goto(`${base.origin}${teacherPath}?panel=teaching&course=LOCAL001`);
+    await expect(page.getByRole('heading', { name: '本地验收教材', exact: true })).toBeVisible();
+    await expect(page.getByText('第 3 版', { exact: true })).toBeVisible();
+    await page.goto(`${base.origin}${teacherPath}?panel=teaching&course=OTHER`);
+    await expect(page.getByText('这位教师名下暂未记录该课程的教材，请以任课教师通知为准。')).toBeVisible();
+    await expect(page.getByRole('heading', { name: '本地验收教材', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: '查看这位教师的全部教材' }).click();
+    await expect(page.getByRole('heading', { name: '本地验收教材', exact: true })).toBeVisible();
+    await noOverflow(page);
+  });
 } finally {
   await browser.close();
 }

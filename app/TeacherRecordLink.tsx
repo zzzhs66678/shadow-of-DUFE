@@ -5,6 +5,7 @@ import {
   isCourseCatalogId,
   resolveTeacherScheduleHref,
   teacherSearchHref,
+  teacherTeachingHref,
 } from "./teacher-record-link";
 
 export function TeacherRecordLink({
@@ -12,11 +13,17 @@ export function TeacherRecordLink({
   scheduleId,
   teacherName,
   className,
+  label,
+  courseId,
+  destination = "reviews",
 }: {
   catalogId: string;
   scheduleId: string;
   teacherName: string;
   className?: string;
+  label?: string;
+  courseId?: string;
+  destination?: "reviews" | "teaching";
 }) {
   const [resolving, setResolving] = useState(false);
   const fallbackHref = teacherSearchHref(teacherName);
@@ -47,7 +54,7 @@ export function TeacherRecordLink({
         fetcher: window.fetch.bind(window),
         signal: controller.signal,
       });
-      window.location.assign(href);
+      window.location.assign(destination === "teaching" ? teacherTeachingHref(href, courseId) : href);
     } catch {
       window.location.assign(fallbackHref);
     } finally {
@@ -64,7 +71,7 @@ export function TeacherRecordLink({
       aria-busy={resolving || undefined}
       data-resolving={resolving || undefined}
     >
-      {teacherName}
+      {resolving ? "正在查找…" : label ?? teacherName}
     </a>
   );
 }

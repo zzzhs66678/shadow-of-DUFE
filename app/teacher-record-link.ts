@@ -19,6 +19,14 @@ export function isCourseCatalogId(value: string) {
   return COURSE_CATALOG_ID.test(value);
 }
 
+export function teacherTeachingHref(href: string, courseId?: string) {
+  // Never attach a teaching destination to an ambiguous name-search result.
+  if (!/^\/teachers\/[0-9a-f-]+$/iu.test(href)) return href;
+  const query = new URLSearchParams({ panel: "teaching" });
+  if (courseId) query.set("course", courseId);
+  return `${href}?${query}#teacher-textbooks-title`;
+}
+
 export function teacherHrefFromSchedulePayload(
   teacherName: string,
   payload: unknown,

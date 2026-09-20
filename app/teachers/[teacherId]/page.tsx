@@ -22,5 +22,6 @@ export default async function TeacherDetailPage({ params, searchParams }: PagePr
       ? "relevant"
       : "latest";
   const panel = query.panel === "teaching" ? "teaching" : "reviews";
-  return <TeacherDetail teacherId={(await params).teacherId} initialReviewQuery={reviewQuery} initialReviewSort={reviewSort} initialPanel={panel} />;
+  const courseId = typeof query.course === "string" ? query.course.slice(0, 128) : "";
+  return <TeacherDetail teacherId={(await params).teacherId} initialReviewQuery={reviewQuery} initialReviewSort={reviewSort} initialPanel={panel} initialCourseId={courseId} />;
 }

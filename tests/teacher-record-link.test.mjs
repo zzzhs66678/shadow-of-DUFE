@@ -5,6 +5,7 @@ import {
   resolveTeacherScheduleHref,
   teacherHrefFromSchedulePayload,
   teacherSearchHref,
+  teacherTeachingHref,
 } from "../app/teacher-record-link.ts";
 
 const catalogId = `course-v1:${"a".repeat(64)}`;
@@ -65,5 +66,11 @@ test("teacher link performs no render-time lookup and covers every contextual en
   assert.doesNotMatch(component, /useEffect/u);
   assert.match(component, /async function openTeacher/u);
   assert.match(component, /window\.location\.assign\(fallbackHref\)/u);
-  assert.equal((hub.match(/<TeacherRecordLink/g) ?? []).length, 3);
+  assert.equal((hub.match(/<TeacherRecordLink/g) ?? []).length, 5);
+});
+
+test("textbook navigation preserves course identity and ambiguous teacher search", () => {
+  assert.equal(teacherTeachingHref(`/teachers/${teacherId}`, "C 1"), `/teachers/${teacherId}?panel=teaching&course=C+1#teacher-textbooks-title`);
+  const fallback = teacherSearchHref("同名教师");
+  assert.equal(teacherTeachingHref(fallback, "C1"), fallback);
 });

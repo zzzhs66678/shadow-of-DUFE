@@ -56,13 +56,16 @@ export function TeacherDetail({
   initialReviewQuery = "",
   initialReviewSort = "latest",
   initialPanel = "reviews",
+  initialCourseId = "",
 }: {
   teacherId: string;
   initialReviewQuery?: string;
   initialReviewSort?: ReviewSort;
   initialPanel?: "reviews" | "teaching";
+  initialCourseId?: string;
 }) {
   const [panel, setPanel] = useState(initialPanel);
+  const [courseFilter, setCourseFilter] = useState(initialCourseId);
   const [teacher, setTeacher] = useState<TeacherDetailData | null>(null);
   const [reviews, setReviews] = useState<TeacherReview[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -438,8 +441,9 @@ export function TeacherDetail({
 
       <section className={styles.textbooks} aria-labelledby="teacher-textbooks-title">
         <header><span>按教学班记录</span><h2 id="teacher-textbooks-title">教材</h2><p>同一课程的不同教学班可能使用不同教材，这里不会互相覆盖。</p></header>
+        {courseFilter && <p>当前课程号：{courseFilter} · 请核对学期和课序号。 <button type="button" onClick={() => setCourseFilter("")}>查看这位教师的全部教材</button></p>}
         <div>
-          {teacher.textbooks.length ? teacher.textbooks.map((book) => (
+          {teacher.textbooks.filter((book) => !courseFilter || book.courseId === courseFilter).length ? teacher.textbooks.filter((book) => !courseFilter || book.courseId === courseFilter).map((book) => (
             <article key={book.id}>
               <small>{termLabel(book.termKey)} · {book.courseTitle} · {book.sectionNo}</small>
               <h3>{book.selectionStatus === "not_specified" ? "不指定教材" : book.title ?? "教材待核对"}</h3>
@@ -450,7 +454,7 @@ export function TeacherDetail({
                 {book.isbn && <div><dt>ISBN</dt><dd>{book.isbn}</dd></div>}
               </dl>}
             </article>
-          )) : <p className={styles.inlineEmpty}>暂未记录教材。</p>}
+          )) : <p className={styles.inlineEmpty}>{courseFilter ? "这位教师名下暂未记录该课程的教材，请以任课教师通知为准。" : "暂未记录教材。"}</p>}
         </div>
       </section>
 
