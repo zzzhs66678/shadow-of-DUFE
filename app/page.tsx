@@ -8,6 +8,9 @@ export const metadata: Metadata = {
     absolute: "东财之影｜课表、空教室与学习资料",
   },
   description: siteDescription,
+  verification: {
+    other: { "baidu-site-verification": "codeva-vXTtpeLyzP" },
+  },
   alternates: {
     canonical: publicPagePaths.home,
   },
