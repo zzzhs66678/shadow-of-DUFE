@@ -139,7 +139,7 @@ function integrationTextbookBundle(label, sourceRevision, materialRevision = sou
   bundle.textbooks = [{
     sourceLocator: "教材!A2:Y2",
     sourceRow: 2,
-    termKey: "2026-fall",
+    termKey: "2026-2027-fall",
     courseId: `CI-COURSE-${label}`,
     courseTitle: `并发教材课程-${label}`,
     courseCollege: `并发课程学院-${label}`,
