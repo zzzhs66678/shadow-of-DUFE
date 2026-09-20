@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import { publicPagePaths } from "../seo";
 import { TeacherExplorer } from "./TeacherExplorer";
 
 export const metadata: Metadata = {
   title: "教师档案",
   description: "按姓名和学院查找东财教师，查看教学班、教材和已公开评价。",
-  alternates: { canonical: "/teachers" },
+  alternates: { canonical: publicPagePaths.teachers },
 };
 
 type TeachersPageProps = {

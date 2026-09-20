@@ -58,11 +58,64 @@ test("server-renders the branded data-loading shell", async () => {
   const html = await response.text();
   assert.match(html, /<title>东财之影｜课表、空教室与学习资料<\/title>/i);
   assert.match(html, /DUFE · STUDENT DESK/);
-  assert.match(html, /课表、空教室、课程资料和今天的安排/);
+  assert.match(html, /东财之影是面向东北财经大学学生的非官方校园学习工具/);
   assert.match(html, /href="\/\?view=schedule"/);
   assert.match(html, /正在加载课程数据/);
   assert.match(html, /稍等一下，马上就好/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/i);
+});
+
+test("SEO output exposes canonical, readable branding and WebSite without JavaScript", async () => {
+  for (const path of ["/", "/?view=rooms", "/?utm_source=seo-check"]) {
+    const response = await render(path);
+    const html = await response.text();
+    assert.equal(response.status, 200);
+    assert.doesNotMatch(response.headers.get("x-robots-tag") ?? "", /noindex/i);
+    assert.match(html, /<link rel="canonical" href="https:\/\/dufesh.cn\/"/);
+    assert.match(html, /<h1[^>]*>东财之影<\/h1>/);
+    assert.doesNotMatch(html, /<meta name="robots" content="[^"]*noindex/i);
+    const schemas = [...html.matchAll(/<script[^>]*type="application\/ld\+json"[^>]*>(.*?)<\/script>/gs)]
+      .map((match) => JSON.parse(match[1]));
+    const website = schemas.filter((schema) => schema["@type"] === "WebSite");
+    assert.equal(website.length, 1);
+    assert.equal(website[0].name, "东财之影");
+    assert.equal(website[0].url, "https://dufesh.cn/");
+  }
+});
+
+test("sitemap URLs match public pages and the real material catalog, all returning canonical 200 HTML", async () => {
+  const robots = await render("/robots.txt");
+  assert.equal(robots.status, 200);
+  assert.match(robots.headers.get("content-type"), /text\/plain/);
+  const rules = await robots.text();
+  assert.match(rules, /Sitemap: https:\/\/dufesh.cn\/sitemap.xml/);
+  assert.match(rules, /Disallow: \/admin\$/);
+  assert.doesNotMatch(rules, /^Disallow: \/$/m);
+
+  const response = await render("/sitemap.xml");
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type"), /xml/);
+  const xml = await response.text();
+  assert.doesNotMatch(xml, /<lastmod>/);
+  const urls = [...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1]);
+  const catalog = JSON.parse(await readFile(new URL("../public/data/resource-manifest.json", import.meta.url), "utf8"));
+  const expected = ["/", "/teachers", "/materials", "/community", "/privacy", "/terms", "/account/delete",
+    ...catalog.materials.map((item) => `/materials/${encodeURIComponent(item.id)}`)];
+  assert.deepEqual(urls.map((url) => new URL(url).pathname).sort(), [...new Set(expected)].sort());
+  assert.equal(new Set(urls).size, urls.length);
+
+  // One worker instance exercises every emitted URL, without a JS-capable browser.
+  const { default: worker } = await import("../dist/server/index.js");
+  for (const url of urls) {
+    assert.equal(new URL(url).origin, "https://dufesh.cn");
+    const page = await worker.fetch(new Request(url), {}, { waitUntil() {} });
+    assert.equal(page.status, 200, url);
+    const html = await page.text();
+    assert.ok(html.includes(`<link rel="canonical" href="${url}"`), url);
+    assert.doesNotMatch(html, /<meta name="robots" content="[^"]*noindex/i, url);
+  }
+  assert.equal((await render("/seo-missing-page")).status, 404);
+  assert.equal((await render("/materials/seo-missing-material")).status, 404);
 });
 
 test("community list and topic routes render independent readable shells", async () => {

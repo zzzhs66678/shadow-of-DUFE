@@ -48,10 +48,12 @@ function catalogDate(value: string) {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const material = materialById((await params).materialId);
+  const { materialId } = await params;
+  const material = materialById(materialId);
   if (!material) return { title: "资料未找到" };
   return {
     title: material.name,
+    alternates: { canonical: `/materials/${encodeURIComponent(materialId)}` },
     description: `${material.courseTitle} · ${material.kind} · ${material.description}`,
   };
 }

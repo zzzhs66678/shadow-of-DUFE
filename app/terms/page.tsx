@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { publicPagePaths } from "../seo";
 import { LegalPage } from "../LegalPage";
 
 export const metadata: Metadata = {
+  alternates: { canonical: publicPagePaths.terms },
   title: "用户协议",
   description: "使用东财之影时适用的服务规则。",
 };

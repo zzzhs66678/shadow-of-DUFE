@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import { publicPagePaths } from "../seo";
 import { CommunityHub } from "./CommunityHub";
 
 export const metadata: Metadata = {
   title: "校园回廊",
   description: "东财学生交流课程、学习和校园生活的社区。",
-  alternates: { canonical: "/community" },
+  alternates: { canonical: publicPagePaths.community },
 };
 
 export default function CommunityPage() {

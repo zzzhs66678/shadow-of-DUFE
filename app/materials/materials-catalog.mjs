@@ -65,6 +65,10 @@ export function getMaterialById(materialId) {
   return publicMaterial(materialsById.get(cleanFilter(materialId, 64)));
 }
 
+export function getMaterialPaths() {
+  return [...materialsById.keys()].map((id) => `/materials/${encodeURIComponent(id)}`);
+}
+
 export function getMaterialFilters() {
   const unique = (values) =>
     [...new Set(values.filter(Boolean))].sort((a, b) =>

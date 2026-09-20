@@ -1,13 +1,14 @@
 import type { MetadataRoute } from "next";
+import { absoluteUrl, siteUrl } from "./seo";
 
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/api/", "/admin/", "/campus-lab/"],
+      disallow: ["/api/", "/admin$", "/admin?", "/admin/", "/campus-lab$", "/campus-lab?", "/campus-lab/"],
     },
-    sitemap: "https://dufesh.cn/sitemap.xml",
-    host: "https://dufesh.cn",
+    sitemap: absoluteUrl("/sitemap.xml"),
+    host: siteUrl,
   };
 }

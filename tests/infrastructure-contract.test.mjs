@@ -1015,7 +1015,9 @@ test("static assets and route discovery have explicit cache and SEO policy", asy
     /http:\/\/112\.126\.75\.74 \{\r?\n\tredir https:\/\/dufesh\.cn\{uri\} 308\r?\n\}/,
   );
   assert.match(robots, /\/campus-lab\//);
-  assert.match(sitemap, /https:\/\/dufesh\.cn\/privacy/);
+  const { absoluteUrl, publicPagePaths } = await import("../app/seo.ts");
+  assert.equal(absoluteUrl(publicPagePaths.privacy), "https://dufesh.cn/privacy");
+  assert.match(sitemap, /Object\.values\(publicPagePaths\)/);
   assert.match(layout, /application\/ld\+json/);
   assert.match(layout, /dufesh-social\.png/);
 });

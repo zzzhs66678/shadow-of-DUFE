@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import { publicPagePaths } from "../seo";
 import { MaterialsExplorer } from "./MaterialsExplorer";
 
 export const metadata: Metadata = {
   title: "课程资料档案",
   description: "按课程、教师、标题、类型、学期和年级检索东财课程资料。",
-  alternates: { canonical: "/materials" },
+  alternates: { canonical: publicPagePaths.materials },
 };
 
 const searchKeys = ["q", "course", "teacher", "type", "tag", "term", "year"] as const;

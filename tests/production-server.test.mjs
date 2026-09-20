@@ -58,6 +58,12 @@ test(
       assert.equal(page.status, 200);
       const html = await page.text();
       assert.match(html, /<main|__next|东财之影/);
+      for (const [path, type] of [["/robots.txt", /text\/plain/], ["/sitemap.xml", /xml/]]) {
+        const seo = await fetch(`http://127.0.0.1:${port}${path}`);
+        assert.equal(seo.status, 200, path);
+        assert.match(seo.headers.get("content-type") ?? "", type);
+        assert.doesNotMatch(seo.headers.get("x-robots-tag") ?? "", /noindex/i);
+      }
       const contentSecurityPolicy = page.headers.get("content-security-policy") ?? "";
       const nonce = contentSecurityPolicy.match(/script-src[^;]*'nonce-([^']+)'/)?.[1];
       assert.ok(nonce, "document CSP should provide a per-request script nonce");

@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { publicPagePaths } from "../seo";
 import { LegalPage } from "../LegalPage";
 
 export const metadata: Metadata = {
+  alternates: { canonical: publicPagePaths.privacy },
   title: "隐私政策",
   description: "东财之影如何收集、使用和保护个人信息。",
 };

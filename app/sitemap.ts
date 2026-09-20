@@ -1,32 +1,10 @@
 import type { MetadataRoute } from "next";
+import { getMaterialPaths } from "./materials/materials-catalog.mjs";
+import { absoluteUrl, publicPagePaths } from "./seo";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const lastModified = new Date("2026-07-30T00:00:00+08:00");
-  return [
-    { url: "https://dufesh.cn/", lastModified, changeFrequency: "daily", priority: 1 },
-    {
-      url: "https://dufesh.cn/teachers",
-      lastModified,
-      changeFrequency: "daily",
-      priority: 0.7,
-    },
-    {
-      url: "https://dufesh.cn/privacy",
-      lastModified,
-      changeFrequency: "monthly",
-      priority: 0.4,
-    },
-    {
-      url: "https://dufesh.cn/terms",
-      lastModified,
-      changeFrequency: "monthly",
-      priority: 0.4,
-    },
-    {
-      url: "https://dufesh.cn/account/delete",
-      lastModified,
-      changeFrequency: "monthly",
-      priority: 0.3,
-    },
-  ];
+  // Catalog generation time is not page edit time; omit unverified lastmod.
+  return [...Object.values(publicPagePaths), ...getMaterialPaths()].map((path) => ({
+    url: absoluteUrl(path),
+  }));
 }

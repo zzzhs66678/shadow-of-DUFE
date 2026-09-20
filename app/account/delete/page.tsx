@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { publicPagePaths } from "../../seo";
 import { LegalPage } from "../../LegalPage";
 
 export const metadata: Metadata = {
+  alternates: { canonical: publicPagePaths.accountDelete },
   title: "账号注销",
   description: "申请注销东财之影账号并删除个人数据。",
 };

@@ -1,16 +1,16 @@
 import type { Metadata, Viewport } from "next";
+import { siteUrl, siteDescription } from "./seo";
 import "./globals.css";
 import "./product-system.css";
 import "./red-access-system.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://dufesh.cn"),
+  metadataBase: new URL(siteUrl),
   title: {
     default: "东财之影｜课表、空教室与学习资料",
     template: "%s｜东财之影",
   },
-  description:
-    "面向东北财经大学学生的课表、空教室、课程资料与个人日程工具。",
+  description: siteDescription,
   applicationName: "东财之影",
   authors: [{ name: "东财之影" }],
   creator: "东财之影",
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "东财之影｜课表、空教室与学习资料",
-    description: "打开就能看到下一节课、可用教室和需要处理的作业。",
+    description: siteDescription,
     type: "website",
     locale: "zh_CN",
     url: "/",
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "东财之影｜课表、空教室与学习资料",
-    description: "打开就能看到下一节课、可用教室和需要处理的作业。",
+    description: siteDescription,
     images: ["/images/dufesh-social.png"],
   },
 };
