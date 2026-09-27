@@ -673,7 +673,7 @@ const server = createServer(async (request, response) => {
       const body = await readJson(request);
       const synced = body.authorization
         ? await baiguoClient.connectFromAuthorization(body.authorization)
-        : await baiguoClient.sync(body);
+        : await baiguoClient.sync(body, { refreshCourses: true });
       const normalized = normalizeBaiguoSnapshot(synced.snapshot);
       store.setExternalCredential(
         user.id,
@@ -687,12 +687,31 @@ const server = createServer(async (request, response) => {
       });
     }
     if (request.method === "POST" && requestUrl.pathname === "/v1/baiguo/sync") {
+      const hasBody =
+        Number(request.headers["content-length"] ?? 0) > 0 ||
+        Boolean(request.headers["transfer-encoding"]);
+      const body = hasBody ? await readJson(request) : {};
+      if (
+        body === null ||
+        typeof body !== "object" ||
+        Array.isArray(body) ||
+        Object.keys(body).some((key) => key !== "refreshCourses") ||
+        (body.refreshCourses !== undefined && typeof body.refreshCourses !== "boolean")
+      ) {
+        const error = new Error("白果云同步选项无效");
+        error.statusCode = 400;
+        throw error;
+      }
       const encrypted = store.readExternalCredential(user.id, "baiguo");
       if (!encrypted) {
         return sendJson(response, 400, { error: "请先连接白果云" });
       }
       try {
-        const synced = await baiguoClient.sync(JSON.parse(encrypted));
+        const syncState = store.getBaiguoSyncState(user.id);
+        const synced = await baiguoClient.sync(JSON.parse(encrypted), {
+          knownCourseTerm: syncState?.termKey ?? null,
+          refreshCourses: body.refreshCourses === true,
+        });
         const normalized = normalizeBaiguoSnapshot(synced.snapshot);
         store.setExternalCredential(
           user.id,

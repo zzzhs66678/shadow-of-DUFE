@@ -11,6 +11,14 @@ function optionalText(value) {
   return normalized || null;
 }
 
+function boundedOptionalText(value, maxLength) {
+  const normalized = optionalText(value);
+  if (normalized && normalized.length > maxLength) {
+    throw new Error("白果云学期字段过长");
+  }
+  return normalized;
+}
+
 function withHash(record) {
   return { ...record, contentHash: contentHash(record) };
 }
@@ -21,10 +29,19 @@ export function normalizeBaiguoSnapshot(snapshot, syncedAt = new Date().toISOStr
   const assignments = Array.isArray(snapshot?.assignments) ? snapshot.assignments : [];
   const events = Array.isArray(snapshot?.events) ? snapshot.events : [];
   const notifications = Array.isArray(snapshot?.notifications) ? snapshot.notifications : [];
+  const refreshed = {
+    courses: snapshot?.refreshed?.courses !== false,
+    assignments: snapshot?.refreshed?.assignments !== false,
+    events: snapshot?.refreshed?.events !== false,
+    notifications: snapshot?.refreshed?.notifications !== false,
+  };
 
   return {
     source,
     syncedAt,
+    termKey: boundedOptionalText(snapshot?.term?.key, 128),
+    termLabel: boundedOptionalText(snapshot?.term?.label, 160),
+    refreshed,
     courses: courses.map((course) =>
       withHash({
         source,

@@ -108,12 +108,13 @@ export function mapBaiguoApiSnapshot({
   noWeekCourses,
   homework,
   messages,
+  termKey,
+  termLabel,
+  courseSnapshotRefreshed = true,
 }) {
-  const sourceCourses = collectCourseRecords([
-    courseSchedule,
-    netCourses,
-    noWeekCourses,
-  ]);
+  const sourceCourses = courseSnapshotRefreshed
+    ? collectCourseRecords([courseSchedule, netCourses, noWeekCourses])
+    : [];
   const courses = uniqueBy(
     sourceCourses.map((course) => {
       const courseNo = requiredText(
@@ -190,6 +191,16 @@ export function mapBaiguoApiSnapshot({
   }));
 
   return {
+    term: {
+      key: optionalText(termKey),
+      label: optionalText(termLabel, termKey),
+    },
+    refreshed: {
+      courses: courseSnapshotRefreshed,
+      assignments: true,
+      events: courseSnapshotRefreshed,
+      notifications: true,
+    },
     currentDate: {
       today: optionalText(currentDate?.today),
       teachingWeek: Number(currentDate?.theWeek ?? 0) || null,
@@ -217,33 +228,27 @@ export class BaiguoClient {
     this.timeoutMs = timeoutMs;
   }
 
-  async sync(credentials) {
+  async sync(credentials, options = {}) {
     const normalized = this.#normalizeCredentials(credentials);
+    const syncOptions = {
+      knownCourseTerm: optionalText(options?.knownCourseTerm),
+      refreshCourses: options?.refreshCourses === true,
+    };
     try {
-      const resolved = await this.#resolveBatch(normalized);
-      const raw = await this.#fetchSnapshot(resolved);
-      return {
-        credentials: resolved,
-        snapshot: mapBaiguoApiSnapshot(raw),
-      };
+      return await this.#syncOnce(normalized, syncOptions);
     } catch (error) {
       if (!(error instanceof BaiguoError) || error.code !== "SESSION_EXPIRED" || !normalized.refreshToken) {
         throw error;
       }
       const refreshed = await this.refreshSession(normalized);
-      const resolved = await this.#resolveBatch(refreshed);
-      const raw = await this.#fetchSnapshot(resolved);
-      return {
-        credentials: resolved,
-        snapshot: mapBaiguoApiSnapshot(raw),
-      };
+      return this.#syncOnce(refreshed, syncOptions);
     }
   }
 
   async connectFromAuthorization(authorizationUrl) {
     const initial = extractBaiguoAuthorization(authorizationUrl);
     const refreshed = await this.refreshSession(initial);
-    return this.sync(refreshed);
+    return this.sync(refreshed, { refreshCourses: true });
   }
 
   async refreshSession(credentials) {
@@ -272,18 +277,46 @@ export class BaiguoClient {
     };
   }
 
-  async #fetchSnapshot(credentials) {
+  async #syncOnce(credentials, options) {
+    const resolved = await this.#resolveBatch(credentials);
+    const courseSnapshotRefreshed =
+      options.refreshCourses || options.knownCourseTerm !== resolved.batchNo;
+    const raw = await this.#fetchSnapshot(resolved, { courseSnapshotRefreshed });
+    return {
+      credentials: resolved,
+      snapshot: mapBaiguoApiSnapshot({
+        ...raw,
+        termKey: resolved.batchNo,
+        termLabel: resolved.termLabel,
+        courseSnapshotRefreshed,
+      }),
+    };
+  }
+
+  async #fetchSnapshot(credentials, { courseSnapshotRefreshed }) {
+    const [homework, messages] = await Promise.all([
+      this.#json("/student/HomeworkList?operation=3", credentials),
+      this.#json("/student/message/getMessageAll?pageSize=100&pageNo=1&readFlag=0", credentials),
+    ]);
+    if (!courseSnapshotRefreshed) {
+      return {
+        currentDate: null,
+        courseSchedule: null,
+        netCourses: null,
+        noWeekCourses: null,
+        homework: unwrapData(homework),
+        messages: unwrapData(messages),
+      };
+    }
+
     const currentDate = unwrapData(await this.#json("/student/currentDate", credentials));
     const weekNo = Number(currentDate?.theWeek ?? 1) || 1;
     const batchNo = credentials.batchNo;
-    const [courseSchedule, netCourses, noWeekCourses, homework, messages] =
-      await Promise.all([
-        this.#json(`/student/queryCourseList?weekNo=${encodeURIComponent(weekNo)}`, credentials),
-        this.#json(`/student/queryNetCourseList?batchNo=${encodeURIComponent(batchNo)}`, credentials),
-        this.#json(`/student/queryNoWeekTimeCourseList?batchNo=${encodeURIComponent(batchNo)}`, credentials),
-        this.#json("/student/HomeworkList?operation=3", credentials),
-        this.#json("/student/message/getMessageAll?pageSize=100&pageNo=1&readFlag=0", credentials),
-      ]);
+    const [courseSchedule, netCourses, noWeekCourses] = await Promise.all([
+      this.#json(`/student/queryCourseList?weekNo=${encodeURIComponent(weekNo)}`, credentials),
+      this.#json(`/student/queryNetCourseList?batchNo=${encodeURIComponent(batchNo)}`, credentials),
+      this.#json(`/student/queryNoWeekTimeCourseList?batchNo=${encodeURIComponent(batchNo)}`, credentials),
+    ]);
     return {
       currentDate,
       courseSchedule: unwrapData(courseSchedule),
@@ -295,7 +328,6 @@ export class BaiguoClient {
   }
 
   async #resolveBatch(credentials) {
-    if (credentials.batchNo) return credentials;
     const terms = unwrapData(
       await this.#json("/student/term/getTermList", credentials),
     );
@@ -307,7 +339,14 @@ export class BaiguoClient {
     if (!batchNo) {
       throw new BaiguoError("白果云没有返回当前学期", "TERM_NOT_FOUND");
     }
-    return { ...credentials, batchNo };
+    const termLabel = optionalText(
+      current?.termName,
+      current?.semesterName,
+      current?.batchName,
+      current?.name,
+      batchNo,
+    );
+    return { ...credentials, batchNo, termLabel };
   }
 
   async #json(path, credentials) {
@@ -369,6 +408,7 @@ export class BaiguoClient {
       refreshToken: optionalText(value?.refreshToken),
       batchNo: optionalText(value?.batchNo) ?? DEFAULT_BATCH,
       fingerprint: optionalText(value?.fingerprint),
+      termLabel: optionalText(value?.termLabel),
     };
   }
 }

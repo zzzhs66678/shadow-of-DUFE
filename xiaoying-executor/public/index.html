@@ -352,13 +352,14 @@
             </article>
             <article class="card settings-card">
               <div class="card-title"><h2>白果云</h2><span id="baiguoSettingsStatus">未连接</span></div>
-              <p>同步课程、作业和通知。暂时使用一次性授权链接。</p>
+              <p>本学期课程关联只在首次连接、换学期或手动要求时抓取；作业和通知可随时刷新。</p>
               <details>
                 <summary>连接或更新授权</summary>
                 <div class="field" style="margin-top:16px"><label for="baiguoAuthorization">授权链接</label><input id="baiguoAuthorization" type="password" autocomplete="off" placeholder="粘贴回调链接" /></div>
-                <button class="button primary" id="connectBaiguoButton">连接并同步</button>
+                <button class="button primary" id="connectBaiguoButton">连接并抓取本学期</button>
               </details>
-              <div class="setting-row"><div><b>同步状态</b><small id="baiguoSyncText">尚未同步</small></div><button class="button" id="syncBaiguoButton">立即同步</button></div>
+              <div class="setting-row"><div><b>课程关联</b><small>不会代替正式教务课表；仅用于关联白果云作业</small></div><button class="button" id="refreshBaiguoCoursesButton">重抓本学期</button></div>
+              <div class="setting-row"><div><b>同步状态</b><small id="baiguoSyncText">尚未同步</small></div><button class="button" id="syncBaiguoButton">刷新作业与通知</button></div>
             </article>
             <article class="card settings-card">
               <div class="card-title"><h2>小影 AI</h2><span id="modelKeyStatus">未设置</span></div>
@@ -540,6 +541,9 @@
         $("accountButton").textContent = (state.me?.user?.displayName || "我").slice(0, 1);
         $("baiguoConnectionSummary").textContent = connectionLabel(state.baiguoConnection);
         $("baiguoSettingsStatus").textContent = connectionLabel(state.baiguoConnection);
+        const baiguoConnected = state.baiguoConnection.status === "connected";
+        $("syncBaiguoButton").disabled = !baiguoConnected;
+        $("refreshBaiguoCoursesButton").disabled = !baiguoConnected;
         $("modelKeyStatus").textContent = state.me?.modelKey?.connected ? `已保存 ····${state.me.modelKey.last4}` : "未设置";
         $("remoteCapabilityText").textContent = state.me?.capabilities?.remoteAuthorization
           ? "已可通过手机或远程地址授权"
@@ -550,6 +554,21 @@
           : "内置配置";
         $("protocolVersionText").textContent = `${protocolSource} · ${protocolVersion}`;
         renderConnection();
+      }
+      function renderBaiguoSync(summary) {
+        if (!summary?.coursesSyncedAt && !summary?.lastSuccessAt) {
+          $("baiguoSyncText").textContent = "尚未同步";
+          return;
+        }
+        const term = summary.termLabel || summary.termKey;
+        const courseTime = summary.coursesSyncedAt || summary.coursesLastSuccessAt;
+        const parts = [
+          term,
+          `${summary.courses ?? 0} 门课程关联${courseTime ? `（${formatTime(courseTime)}抓取）` : ""}`,
+          `${summary.assignments ?? 0} 项作业`,
+          `${summary.notifications ?? 0} 条通知`,
+        ].filter(Boolean);
+        $("baiguoSyncText").textContent = parts.join(" · ");
       }
       function renderReservation(status) {
         const reservation = status?.data?.currentReservation;
@@ -691,6 +710,16 @@
         $("monitorIntervalMinutes").value = String(result.preferences.monitorIntervalMinutes || 5);
         $("defaultSeatText").textContent = result.preferences.defaultSeatLabel || "还没有设置";
       }
+      async function loadBaiguoItems() {
+        if (state.baiguoConnection.status === "disconnected") return renderBaiguoSync(null);
+        const result = await api("/v1/baiguo/items");
+        renderBaiguoSync({
+          ...result.syncState,
+          courses: result.courses?.length ?? 0,
+          assignments: result.assignments?.length ?? 0,
+          notifications: result.notifications?.length ?? 0,
+        });
+      }
       async function loadAudit() {
         const result = await api("/v1/audit");
         $("auditList").innerHTML = result.records.length ? result.records.map((item) =>
@@ -705,7 +734,7 @@
         $("gate").classList.add("hidden");
         $("app").classList.remove("hidden");
         renderAccount();
-        await Promise.all([loadPreferences(), loadNotices(), loadStatus()]);
+        await Promise.all([loadPreferences(), loadNotices(), loadStatus(), loadBaiguoItems()]);
         if (state.connection.status === "connected") await Promise.all([loadLibraries(), loadWatches(), loadScheduledReservations(), loadReservationGuard()]);
         go(location.hash.slice(1) || "overview");
         setInterval(() => loadNotices().catch(() => {}), 30_000);
@@ -957,14 +986,19 @@
         const result = await api("/v1/baiguo/connect", { method: "POST", body: { authorization: $("baiguoAuthorization").value } });
         state.baiguoConnection = result.connection;
         $("baiguoAuthorization").value = "";
-        $("baiguoSyncText").textContent = `${result.summary.assignments} 项作业 · ${result.summary.notifications} 条通知`;
+        renderBaiguoSync(result.summary);
         renderAccount();
-        showToast("白果云已同步");
+        showToast("已保存本学期课程关联，并刷新作业与通知");
       });
       $("syncBaiguoButton").addEventListener("click", async () => {
         const result = await api("/v1/baiguo/sync", { method: "POST", body: {} });
-        $("baiguoSyncText").textContent = `${result.summary.assignments} 项作业 · ${result.summary.notifications} 条通知`;
-        showToast("同步完成");
+        renderBaiguoSync(result.summary);
+        showToast(result.summary.coursesRefreshed ? "检测到新学期，课程关联已更新" : "作业与通知已刷新");
+      });
+      $("refreshBaiguoCoursesButton").addEventListener("click", async () => {
+        const result = await api("/v1/baiguo/sync", { method: "POST", body: { refreshCourses: true } });
+        renderBaiguoSync(result.summary);
+        showToast("本学期课程关联已重新抓取");
       });
       $("saveModelKeyButton").addEventListener("click", async () => {
         const result = await api("/v1/me/model-key", { method: "PUT", body: {

@@ -6,6 +6,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { createServer as createNetServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { normalizeBaiguoSnapshot } from "../xiaoying-executor/src/baiguo-normalizer.mjs";
 import {
@@ -1106,7 +1107,7 @@ test("Baiguo client reads direct APIs and refreshes an expired token once", asyn
   const fetchImpl = async (url, options) => {
     const path = new URL(url).pathname;
     requests.push({ path, token: options.headers.token });
-    if (path === "/student/currentDate" && options.headers.token === "expired-token") {
+    if (path === "/student/term/getTermList" && options.headers.token === "expired-token") {
       return new Response("", { status: 401 });
     }
     if (path === "/student/resetToken") {
@@ -1116,6 +1117,13 @@ test("Baiguo client reads direct APIs and refreshes an expired token once", asyn
       );
     }
     const dataByPath = {
+      "/student/term/getTermList": {
+        data: {
+          data: [
+            { batchNo: "20251", termName: "2025—2026 学年第一学期", isCurrentTerm: 1 },
+          ],
+        },
+      },
       "/student/currentDate": { data: { data: { today: "20260729", theWeek: 3 } } },
       "/student/queryCourseList": {
         data: {
@@ -1157,6 +1165,9 @@ test("Baiguo client reads direct APIs and refreshes an expired token once", asyn
   });
 
   assert.equal(result.credentials.token, "fresh-token");
+  assert.equal(result.credentials.termLabel, "2025—2026 学年第一学期");
+  assert.equal(result.snapshot.term.key, "20251");
+  assert.equal(result.snapshot.refreshed.courses, true);
   assert.equal(result.snapshot.courses[0].title, "高等数学");
   assert.equal(result.snapshot.assignments[0].status, "open");
   assert.equal(
@@ -1170,6 +1181,78 @@ test("Baiguo client reads direct APIs and refreshes an expired token once", asyn
       .every((request) => request.token === "fresh-token"),
     true,
   );
+});
+
+test("Baiguo routine sync reuses the course snapshot until the term changes or refresh is explicit", async () => {
+  const requests = [];
+  let currentBatch = "20251";
+  const fetchImpl = async (url) => {
+    const parsed = new URL(url);
+    requests.push(parsed.pathname);
+    const dataByPath = {
+      "/student/term/getTermList": {
+        data: {
+          data: [
+            {
+              batchNo: currentBatch,
+              termName: currentBatch === "20251" ? "2025—2026 学年第一学期" : "2025—2026 学年第二学期",
+              isCurrentTerm: 1,
+            },
+          ],
+        },
+      },
+      "/student/currentDate": { data: { data: { today: "20260729", theWeek: 3 } } },
+      "/student/queryCourseList": {
+        data: { data: [{ courseNo: "MATH1", courseSeq: "01", courseName: "高等数学" }] },
+      },
+      "/student/queryNetCourseList": { data: { data: [] } },
+      "/student/queryNoWeekTimeCourseList": { data: { data: [] } },
+      "/student/HomeworkList": {
+        data: {
+          data: [
+            { courseNo: "MATH1", courseSeq: "01", paperId: "p1", homeworkStatus: "1" },
+          ],
+        },
+      },
+      "/student/message/getMessageAll": { data: { data: { list: [] } } },
+    };
+    return new Response(JSON.stringify(dataByPath[parsed.pathname]), { status: 200 });
+  };
+  const client = new BaiguoClient({ fetchImpl });
+  const credentials = {
+    token: "active-token",
+    refreshToken: "refresh-token",
+    batchNo: "20251",
+    fingerprint: "device-fingerprint",
+  };
+
+  const routine = await client.sync(credentials, { knownCourseTerm: "20251" });
+  assert.equal(routine.snapshot.refreshed.courses, false);
+  assert.equal(routine.snapshot.courses.length, 0);
+  assert.deepEqual(
+    [...new Set(requests)].sort(),
+    [
+      "/student/HomeworkList",
+      "/student/message/getMessageAll",
+      "/student/term/getTermList",
+    ],
+  );
+
+  requests.length = 0;
+  currentBatch = "20252";
+  const nextTerm = await client.sync(credentials, { knownCourseTerm: "20251" });
+  assert.equal(nextTerm.snapshot.refreshed.courses, true);
+  assert.equal(nextTerm.snapshot.term.key, "20252");
+  assert.equal(nextTerm.snapshot.courses.length, 1);
+  assert.equal(requests.includes("/student/queryCourseList"), true);
+
+  requests.length = 0;
+  const explicit = await client.sync(nextTerm.credentials, {
+    knownCourseTerm: "20252",
+    refreshCourses: true,
+  });
+  assert.equal(explicit.snapshot.refreshed.courses, true);
+  assert.equal(requests.includes("/student/queryCourseList"), true);
 });
 
 test("Baiguo snapshots upsert idempotently and retire records missing from the next sync", () => {
@@ -1219,6 +1302,112 @@ test("Baiguo snapshots upsert idempotently and retire records missing from the n
   assert.equal(items.notifications.length, 0);
   assert.equal(items.syncState.itemCount, 1);
   store.close();
+});
+
+test("Baiguo partial sync preserves the semester course snapshot and its fetch time", () => {
+  const store = new XiaoyingLocalStore({
+    databasePath: ":memory:",
+    masterKey: Buffer.alloc(32, 7),
+    defaultInviteCode: "fjbadguy",
+    clock: () => baseTime,
+  });
+  const { user } = store.unlockVip({
+    inviteCode: "fjbadguy",
+    displayName: "学期快照测试",
+  });
+  const firstSyncedAt = "2026-09-01T08:00:00.000Z";
+  const first = normalizeBaiguoSnapshot({
+    term: { key: "20261", label: "2026—2027 学年第一学期" },
+    courses: [
+      { externalId: "course-1", title: "高等数学", sectionExternalId: "section-1" },
+    ],
+    assignments: [],
+    notifications: [],
+  }, firstSyncedAt);
+  store.syncBaiguoSnapshot(user.id, first);
+
+  const liveSyncedAt = "2026-09-08T08:00:00.000Z";
+  const liveOnly = normalizeBaiguoSnapshot({
+    term: { key: "20261", label: "2026—2027 学年第一学期" },
+    refreshed: { courses: false, assignments: true, events: false, notifications: true },
+    courses: [],
+    assignments: [
+      {
+        externalId: "assignment-1",
+        courseExternalId: "course-1",
+        title: "第一章作业",
+        status: "open",
+      },
+    ],
+    notifications: [],
+  }, liveSyncedAt);
+  const summary = store.syncBaiguoSnapshot(user.id, liveOnly);
+  const items = store.getBaiguoItems(user.id);
+
+  assert.equal(summary.coursesRefreshed, false);
+  assert.equal(summary.courses, 1);
+  assert.equal(items.courses.length, 1);
+  assert.equal(items.assignments.length, 1);
+  assert.equal(items.syncState.termKey, "20261");
+  assert.equal(items.syncState.coursesLastSuccessAt, firstSyncedAt);
+  assert.equal(items.syncState.liveLastSuccessAt, liveSyncedAt);
+  assert.equal(items.syncState.itemCount, 2);
+
+  const nextTerm = normalizeBaiguoSnapshot({
+    term: { key: "20262", label: "2026—2027 学年第二学期" },
+    courses: [],
+    assignments: [],
+    notifications: [],
+  }, "2027-03-01T08:00:00.000Z");
+  store.syncBaiguoSnapshot(user.id, nextTerm);
+  const afterTermChange = store.getBaiguoItems(user.id);
+  assert.equal(afterTermChange.courses.length, 0);
+  assert.equal(afterTermChange.syncState.termKey, "20262");
+  store.close();
+});
+
+test("Baiguo semester metadata migrates an existing local sync database in place", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "dufesh-baiguo-schema-"));
+  const databasePath = join(directory, "xiaoying.sqlite");
+  const legacy = new DatabaseSync(databasePath);
+  legacy.exec(`
+    CREATE TABLE sync_states (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      last_success_at TEXT,
+      last_error_code TEXT,
+      item_count INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL,
+      UNIQUE(user_id, provider)
+    );
+  `);
+  legacy.close();
+
+  let store;
+  try {
+    store = new XiaoyingLocalStore({
+      databasePath,
+      masterKey: Buffer.alloc(32, 8),
+      defaultInviteCode: "fjbadguy",
+      clock: () => baseTime,
+    });
+    const columns = new Set(
+      store.db.prepare("PRAGMA table_info(sync_states)").all().map((item) => item.name),
+    );
+    for (const column of [
+      "term_key",
+      "term_label",
+      "courses_last_success_at",
+      "live_last_success_at",
+    ]) {
+      assert.equal(columns.has(column), true);
+    }
+    assert.equal(store.getBaiguoSyncState("missing-user"), null);
+  } finally {
+    store?.close();
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("QR pairing is short-lived, user-scoped, and never returns submitted authorization", async () => {

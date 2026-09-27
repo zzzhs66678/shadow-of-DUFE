@@ -1293,22 +1293,30 @@ export class XiaoyingLocalStore {
   syncBaiguoSnapshot(userId, snapshot) {
     const source = "baiguo";
     const syncedAt = snapshot.syncedAt ?? nowIso(this.clock);
+    const refreshed = {
+      courses: snapshot.refreshed?.courses !== false,
+      assignments: snapshot.refreshed?.assignments !== false,
+      events: snapshot.refreshed?.events !== false,
+      notifications: snapshot.refreshed?.notifications !== false,
+    };
     const tables = [
-      ["external_courses", snapshot.courses ?? []],
-      ["external_assignments", snapshot.assignments ?? []],
-      ["external_events", snapshot.events ?? []],
-      ["external_notifications", snapshot.notifications ?? []],
+      ["courses", "external_courses", snapshot.courses ?? [], refreshed.courses],
+      ["assignments", "external_assignments", snapshot.assignments ?? [], refreshed.assignments],
+      ["events", "external_events", snapshot.events ?? [], refreshed.events],
+      ["notifications", "external_notifications", snapshot.notifications ?? [], refreshed.notifications],
     ];
+    let counts;
 
     this.db.exec("BEGIN IMMEDIATE");
     try {
-      for (const [table] of tables) {
+      for (const [, table, , shouldRefresh] of tables) {
+        if (!shouldRefresh) continue;
         this.db
           .prepare(`UPDATE ${table} SET active = 0 WHERE user_id = ? AND source = ?`)
           .run(userId, source);
       }
 
-      for (const course of snapshot.courses ?? []) {
+      for (const course of refreshed.courses ? snapshot.courses ?? [] : []) {
         this.db
           .prepare(
             `INSERT INTO external_courses
@@ -1332,7 +1340,7 @@ export class XiaoyingLocalStore {
             syncedAt,
           );
       }
-      for (const assignment of snapshot.assignments ?? []) {
+      for (const assignment of refreshed.assignments ? snapshot.assignments ?? [] : []) {
         this.db
           .prepare(
             `INSERT INTO external_assignments
@@ -1362,7 +1370,7 @@ export class XiaoyingLocalStore {
             syncedAt,
           );
       }
-      for (const event of snapshot.events ?? []) {
+      for (const event of refreshed.events ? snapshot.events ?? [] : []) {
         this.db
           .prepare(
             `INSERT INTO external_events
@@ -1392,7 +1400,7 @@ export class XiaoyingLocalStore {
             syncedAt,
           );
       }
-      for (const notification of snapshot.notifications ?? []) {
+      for (const notification of refreshed.notifications ? snapshot.notifications ?? [] : []) {
         this.db
           .prepare(
             `INSERT INTO external_notifications
@@ -1420,15 +1428,35 @@ export class XiaoyingLocalStore {
             syncedAt,
           );
       }
+      counts = Object.fromEntries(
+        tables.map(([key, table]) => [
+          key,
+          this.db
+            .prepare(`SELECT count(*) AS count FROM ${table} WHERE user_id = ? AND source = ? AND active = 1`)
+            .get(userId, source).count,
+        ]),
+      );
+      const itemCount = Object.values(counts).reduce((total, count) => total + count, 0);
       this.db
         .prepare(
           `INSERT INTO sync_states
-            (id, user_id, provider, last_success_at, last_error_code, item_count, updated_at)
-           VALUES (?, ?, ?, ?, NULL, ?, ?)
+            (id, user_id, provider, last_success_at, last_error_code, item_count,
+             term_key, term_label, courses_last_success_at, live_last_success_at, updated_at)
+           VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(user_id, provider) DO UPDATE SET
              last_success_at = excluded.last_success_at,
              last_error_code = NULL,
              item_count = excluded.item_count,
+             term_key = COALESCE(excluded.term_key, sync_states.term_key),
+             term_label = COALESCE(excluded.term_label, sync_states.term_label),
+             courses_last_success_at = COALESCE(
+               excluded.courses_last_success_at,
+               sync_states.courses_last_success_at
+             ),
+             live_last_success_at = COALESCE(
+               excluded.live_last_success_at,
+               sync_states.live_last_success_at
+             ),
              updated_at = excluded.updated_at`,
         )
         .run(
@@ -1436,7 +1464,11 @@ export class XiaoyingLocalStore {
           userId,
           source,
           syncedAt,
-          tables.reduce((total, [, items]) => total + items.length, 0),
+          itemCount,
+          snapshot.termKey ?? null,
+          snapshot.termLabel ?? null,
+          refreshed.courses ? syncedAt : null,
+          refreshed.assignments || refreshed.notifications ? syncedAt : null,
           syncedAt,
         );
       this.db.exec("COMMIT");
@@ -1445,13 +1477,31 @@ export class XiaoyingLocalStore {
       throw error;
     }
 
+    const syncState = this.getBaiguoSyncState(userId);
     return {
       syncedAt,
-      courses: snapshot.courses?.length ?? 0,
-      assignments: snapshot.assignments?.length ?? 0,
-      events: snapshot.events?.length ?? 0,
-      notifications: snapshot.notifications?.length ?? 0,
+      termKey: syncState?.termKey ?? null,
+      termLabel: syncState?.termLabel ?? null,
+      coursesRefreshed: refreshed.courses,
+      coursesSyncedAt: syncState?.coursesLastSuccessAt ?? null,
+      liveSyncedAt: syncState?.liveLastSuccessAt ?? null,
+      courses: counts.courses,
+      assignments: counts.assignments,
+      events: counts.events,
+      notifications: counts.notifications,
     };
+  }
+
+  getBaiguoSyncState(userId) {
+    return this.db
+      .prepare(
+        `SELECT last_success_at AS lastSuccessAt, last_error_code AS lastErrorCode,
+           item_count AS itemCount, term_key AS termKey, term_label AS termLabel,
+           courses_last_success_at AS coursesLastSuccessAt,
+           live_last_success_at AS liveLastSuccessAt, updated_at AS updatedAt
+         FROM sync_states WHERE user_id = ? AND provider = 'baiguo'`,
+      )
+      .get(userId) ?? null;
   }
 
   getBaiguoItems(userId) {
@@ -1494,13 +1544,7 @@ export class XiaoyingLocalStore {
       )
       .all(userId)
       .map((item) => ({ ...item, isRead: Boolean(item.isRead) }));
-    const syncState = this.db
-      .prepare(
-        `SELECT last_success_at AS lastSuccessAt, last_error_code AS lastErrorCode,
-           item_count AS itemCount, updated_at AS updatedAt
-         FROM sync_states WHERE user_id = ? AND provider = 'baiguo'`,
-      )
-      .get(userId) ?? null;
+    const syncState = this.getBaiguoSyncState(userId);
     return { courses, assignments, events, notifications, syncState };
   }
 
@@ -1791,6 +1835,10 @@ export class XiaoyingLocalStore {
         last_success_at TEXT,
         last_error_code TEXT,
         item_count INTEGER NOT NULL DEFAULT 0,
+        term_key TEXT,
+        term_label TEXT,
+        courses_last_success_at TEXT,
+        live_last_success_at TEXT,
         updated_at TEXT NOT NULL,
         UNIQUE(user_id, provider)
       );
@@ -1801,6 +1849,10 @@ export class XiaoyingLocalStore {
     this.#ensureColumn("scheduled_library_actions", "lease_expires_at", "TEXT");
     this.#ensureColumn("reservation_guards", "lease_token", "TEXT");
     this.#ensureColumn("reservation_guards", "lease_expires_at", "TEXT");
+    this.#ensureColumn("sync_states", "term_key", "TEXT");
+    this.#ensureColumn("sync_states", "term_label", "TEXT");
+    this.#ensureColumn("sync_states", "courses_last_success_at", "TEXT");
+    this.#ensureColumn("sync_states", "live_last_success_at", "TEXT");
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_seat_watches_lease
         ON seat_watches(status, next_check_at, lease_expires_at);
