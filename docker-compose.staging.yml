@@ -27,6 +27,11 @@ services:
       - /tmp:size=64m,mode=1777
     security_opt:
       - no-new-privileges:true
+    networks:
+      default: {}
+      staging_ingress:
+        aliases:
+          - staging-app
     logging: &default-logging
       driver: json-file
       options:
@@ -110,6 +115,11 @@ services:
       - /tmp:size=16m,mode=1777
     security_opt:
       - no-new-privileges:true
+    networks:
+      default: {}
+      staging_ingress:
+        aliases:
+          - staging-auth-api
     logging: *default-logging
 
   xiaoying:
@@ -182,3 +192,8 @@ volumes:
   caddy_staging_config:
   postgres_staging_data:
   xiaoying_staging_data:
+
+networks:
+  staging_ingress:
+    name: ${DUFESH_STAGING_INGRESS_NETWORK:-dufesh-staging-ingress}
+    external: true
