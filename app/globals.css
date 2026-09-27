@@ -4792,6 +4792,12 @@ kbd {
   width: 100%;
 }
 
+.onboarding-academic-import {
+  display: block;
+  margin: -8px auto 24px;
+  max-width: 360px;
+}
+
 .onboarding > footer {
   align-items: center;
   border-top: 1px solid var(--line);

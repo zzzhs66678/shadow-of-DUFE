@@ -2184,6 +2184,16 @@ function HubApp({ data: initialData }: { data: SiteData }) {
                   : "今日学习台已经可用，这部分数据只在设置课表时按需加载。"}
               </span>
             </div>
+            <button
+              type="button"
+              className="finish-button onboarding-academic-import"
+              onClick={() => {
+                setOnboarding(false);
+                setAcademicImportOpen(true);
+              }}
+            >
+              从教务导入
+            </button>
             {fullDataStatus === "error" && (
               <button onClick={() => void loadFullData()}>重新加载课程数据</button>
             )}
@@ -2195,6 +2205,10 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           data={data}
           term={term}
           initial={saved.profile}
+          onAcademicImport={() => {
+            setOnboarding(false);
+            setAcademicImportOpen(true);
+          }}
           onSkip={() => {
             setSaved((state) => ({ ...state, skipped: true }));
             setOnboarding(false);
@@ -6738,12 +6752,14 @@ function Onboarding({
   data,
   term,
   initial,
+  onAcademicImport,
   onSkip,
   onSave,
 }: {
   data: SiteData;
   term: Term;
   initial: Profile | null;
+  onAcademicImport: () => void;
   onSkip: () => void;
   onSave: (profile: Profile, scheduleIds: string[]) => void;
 }) {
@@ -6816,9 +6832,16 @@ function Onboarding({
         </div>
         <div className="onboarding-copy">
           <p>课表设置</p>
-          <h2>选择年级、专业和班级</h2>
-          <span>选到具体班级后可带入本学期课程；跳过班级也能稍后手动选课。</span>
+          <h2>导入你的课表</h2>
+          <span>连接教务最快；也可按班级手动设置。</span>
         </div>
+        <button
+          type="button"
+          className="finish-button onboarding-academic-import"
+          onClick={onAcademicImport}
+        >
+          从教务导入
+        </button>
         {step === 1 && (
           <div className="choice-grid years">
             {[2026, 2025, 2024, 2023].map((item) => (

@@ -97,25 +97,10 @@ test("official timetable and exams import through the SMS flow", async ({
     });
     await route.fulfill({ json: { status: "imported", snapshot } });
   });
-  await page.addInitScript(() => {
-    localStorage.setItem(
-      "dufesh:student-profile:v3:anonymous",
-      JSON.stringify({
-        profile: null,
-        skipped: true,
-        plans: [{ id: "default", name: "默认课表", scheduleIds: [] }],
-        activePlanId: "default",
-        activities: [],
-        assignments: [],
-        academicSnapshots: [],
-        favoriteRooms: [],
-        recentRooms: [],
-      }),
-    );
-  });
-
   await page.goto("/", { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "连接教务并导入" }).click();
+  await page
+    .getByRole("button", { name: "从教务导入", exact: true })
+    .click();
   const dialogA11y = await new AxeBuilder({ page })
     .include(".academic-import-dialog")
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
