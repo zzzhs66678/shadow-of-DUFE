@@ -102,13 +102,17 @@ jobs:
           export DUFESH_STAGING_POSTGRES_ENV_FILE="$postgres_env"
           export DUFESH_STAGING_AUTH_ENV_FILE="$auth_env"
           export DUFESH_STAGING_RESOURCES_DIR="$resources_dir"
+          ingress_network="dufesh-staging-ingress-ci-${GITHUB_SHA:0:8}"
+          export DUFESH_STAGING_INGRESS_NETWORK="$ingress_network"
           project="dufesh-staging-${GITHUB_SHA:0:8}"
           cleanup() {
             docker compose -p "$project" -f docker-compose.staging.yml down --volumes || true
+            docker network rm "$ingress_network" >/dev/null 2>&1 || true
             rm -rf "$config_dir" "$resources_dir"
           }
           trap cleanup EXIT
           sh ops/staging/preflight.sh
+          docker network create "$ingress_network" >/dev/null
           docker compose -p "$project" -f docker-compose.staging.yml --profile tools run --rm migrate
           docker compose -p "$project" -f docker-compose.staging.yml up -d --no-build
           for attempt in $(seq 1 45); do

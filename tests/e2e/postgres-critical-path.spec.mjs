@@ -245,6 +245,7 @@ test("users and an administrator complete the release browser path", async ({
     await expect(
       secondOwner.getByRole("heading", { name: teacher.displayName }),
     ).toBeVisible();
+    await secondOwner.getByText("写评价 / 管理我的评价", { exact: true }).click();
     await secondOwner.getByRole("button", { name: "写一份评价" }).click();
     for (const dimension of [
       "课程组织",
