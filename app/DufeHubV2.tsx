@@ -28,6 +28,7 @@ import {
   mergeInitialPersonalState,
   savePersonalSyncMetadata,
   synchronizePersonalState,
+  type AcademicSnapshot,
   type PersonalSyncState,
 } from "./personal-sync";
 import { FormField } from "./FormField";
@@ -80,6 +81,7 @@ type Schedule = {
   building: string;
   room: string;
   classNames: string;
+  origin?: "catalog" | "academic";
 };
 type SiteData = {
   catalogId: string;
@@ -221,6 +223,7 @@ type SavedState = {
   activePlanId: string;
   activities: PersonalActivity[];
   assignments: Assignment[];
+  academicSnapshots: AcademicSnapshot[];
   favoriteRooms: string[];
   recentRooms: string[];
 };
@@ -320,6 +323,7 @@ const emptySavedState: SavedState = {
   activePlanId: "default",
   activities: [],
   assignments: [],
+  academicSnapshots: [],
   favoriteRooms: [],
   recentRooms: [],
 };
@@ -347,6 +351,9 @@ function normalizeSavedState(value: unknown): SavedState {
     activePlanId,
     activities: Array.isArray(parsed.activities) ? parsed.activities : [],
     assignments: Array.isArray(parsed.assignments) ? parsed.assignments : [],
+    academicSnapshots: Array.isArray(parsed.academicSnapshots)
+      ? parsed.academicSnapshots
+      : [],
     favoriteRooms: Array.isArray(parsed.favoriteRooms)
       ? parsed.favoriteRooms
       : [],
@@ -362,6 +369,7 @@ function hasMeaningfulSavedState(value: SavedState) {
       value.plans.some((plan) => plan.scheduleIds.length > 0) ||
       value.activities.length > 0 ||
       value.assignments.length > 0 ||
+      value.academicSnapshots.length > 0 ||
       value.favoriteRooms.length > 0 ||
       value.recentRooms.length > 0,
   );
@@ -386,6 +394,7 @@ function fromPersonalSyncState(state: PersonalSyncState): SavedState {
     activePlanId: state.activePlanId,
     activities: state.activities,
     assignments: state.assignments,
+    academicSnapshots: state.academicSnapshots,
     favoriteRooms: state.favoriteRooms,
     recentRooms: state.recentRooms,
   };
@@ -428,6 +437,53 @@ function scheduleWeeksLabel(schedule: Schedule) {
   return `${ranges
     .map(([start, end]) => (start === end ? start : `${start}-${end}`))
     .join("、")}周`;
+}
+
+function schedulesFromAcademicSnapshot(
+  snapshot: AcademicSnapshot | undefined,
+): Schedule[] {
+  if (!snapshot) return [];
+  return snapshot.sections.flatMap((section) =>
+    section.meetings.map((meeting, meetingIndex) => ({
+      id: meeting.id,
+      sectionId: section.id,
+      meetingIndex,
+      sourceRow: `${section.courseCode}:${section.sectionCode}`,
+      term: snapshot.term,
+      courseId: `academic:${section.courseCode}:${section.sectionCode}`,
+      title: section.courseName,
+      teacher: section.teachers.join(" / "),
+      weekday: meeting.weekday,
+      block: meeting.block,
+      periods: meeting.periods,
+      weeks: meeting.weeks,
+      timeText: meeting.timeText,
+      building: [meeting.campus, meeting.building]
+        .filter(Boolean)
+        .join(" · "),
+      room: meeting.room,
+      classNames: section.sectionCode,
+      origin: "academic" as const,
+    })),
+  );
+}
+
+function latestAcademicSnapshot(
+  snapshots: AcademicSnapshot[],
+  term: Term,
+) {
+  return snapshots
+    .filter((snapshot) => snapshot.term === term)
+    .sort(
+      (left, right) =>
+        right.academicYear.localeCompare(left.academicYear) ||
+        Date.parse(right.importedAt) - Date.parse(left.importedAt),
+    )[0];
+}
+
+function compactAcademicYear(value: string) {
+  const match = value.match(/^20(\d{2})-20(\d{2})$/u);
+  return match ? `${match[1]}–${match[2]}` : value;
 }
 
 function schedulesOverlap(first: Schedule, second: Schedule) {
@@ -972,6 +1028,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
   const [onboarding, setOnboarding] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [creatorsOpen, setCreatorsOpen] = useState(false);
+  const [academicImportOpen, setAcademicImportOpen] = useState(false);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [materialsStatus, setMaterialsStatus] =
     useState<MaterialsLoadStatus>("idle");
@@ -1083,13 +1140,64 @@ function HubApp({ data: initialData }: { data: SiteData }) {
   const activePlan =
     saved.plans.find((plan) => plan.id === saved.activePlanId) ??
     saved.plans[0];
-  const activeSchedules = useMemo(
+  const manualSchedules = useMemo(
     () =>
       (activePlan?.scheduleIds ?? [])
         .map((id) => schedules.get(id))
         .filter((item): item is Schedule => Boolean(item)),
     [activePlan, schedules],
   );
+  const academicSnapshot = useMemo(
+    () => latestAcademicSnapshot(saved.academicSnapshots, term),
+    [saved.academicSnapshots, term],
+  );
+  const fallAcademicSnapshot = useMemo(
+    () => latestAcademicSnapshot(saved.academicSnapshots, "fall"),
+    [saved.academicSnapshots],
+  );
+  const springAcademicSnapshot = useMemo(
+    () => latestAcademicSnapshot(saved.academicSnapshots, "spring"),
+    [saved.academicSnapshots],
+  );
+  const activeSchedules = useMemo(() => {
+    const official = schedulesFromAcademicSnapshot(academicSnapshot);
+    const signature = (item: Schedule) =>
+      [
+        normalize(item.title),
+        item.weekday,
+        item.block,
+        normalize(item.building),
+        normalize(item.room),
+        [...(item.weeks ?? [])].sort((left, right) => left - right).join(","),
+      ].join("|");
+    const officialSignatures = new Set(official.map(signature));
+    return [
+      ...official,
+      ...manualSchedules.filter(
+        (schedule) => !officialSignatures.has(signature(schedule)),
+      ),
+    ];
+  }, [academicSnapshot, manualSchedules]);
+
+  function applyAcademicSnapshot(snapshot: AcademicSnapshot) {
+    setSaved((state) => ({
+      ...state,
+      academicSnapshots: [
+        ...state.academicSnapshots.filter((item) => item.id !== snapshot.id),
+        snapshot,
+      ]
+        .sort((left, right) =>
+          left.academicYear.localeCompare(right.academicYear),
+        )
+        .slice(-12),
+    }));
+    setTerm(snapshot.term);
+    setAcademicImportOpen(false);
+    setAddFeedback(
+      `${snapshot.academicYear} ${snapshot.termLabel}：已导入 ${snapshot.sections.length} 门课、${snapshot.exams.length} 项考试`,
+    );
+    window.setTimeout(() => setAddFeedback(""), 4_500);
+  }
 
   useEffect(() => {
     migrateLegacyPersonalStorage(localStorage);
@@ -1588,14 +1696,28 @@ function HubApp({ data: initialData }: { data: SiteData }) {
             <button
               className={term === "fall" ? "active" : ""}
               onClick={() => setTerm("fall")}
+              title={
+                fallAcademicSnapshot
+                  ? `${fallAcademicSnapshot.academicYear} ${fallAcademicSnapshot.termLabel}`
+                  : "上学期"
+              }
             >
-              上学期
+              {fallAcademicSnapshot
+                ? `${compactAcademicYear(fallAcademicSnapshot.academicYear)} 秋`
+                : "上学期"}
             </button>
             <button
               className={term === "spring" ? "active" : ""}
               onClick={() => setTerm("spring")}
+              title={
+                springAcademicSnapshot
+                  ? `${springAcademicSnapshot.academicYear} ${springAcademicSnapshot.termLabel}`
+                  : "下学期"
+              }
             >
-              下学期
+              {springAcademicSnapshot
+                ? `${compactAcademicYear(springAcademicSnapshot.academicYear)} 春`
+                : "下学期"}
             </button>
           </div>
           <button
@@ -1618,9 +1740,11 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           nextClass={nextClass}
           week={currentWeek}
           term={term}
+          academicSnapshot={academicSnapshot}
           onGo={go}
           onSearch={openSearch}
           onSetup={openOnboarding}
+          onAcademicImport={() => setAcademicImportOpen(true)}
           onEditCalendar={setCalendarEditor}
           onToggleAssignment={(id) =>
             setSaved((state) => ({
@@ -1693,6 +1817,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           setSaved={setSaved}
           activePlan={activePlan}
           activeSchedules={activeSchedules}
+          academicSnapshot={academicSnapshot}
           courses={courses}
           query={coursePoolQuery}
           setQuery={setCoursePoolQuery}
@@ -1702,6 +1827,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
             updateActivePlan((ids) => ids.filter((item) => item !== id))
           }
           onSetup={openOnboarding}
+          onAcademicImport={() => setAcademicImportOpen(true)}
           onEditCalendar={setCalendarEditor}
         />
       )}
@@ -2090,6 +2216,13 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           }}
         />
       )}
+      {academicImportOpen && (
+        <AcademicImportDialog
+          existing={academicSnapshot}
+          onClose={() => setAcademicImportOpen(false)}
+          onImported={applyAcademicSnapshot}
+        />
+      )}
       <CreatorsCorner
         open={creatorsOpen}
         onClose={() => setCreatorsOpen(false)}
@@ -2105,9 +2238,11 @@ function HomePage({
   nextClass,
   week,
   term,
+  academicSnapshot,
   onGo,
   onSearch,
   onSetup,
+  onAcademicImport,
   onEditCalendar,
   onToggleAssignment,
   onDeleteCalendar,
@@ -2118,9 +2253,11 @@ function HomePage({
   nextClass?: Schedule;
   week: ReturnType<typeof schoolWeek>;
   term: Term;
+  academicSnapshot?: AcademicSnapshot;
   onGo: (view: View) => void;
   onSearch: (kind?: SearchKind) => void;
   onSetup: () => void;
+  onAcademicImport: () => void;
   onEditCalendar: (request: CalendarEditorRequest) => void;
   onToggleAssignment: (id: string) => void;
   onDeleteCalendar: (
@@ -2318,7 +2455,11 @@ function HomePage({
           <UiIcon name="search" />
         </button>
         <p>
-          {term === "fall" ? "上学期" : "下学期"} · {weekText}
+          {academicSnapshot
+            ? `${academicSnapshot.academicYear} ${academicSnapshot.termLabel}`
+            : term === "fall"
+              ? "上学期"
+              : "下学期"} · {weekText}
           {saved.profile && (
             <small>
               {profileMajor?.name ?? "我的专业"} ·{" "}
@@ -2347,6 +2488,28 @@ function HomePage({
           <em>↗</em>
         </a>
       </nav>
+
+      <section
+        className={`academic-sync-band ${academicSnapshot ? "ready" : "empty"}`}
+        aria-label="正式教务数据"
+      >
+        <div>
+          <span>正式教务</span>
+          <strong>
+            {academicSnapshot
+              ? `${academicSnapshot.academicYear} ${academicSnapshot.termLabel}`
+              : "一键导入课表与考试安排"}
+          </strong>
+          <p>
+            {academicSnapshot
+              ? `已导入 ${academicSnapshot.sections.length} 门课、${academicSnapshot.exams.length} 项考试 · ${new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(academicSnapshot.importedAt))} 更新`
+              : "输入教务账号后自动完成，不需要下载、复制或上传文件。"}
+          </p>
+        </div>
+        <button onClick={onAcademicImport}>
+          {academicSnapshot ? "刷新本学期数据" : "连接教务并导入"}
+        </button>
+      </section>
 
       <section className="today-command-deck" aria-label="今日关键信息" data-has-agenda={nextThree.length > 0}>
         <article className="now-card">
@@ -2382,7 +2545,7 @@ function HomePage({
             </span>
           </div>
           <footer>
-            <button onClick={() => !hasTimetable ? onSetup() : onGo("schedule")}>{!hasTimetable ? "设置我的课表" : "打开课表"}</button>
+            <button onClick={() => !hasTimetable ? onAcademicImport() : onGo("schedule")}>{!hasTimetable ? "导入教务课表" : "打开课表"}</button>
             <button onClick={() => onGo("rooms")}>找空教室</button>
           </footer>
         </article>
@@ -2741,6 +2904,232 @@ function CatalogPage({
   );
 }
 
+function academicImportErrorMessage(code: string) {
+  const messages: Record<string, string> = {
+    academic_credentials_invalid: "请填写完整的教务账号和密码。",
+    academic_invalid_credentials: "教务账号或密码不正确。",
+    academic_sms_invalid: "短信验证码不正确或已经失效。",
+    academic_sms_send_failed: "学校短信验证码暂时发送失败，请稍后重试。",
+    academic_transaction_expired: "本次教务登录已经超时，请重新连接。",
+    academic_additional_auth_required:
+      "学校要求当前版本尚未支持的额外验证，请稍后再试。",
+    academic_session_not_ready:
+      "VPN 已登录，但教务系统没有返回课表，请稍后再试。",
+    academic_format_changed:
+      "学校调整了课表页面，暂时无法安全识别，已停止导入。",
+    academic_exam_format_changed:
+      "学校调整了考试安排页面，暂时无法安全识别，课表也没有被部分导入。",
+    academic_protocol_changed:
+      "学校登录流程刚刚发生变化，暂时无法连接。",
+    academic_timetable_empty: "教务系统返回的本学期课表为空。",
+    academic_upstream_timeout: "学校系统响应超时，请稍后再试。",
+    academic_upstream_unavailable: "学校 VPN 或教务系统当前不可用。",
+    academic_rate_limit_exceeded: "尝试次数较多，请五分钟后再试。",
+    academic_import_unavailable: "教务导入服务正在维护，请稍后再试。",
+  };
+  return messages[code] ?? "导入没有完成，请稍后重试。";
+}
+
+function AcademicImportDialog({
+  existing,
+  onClose,
+  onImported,
+}: {
+  existing?: AcademicSnapshot;
+  onClose: () => void;
+  onImported: (snapshot: AcademicSnapshot) => void;
+}) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [smsCode, setSmsCode] = useState("");
+  const [transactionId, setTransactionId] = useState("");
+  const [maskedPhone, setMaskedPhone] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState("");
+
+  async function submit(
+    endpoint: "/api/auth/academic/connect" | "/api/auth/academic/sms",
+    body: Record<string, string>,
+  ) {
+    setBusy(true);
+    setFeedback("");
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const result = (await response.json()) as
+        | {
+            status: "sms_required";
+            transactionId: string;
+            maskedPhone: string;
+          }
+        | { status: "imported"; snapshot: AcademicSnapshot }
+        | { error: string };
+      if (!response.ok || "error" in result) {
+        setFeedback(
+          academicImportErrorMessage(
+            "error" in result ? result.error : "academic_import_failed",
+          ),
+        );
+        return;
+      }
+      if (result.status === "sms_required") {
+        setTransactionId(result.transactionId);
+        setMaskedPhone(result.maskedPhone);
+        setSmsCode("");
+        return;
+      }
+      onImported(result.snapshot);
+    } catch {
+      setFeedback("网络连接中断，教务密码没有保存，请重新尝试。");
+    } finally {
+      setPassword("");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div
+      className="modal-backdrop academic-import-backdrop"
+      onMouseDown={() => !busy && onClose()}
+    >
+      <section
+        className="academic-import-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="academic-import-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <header>
+          <div>
+            <span>正式教务 · 一学期一次</span>
+            <h2 id="academic-import-title">
+              {transactionId ? "输入短信验证码" : "导入课表与考试安排"}
+            </h2>
+          </div>
+          <button onClick={onClose} disabled={busy} aria-label="关闭教务导入">
+            ×
+          </button>
+        </header>
+
+        {!transactionId ? (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void submit("/api/auth/academic/connect", {
+                username,
+                password,
+              });
+            }}
+          >
+            {existing && (
+              <p className="academic-import-current">
+                当前：{existing.academicYear} {existing.termLabel} ·{" "}
+                {existing.sections.length} 门课 · {existing.exams.length} 项考试
+              </p>
+            )}
+            <FormField label="教务账号" hint="通常是学号；不是东财之影账号。">
+              <input
+                name="academic-username"
+                autoComplete="off"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                maxLength={80}
+                required
+              />
+            </FormField>
+            <FormField
+              label="教务密码"
+              hint="仅用于这一次连接；不会写入数据库、日志或浏览器存储。"
+            >
+              <input
+                name="academic-password"
+                type="password"
+                autoComplete="off"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                maxLength={256}
+                required
+              />
+            </FormField>
+            {feedback && <p className="academic-import-error" role="alert">{feedback}</p>}
+            <button type="submit" disabled={busy || !username.trim() || !password}>
+              {busy ? "正在登录并读取教务…" : existing ? "重新抓取本学期" : "登录并自动导入"}
+            </button>
+            <small className="academic-import-note">
+              登录由学校 VPN 验证。成功后只保存规范化的课程与考试数据，登录会话立即丢弃。
+            </small>
+          </form>
+        ) : (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void submit("/api/auth/academic/sms", {
+                transactionId,
+                code: smsCode,
+              });
+            }}
+          >
+            <p className="academic-import-current">
+              学校已向 {maskedPhone || "绑定手机"} 发送验证码。
+            </p>
+            <FormField label="短信验证码">
+              <input
+                name="academic-sms"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={smsCode}
+                onChange={(event) =>
+                  setSmsCode(event.target.value.replace(/\D/gu, "").slice(0, 8))
+                }
+                minLength={4}
+                maxLength={8}
+                required
+                autoFocus
+              />
+            </FormField>
+            {feedback && <p className="academic-import-error" role="alert">{feedback}</p>}
+            <button type="submit" disabled={busy || smsCode.length < 4}>
+              {busy ? "正在读取课表与考试…" : "验证并完成导入"}
+            </button>
+            <button
+              className="academic-import-restart"
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setTransactionId("");
+                setSmsCode("");
+                setFeedback("");
+              }}
+            >
+              返回重新登录
+            </button>
+          </form>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function AcademicScheduleCard({ schedule }: { schedule: Schedule }) {
+  return (
+    <article className="academic-schedule-card">
+      <span>教务</span>
+      <strong>{schedule.title}</strong>
+      <small>
+        {schedule.building}
+        {schedule.room}
+      </small>
+      <em>
+        {schedule.teacher || "教师未标注"} · {scheduleWeeksLabel(schedule)}
+      </em>
+    </article>
+  );
+}
+
 function DraggableScheduleCard({
   catalogId,
   schedule,
@@ -2826,6 +3215,7 @@ function SchedulePage({
   setSaved,
   activePlan,
   activeSchedules,
+  academicSnapshot,
   courses,
   query,
   setQuery,
@@ -2833,6 +3223,7 @@ function SchedulePage({
   onAdd,
   onRemove,
   onSetup,
+  onAcademicImport,
   onEditCalendar,
 }: {
   data: SiteData;
@@ -2841,6 +3232,7 @@ function SchedulePage({
   setSaved: React.Dispatch<React.SetStateAction<SavedState>>;
   activePlan?: Plan;
   activeSchedules: Schedule[];
+  academicSnapshot?: AcademicSnapshot;
   courses: Map<string, Course>;
   query: string;
   setQuery: (v: string) => void;
@@ -2848,6 +3240,7 @@ function SchedulePage({
   onAdd: (id: string) => void;
   onRemove: (id: string) => void;
   onSetup: () => void;
+  onAcademicImport: () => void;
   onEditCalendar: (request: CalendarEditorRequest) => void;
 }) {
   const [finderMode, setFinderMode] = useState<"search" | "major" | "time">(
@@ -2877,6 +3270,16 @@ function SchedulePage({
   >("week");
   const [draggingScheduleId, setDraggingScheduleId] = useState("");
   const [lastRemovedId, setLastRemovedId] = useState("");
+  const sortedExams = useMemo(
+    () =>
+      [...(academicSnapshot?.exams ?? [])].sort(
+        (left, right) =>
+          `${left.date}T${left.startTime || "00:00"}`.localeCompare(
+            `${right.date}T${right.startTime || "00:00"}`,
+          ),
+      ),
+    [academicSnapshot],
+  );
   const timetableRef = useRef<HTMLElement>(null);
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
@@ -3080,17 +3483,22 @@ function SchedulePage({
         <div>
           <h1>我的课表</h1>
           <p>
-            {saved.profile?.className || "还没导入班级课程，也可以手动选课。"}
+            {academicSnapshot
+              ? `${academicSnapshot.academicYear} ${academicSnapshot.termLabel} · 正式教务数据`
+              : saved.profile?.className || "还没导入教务课表，也可以手动选课。"}
           </p>
         </div>
         <div className="schedule-heading-actions">
+          <button className="academic-import-action" onClick={onAcademicImport}>
+            {academicSnapshot ? "刷新教务数据" : "导入教务课表与考试"}
+          </button>
           <button onClick={() => onEditCalendar({ kind: "activity" })}>
             ＋ 添加日程
           </button>
           <button onClick={() => onEditCalendar({ kind: "assignment" })}>
             ＋ 添加作业
           </button>
-          <button onClick={onSetup}>
+          <button className="secondary" onClick={onSetup}>
             {saved.profile ? "修改班级" : "导入班级课程"}
           </button>
         </div>
@@ -3407,14 +3815,17 @@ function SchedulePage({
                       <button
                         key={entry.id}
                         className={entry.kind}
-                        onClick={() =>
-                          entry.kind === "course"
-                            ? onCourse(courses.get(entry.schedule.courseId)!)
-                            : onEditCalendar({
-                                kind: "activity",
-                                id: entry.activity.id,
-                              })
-                        }
+                        onClick={() => {
+                          if (entry.kind === "course") {
+                            const course = courses.get(entry.schedule.courseId);
+                            if (course) onCourse(course);
+                            return;
+                          }
+                          onEditCalendar({
+                            kind: "activity",
+                            id: entry.activity.id,
+                          });
+                        }}
                       >
                         <time>{data.periods[entry.block - 1]?.short}</time>
                         <span>
@@ -3468,13 +3879,20 @@ function SchedulePage({
                     }
                   >
                     {cell.map((item) => (
-                      <DraggableScheduleCard
-                        key={item.id}
-                        catalogId={data.catalogId}
-                        schedule={item}
-                        onOpen={() => onCourse(courses.get(item.courseId)!)}
-                        onRemove={() => removeSchedule(item.id)}
-                      />
+                      item.origin === "academic" ? (
+                        <AcademicScheduleCard key={item.id} schedule={item} />
+                      ) : (
+                        <DraggableScheduleCard
+                          key={item.id}
+                          catalogId={data.catalogId}
+                          schedule={item}
+                          onOpen={() => {
+                            const course = courses.get(item.courseId);
+                            if (course) onCourse(course);
+                          }}
+                          onRemove={() => removeSchedule(item.id)}
+                        />
+                      )
                     ))}
                     {personal.map((item) => (
                       <button
@@ -3514,9 +3932,65 @@ function SchedulePage({
           {!activeSchedules.length && (
             <div className="timetable-empty">
               <b>这张课表还是空的</b>
-              <p>点“添加课程”开始选课。</p>
+              <p>连接教务自动导入，或点“添加课程”手动选课。</p>
             </div>
           )}
+          <section className="academic-exam-panel" data-export-ignore="true">
+            <header>
+              <div>
+                <span>正式教务</span>
+                <h3>考试安排</h3>
+              </div>
+              <button onClick={onAcademicImport}>
+                {academicSnapshot ? "刷新" : "连接教务"}
+              </button>
+            </header>
+            {!academicSnapshot ? (
+              <div className="academic-exam-empty">
+                <b>还没有导入考试安排</b>
+                <p>连接教务后，课表和考试会在同一次同步中完成。</p>
+              </div>
+            ) : sortedExams.length ? (
+              <div className="academic-exam-list">
+                {sortedExams.map((exam) => (
+                  <article key={exam.id}>
+                    <time dateTime={exam.date || undefined}>
+                      {exam.date
+                        ? new Intl.DateTimeFormat("zh-CN", {
+                            month: "long",
+                            day: "numeric",
+                            weekday: "short",
+                          }).format(new Date(`${exam.date}T00:00:00+08:00`))
+                        : "日期待定"}
+                      <small>
+                        {[exam.startTime, exam.endTime]
+                          .filter(Boolean)
+                          .join("–") || "时间待定"}
+                      </small>
+                    </time>
+                    <div>
+                      <strong>{exam.courseName || exam.courseCode}</strong>
+                      <p>
+                        {exam.location ||
+                          [exam.campus, exam.building, exam.room]
+                            .filter(Boolean)
+                            .join(" · ") ||
+                          "考场待定"}
+                      </p>
+                    </div>
+                    <span>
+                      {exam.seat ? `座位 ${exam.seat}` : exam.status || "已同步"}
+                    </span>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="academic-exam-empty ready">
+                <b>教务系统当前没有考试安排</b>
+                <p>已完成同步；学校发布后点“刷新”即可更新。</p>
+              </div>
+            )}
+          </section>
           <section className="personal-planner">
             <header>
               <div>

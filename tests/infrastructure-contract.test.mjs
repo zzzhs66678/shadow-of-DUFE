@@ -124,10 +124,12 @@ test("CI checks five main views across all target widths", async () => {
   );
   assert.match(workflow, /npm run test:browser/);
   assert.match(workflow, /tests\/course-core-data\.test\.mjs/);
+  assert.match(workflow, /tests\/academic-access\.test\.mjs/);
   for (const width of [320, 360, 375, 390, 414, 667, 768, 844]) {
     assert.match(config, new RegExp(`width: ${width}`));
   }
   assert.match(config, /name: "performance"/);
+  assert.match(config, /name: "academic-import"/);
   assert.match(suite, /\.today-page/);
   assert.match(suite, /\.catalog-page-v2/);
   assert.match(suite, /\.schedule-page/);
@@ -287,10 +289,11 @@ test("backup and disk protection have bounded local retention", async () => {
   assert.match(restoreDrill, /--maintenance-db "\$POSTGRES_DB"/);
   assert.match(restoreDrill, /pg_restore/);
   assert.match(restoreDrill, /--exit-on-error/);
-  assert.match(restoreDrill, /migration_count < 20/);
+  assert.match(restoreDrill, /migration_count < 21/);
   assert.match(restoreDrill, /NOT convalidated/);
   assert.match(restoreDrill, /api_rate_limit_buckets/);
   assert.match(restoreDrill, /community_announcements/);
+  assert.match(restoreDrill, /user_academic_snapshots/);
   assert.match(restoreDrill, /dropdb[\s\S]*--if-exists "\$drill_database"/);
   assert.match(restoreDrill, /cleanup\ncreated=0\necho "Restore drill passed/);
   assert.match(restoreDrill, /RESTORE_DRILL_MAX_SECONDS/);

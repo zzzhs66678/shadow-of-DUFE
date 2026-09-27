@@ -7,6 +7,7 @@ import { createAdminSecurity } from "./admin-security.mjs";
 import { createAuthServer } from "./server.mjs";
 import { createApiRateLimiters } from "./rate-limit.mjs";
 import { createMailDelivery } from "./mail-delivery.mjs";
+import { createAcademicConnector } from "./academic-access.mjs";
 
 const config = loadConfig();
 const pool = createDatabasePool(config);
@@ -16,6 +17,9 @@ const wechatProvider = createWechatProvider(config);
 const passwordService = createPasswordService();
 const avatarProcessor = createAvatarProcessor();
 const mailDelivery = createMailDelivery(config);
+const academicConnector = config.academicImportEnabled
+  ? createAcademicConnector()
+  : null;
 const adminSecurity = config.adminEnabled
   ? createAdminSecurity({
       activeKeyId: config.adminMfaActiveKeyId,
@@ -32,6 +36,7 @@ const server = createAuthServer({
   mailDelivery,
   adminSecurity,
   rateLimiters,
+  academicConnector,
 });
 
 server.listen(config.port, "0.0.0.0", () => {

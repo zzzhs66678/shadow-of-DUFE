@@ -144,8 +144,8 @@ DECLARE
     missing_table_count integer;
 BEGIN
     SELECT count(*) INTO migration_count FROM schema_migrations;
-    IF migration_count < 20 THEN
-        RAISE EXCEPTION 'restore contains only % migrations; expected at least 20', migration_count;
+    IF migration_count < 21 THEN
+        RAISE EXCEPTION 'restore contains only % migrations; expected at least 21', migration_count;
     END IF;
 
     SELECT count(*) INTO invalid_constraint_count
@@ -161,6 +161,7 @@ BEGIN
         'app_users',
         'user_sessions',
         'timetable_plans',
+        'user_academic_snapshots',
         'community_topics',
         'community_reports',
         'community_announcements',

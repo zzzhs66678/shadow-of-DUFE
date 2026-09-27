@@ -92,6 +92,15 @@ async function readPersonalState(database, userId) {
     [userId],
   );
 
+  const academicResult = await database.query(
+    `SELECT snapshot
+     FROM user_academic_snapshots
+     WHERE user_id = $1
+       AND deleted_at IS NULL
+     ORDER BY academic_year, term, imported_at, id`,
+    [userId],
+  );
+
   const settingsResult = await database.query(
     `SELECT
        active_plan_client_id,
@@ -135,12 +144,92 @@ async function readPersonalState(database, userId) {
         notes: row.notes,
         completed: row.completed,
       })),
+      academicSnapshots: academicResult.rows.map((row) => row.snapshot),
       favoriteRooms: settings?.favorite_rooms ?? [],
       recentRooms: settings?.recent_rooms ?? [],
       preferredTerm: settings?.preferred_term ?? "fall",
       theme: settings?.theme ?? "system",
     },
   };
+}
+
+async function upsertAcademicSnapshots(
+  client,
+  userId,
+  revision,
+  clientUpdatedAt,
+  snapshots,
+) {
+  await client.query(
+    `INSERT INTO user_academic_snapshots (
+       user_id,
+       client_id,
+       academic_year,
+       term,
+       term_label,
+       imported_at,
+       snapshot,
+       revision,
+       client_updated_at
+     )
+     SELECT
+       $1,
+       incoming.client_id,
+       incoming.academic_year,
+       incoming.term,
+       incoming.term_label,
+       incoming.imported_at,
+       incoming.snapshot,
+       $2,
+       $3
+     FROM jsonb_to_recordset($4::jsonb) AS incoming(
+       client_id text,
+       academic_year text,
+       term text,
+       term_label text,
+       imported_at timestamptz,
+       snapshot jsonb
+     )
+     ON CONFLICT (user_id, client_id) DO UPDATE
+     SET
+       academic_year = EXCLUDED.academic_year,
+       term = EXCLUDED.term,
+       term_label = EXCLUDED.term_label,
+       imported_at = EXCLUDED.imported_at,
+       snapshot = EXCLUDED.snapshot,
+       revision = EXCLUDED.revision,
+       client_updated_at = EXCLUDED.client_updated_at,
+       updated_at = now(),
+       deleted_at = NULL`,
+    [
+      userId,
+      revision,
+      clientUpdatedAt,
+      JSON.stringify(
+        snapshots.map((snapshot) => ({
+          client_id: snapshot.id,
+          academic_year: snapshot.academicYear,
+          term: snapshot.term,
+          term_label: snapshot.termLabel,
+          imported_at: snapshot.importedAt,
+          snapshot,
+        })),
+      ),
+    ],
+  );
+
+  await client.query(
+    `UPDATE user_academic_snapshots
+     SET
+       revision = $2,
+       client_updated_at = $3,
+       updated_at = now(),
+       deleted_at = COALESCE(deleted_at, now())
+     WHERE user_id = $1
+       AND NOT (client_id = ANY($4::text[]))
+       AND deleted_at IS NULL`,
+    [userId, revision, clientUpdatedAt, snapshots.map((item) => item.id)],
+  );
 }
 
 async function upsertPlans(client, userId, revision, clientUpdatedAt, plans) {
@@ -552,6 +641,13 @@ export function createPersonalStore(pool) {
           revision,
           payload.clientUpdatedAt,
           state.assignments,
+        );
+        await upsertAcademicSnapshots(
+          client,
+          userId,
+          revision,
+          payload.clientUpdatedAt,
+          state.academicSnapshots,
         );
 
         await client.query(

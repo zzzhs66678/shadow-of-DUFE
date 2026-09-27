@@ -126,6 +126,20 @@ export function createApiRateLimiters({ store } = {}) {
       maxKeys: 20_000,
       idleTtlMs: 30 * 60_000,
     }),
+    academicPrincipal: persistentOrLocal(store, {
+      scope: "academic-login-account",
+      capacity: 6,
+      refillPerSecond: 1 / 300,
+      maxKeys: 30_000,
+      idleTtlMs: 2 * 60 * 60_000,
+    }),
+    academicIp: persistentOrLocal(store, {
+      scope: "academic-login-network",
+      capacity: 30,
+      refillPerSecond: 1 / 60,
+      maxKeys: 30_000,
+      idleTtlMs: 2 * 60 * 60_000,
+    }),
     passwordReset: persistentOrLocal(store, {
       scope: "password-reset",
       capacity: 4,

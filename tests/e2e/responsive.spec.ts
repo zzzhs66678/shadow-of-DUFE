@@ -21,6 +21,7 @@ test.beforeEach(async ({ page }) => {
         activePlanId: "default",
         activities: [],
         assignments: [],
+        academicSnapshots: [],
         favoriteRooms: [],
         recentRooms: [],
       }),

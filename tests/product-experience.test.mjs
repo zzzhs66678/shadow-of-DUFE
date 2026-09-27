@@ -116,11 +116,11 @@ const teacherRecordLinkSource = await readFile(
 );
 
 test("teacher directory disambiguates identities without taking over the daily workspace", () => {
-  assert.match(teacherExplorerSource, /同名教师会按学院分别展示/);
+  assert.match(teacherExplorerSource, /同名教师请按学院区分/);
   assert.match(teacherExplorerSource, /\/api\/teachers/);
   assert.match(teacherDetailSource, /历史整理内容不参与均分/);
   assert.match(teacherDetailSource, /同一课程的不同教学班可能使用不同教材/);
-  assert.match(teacherDetailSource, /历史整理内容经过人工审核后才会出现/);
+  assert.match(teacherDetailSource, /历史评价供参考/);
   assert.match(teacherDetailSource, /\/my-review/);
   assert.match(teacherDetailSource, /每位登录用户对同一位教师保留一份评价/);
   assert.match(teacherDetailSource, /<fieldset/);
@@ -147,7 +147,7 @@ test("teacher directory disambiguates identities without taking over the daily w
   assert.match(teacherRecordLinkSource, /resolveTeacherScheduleHref/);
   assert.doesNotMatch(teacherRecordLinkSource, /useEffect/);
   assert.match(teacherStyles, /min-height:\s*44px/);
-  assert.match(teacherStyles, /@media \(max-width:\s*820px\)/);
+  assert.match(teacherStyles, /@media \(max-width:\s*900px\)/);
   assert.match(teacherStyles, /\.ratingEditor label span[\s\S]*min-height:\s*44px/);
   assert.match(teacherStyles, /\.reviewIndex input[\s\S]*min-height:\s*44px/);
   assert.match(teacherStyles, /\.reviewSort button\[aria-pressed="true"\]/);

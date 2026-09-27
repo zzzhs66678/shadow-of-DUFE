@@ -240,7 +240,7 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
     const migrations = await owner.query(
       "SELECT count(*)::integer AS count FROM schema_migrations",
     );
-    assert.equal(migrations.rows[0].count, 20);
+    assert.equal(migrations.rows[0].count, 21);
 
     await denied(migrator, "SELECT * FROM app_users LIMIT 1");
     const migrationRole = await migrator.query(

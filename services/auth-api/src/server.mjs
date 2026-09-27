@@ -14,6 +14,7 @@ import { createApiRateLimiters } from "./rate-limit.mjs";
 import { createAdminRequestHandler } from "./admin-routes.mjs";
 import { createCommunityRequestHandler } from "./community-routes.mjs";
 import { createTeacherRequestHandler } from "./teacher-routes.mjs";
+import { createAcademicRequestHandler } from "./academic-routes.mjs";
 import {
   normalizeLoginIdentifier,
   validateLogin,
@@ -188,6 +189,7 @@ export function createAuthServer({
   mailDelivery,
   adminSecurity,
   rateLimiters = createApiRateLimiters(),
+  academicConnector = null,
 }) {
   if (
     (config.passwordResetMode === "smtp" ||
@@ -211,6 +213,12 @@ export function createAuthServer({
     rateLimiters,
   });
   const handleTeacherRequest = createTeacherRequestHandler({ store, config, rateLimiters });
+  const handleAcademicRequest = createAcademicRequestHandler({
+    store,
+    config,
+    connector: academicConnector,
+    rateLimiters,
+  });
 
   return createServer(async (request, response) => {
     try {
@@ -250,6 +258,7 @@ export function createAuthServer({
       if (await handleAdminRequest(request, response, url)) return;
       if (await handleCommunityRequest(request, response, url)) return;
       if (await handleTeacherRequest(request, response, url)) return;
+      if (await handleAcademicRequest(request, response, url)) return;
 
       if (url.pathname === "/api/auth/session") {
         if (request.method !== "GET") {

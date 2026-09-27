@@ -222,6 +222,11 @@ export function loadConfig(env = process.env) {
       true,
       "AUTH_CREDENTIALS_ENABLED",
     ),
+    academicImportEnabled: booleanValue(
+      env.AUTH_ACADEMIC_IMPORT_ENABLED,
+      false,
+      "AUTH_ACADEMIC_IMPORT_ENABLED",
+    ),
     passwordResetMode,
     passwordResetTtlSeconds: Math.min(
       positiveInteger(

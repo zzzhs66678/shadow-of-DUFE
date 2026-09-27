@@ -60,5 +60,13 @@ export default defineConfig({
       testMatch: /performance\.spec\.ts/,
       use: { viewport: { width: 390, height: 844 } },
     },
+    {
+      name: "academic-import",
+      testMatch: /academic-import\.spec\.ts/,
+      use: {
+        viewport: { width: 390, height: 844 },
+        timezoneId: "Asia/Shanghai",
+      },
+    },
   ],
 });

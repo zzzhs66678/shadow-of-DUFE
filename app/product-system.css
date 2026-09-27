@@ -4949,3 +4949,356 @@ body:has(.hub-v2) .preload-intro {
   .today-community-note { gap: 8px; grid-template-columns: 1fr auto; margin-top: 24px; }
   .today-community-note span { grid-column: 1 / -1; }
 }
+
+/* Official academic import. Function-first styling that follows the paper/ink/red system. */
+.academic-sync-band {
+  align-items: center;
+  background: var(--journal-paper-raised, #fffdf8);
+  border-bottom: 1px solid var(--journal-line, #d7d0c4);
+  border-top: 2px solid var(--journal-ink, #171717);
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin: 18px 0 0;
+  padding: 18px 4px;
+}
+
+.academic-sync-band.ready {
+  border-top-color: var(--journal-red, #b42a24);
+}
+
+.academic-sync-band span,
+.academic-exam-panel > header span,
+.academic-import-dialog > header span {
+  color: var(--journal-red-deep, #8f1f1b);
+  display: block;
+  font: 700 10px/1.2 var(--journal-data, ui-monospace, monospace);
+  letter-spacing: .12em;
+  margin-bottom: 7px;
+}
+
+.academic-sync-band strong {
+  color: var(--journal-ink, #171717);
+  display: block;
+  font: 600 19px/1.35 var(--journal-display, serif);
+}
+
+.academic-sync-band p {
+  color: var(--journal-muted, #656158);
+  font-size: 12px;
+  line-height: 1.65;
+  margin: 5px 0 0;
+}
+
+.academic-sync-band > button,
+.academic-exam-panel > header button,
+.schedule-heading-actions .academic-import-action {
+  background: var(--journal-red, #b42a24);
+  border: 1px solid var(--journal-red, #b42a24);
+  border-radius: 999px;
+  color: #fff;
+  min-height: 42px;
+  padding: 0 18px;
+}
+
+.academic-sync-band > button:hover,
+.academic-exam-panel > header button:hover,
+.schedule-heading-actions .academic-import-action:hover {
+  background: var(--journal-red-deep, #8f1f1b);
+  border-color: var(--journal-red-deep, #8f1f1b);
+}
+
+.schedule-heading-actions .secondary {
+  background: transparent;
+  border-color: var(--journal-line-strong, #8b867d);
+  color: var(--journal-ink, #171717);
+}
+
+.schedule-heading-actions .secondary:hover {
+  background: var(--journal-paper-raised, #fffdf8);
+  border-color: var(--journal-ink, #171717);
+  color: var(--journal-ink, #171717);
+}
+
+.academic-import-backdrop {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+}
+
+.academic-import-dialog {
+  background: var(--journal-paper-raised, #fffdf8);
+  border: 1px solid var(--journal-ink, #171717);
+  border-radius: 18px;
+  box-shadow: 12px 12px 0 rgba(180, 42, 36, .2);
+  color: var(--journal-ink, #171717);
+  max-height: calc(100vh - 40px);
+  max-width: 520px;
+  overflow-y: auto;
+  padding: 0;
+  width: min(100%, 520px);
+}
+
+.academic-import-dialog > header {
+  align-items: start;
+  border-bottom: 1px solid var(--journal-line, #d7d0c4);
+  display: flex;
+  justify-content: space-between;
+  padding: 24px 26px 19px;
+}
+
+.academic-import-dialog > header h2 {
+  font: 600 25px/1.25 var(--journal-display, serif);
+  margin: 0;
+}
+
+.academic-import-dialog > header > button {
+  background: transparent;
+  border: 0;
+  color: var(--journal-muted, #656158);
+  font-size: 28px;
+  height: 38px;
+  line-height: 1;
+  padding: 0;
+  width: 38px;
+}
+
+.academic-import-dialog > form {
+  display: grid;
+  gap: 18px;
+  padding: 24px 26px 28px;
+}
+
+.academic-import-dialog input {
+  background: #fff;
+  border: 1px solid var(--journal-line-strong, #8b867d);
+  border-radius: 8px;
+  color: var(--journal-ink, #171717);
+  font-size: 16px;
+  min-height: 46px;
+  padding: 0 12px;
+  width: 100%;
+}
+
+.academic-import-dialog form > button[type="submit"] {
+  background: var(--journal-red, #b42a24);
+  border: 1px solid var(--journal-red, #b42a24);
+  border-radius: 999px;
+  color: #fff;
+  font-weight: 700;
+  min-height: 46px;
+  padding: 0 18px;
+}
+
+.academic-import-dialog button:disabled {
+  cursor: wait;
+  opacity: .58;
+}
+
+.academic-import-current {
+  background: rgba(180, 42, 36, .06);
+  border-left: 3px solid var(--journal-red, #b42a24);
+  color: var(--journal-ink, #171717);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.academic-import-error {
+  color: var(--journal-red-deep, #8f1f1b);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.academic-import-note {
+  color: var(--journal-muted, #656158);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.academic-import-restart {
+  background: transparent;
+  border: 0;
+  color: var(--journal-muted, #656158);
+  min-height: 40px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.academic-schedule-card {
+  background: #fff8ed;
+  border: 1px solid #d9c7ae;
+  border-left: 3px solid var(--journal-red, #b42a24);
+  color: var(--journal-ink, #171717);
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 7px 6px;
+}
+
+.academic-schedule-card > span {
+  color: var(--journal-red-deep, #8f1f1b);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.academic-schedule-card strong,
+.academic-schedule-card small,
+.academic-schedule-card em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.academic-schedule-card strong {
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.academic-schedule-card small,
+.academic-schedule-card em {
+  font-size: 9px;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.academic-schedule-card em {
+  color: var(--journal-muted, #656158);
+  font-style: normal;
+}
+
+.academic-exam-panel {
+  border-top: 2px solid var(--journal-ink, #171717);
+  margin-top: 24px;
+  padding: 22px 20px 28px;
+}
+
+.academic-exam-panel > header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.academic-exam-panel > header h3 {
+  font: 600 22px/1.2 var(--journal-display, serif);
+  margin: 0;
+}
+
+.academic-exam-list {
+  border-top: 1px solid var(--journal-line, #d7d0c4);
+}
+
+.academic-exam-list article {
+  align-items: center;
+  border-bottom: 1px solid var(--journal-line, #d7d0c4);
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 130px minmax(0, 1fr) auto;
+  min-height: 78px;
+  padding: 12px 2px;
+}
+
+.academic-exam-list time,
+.academic-exam-list time small,
+.academic-exam-list article > span {
+  display: block;
+  font-family: var(--journal-data, ui-monospace, monospace);
+}
+
+.academic-exam-list time {
+  color: var(--journal-ink, #171717);
+  font-size: 12px;
+}
+
+.academic-exam-list time small,
+.academic-exam-list article > span {
+  color: var(--journal-muted, #656158);
+  font-size: 10px;
+  margin-top: 5px;
+}
+
+.academic-exam-list strong {
+  display: block;
+  font-size: 15px;
+}
+
+.academic-exam-list p {
+  color: var(--journal-muted, #656158);
+  font-size: 12px;
+  margin: 5px 0 0;
+}
+
+.academic-exam-empty {
+  background: var(--journal-paper, #f4f0e7);
+  border: 1px dashed var(--journal-line-strong, #8b867d);
+  padding: 20px;
+}
+
+.academic-exam-empty b {
+  display: block;
+  font-size: 14px;
+}
+
+.academic-exam-empty p {
+  color: var(--journal-muted, #656158);
+  font-size: 12px;
+  margin: 7px 0 0;
+}
+
+@media (max-width: 760px) {
+  .academic-sync-band {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+    margin-top: 14px;
+    padding: 16px 0;
+  }
+
+  .academic-sync-band > button {
+    width: 100%;
+  }
+
+  .academic-import-dialog {
+    border-bottom: 0;
+    border-radius: 14px 14px 0 0;
+    box-shadow: none;
+    max-height: calc(92vh - env(safe-area-inset-top));
+    max-width: none;
+    width: 100%;
+  }
+
+  .academic-import-dialog > header,
+  .academic-import-dialog > form {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .academic-schedule-card {
+    border-left-width: 2px;
+    gap: 2px;
+    padding: 5px 3px;
+  }
+
+  .academic-schedule-card strong { font-size: 9px; overflow-wrap: anywhere; }
+  .academic-schedule-card small { font-size: 8px; }
+  .academic-schedule-card em { display: none; }
+
+  .academic-exam-panel {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .academic-exam-list article {
+    align-items: start;
+    gap: 8px 12px;
+    grid-template-columns: 90px minmax(0, 1fr);
+  }
+
+  .academic-exam-list article > span {
+    grid-column: 2;
+    margin: 0;
+  }
+}

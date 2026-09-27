@@ -18,6 +18,7 @@ function state(): PersonalSyncState {
     activePlanId: "default",
     activities: [],
     assignments: [],
+    academicSnapshots: [],
     favoriteRooms: [],
     recentRooms: [],
     preferredTerm: "fall",

@@ -15,7 +15,7 @@ try {
     await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: false } }));
     await page.addInitScript(() => localStorage.setItem('dufesh:student-profile:v3:anonymous', JSON.stringify({
       profile: null, skipped: true, plans: [{ id: 'default', name: '默认课表', scheduleIds: [] }],
-      activePlanId: 'default', activities: [], assignments: [], favoriteRooms: [], recentRooms: [],
+      activePlanId: 'default', activities: [], assignments: [], academicSnapshots: [], favoriteRooms: [], recentRooms: [],
     })));
     await page.goto(base);
     const setup = page.getByRole('button', { name: '设置我的课表', exact: true });

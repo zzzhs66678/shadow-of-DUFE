@@ -30,6 +30,62 @@ export type PersonalAssignment = {
   completed: boolean;
 };
 
+export type AcademicMeeting = {
+  id: string;
+  weekday: number;
+  periods: number[];
+  block: number;
+  weeks: number[];
+  weekText: string;
+  timeText: string;
+  campus: string;
+  building: string;
+  room: string;
+};
+
+export type AcademicSection = {
+  id: string;
+  courseCode: string;
+  courseName: string;
+  sectionCode: string;
+  credits: string;
+  property: string;
+  category: string;
+  assessmentType: string;
+  teachers: string[];
+  studyMode: string;
+  selectionStatus: string;
+  meetings: AcademicMeeting[];
+};
+
+export type AcademicExam = {
+  id: string;
+  courseCode: string;
+  courseName: string;
+  sectionCode: string;
+  examType: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  campus: string;
+  building: string;
+  room: string;
+  location: string;
+  seat: string;
+  status: string;
+};
+
+export type AcademicSnapshot = {
+  schemaVersion: 1;
+  id: string;
+  academicYear: string;
+  term: "fall" | "spring";
+  termLabel: string;
+  importedAt: string;
+  sections: AcademicSection[];
+  exams: AcademicExam[];
+};
+
 export type PersonalSyncState = {
   profile: PersonalProfile | null;
   skipped: boolean;
@@ -37,6 +93,7 @@ export type PersonalSyncState = {
   activePlanId: string;
   activities: PersonalActivity[];
   assignments: PersonalAssignment[];
+  academicSnapshots: AcademicSnapshot[];
   favoriteRooms: string[];
   recentRooms: string[];
   preferredTerm: "fall" | "spring";
@@ -44,7 +101,13 @@ export type PersonalSyncState = {
 };
 
 export type PersonalSyncConflict = {
-  scope: "profile" | "plan" | "activity" | "assignment" | "settings";
+  scope:
+    | "profile"
+    | "plan"
+    | "activity"
+    | "assignment"
+    | "academic"
+    | "settings";
   id?: string;
   local: unknown;
   remote: unknown;
@@ -105,6 +168,20 @@ function normalizeState(state: PersonalSyncState): PersonalSyncState {
     activePlanId,
     activities: Array.isArray(state.activities) ? state.activities : [],
     assignments: Array.isArray(state.assignments) ? state.assignments : [],
+    academicSnapshots: Array.isArray(state.academicSnapshots)
+      ? state.academicSnapshots
+          .filter(
+            (snapshot) =>
+              snapshot?.schemaVersion === 1 &&
+              typeof snapshot.id === "string" &&
+              (snapshot.term === "fall" || snapshot.term === "spring"),
+          )
+          .filter(
+            (snapshot, index, all) =>
+              all.findIndex((item) => item.id === snapshot.id) === index,
+          )
+          .slice(-12)
+      : [],
     favoriteRooms: unique(state.favoriteRooms ?? [], 100),
     recentRooms: unique(state.recentRooms ?? [], 50),
     preferredTerm: state.preferredTerm === "spring" ? "spring" : "fall",
@@ -166,6 +243,10 @@ export function mergeInitialPersonalState(
     activePlanId,
     activities: mergeInitialRecords(remote.activities, local.activities),
     assignments: mergeInitialRecords(remote.assignments, local.assignments),
+    academicSnapshots: mergeInitialRecords(
+      remote.academicSnapshots,
+      local.academicSnapshots,
+    ),
     favoriteRooms: unique(
       [...remote.favoriteRooms, ...local.favoriteRooms],
       100,
@@ -177,7 +258,7 @@ export function mergeInitialPersonalState(
 }
 
 function mergeRecordSet<T extends { id: string }>(
-  scope: "plan" | "activity" | "assignment",
+  scope: "plan" | "activity" | "assignment" | "academic",
   base: T[],
   local: T[],
   remote: T[],
@@ -305,6 +386,13 @@ export function mergePersonalStateThreeWay(
       base.assignments,
       local.assignments,
       remote.assignments,
+      conflicts,
+    ),
+    academicSnapshots: mergeRecordSet(
+      "academic",
+      base.academicSnapshots,
+      local.academicSnapshots,
+      remote.academicSnapshots,
       conflicts,
     ),
     ...settings,

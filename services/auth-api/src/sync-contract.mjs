@@ -1,5 +1,7 @@
 const ID_PATTERN = /^[A-Za-z0-9:_-]+$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+const ACADEMIC_YEAR_PATTERN = /^20\d{2}-20\d{2}$/;
 const COLORS = new Set(["red", "blue", "green", "amber"]);
 const TERMS = new Set(["fall", "spring"]);
 const THEMES = new Set(["system", "day", "night"]);
@@ -177,6 +179,154 @@ function assignment(value, index) {
   };
 }
 
+function instant(value, name) {
+  const normalized = string(value, name, 40, { empty: false });
+  const parsed = new Date(normalized);
+  if (Number.isNaN(parsed.getTime())) throw invalid(`${name} is invalid`);
+  return parsed.toISOString();
+}
+
+function optionalTime(value, name) {
+  const normalized = string(value ?? "", name, 5);
+  if (normalized && !TIME_PATTERN.test(normalized)) {
+    throw invalid(`${name} is invalid`);
+  }
+  return normalized;
+}
+
+function academicMeeting(value, snapshotIndex, sectionIndex, index) {
+  const name = `state.academicSnapshots[${snapshotIndex}].sections[${sectionIndex}].meetings[${index}]`;
+  const input = object(value, name);
+  const periods = array(input.periods, `${name}.periods`, 14).map(
+    (period, periodIndex) =>
+      integer(period, `${name}.periods[${periodIndex}]`, 1, 14),
+  );
+  const weeks = array(input.weeks, `${name}.weeks`, 30).map(
+    (week, weekIndex) =>
+      integer(week, `${name}.weeks[${weekIndex}]`, 1, 30),
+  );
+  return {
+    id: string(input.id, `${name}.id`, 128, { empty: false, id: true }),
+    weekday: integer(input.weekday, `${name}.weekday`, 1, 7),
+    periods: [...new Set(periods)].sort((left, right) => left - right),
+    block: integer(input.block, `${name}.block`, 1, 4),
+    weeks: [...new Set(weeks)].sort((left, right) => left - right),
+    weekText: string(input.weekText ?? "", `${name}.weekText`, 120),
+    timeText: string(input.timeText ?? "", `${name}.timeText`, 200),
+    campus: string(input.campus ?? "", `${name}.campus`, 120),
+    building: string(input.building ?? "", `${name}.building`, 160),
+    room: string(input.room ?? "", `${name}.room`, 160),
+  };
+}
+
+function academicSection(value, snapshotIndex, index) {
+  const name = `state.academicSnapshots[${snapshotIndex}].sections[${index}]`;
+  const input = object(value, name);
+  const meetings = uniqueBy(
+    array(input.meetings, `${name}.meetings`, 20).map((meeting, meetingIndex) =>
+      academicMeeting(meeting, snapshotIndex, index, meetingIndex),
+    ),
+    "id",
+    `${name}.meetings`,
+  );
+  return {
+    id: string(input.id, `${name}.id`, 128, { empty: false, id: true }),
+    courseCode: string(input.courseCode ?? "", `${name}.courseCode`, 80),
+    courseName: string(input.courseName, `${name}.courseName`, 200, {
+      empty: false,
+    }),
+    sectionCode: string(input.sectionCode ?? "", `${name}.sectionCode`, 80),
+    credits: string(input.credits ?? "", `${name}.credits`, 32),
+    property: string(input.property ?? "", `${name}.property`, 80),
+    category: string(input.category ?? "", `${name}.category`, 80),
+    assessmentType: string(
+      input.assessmentType ?? "",
+      `${name}.assessmentType`,
+      80,
+    ),
+    teachers: stringList(input.teachers ?? [], `${name}.teachers`, 12, 80),
+    studyMode: string(input.studyMode ?? "", `${name}.studyMode`, 80),
+    selectionStatus: string(
+      input.selectionStatus ?? "",
+      `${name}.selectionStatus`,
+      80,
+    ),
+    meetings,
+  };
+}
+
+function academicExam(value, snapshotIndex, index) {
+  const name = `state.academicSnapshots[${snapshotIndex}].exams[${index}]`;
+  const input = object(value, name);
+  const date = string(input.date ?? "", `${name}.date`, 10);
+  if (
+    date &&
+    (!DATE_PATTERN.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`)))
+  ) {
+    throw invalid(`${name}.date is invalid`);
+  }
+  return {
+    id: string(input.id, `${name}.id`, 128, { empty: false, id: true }),
+    courseCode: string(input.courseCode ?? "", `${name}.courseCode`, 80),
+    courseName: string(input.courseName ?? "", `${name}.courseName`, 200),
+    sectionCode: string(input.sectionCode ?? "", `${name}.sectionCode`, 80),
+    examType: string(input.examType ?? "", `${name}.examType`, 80),
+    date,
+    startTime: optionalTime(input.startTime, `${name}.startTime`),
+    endTime: optionalTime(input.endTime, `${name}.endTime`),
+    campus: string(input.campus ?? "", `${name}.campus`, 120),
+    building: string(input.building ?? "", `${name}.building`, 160),
+    room: string(input.room ?? "", `${name}.room`, 160),
+    location: string(input.location ?? "", `${name}.location`, 300),
+    seat: string(input.seat ?? "", `${name}.seat`, 80),
+    status: string(input.status ?? "", `${name}.status`, 80),
+  };
+}
+
+function academicSnapshot(value, index) {
+  const name = `state.academicSnapshots[${index}]`;
+  const input = object(value, name);
+  if (input.schemaVersion !== 1) {
+    throw invalid(`${name}.schemaVersion is unsupported`);
+  }
+  const academicYear = string(
+    input.academicYear,
+    `${name}.academicYear`,
+    9,
+    { empty: false },
+  );
+  if (!ACADEMIC_YEAR_PATTERN.test(academicYear)) {
+    throw invalid(`${name}.academicYear is invalid`);
+  }
+  if (!TERMS.has(input.term)) throw invalid(`${name}.term is unsupported`);
+  const sections = uniqueBy(
+    array(input.sections, `${name}.sections`, 120).map((section, sectionIndex) =>
+      academicSection(section, index, sectionIndex),
+    ),
+    "id",
+    `${name}.sections`,
+  );
+  const exams = uniqueBy(
+    array(input.exams, `${name}.exams`, 120).map((exam, examIndex) =>
+      academicExam(exam, index, examIndex),
+    ),
+    "id",
+    `${name}.exams`,
+  );
+  return {
+    schemaVersion: 1,
+    id: string(input.id, `${name}.id`, 64, { empty: false, id: true }),
+    academicYear,
+    term: input.term,
+    termLabel: string(input.termLabel, `${name}.termLabel`, 32, {
+      empty: false,
+    }),
+    importedAt: instant(input.importedAt, `${name}.importedAt`),
+    sections,
+    exams,
+  };
+}
+
 export function validateSyncWrite(value) {
   const input = object(value, "body");
   const state = object(input.state, "state");
@@ -197,6 +347,15 @@ export function validateSyncWrite(value) {
     array(state.assignments, "state.assignments", 1000).map(assignment),
     "id",
     "state.assignments",
+  );
+  const academicSnapshots = uniqueBy(
+    array(
+      state.academicSnapshots ?? [],
+      "state.academicSnapshots",
+      12,
+    ).map(academicSnapshot),
+    "id",
+    "state.academicSnapshots",
   );
   const activePlanId = string(
     state.activePlanId,
@@ -248,6 +407,7 @@ export function validateSyncWrite(value) {
       activePlanId,
       activities,
       assignments,
+      academicSnapshots,
       favoriteRooms: stringList(
         state.favoriteRooms,
         "state.favoriteRooms",

@@ -28,6 +28,7 @@ const config = {
   oauthTtlSeconds: 600,
   publicOrigin: "https://dufesh.cn",
   credentialsEnabled: true,
+  academicImportEnabled: false,
   passwordResetMode: "response",
   passwordResetTtlSeconds: 1_800,
   emailVerificationMode: "response",
@@ -59,6 +60,7 @@ function createFakeStore() {
       activePlanId: "",
       activities: [],
       assignments: [],
+      academicSnapshots: [],
       favoriteRooms: [],
       recentRooms: [],
       preferredTerm: "fall",
@@ -455,6 +457,7 @@ async function withServer(callback, options = {}) {
     passwordService,
     avatarProcessor,
     mailDelivery: options.mailDelivery,
+    academicConnector: options.academicConnector,
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
@@ -492,6 +495,92 @@ test("opaque tokens are random-looking and stored as peppered digests", () => {
   assert.equal(token.length, 43);
   assert.notEqual(tokenDigest(token, config.tokenPepper), token);
   assert.equal(tokenDigest(token, config.tokenPepper).length, 64);
+});
+
+test("academic import routes support anonymous device continuity without exposing credentials", async () => {
+  let principalKey = "";
+  const academicConnector = {
+    async start(input) {
+      principalKey = input.principalKey;
+      assert.equal(input.username, "20260001");
+      assert.equal(input.password, "school-password");
+      return {
+        status: "sms_required",
+        transactionId: "abcdefghijklmnopqrstuvwxyzABCDEFGH",
+        maskedPhone: "138****0000",
+        expiresInSeconds: 300,
+      };
+    },
+    async verifySms(input) {
+      assert.equal(input.principalKey, principalKey);
+      assert.equal(input.transactionId, "abcdefghijklmnopqrstuvwxyzABCDEFGH");
+      assert.equal(input.code, "123456");
+      return {
+        status: "imported",
+        snapshot: {
+          schemaVersion: 1,
+          id: "2026-2027-fall",
+          academicYear: "2026-2027",
+          term: "fall",
+          termLabel: "第一学期",
+          importedAt: "2026-09-28T00:00:00.000Z",
+          sections: [],
+          exams: [],
+        },
+      };
+    },
+  };
+  await withServer(
+    async ({ baseUrl }) => {
+      const connected = await fetch(`${baseUrl}/api/auth/academic/connect`, {
+        method: "POST",
+        headers: {
+          Origin: "https://dufesh.cn",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: "20260001",
+          password: "school-password",
+        }),
+      });
+      assert.equal(connected.status, 200);
+      assert.equal((await connected.json()).status, "sms_required");
+      const deviceCookie = connected.headers
+        .get("set-cookie")
+        .split(";", 1)[0];
+      assert.match(deviceCookie, /^__Host-dufesh_device=/u);
+      assert.match(principalKey, /^device:anonymous-1$/u);
+
+      const verified = await fetch(`${baseUrl}/api/auth/academic/sms`, {
+        method: "POST",
+        headers: {
+          Origin: "https://dufesh.cn",
+          "Content-Type": "application/json",
+          Cookie: deviceCookie,
+        },
+        body: JSON.stringify({
+          transactionId: "abcdefghijklmnopqrstuvwxyzABCDEFGH",
+          code: "123456",
+        }),
+      });
+      assert.equal(verified.status, 200);
+      assert.equal((await verified.json()).status, "imported");
+
+      const untrusted = await fetch(`${baseUrl}/api/auth/academic/connect`, {
+        method: "POST",
+        headers: {
+          Origin: "https://attacker.example",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username: "x", password: "y" }),
+      });
+      assert.equal(untrusted.status, 403);
+    },
+    {
+      config: { academicImportEnabled: true },
+      academicConnector,
+    },
+  );
 });
 
 test("token buckets refill, reject bursts, and keep their key set bounded", () => {
