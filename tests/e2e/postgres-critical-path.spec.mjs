@@ -467,7 +467,7 @@ test("users and an administrator complete the release browser path", async ({
 
     await secondOwner.goto(`/teachers/${teacher.id}`);
     await expect(secondOwner.getByText(teacher.candidateBody)).toBeVisible();
-    await expect(secondOwner.getByText("历史整理内容", { exact: true })).toBeVisible();
+    await expect(secondOwner.getByText("学长学姐 · 历史评价", { exact: true })).toBeVisible();
 
     const moderationDesk = administrator.locator("section").filter({
       has: administrator.getByRole("heading", { name: "举报案卷" }),
