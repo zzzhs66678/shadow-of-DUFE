@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_XIAOYING_URL: ${NEXT_PUBLIC_XIAOYING_URL:-}
+        NPM_CONFIG_REGISTRY: ${DUFESH_BUILD_NPM_REGISTRY:-https://registry.npmjs.org}
     image: dufesh-app:${DUFESH_IMAGE_TAG:?set a full 40-character Git SHA}
     restart: unless-stopped
     environment:
@@ -85,6 +86,8 @@ services:
     build:
       context: ./services/auth-api
       dockerfile: Dockerfile
+      args:
+        NPM_CONFIG_REGISTRY: ${DUFESH_BUILD_NPM_REGISTRY:-https://registry.npmjs.org}
     image: dufesh-auth-api:${DUFESH_IMAGE_TAG:?set a full 40-character Git SHA}
     restart: unless-stopped
     depends_on:

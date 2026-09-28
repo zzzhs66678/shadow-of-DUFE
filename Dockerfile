@@ -3,6 +3,7 @@ ARG NODE_IMAGE=docker.m.daocloud.io/library/node:22-alpine
 FROM ${NODE_IMAGE} AS dependencies
 
 WORKDIR /app
+ARG NPM_CONFIG_REGISTRY=https://registry.npmjs.org
 
 COPY package.json package-lock.json ./
 COPY vendor/image-size-disabled ./vendor/image-size-disabled
@@ -20,6 +21,7 @@ RUN npx vinext build
 FROM ${NODE_IMAGE} AS runtime
 
 WORKDIR /app
+ARG NPM_CONFIG_REGISTRY=https://registry.npmjs.org
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 

@@ -3,6 +3,7 @@ ARG NODE_IMAGE=docker.m.daocloud.io/library/node:22-alpine
 FROM ${NODE_IMAGE}
 
 WORKDIR /app
+ARG NPM_CONFIG_REGISTRY=https://registry.npmjs.org
 
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
