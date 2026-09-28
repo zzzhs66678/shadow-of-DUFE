@@ -5069,7 +5069,8 @@ body:has(.hub-v2) .preload-intro {
   padding: 24px 26px 28px;
 }
 
-.academic-import-dialog input {
+.academic-import-dialog input,
+.academic-import-dialog select {
   background: #fff;
   border: 1px solid var(--journal-line-strong, #8b867d);
   border-radius: 8px;

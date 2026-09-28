@@ -97,6 +97,10 @@ function mappedError(error) {
     ["ACADEMIC_PRINCIPAL_REQUIRED", [400, "academic_request_invalid"]],
     ["ACADEMIC_INVALID_CREDENTIALS", [401, "academic_invalid_credentials"]],
     ["ACADEMIC_SMS_INVALID", [400, "academic_sms_invalid"]],
+    ["ACADEMIC_SMS_DESTINATION_INVALID", [400, "academic_sms_destination_invalid"]],
+    ["ACADEMIC_SMS_PHONE_INVALID", [400, "academic_sms_phone_invalid"]],
+    ["ACADEMIC_SMS_PHONE_UNAVAILABLE", [422, "academic_sms_phone_unavailable"]],
+    ["ACADEMIC_SMS_NOT_SENT", [409, "academic_sms_not_sent"]],
     ["ACADEMIC_SMS_SEND_FAILED", [502, "academic_sms_send_failed"]],
     ["ACADEMIC_TRANSACTION_EXPIRED", [410, "academic_transaction_expired"]],
     ["ACADEMIC_ADDITIONAL_AUTH_REQUIRED", [422, "academic_additional_auth_required"]],
@@ -175,6 +179,13 @@ export function createAcademicRequestHandler({
         result = await connector.start({
           username: body.username,
           password: body.password,
+          principalKey: principal.key,
+        });
+      } else if (url.pathname === "/api/auth/academic/sms/send") {
+        result = await connector.sendSms({
+          transactionId: body.transactionId,
+          phone: body.phone,
+          phoneIndex: body.phoneIndex,
           principalKey: principal.key,
         });
       } else if (url.pathname === "/api/auth/academic/sms") {

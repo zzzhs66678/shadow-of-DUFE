@@ -145,6 +145,183 @@ test("connector performs encrypted login and imports both official pages", async
   assert.equal(requests.length, 5);
 });
 
+test("connector uses the official single-bound-phone SMS endpoints", async () => {
+  const challenge = rsaChallengeXml();
+  const paths = [];
+  const fetchImpl = async (url, options = {}) => {
+    const parsed = new URL(url);
+    paths.push(parsed.pathname);
+    if (parsed.pathname === "/por/login_auth.csp") {
+      return response(challenge, { headers: { "set-cookie": "TWFID=abc; Path=/" } });
+    }
+    if (parsed.pathname === "/public/psw_config") return response(challenge);
+    if (parsed.pathname === "/por/login_psw.csp") {
+      return response(
+        "<Auth><ErrorCode>1</ErrorCode><NextService>sms</NextService></Auth>",
+        { headers: { "set-cookie": "SVPNCOOKIE=session; Path=/" } },
+      );
+    }
+    if (parsed.pathname === "/por/login_sms.csp") {
+      return response(
+        "<Auth><ErrorCode>1</ErrorCode><USER_PHONE>138****0000</USER_PHONE></Auth>",
+      );
+    }
+    if (parsed.pathname === "/por/post_sms.csp") {
+      const form = new URLSearchParams(options.body);
+      assert.equal(form.get("phone_number"), "");
+      assert.equal(form.get("phone_index"), "0");
+      return response("<Auth><ErrorCode>1</ErrorCode><SmsSendInterval>60</SmsSendInterval></Auth>");
+    }
+    if (parsed.pathname === "/por/login_sms1.csp") {
+      const code = new URLSearchParams(options.body).get("svpn_inputsms");
+      return response(
+        code === "123456"
+          ? "<Auth><ErrorCode>1</ErrorCode></Auth>"
+          : "<Auth><ErrorCode>20012</ErrorCode></Auth>",
+      );
+    }
+    if (parsed.pathname.includes("thisSemesterCurriculum")) {
+      return response(timetableHtml);
+    }
+    if (parsed.pathname.includes("examPlan")) return response(examHtml);
+    throw new Error(`unexpected request: ${parsed}`);
+  };
+  const connector = createAcademicConnector({ fetchImpl });
+  const started = await connector.start({
+    username: "20260001",
+    password: "test-password",
+    principalKey: "device:test",
+  });
+  assert.equal(started.status, "sms_required");
+  assert.equal(started.maskedPhone, "138****0000");
+  assert.equal(connector.pendingCount(), 1);
+  await assert.rejects(
+    connector.verifySms({
+      transactionId: started.transactionId,
+      code: "654321",
+      principalKey: "device:test",
+    }),
+    { code: "ACADEMIC_SMS_INVALID" },
+  );
+  assert.equal(connector.pendingCount(), 1);
+  const completed = await connector.verifySms({
+    transactionId: started.transactionId,
+    code: "123456",
+    principalKey: "device:test",
+  });
+  assert.equal(completed.status, "imported");
+  assert.ok(paths.includes("/por/post_sms.csp"));
+  assert.ok(paths.includes("/por/login_sms1.csp"));
+  assert.ok(!paths.includes("/por/get_sms.csp"));
+  assert.ok(!paths.includes("/por/login_sms2.csp"));
+  assert.equal(connector.pendingCount(), 0);
+});
+
+test("connector requests a phone only when the school account has none", async () => {
+  const challenge = rsaChallengeXml();
+  const fetchImpl = async (url, options = {}) => {
+    const parsed = new URL(url);
+    if (parsed.pathname === "/por/login_auth.csp") return response(challenge);
+    if (parsed.pathname === "/public/psw_config") return response(challenge);
+    if (parsed.pathname === "/por/login_psw.csp") {
+      return response(
+        "<Auth><ErrorCode>1</ErrorCode><NextService>sms</NextService></Auth>",
+      );
+    }
+    if (parsed.pathname === "/por/login_sms.csp") {
+      return response("<Auth><ErrorCode>1</ErrorCode><USER_PHONE></USER_PHONE></Auth>");
+    }
+    if (parsed.pathname === "/por/get_sms.csp") {
+      const form = new URLSearchParams(options.body);
+      assert.equal(form.get("phone_number"), "13800000000");
+      assert.equal(form.get("phone_index"), "0");
+      return response("<Auth><ErrorCode>1</ErrorCode></Auth>");
+    }
+    if (parsed.pathname === "/por/login_sms2.csp") {
+      return response("<Auth><ErrorCode>1</ErrorCode></Auth>");
+    }
+    if (parsed.pathname.includes("thisSemesterCurriculum")) return response(timetableHtml);
+    if (parsed.pathname.includes("examPlan")) return response(examHtml);
+    throw new Error(`unexpected request: ${parsed}`);
+  };
+  const connector = createAcademicConnector({ fetchImpl });
+  const started = await connector.start({
+    username: "20260001",
+    password: "test-password",
+    principalKey: "device:test",
+  });
+  assert.equal(started.status, "sms_destination_required");
+  assert.equal(started.destination, "enter");
+  assert.deepEqual(started.phoneOptions, []);
+  const sent = await connector.sendSms({
+    transactionId: started.transactionId,
+    phone: "13800000000",
+    principalKey: "device:test",
+  });
+  assert.equal(sent.status, "sms_required");
+  assert.equal(sent.maskedPhone, "138****0000");
+  const completed = await connector.verifySms({
+    transactionId: started.transactionId,
+    code: "123456",
+    principalKey: "device:test",
+  });
+  assert.equal(completed.status, "imported");
+});
+
+test("connector lets users choose among multiple school phone records", async () => {
+  const challenge = rsaChallengeXml();
+  const fetchImpl = async (url, options = {}) => {
+    const parsed = new URL(url);
+    if (parsed.pathname === "/por/login_auth.csp") return response(challenge);
+    if (parsed.pathname === "/public/psw_config") return response(challenge);
+    if (parsed.pathname === "/por/login_psw.csp") {
+      return response(
+        "<Auth><ErrorCode>1</ErrorCode><NextService>sms</NextService></Auth>",
+      );
+    }
+    if (parsed.pathname === "/por/login_sms.csp") {
+      return response(
+        "<Auth><ErrorCode>1</ErrorCode><USER_PHONE>139****1111;138****0000</USER_PHONE></Auth>",
+      );
+    }
+    if (parsed.pathname === "/por/get_sms.csp") {
+      const form = new URLSearchParams(options.body);
+      assert.equal(form.get("phone_number"), "138****0000");
+      assert.equal(form.get("phone_index"), "1");
+      return response("<Auth><ErrorCode>1</ErrorCode></Auth>");
+    }
+    if (parsed.pathname === "/por/login_sms2.csp") {
+      return response("<Auth><ErrorCode>1</ErrorCode></Auth>");
+    }
+    if (parsed.pathname.includes("thisSemesterCurriculum")) return response(timetableHtml);
+    if (parsed.pathname.includes("examPlan")) return response(examHtml);
+    throw new Error(`unexpected request: ${parsed}`);
+  };
+  const connector = createAcademicConnector({ fetchImpl });
+  const started = await connector.start({
+    username: "20260001",
+    password: "test-password",
+    principalKey: "device:test",
+  });
+  assert.equal(started.status, "sms_destination_required");
+  assert.equal(started.destination, "choose");
+  assert.deepEqual(started.phoneOptions, [
+    { index: 0, label: "139****1111" },
+    { index: 1, label: "138****0000" },
+  ]);
+  await connector.sendSms({
+    transactionId: started.transactionId,
+    phoneIndex: "1",
+    principalKey: "device:test",
+  });
+  const completed = await connector.verifySms({
+    transactionId: started.transactionId,
+    code: "123456",
+    principalKey: "device:test",
+  });
+  assert.equal(completed.status, "imported");
+});
+
 test("connector maps invalid school credentials without retaining a transaction", async () => {
   const challenge = rsaChallengeXml();
   const fetchImpl = async (url) => {

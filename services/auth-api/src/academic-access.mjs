@@ -70,7 +70,16 @@ function parseAuthResponse(xml) {
       10,
     ),
     phone: xmlValue(xml, "Phone") || xmlValue(xml, "USER_PHONE"),
+    currentPhone: xmlValue(xml, "CurPhone") || xmlValue(xml, "CURRENT_PHONE"),
     smsSendType: xmlValue(xml, "SmsSendType"),
+    smsIsStillValid: Number.parseInt(
+      xmlValue(xml, "SmsIsStillValid") || xmlValue(xml, "IS_IN_PERIOD") || "0",
+      10,
+    ),
+    smsSendInterval: Number.parseInt(
+      xmlValue(xml, "SmsSendInterval") || "0",
+      10,
+    ),
   };
 }
 
@@ -594,11 +603,35 @@ function smsService(value) {
 }
 
 function maskedPhone(value) {
-  const phone = String(value ?? "").split(";", 1)[0].trim();
+  const phone = String(value ?? "").trim();
+  if (phone.includes("*")) return phone;
   if (/^\d{7,15}$/u.test(phone)) {
     return `${phone.slice(0, 3)}****${phone.slice(-4)}`;
   }
   return phone.replace(/\d(?=\d{2})/gu, "*");
+}
+
+function phoneChoices(value) {
+  return String(value ?? "")
+    .split(";")
+    .map((phone) => phone.trim())
+    .filter(Boolean);
+}
+
+function validSmsPhone(value) {
+  return /^((\([\d*]{1,9}\))|(\+[\d*]{1,9})|([\d*]{1,9}-))?[\d*]{6,20}$/u.test(
+    String(value ?? "").trim(),
+  );
+}
+
+function smsSendError(result) {
+  if (result.errorCode === 20016) {
+    return academicError("ACADEMIC_SMS_PHONE_UNAVAILABLE");
+  }
+  if (result.errorCode === 20054 || result.errorCode === 20055) {
+    return academicError("ACADEMIC_SMS_PHONE_INVALID");
+  }
+  return academicError("ACADEMIC_SMS_SEND_FAILED");
 }
 
 export function createAcademicConnector({
@@ -671,7 +704,7 @@ export function createAcademicConnector({
     };
   }
 
-  async function requestSms(jar) {
+  async function requestSmsConfig(jar) {
     const config = await readAuthResponse(
       jar,
       new URL("/por/login_sms.csp?apiversion=1", vpn),
@@ -681,24 +714,59 @@ export function createAcademicConnector({
         body: new URLSearchParams(),
       },
     );
-    const phone = config.phone.split(";").filter(Boolean)[0] ?? "";
+    if (config.errorCode !== 1) throw smsSendError(config);
+    return config;
+  }
+
+  function smsRequired(transactionId, transaction) {
+    return {
+      status: "sms_required",
+      transactionId,
+      maskedPhone: transaction.maskedPhone,
+      expiresInSeconds: Math.floor(
+        Math.max(0, transaction.expiresAt - now()) / 1000,
+      ),
+    };
+  }
+
+  function smsDestinationRequired(transactionId, transaction) {
+    return {
+      status: "sms_destination_required",
+      transactionId,
+      destination: transaction.destination,
+      phoneOptions:
+        transaction.destination === "choose"
+          ? transaction.phones.map((phone, index) => ({
+              index,
+              label: maskedPhone(phone),
+            }))
+          : [],
+      expiresInSeconds: Math.floor(
+        Math.max(0, transaction.expiresAt - now()) / 1000,
+      ),
+    };
+  }
+
+  async function dispatchSms(transactionId, transaction, phone, phoneIndex) {
     const sendPath = phone ? "/por/get_sms.csp" : "/por/post_sms.csp";
-    const payload = phone
-      ? new URLSearchParams({ phone_number: phone, phone_index: "0" })
-      : new URLSearchParams({ phone_number: "", phone_index: "0" });
     const sent = await readAuthResponse(
-      jar,
+      transaction.jar,
       new URL(`${sendPath}?apiversion=1`, vpn),
       {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: payload,
+        body: new URLSearchParams({
+          phone_number: phone,
+          phone_index: String(phoneIndex),
+        }),
       },
     );
-    if (![0, 1].includes(sent.errorCode)) {
-      throw academicError("ACADEMIC_SMS_SEND_FAILED");
-    }
-    return phone || config.phone;
+    if (sent.errorCode !== 1) throw smsSendError(sent);
+    transaction.smsPhone = phone;
+    transaction.maskedPhone = maskedPhone(
+      phone || transaction.phones[phoneIndex] || "",
+    );
+    return smsRequired(transactionId, transaction);
   }
 
   async function handleAuthResult(result, jar, principalKey) {
@@ -706,22 +774,34 @@ export function createAcademicConnector({
       return { status: "imported", snapshot: await importSnapshot(jar) };
     }
     if (result.nextService && smsService(result.nextService)) {
-      const phone = result.phone || (await requestSms(jar));
+      const config = await requestSmsConfig(jar);
+      const phones = phoneChoices(config.phone || result.phone);
       cleanup();
       const transactionId = randomBytes(24).toString("base64url");
-      transactions.set(transactionId, {
+      const transaction = {
         jar,
         principalKey,
-        nextService: result.nextService,
-        phone: result.phone || phone,
+        phones,
+        destination:
+          phones.length === 0 ? "enter" : phones.length > 1 ? "choose" : "bound",
+        smsPhone: null,
+        maskedPhone: phones.length === 1 ? maskedPhone(phones[0]) : "",
         expiresAt: now() + transactionTtlMs,
-      });
-      return {
-        status: "sms_required",
-        transactionId,
-        maskedPhone: maskedPhone(result.phone || phone),
-        expiresInSeconds: Math.floor(transactionTtlMs / 1000),
       };
+      transactions.set(transactionId, transaction);
+      if (phones.length !== 1) {
+        return smsDestinationRequired(transactionId, transaction);
+      }
+      if (result.smsIsStillValid || config.smsIsStillValid) {
+        transaction.smsPhone = "";
+        return smsRequired(transactionId, transaction);
+      }
+      try {
+        return await dispatchSms(transactionId, transaction, "", 0);
+      } catch (error) {
+        transactions.delete(transactionId);
+        throw error;
+      }
     }
     if (result.errorCode === 20004) {
       throw academicError("ACADEMIC_INVALID_CREDENTIALS");
@@ -790,6 +870,43 @@ export function createAcademicConnector({
       return handleAuthResult(result, jar, principalKey);
     },
 
+    async sendSms({ transactionId, phone, phoneIndex, principalKey }) {
+      cleanup();
+      if (
+        typeof transactionId !== "string" ||
+        !/^[A-Za-z0-9_-]{32,64}$/u.test(transactionId)
+      ) {
+        throw academicError("ACADEMIC_SMS_DESTINATION_INVALID");
+      }
+      const transaction = transactions.get(transactionId);
+      if (!transaction || transaction.principalKey !== principalKey) {
+        throw academicError("ACADEMIC_TRANSACTION_EXPIRED");
+      }
+      if (transaction.smsPhone !== null) {
+        return smsRequired(transactionId, transaction);
+      }
+      if (transaction.destination === "enter") {
+        const normalizedPhone = String(phone ?? "").trim();
+        if (!validSmsPhone(normalizedPhone) || normalizedPhone.includes("*")) {
+          throw academicError("ACADEMIC_SMS_DESTINATION_INVALID");
+        }
+        return dispatchSms(transactionId, transaction, normalizedPhone, 0);
+      }
+      if (transaction.destination === "choose") {
+        const normalizedIndex = String(phoneIndex ?? "");
+        if (!/^\d+$/u.test(normalizedIndex)) {
+          throw academicError("ACADEMIC_SMS_DESTINATION_INVALID");
+        }
+        const index = Number.parseInt(normalizedIndex, 10);
+        const selectedPhone = transaction.phones[index];
+        if (!selectedPhone) {
+          throw academicError("ACADEMIC_SMS_DESTINATION_INVALID");
+        }
+        return dispatchSms(transactionId, transaction, selectedPhone, index);
+      }
+      throw academicError("ACADEMIC_SMS_DESTINATION_INVALID");
+    },
+
     async verifySms({ transactionId, code, principalKey }) {
       cleanup();
       if (
@@ -804,8 +921,10 @@ export function createAcademicConnector({
       if (!transaction || transaction.principalKey !== principalKey) {
         throw academicError("ACADEMIC_TRANSACTION_EXPIRED");
       }
-      transactions.delete(transactionId);
-      const path = transaction.phone
+      if (transaction.smsPhone === null) {
+        throw academicError("ACADEMIC_SMS_NOT_SENT");
+      }
+      const path = transaction.smsPhone
         ? "/por/login_sms2.csp?apiversion=1"
         : "/por/login_sms1.csp?apiversion=1";
       const result = await readAuthResponse(
@@ -820,6 +939,7 @@ export function createAcademicConnector({
       if (result.errorCode !== 0 && result.errorCode !== 1) {
         throw academicError("ACADEMIC_SMS_INVALID");
       }
+      transactions.delete(transactionId);
       return {
         status: "imported",
         snapshot: await importSnapshot(transaction.jar),

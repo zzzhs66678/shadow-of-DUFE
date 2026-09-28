@@ -2923,6 +2923,10 @@ function academicImportErrorMessage(code: string) {
     academic_credentials_invalid: "请填写完整的教务账号和密码。",
     academic_invalid_credentials: "教务账号或密码不正确。",
     academic_sms_invalid: "短信验证码不正确或已经失效。",
+    academic_sms_destination_invalid: "请填写正确的手机号。",
+    academic_sms_phone_invalid: "手机号与学校账号绑定信息不一致。",
+    academic_sms_phone_unavailable: "学校账号没有可用手机号，请先在统一用户中心补充。",
+    academic_sms_not_sent: "请先获取短信验证码。",
     academic_sms_send_failed: "学校短信验证码暂时发送失败，请稍后重试。",
     academic_transaction_expired: "本次教务登录已经超时，请重新连接。",
     academic_additional_auth_required:
@@ -2958,11 +2962,20 @@ function AcademicImportDialog({
   const [smsCode, setSmsCode] = useState("");
   const [transactionId, setTransactionId] = useState("");
   const [maskedPhone, setMaskedPhone] = useState("");
+  const [smsDestination, setSmsDestination] = useState<"" | "enter" | "choose">("");
+  const [smsPhone, setSmsPhone] = useState("");
+  const [smsPhoneIndex, setSmsPhoneIndex] = useState("0");
+  const [phoneOptions, setPhoneOptions] = useState<
+    Array<{ index: number; label: string }>
+  >([]);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState("");
 
   async function submit(
-    endpoint: "/api/auth/academic/connect" | "/api/auth/academic/sms",
+    endpoint:
+      | "/api/auth/academic/connect"
+      | "/api/auth/academic/sms/send"
+      | "/api/auth/academic/sms",
     body: Record<string, string>,
   ) {
     setBusy(true);
@@ -2975,6 +2988,12 @@ function AcademicImportDialog({
         body: JSON.stringify(body),
       });
       const result = (await response.json()) as
+        | {
+            status: "sms_destination_required";
+            transactionId: string;
+            destination: "enter" | "choose";
+            phoneOptions: Array<{ index: number; label: string }>;
+          }
         | {
             status: "sms_required";
             transactionId: string;
@@ -2990,8 +3009,18 @@ function AcademicImportDialog({
         );
         return;
       }
+      if (result.status === "sms_destination_required") {
+        setTransactionId(result.transactionId);
+        setSmsDestination(result.destination);
+        setPhoneOptions(result.phoneOptions);
+        setSmsPhone("");
+        setSmsPhoneIndex(String(result.phoneOptions[0]?.index ?? 0));
+        setSmsCode("");
+        return;
+      }
       if (result.status === "sms_required") {
         setTransactionId(result.transactionId);
+        setSmsDestination("");
         setMaskedPhone(result.maskedPhone);
         setSmsCode("");
         return;
@@ -3003,6 +3032,17 @@ function AcademicImportDialog({
       setPassword("");
       setBusy(false);
     }
+  }
+
+  function restart() {
+    setTransactionId("");
+    setSmsDestination("");
+    setMaskedPhone("");
+    setSmsPhone("");
+    setSmsPhoneIndex("0");
+    setPhoneOptions([]);
+    setSmsCode("");
+    setFeedback("");
   }
 
   return (
@@ -3021,7 +3061,11 @@ function AcademicImportDialog({
           <div>
             <span>正式教务 · 一学期一次</span>
             <h2 id="academic-import-title">
-              {transactionId ? "输入短信验证码" : "导入课表与考试安排"}
+              {smsDestination
+                ? "选择短信号码"
+                : transactionId
+                  ? "输入短信验证码"
+                  : "导入课表与考试安排"}
             </h2>
           </div>
           <button onClick={onClose} disabled={busy} aria-label="关闭教务导入">
@@ -3077,6 +3121,77 @@ function AcademicImportDialog({
               登录由学校 VPN 验证。成功后只保存规范化的课程与考试数据，登录会话立即丢弃。
             </small>
           </form>
+        ) : smsDestination ? (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void submit("/api/auth/academic/sms/send", {
+                transactionId,
+                ...(smsDestination === "enter"
+                  ? { phone: smsPhone }
+                  : { phoneIndex: smsPhoneIndex }),
+              });
+            }}
+          >
+            <p className="academic-import-current">
+              {smsDestination === "enter"
+                ? "学校账号未返回绑定号码，请填写接收验证码的手机号。"
+                : "选择一个学校账号中的号码。"}
+            </p>
+            {smsDestination === "enter" ? (
+              <FormField
+                label="手机号"
+                hint="仅用于本次学校验证，不会保存。"
+              >
+                <input
+                  name="academic-sms-phone"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  value={smsPhone}
+                  onChange={(event) => setSmsPhone(event.target.value.slice(0, 30))}
+                  maxLength={30}
+                  required
+                  autoFocus
+                />
+              </FormField>
+            ) : (
+              <FormField label="接收号码">
+                <select
+                  name="academic-sms-phone-option"
+                  value={smsPhoneIndex}
+                  onChange={(event) => setSmsPhoneIndex(event.target.value)}
+                  autoFocus
+                >
+                  {phoneOptions.map((option) => (
+                    <option key={option.index} value={option.index}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+            )}
+            {feedback && <p className="academic-import-error" role="alert">{feedback}</p>}
+            <button
+              type="submit"
+              disabled={
+                busy ||
+                (smsDestination === "enter"
+                  ? smsPhone.trim().length < 6
+                  : phoneOptions.length === 0)
+              }
+            >
+              {busy ? "正在发送…" : "发送验证码"}
+            </button>
+            <button
+              className="academic-import-restart"
+              type="button"
+              disabled={busy}
+              onClick={restart}
+            >
+              返回重新登录
+            </button>
+          </form>
         ) : (
           <form
             onSubmit={(event) => {
@@ -3113,11 +3228,7 @@ function AcademicImportDialog({
               className="academic-import-restart"
               type="button"
               disabled={busy}
-              onClick={() => {
-                setTransactionId("");
-                setSmsCode("");
-                setFeedback("");
-              }}
+              onClick={restart}
             >
               返回重新登录
             </button>

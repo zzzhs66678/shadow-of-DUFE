@@ -505,6 +505,18 @@ test("academic import routes support anonymous device continuity without exposin
       assert.equal(input.username, "20260001");
       assert.equal(input.password, "school-password");
       return {
+        status: "sms_destination_required",
+        transactionId: "abcdefghijklmnopqrstuvwxyzABCDEFGH",
+        destination: "enter",
+        phoneOptions: [],
+        expiresInSeconds: 300,
+      };
+    },
+    async sendSms(input) {
+      assert.equal(input.principalKey, principalKey);
+      assert.equal(input.transactionId, "abcdefghijklmnopqrstuvwxyzABCDEFGH");
+      assert.equal(input.phone, "13800000000");
+      return {
         status: "sms_required",
         transactionId: "abcdefghijklmnopqrstuvwxyzABCDEFGH",
         maskedPhone: "138****0000",
@@ -544,12 +556,27 @@ test("academic import routes support anonymous device continuity without exposin
         }),
       });
       assert.equal(connected.status, 200);
-      assert.equal((await connected.json()).status, "sms_required");
+      assert.equal((await connected.json()).status, "sms_destination_required");
       const deviceCookie = connected.headers
         .get("set-cookie")
         .split(";", 1)[0];
       assert.match(deviceCookie, /^__Host-dufesh_device=/u);
       assert.match(principalKey, /^device:anonymous-1$/u);
+
+      const sent = await fetch(`${baseUrl}/api/auth/academic/sms/send`, {
+        method: "POST",
+        headers: {
+          Origin: "https://dufesh.cn",
+          "Content-Type": "application/json",
+          Cookie: deviceCookie,
+        },
+        body: JSON.stringify({
+          transactionId: "abcdefghijklmnopqrstuvwxyzABCDEFGH",
+          phone: "13800000000",
+        }),
+      });
+      assert.equal(sent.status, 200);
+      assert.equal((await sent.json()).status, "sms_required");
 
       const verified = await fetch(`${baseUrl}/api/auth/academic/sms`, {
         method: "POST",

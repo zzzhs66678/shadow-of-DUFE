@@ -84,6 +84,20 @@ test("official timetable and exams import through the SMS flow", async ({
     });
     await route.fulfill({
       json: {
+        status: "sms_destination_required",
+        transactionId: "abcdefghijklmnopqrstuvwxyzABCDEFGH",
+        destination: "enter",
+        phoneOptions: [],
+      },
+    });
+  });
+  await page.route("**/api/auth/academic/sms/send", async (route) => {
+    expect(route.request().postDataJSON()).toEqual({
+      transactionId: "abcdefghijklmnopqrstuvwxyzABCDEFGH",
+      phone: "13800000000",
+    });
+    await route.fulfill({
+      json: {
         status: "sms_required",
         transactionId: "abcdefghijklmnopqrstuvwxyzABCDEFGH",
         maskedPhone: "138****0000",
@@ -114,6 +128,8 @@ test("official timetable and exams import through the SMS flow", async ({
   await page.getByLabel("教务账号").fill("20260001");
   await page.getByLabel("教务密码").fill("school-password");
   await page.getByRole("button", { name: "登录并自动导入" }).click();
+  await page.getByLabel("手机号").fill("13800000000");
+  await page.getByRole("button", { name: "发送验证码" }).click();
   await page.getByRole("textbox", { name: "短信验证码" }).fill("123456");
   await page.getByRole("button", { name: "验证并完成导入" }).click();
 
