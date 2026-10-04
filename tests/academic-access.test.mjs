@@ -188,6 +188,16 @@ const planProfileWithoutVisibleFieldsHtml = `<!doctype html><html><body>
   <script>const url = "../rollManagement/project/plan-token/P2024/1/detail";</script>
 </body></html>`;
 
+const planProfileWithDynamicDetailHtml = `<!doctype html><html><body>
+  <input value="student-token" id="studentPlanId">
+  <input value="P2024" id="zx">
+  <script>
+    const studentPlanId = document.getElementById("studentPlanId").value;
+    const planNumber = $("#zx").val();
+    const url = "../rollManagement/project/" + studentPlanId + "/" + planNumber + "/1/detail";
+  </script>
+</body></html>`;
+
 const planDetailPayload = {
   title: "培养方案",
   jhFajhb: {
@@ -396,6 +406,48 @@ test("training plan parser accepts profile pages that leave identity to plan met
   );
   assert.equal(plan.majorName, "会计学");
   assert.equal(plan.cohortYear, 2024);
+});
+
+test("training plan detail path resolves safe DOM and jQuery value expressions", () => {
+  assert.equal(
+    findTrainingPlanDetailPath(planProfileWithDynamicDetailHtml, "P2024"),
+    "../rollManagement/project/student-token/P2024/1/detail",
+  );
+});
+
+test("training plan detail path resolves jQuery attributes and template literals", () => {
+  const html = `<!doctype html><html><body>
+    <input value="student-token" id="studentPlanId">
+    <input value="P2024" id="zx">
+    <script>
+      const url = \`/student/rollManagement/project/\${$("#studentPlanId").attr("value")}/\${document.querySelector("#zx").value}/detail?mode=1\`;
+    </script>
+  </body></html>`;
+  assert.equal(
+    findTrainingPlanDetailPath(html, "P2024"),
+    "/student/rollManagement/project/student-token/P2024/detail?mode=1",
+  );
+});
+
+test("training plan detail path rejects ambiguous callbacks", () => {
+  const html = `<!doctype html><html><body>
+    <input value="P2024" id="zx">
+    <script>
+      const primary = "/student/rollManagement/project/a/P2024/1/detail";
+      const secondary = "/student/rollManagement/project/b/P2024/1/detail";
+    </script>
+  </body></html>`;
+  assert.equal(findTrainingPlanDetailPath(html, "P2024"), null);
+});
+
+test("training plan detail path does not execute arbitrary JavaScript", () => {
+  const html = `<!doctype html><html><body>
+    <input value="P2024" id="zx">
+    <script>
+      const url = "/student/rollManagement/project/" + stealCookies() + "/" + zx + "/1/detail";
+    </script>
+  </body></html>`;
+  assert.equal(findTrainingPlanDetailPath(html, "P2024"), null);
 });
 
 test("exam parser distinguishes an explicit empty result from an unknown page", () => {

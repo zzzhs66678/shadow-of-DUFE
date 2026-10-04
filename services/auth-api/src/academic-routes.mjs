@@ -228,6 +228,10 @@ function safeDiagnosticDetails(error) {
   const tableCount = safeDiagnosticCount(diagnostic.tableCount, 100);
   const rowCount = safeDiagnosticCount(diagnostic.rowCount);
   const sectionCount = safeDiagnosticCount(diagnostic.sectionCount);
+  const detailCandidateCount = safeDiagnosticCount(
+    diagnostic.detailCandidateCount,
+    20,
+  );
   const tableShapes = safeDiagnosticList(
     diagnostic.tableShapes,
     (item) => /^\d{1,5}x\d{1,4}$/u.test(item),
@@ -254,6 +258,22 @@ function safeDiagnosticDetails(error) {
     ...(tableCount !== undefined ? { tableCount } : {}),
     ...(rowCount !== undefined ? { rowCount } : {}),
     ...(sectionCount !== undefined ? { sectionCount } : {}),
+    ...(detailCandidateCount !== undefined ? { detailCandidateCount } : {}),
+    ...([
+      "hasPlanNumber",
+      "hasMajorName",
+      "hasCohortYear",
+      "hasDetailPath",
+      "hasProjectMarker",
+      "hasDetailMarker",
+      "hasValueGetter",
+    ].reduce(
+      (details, key) =>
+        typeof diagnostic[key] === "boolean"
+          ? { ...details, [key]: diagnostic[key] }
+          : details,
+      {},
+    )),
     ...(tableShapes ? { tableShapes } : {}),
     ...(knownHeaders ? { knownHeaders } : {}),
     ...(timePatterns ? { timePatterns } : {}),

@@ -1547,26 +1547,198 @@ function inputValueById(html, id) {
   return "";
 }
 
-export function findTrainingPlanDetailPath(html, planNumber) {
-  const normalized = decodeEntities(String(html ?? "")).replace(/\\\//gu, "/");
-  const escapedPlan = String(planNumber ?? "").replace(
+function planReferenceValues(html, planNumber) {
+  const values = new Map([
+    ["zx", planNumber],
+    ["fajhh", planNumber],
+  ]);
+  for (const match of String(html ?? "").matchAll(/<input\b([^>]*)>/giu)) {
+    const value = htmlAttribute(match[1], "value");
+    if (!value || value.length > 512) continue;
+    for (const reference of [
+      htmlAttribute(match[1], "id"),
+      htmlAttribute(match[1], "name"),
+    ]) {
+      if (/^[A-Za-z_$][\w$:-]{0,127}$/u.test(reference)) {
+        values.set(reference, value);
+      }
+    }
+  }
+  return values;
+}
+
+function readJavascriptString(source, start) {
+  const quote = source[start];
+  if (!["'", '"', "`"].includes(quote)) return null;
+  let value = "";
+  for (let index = start + 1; index < source.length; index += 1) {
+    const character = source[index];
+    if (character === quote) return { value, end: index + 1, quote };
+    if (character !== "\\") {
+      value += character;
+      continue;
+    }
+    const escaped = source[index + 1];
+    if (escaped === undefined) return null;
+    const hexadecimal = source.slice(index + 2, index + 4);
+    const unicode = source.slice(index + 2, index + 6);
+    if (escaped === "x" && /^[0-9a-f]{2}$/iu.test(hexadecimal)) {
+      value += String.fromCodePoint(Number.parseInt(hexadecimal, 16));
+      index += 3;
+    } else if (escaped === "u" && /^[0-9a-f]{4}$/iu.test(unicode)) {
+      value += String.fromCodePoint(Number.parseInt(unicode, 16));
+      index += 5;
+    } else {
+      const escapes = new Map([
+        ["n", "\n"],
+        ["r", "\r"],
+        ["t", "\t"],
+      ]);
+      value += escapes.get(escaped) ?? escaped;
+      index += 1;
+    }
+  }
+  return null;
+}
+
+function planReferenceOperand(source, values) {
+  const patterns = [
+    /^\$\(\s*["']#([A-Za-z0-9_$:.-]+)["']\s*\)\s*\.\s*val\s*\(\s*\)(?:\s*\.\s*trim\s*\(\s*\))?/u,
+    /^\$\(\s*["']#([A-Za-z0-9_$:.-]+)["']\s*\)\s*\.\s*attr\s*\(\s*["']value["']\s*\)(?:\s*\.\s*trim\s*\(\s*\))?/u,
+    /^document\.getElementById\s*\(\s*["']([^"']+)["']\s*\)\s*\.\s*value(?:\s*\.\s*trim\s*\(\s*\))?/u,
+    /^document\.querySelector\s*\(\s*["']#([^"']+)["']\s*\)\s*\.\s*value(?:\s*\.\s*trim\s*\(\s*\))?/u,
+  ];
+  for (const pattern of patterns) {
+    const match = source.match(pattern);
+    const value = match ? values.get(match[1]) : undefined;
+    if (typeof value === "string") {
+      return { value, length: match[0].length };
+    }
+  }
+  const identifier = source.match(/^[A-Za-z_$][\w$]*/u)?.[0];
+  const value = identifier ? values.get(identifier) : undefined;
+  return typeof value === "string"
+    ? { value, length: identifier.length }
+    : null;
+}
+
+function restrictedJavascriptConcatenation(source, values) {
+  let index = 0;
+  let result = "";
+  let expectOperand = true;
+  let operandCount = 0;
+  while (index < source.length) {
+    const whitespace = source.slice(index).match(/^\s+/u)?.[0];
+    if (whitespace) {
+      index += whitespace.length;
+      continue;
+    }
+    if (!expectOperand) {
+      if (source[index] !== "+") return null;
+      expectOperand = true;
+      index += 1;
+      continue;
+    }
+    const literal = readJavascriptString(source, index);
+    if (literal && literal.quote !== "`") {
+      result += literal.value;
+      index = literal.end;
+    } else {
+      const operand = planReferenceOperand(source.slice(index), values);
+      if (!operand) return null;
+      result += operand.value;
+      index += operand.length;
+    }
+    operandCount += 1;
+    if (result.length > 2_048) return null;
+    expectOperand = false;
+  }
+  return !expectOperand && operandCount > 0 ? result : null;
+}
+
+function resolvePlanTemplate(template, values) {
+  let result = "";
+  let cursor = 0;
+  for (const match of template.matchAll(/\$\{([^{}]{1,512})\}/gu)) {
+    result += template.slice(cursor, match.index);
+    const value = restrictedJavascriptConcatenation(match[1], values);
+    if (value === null) return null;
+    result += value;
+    cursor = match.index + match[0].length;
+  }
+  if (template.slice(cursor).includes("${")) return null;
+  result += template.slice(cursor);
+  return result.length <= 2_048 ? result : null;
+}
+
+function normalizePlanDetailCandidate(value, planNumber) {
+  const candidate = String(value ?? "").trim();
+  if (
+    !candidate ||
+    candidate.length > 2_048 ||
+    /[\s'"`<>\\]/u.test(candidate) ||
+    !/rollManagement\/project\//iu.test(candidate) ||
+    !/\/detail(?:$|[?#])/iu.test(candidate)
+  ) {
+    return null;
+  }
+  const escapedPlan = String(planNumber).replace(
     /[.*+?^${}()|[\]\\]/gu,
     "\\$&",
   );
-  if (!escapedPlan) return null;
-  const literal = normalized.match(
-    new RegExp(
-      `[^"'\\s<>]*rollManagement/project/[^"'\\s<>+]+/${escapedPlan}/1/detail\\b`,
-      "u",
-    ),
-  )?.[0];
-  if (literal) return literal;
-  const expression = normalized.match(
-    /(?:url\s*[:=]\s*)?(?:"([^"']*\/student\/rollManagement\/project\/[^"']*\/)"|'([^"']*\/student\/rollManagement\/project\/[^"']*\/)')\s*\+\s*(?:fajhh|zx)\s*\+\s*(?:"(\/1\/detail[^"']*)"|'(\/1\/detail[^"']*)')/iu,
+  const planPattern = new RegExp(
+    `(?:^|[/?=&])${escapedPlan}(?:$|[/?&#])`,
+    "u",
   );
-  const prefix = expression?.[1] ?? expression?.[2];
-  const suffix = expression?.[3] ?? expression?.[4];
-  return prefix && suffix ? `${prefix}${planNumber}${suffix}` : null;
+  return planPattern.test(candidate) ? candidate : null;
+}
+
+function trainingPlanDetailCandidates(html, planNumber) {
+  const normalized = decodeEntities(String(html ?? ""))
+    .replace(/\\u002f/giu, "/")
+    .replace(/\\x2f/giu, "/")
+    .replace(/\\\//gu, "/");
+  const values = planReferenceValues(normalized, planNumber);
+  const candidates = new Set();
+  const addCandidate = (value) => {
+    const candidate = normalizePlanDetailCandidate(value, planNumber);
+    if (candidate) candidates.add(candidate);
+  };
+
+  for (let pass = 0; pass < 3; pass += 1) {
+    for (const match of normalized.matchAll(
+      /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*([^;\r\n]{1,512})/gu,
+    )) {
+      const value = restrictedJavascriptConcatenation(match[2], values);
+      if (value !== null && value.length <= 512) values.set(match[1], value);
+    }
+  }
+
+  for (let index = 0; index < normalized.length; index += 1) {
+    if (!["'", '"', "`"].includes(normalized[index])) continue;
+    const literal = readJavascriptString(normalized, index);
+    if (!literal) continue;
+    if (literal.quote === "`") {
+      const resolved = resolvePlanTemplate(literal.value, values);
+      if (resolved !== null) addCandidate(resolved);
+    } else {
+      addCandidate(literal.value);
+    }
+    index = literal.end - 1;
+  }
+
+  for (const match of normalized.matchAll(
+    /(["'])([^"'`\r\n]{0,1024}rollManagement\/project\/[^"'`\r\n]{0,1024})\1([\s\S]{0,1024}?)(["'])([^"'`\r\n]{0,512}\/detail(?:[?#][^"'`\r\n]*)?)\4/giu,
+  )) {
+    addCandidate(restrictedJavascriptConcatenation(match[0], values));
+  }
+  return { candidates, normalized };
+}
+
+export function findTrainingPlanDetailPath(html, planNumber) {
+  if (!String(planNumber ?? "").trim()) return null;
+  const { candidates } = trainingPlanDetailCandidates(html, planNumber);
+  return candidates.size === 1 ? [...candidates][0] : null;
 }
 
 export function parseTrainingPlanProfile(html) {
@@ -1578,11 +1750,22 @@ export function parseTrainingPlanProfile(html) {
   const cohortYear = cohortMatch ? Number(cohortMatch) : null;
   const detailPath = findTrainingPlanDetailPath(html, planNumber);
   if (!detailPath) {
+    const { candidates, normalized } = trainingPlanDetailCandidates(
+      html,
+      planNumber,
+    );
     throw trainingPlanFormatError("plan_profile_invalid", {
       hasPlanNumber: true,
       hasMajorName: Boolean(majorName),
       hasCohortYear: Number.isInteger(cohortYear),
       hasDetailPath: false,
+      hasProjectMarker: /rollManagement\/project/iu.test(normalized),
+      hasDetailMarker: /\/detail\b/iu.test(normalized),
+      hasValueGetter:
+        /(?:\.val\s*\(|getElementById\s*\(|querySelector\s*\()/u.test(
+          normalized,
+        ),
+      detailCandidateCount: candidates.size,
     });
   }
   return { planNumber, majorName, cohortYear, detailPath };
