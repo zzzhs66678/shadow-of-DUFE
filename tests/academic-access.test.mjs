@@ -183,6 +183,11 @@ const planProfileHtml = `<!doctype html><html><body>
   <script>const url = "/student/rollManagement/project/plan-token/P2024/1/detail";</script>
 </body></html>`;
 
+const planProfileWithoutVisibleFieldsHtml = `<!doctype html><html><body>
+  <input value="P2024" id="zx">
+  <script>const url = "../rollManagement/project/plan-token/P2024/1/detail";</script>
+</body></html>`;
+
 const planDetailPayload = {
   title: "培养方案",
   jhFajhb: {
@@ -373,6 +378,24 @@ test("training plan parser preserves groups, identifiers, credits, and course at
       replacementCourseCodes: [],
     },
   ]);
+});
+
+test("training plan parser accepts profile pages that leave identity to plan metadata", () => {
+  const profile = parseTrainingPlanProfile(planProfileWithoutVisibleFieldsHtml);
+  assert.equal(profile.majorName, "");
+  assert.equal(profile.cohortYear, null);
+  assert.equal(
+    profile.detailPath,
+    "../rollManagement/project/plan-token/P2024/1/detail",
+  );
+  const plan = parseTrainingPlanDetail(
+    planDetailPayload,
+    profile,
+    planCategoryPayloads,
+    "2026-10-04T01:02:03.000Z",
+  );
+  assert.equal(plan.majorName, "会计学");
+  assert.equal(plan.cohortYear, 2024);
 });
 
 test("exam parser distinguishes an explicit empty result from an unknown page", () => {

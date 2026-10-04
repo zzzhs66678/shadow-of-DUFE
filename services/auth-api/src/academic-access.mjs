@@ -1521,9 +1521,9 @@ export function parseExamHtml(html, term) {
   return exams;
 }
 
-function trainingPlanFormatError(reason) {
+function trainingPlanFormatError(reason, diagnostic = {}) {
   const error = academicError("ACADEMIC_PLAN_FORMAT_CHANGED");
-  error.diagnostic = { parseReason: reason };
+  error.diagnostic = { parseReason: reason, ...diagnostic };
   return error;
 }
 
@@ -1556,7 +1556,7 @@ export function findTrainingPlanDetailPath(html, planNumber) {
   if (!escapedPlan) return null;
   const literal = normalized.match(
     new RegExp(
-      `/student/rollManagement/project/[A-Za-z0-9_-]+/${escapedPlan}/1/detail\\b`,
+      `[^"'\\s<>]*rollManagement/project/[^"'\\s<>+]+/${escapedPlan}/1/detail\\b`,
       "u",
     ),
   )?.[0];
@@ -1574,10 +1574,16 @@ export function parseTrainingPlanProfile(html) {
   if (!planNumber) throw academicError("ACADEMIC_PLAN_NOT_FOUND");
   const majorName = profileField(html, ["专业"]);
   const cohortText = profileField(html, ["入学年级", "年级"]);
-  const cohortYear = Number(cohortText.match(/(?:19|20)\d{2}/u)?.[0]);
+  const cohortMatch = cohortText.match(/(?:19|20)\d{2}/u)?.[0];
+  const cohortYear = cohortMatch ? Number(cohortMatch) : null;
   const detailPath = findTrainingPlanDetailPath(html, planNumber);
-  if (!majorName || !Number.isInteger(cohortYear) || !detailPath) {
-    throw trainingPlanFormatError("plan_profile_invalid");
+  if (!detailPath) {
+    throw trainingPlanFormatError("plan_profile_invalid", {
+      hasPlanNumber: true,
+      hasMajorName: Boolean(majorName),
+      hasCohortYear: Number.isInteger(cohortYear),
+      hasDetailPath: false,
+    });
   }
   return { planNumber, majorName, cohortYear, detailPath };
 }
@@ -1755,7 +1761,7 @@ export function parseTrainingPlanDetail(
     !Number.isInteger(cohortYear) ||
     requiredCredits === null ||
     planNumber !== profile.planNumber ||
-    majorName !== profile.majorName
+    (profile.majorName && majorName !== profile.majorName)
   ) {
     throw trainingPlanFormatError("plan_metadata_invalid");
   }
