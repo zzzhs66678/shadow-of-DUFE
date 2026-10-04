@@ -158,6 +158,35 @@ function safeDiagnosticOrigin(value) {
   }
 }
 
+const SAFE_PARSE_REASONS = new Set([
+  "header_not_found",
+  "meetings_not_decoded",
+]);
+const SAFE_HEADER_MODES = new Set(["combined", "separated", "both"]);
+const SAFE_TIMETABLE_HEADERS = new Set([
+  "课程号", "课程代码", "课程编号", "课程名", "课程名称", "课序号",
+  "教学班号", "学分", "课程属性", "课程性质", "课程类别", "考试类型",
+  "考核方式", "教师", "任课教师", "修读方式", "选课状态", "时间",
+  "上课时间", "地点", "上课地点", "周次", "上课周次", "起止周",
+  "星期", "上课星期", "节次", "上课节次", "开始节次", "节数",
+  "连上节数", "持续节数", "校区", "校区名称", "教学楼", "楼宇",
+  "楼栋", "教室", "上课教室",
+]);
+
+function safeDiagnosticCount(value, maximum = 10_000) {
+  return Number.isInteger(value) && value >= 0 && value <= maximum
+    ? value
+    : undefined;
+}
+
+function safeDiagnosticList(value, predicate, maximum = 40) {
+  if (!Array.isArray(value)) return undefined;
+  const items = value
+    .filter((item) => typeof item === "string" && predicate(item))
+    .slice(0, maximum);
+  return items.length ? items : undefined;
+}
+
 function safeDiagnosticDetails(error) {
   const diagnostic = error?.diagnostic;
   if (!diagnostic || typeof diagnostic !== "object") return {};
@@ -171,11 +200,44 @@ function safeDiagnosticDetails(error) {
   const redirectIndex = Number.isInteger(diagnostic.redirectIndex)
     ? diagnostic.redirectIndex
     : undefined;
+  const parseReason = SAFE_PARSE_REASONS.has(diagnostic.parseReason)
+    ? diagnostic.parseReason
+    : undefined;
+  const headerMode = SAFE_HEADER_MODES.has(diagnostic.headerMode)
+    ? diagnostic.headerMode
+    : undefined;
+  const tableCount = safeDiagnosticCount(diagnostic.tableCount, 100);
+  const rowCount = safeDiagnosticCount(diagnostic.rowCount);
+  const sectionCount = safeDiagnosticCount(diagnostic.sectionCount);
+  const tableShapes = safeDiagnosticList(
+    diagnostic.tableShapes,
+    (item) => /^\d{1,5}x\d{1,4}$/u.test(item),
+    12,
+  );
+  const knownHeaders = safeDiagnosticList(
+    diagnostic.knownHeaders,
+    (item) => SAFE_TIMETABLE_HEADERS.has(item),
+  );
+  const timePatterns = safeDiagnosticList(
+    diagnostic.timePatterns,
+    (item) =>
+      item.length <= 160 &&
+      /^[\s#?周星期一二三四五六日天节单双前后上下全第,，、;；:/|()（）[\]{}<>\-]+$/u.test(item),
+    6,
+  );
   return {
     ...(redirectFromOrigin ? { redirectFromOrigin } : {}),
     ...(redirectToOrigin ? { redirectToOrigin } : {}),
     ...(redirectStatus !== undefined ? { redirectStatus } : {}),
     ...(redirectIndex !== undefined ? { redirectIndex } : {}),
+    ...(parseReason ? { parseReason } : {}),
+    ...(headerMode ? { headerMode } : {}),
+    ...(tableCount !== undefined ? { tableCount } : {}),
+    ...(rowCount !== undefined ? { rowCount } : {}),
+    ...(sectionCount !== undefined ? { sectionCount } : {}),
+    ...(tableShapes ? { tableShapes } : {}),
+    ...(knownHeaders ? { knownHeaders } : {}),
+    ...(timePatterns ? { timePatterns } : {}),
   };
 }
 

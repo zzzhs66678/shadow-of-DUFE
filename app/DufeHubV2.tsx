@@ -3034,18 +3034,30 @@ function AcademicImportDialog({
             verificationFailed?: boolean;
           }
         | { status: "imported"; snapshot: AcademicSnapshot }
-        | { error: string; retryable?: boolean };
+        | { error: string; retryable?: boolean; stage?: string };
       if (!response.ok || "error" in result) {
         const retryable = "error" in result && result.retryable === true;
-        setImportRetryAvailable(ssoChallenge ? false : retryable);
+        const errorCode =
+          "error" in result ? result.error : "academic_import_failed";
+        const importStageReached =
+          "stage" in result &&
+          ["timetable_fetch", "timetable_parse", "exam_fetch", "exam_parse"].includes(
+            result.stage ?? "",
+          );
+        if (retryable && ssoChallenge && importStageReached) {
+          setSsoChallenge(undefined);
+          setImportRetryAvailable(true);
+        } else {
+          setImportRetryAvailable(ssoChallenge ? false : retryable);
+        }
         setFeedback(
-          retryable && ssoChallenge
+          retryable && ssoChallenge && importStageReached
+            ? `${academicImportErrorMessage(errorCode)} 学校登录仍有效，可直接重试读取。`
+            : retryable && ssoChallenge
             ? "学校验证请求中断，请再提交一次拼图。"
             : retryable
             ? "学校登录仍有效，可直接重试读取。"
-            : academicImportErrorMessage(
-                "error" in result ? result.error : "academic_import_failed",
-              ),
+            : academicImportErrorMessage(errorCode),
         );
         return;
       }

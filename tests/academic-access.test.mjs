@@ -149,8 +149,13 @@ test("timetable parser rejects false success when no meeting was decoded", () =>
     /1-9周 \/ 星期一 \/ 1-2节<br>10-18周 \/ 星期三 \/ 5-7节|2-18 周 \/ 星期四 \/ 8-9节/gu,
     "待安排",
   );
-  assert.throws(() => parseTimetableHtml(html), {
-    code: "ACADEMIC_TIMETABLE_FORMAT_CHANGED",
+  assert.throws(() => parseTimetableHtml(html), (error) => {
+    assert.equal(error.code, "ACADEMIC_TIMETABLE_FORMAT_CHANGED");
+    assert.equal(error.diagnostic.parseReason, "meetings_not_decoded");
+    assert.equal(error.diagnostic.headerMode, "combined");
+    assert.equal(error.diagnostic.sectionCount, 2);
+    assert.deepEqual(error.diagnostic.timePatterns, ["?"]);
+    return true;
   });
 });
 

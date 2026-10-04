@@ -896,6 +896,87 @@ function findTableHeader(candidates, predicate) {
   return null;
 }
 
+const KNOWN_TIMETABLE_HEADERS = new Set([
+  "课程号",
+  "课程代码",
+  "课程编号",
+  "课程名",
+  "课程名称",
+  "课序号",
+  "教学班号",
+  "学分",
+  "课程属性",
+  "课程性质",
+  "课程类别",
+  "考试类型",
+  "考核方式",
+  "教师",
+  "任课教师",
+  "修读方式",
+  "选课状态",
+  "时间",
+  "上课时间",
+  "地点",
+  "上课地点",
+  "周次",
+  "上课周次",
+  "起止周",
+  "星期",
+  "上课星期",
+  "节次",
+  "上课节次",
+  "开始节次",
+  "节数",
+  "连上节数",
+  "持续节数",
+  "校区",
+  "校区名称",
+  "教学楼",
+  "楼宇",
+  "楼栋",
+  "教室",
+  "上课教室",
+]);
+
+function recognizedTimetableHeaders(candidates) {
+  const recognized = new Set();
+  for (const rows of candidates.slice(0, 12)) {
+    for (const row of rows.slice(0, 12)) {
+      for (const cell of row) {
+        const header = normalizedHeader(cell.text);
+        if (KNOWN_TIMETABLE_HEADERS.has(header)) recognized.add(header);
+      }
+    }
+  }
+  return [...recognized].slice(0, 40);
+}
+
+function tableShapes(candidates) {
+  return candidates.slice(0, 12).map((rows) => {
+    const width = rows.reduce((maximum, row) => Math.max(maximum, row.length), 0);
+    return `${rows.length}x${width}`;
+  });
+}
+
+function schedulePattern(value) {
+  return String(value ?? "")
+    .replace(/\d+/gu, "#")
+    .replace(
+      /[^\s#周星期一二三四五六日天节单双前后上下全第,，、;；:/|()（）[\]{}<>\-]/gu,
+      "?",
+    )
+    .replace(/\?+/gu, "?")
+    .replace(/\s+/gu, " ")
+    .trim()
+    .slice(0, 160);
+}
+
+function timetableFormatError(reason, diagnostic = {}) {
+  const error = academicError("ACADEMIC_TIMETABLE_FORMAT_CHANGED");
+  error.diagnostic = { parseReason: reason, ...diagnostic };
+  return error;
+}
+
 export function parseTimetableHtml(html) {
   const term = parseTermMetadata(html);
   const candidates = tables(html);
@@ -912,7 +993,13 @@ export function parseTimetableHtml(html) {
       findHeaderIndex(headers, ["节次", "上课节次", "开始节次"]) >= 0;
     return hasCourse && (hasCombinedTime || hasSeparatedTime);
   });
-  if (!table) throw academicError("ACADEMIC_TIMETABLE_FORMAT_CHANGED");
+  if (!table) {
+    throw timetableFormatError("header_not_found", {
+      tableCount: candidates.length,
+      tableShapes: tableShapes(candidates),
+      knownHeaders: recognizedTimetableHeaders(candidates),
+    });
+  }
   const { rows, headerIndex, headers } = table;
   const columns = {
     courseCode: findHeaderIndex(headers, ["课程号", "课程代码", "课程编号"]),
@@ -980,7 +1067,37 @@ export function parseTimetableHtml(html) {
   const sections = [...sectionMap.values()];
   if (!sections.length) throw academicError("ACADEMIC_TIMETABLE_EMPTY");
   if (!sections.some((section) => section.meetings.length)) {
-    throw academicError("ACADEMIC_TIMETABLE_FORMAT_CHANGED");
+    const bodyRows = rows.slice(headerIndex + 1);
+    const timePatterns = [...new Set(
+      bodyRows
+        .slice(0, 12)
+        .map((cells) =>
+          columns.time >= 0
+            ? schedulePattern(cellAt(cells, columns.time))
+            : [
+                schedulePattern(cellAt(cells, columns.weeks)),
+                schedulePattern(cellAt(cells, columns.weekday)),
+                schedulePattern(cellAt(cells, columns.periods)),
+                schedulePattern(cellAt(cells, columns.periodCount)),
+              ].join("|"),
+        )
+        .filter(Boolean),
+    )].slice(0, 6);
+    throw timetableFormatError("meetings_not_decoded", {
+      tableCount: candidates.length,
+      rowCount: bodyRows.length,
+      sectionCount: sections.length,
+      headerMode:
+        columns.time >= 0 && columns.weeks >= 0
+          ? "both"
+          : columns.time >= 0
+            ? "combined"
+            : "separated",
+      knownHeaders: headers
+        .map(normalizedHeader)
+        .filter((header) => KNOWN_TIMETABLE_HEADERS.has(header)),
+      timePatterns,
+    });
   }
   return { term, sections };
 }

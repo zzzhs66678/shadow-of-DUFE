@@ -105,7 +105,15 @@ test("official timetable and exams import through SMS and school verification", 
     });
   });
   await page.route("**/api/auth/academic/sms", async (route) => {
-    expect(route.request().postDataJSON()).toEqual({
+    const body = route.request().postDataJSON();
+    if (!("code" in body)) {
+      expect(body).toEqual({
+        transactionId: "abcdefghijklmnopqrstuvwxyzABCDEFGH",
+      });
+      await route.fulfill({ json: { status: "imported", snapshot } });
+      return;
+    }
+    expect(body).toEqual({
       transactionId: "abcdefghijklmnopqrstuvwxyzABCDEFGH",
       code: "123456",
     });
@@ -131,7 +139,14 @@ test("official timetable and exams import through SMS and school verification", 
       transactionId: "abcdefghijklmnopqrstuvwxyzABCDEFGH",
       verifyCode: "117",
     });
-    await route.fulfill({ json: { status: "imported", snapshot } });
+    await route.fulfill({
+      status: 502,
+      json: {
+        error: "academic_format_changed",
+        retryable: true,
+        stage: "timetable_parse",
+      },
+    });
   });
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await page
@@ -157,6 +172,16 @@ test("official timetable and exams import through SMS and school verification", 
   await expect(page.getByRole("heading", { name: "完成学校验证" })).toBeVisible();
   await page.getByRole("slider", { name: "拖动拼图图块" }).fill("117");
   await page.getByRole("button", { name: "验证并完成导入" }).click();
+  await expect(
+    page.getByRole("heading", { name: "继续读取教务数据" }),
+  ).toBeVisible();
+  await expect(page.getByRole("alert")).toContainText(
+    "学校调整了课表页面",
+  );
+  await expect(page.getByRole("alert")).toContainText(
+    "学校登录仍有效",
+  );
+  await page.getByRole("button", { name: "直接重试读取" }).click();
 
   await expect(page.locator(".academic-sync-band p")).toContainText(
     "已导入 1 门课、2 个上课时段、1 项考试",
