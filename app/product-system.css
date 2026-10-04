@@ -5128,6 +5128,50 @@ body:has(.hub-v2) .preload-intro {
   text-underline-offset: 4px;
 }
 
+.academic-sso-puzzle {
+  background: #eee9df;
+  border: 1px solid var(--journal-line-strong, #8b867d);
+  border-radius: 8px;
+  margin: 0 auto;
+  max-width: 280px;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.academic-sso-puzzle img {
+  display: block;
+  height: 100%;
+  object-fit: fill;
+  width: 100%;
+}
+
+.academic-sso-puzzle .academic-sso-piece {
+  left: var(--academic-piece-left, 0%);
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  width: var(--academic-piece-width, 28.57%);
+}
+
+.academic-sso-slider {
+  display: grid;
+  gap: 7px;
+}
+
+.academic-sso-slider > span {
+  color: var(--journal-muted, #656158);
+  font-size: 13px;
+}
+
+.academic-import-dialog .academic-sso-slider input[type="range"] {
+  accent-color: var(--journal-red, #b42a24);
+  background: transparent;
+  border: 0;
+  min-height: 34px;
+  padding: 0;
+}
+
 .academic-schedule-card {
   background: #fff8ed;
   border: 1px solid #d9c7ae;

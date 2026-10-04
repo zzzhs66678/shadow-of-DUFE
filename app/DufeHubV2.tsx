@@ -2928,6 +2928,8 @@ function academicImportErrorMessage(code: string) {
     academic_sms_phone_unavailable: "学校账号没有可用手机号，请先在统一用户中心补充。",
     academic_sms_not_sent: "请先获取短信验证码。",
     academic_sms_send_failed: "学校短信验证码暂时发送失败，请稍后重试。",
+    academic_sso_verification_invalid: "请先完成学校拼图验证。",
+    academic_sso_protocol_changed: "学校统一身份认证流程已变化，暂时无法连接。",
     academic_transaction_expired: "本次教务登录已经超时，请重新连接。",
     academic_additional_auth_required:
       "学校要求当前版本尚未支持的额外验证，请稍后再试。",
@@ -2953,6 +2955,15 @@ function academicImportErrorMessage(code: string) {
   return messages[code] ?? "导入没有完成，请稍后重试。";
 }
 
+type AcademicSsoChallenge = {
+  backgroundImage: string;
+  pieceImage: string;
+  width: number;
+  height: number;
+  pieceWidth: number;
+  maxOffset: number;
+};
+
 function AcademicImportDialog({
   existing,
   onClose,
@@ -2973,6 +2984,9 @@ function AcademicImportDialog({
   const [phoneOptions, setPhoneOptions] = useState<
     Array<{ index: number; label: string }>
   >([]);
+  const [ssoChallenge, setSsoChallenge] = useState<AcademicSsoChallenge>();
+  const [ssoOffset, setSsoOffset] = useState(0);
+  const [ssoTouched, setSsoTouched] = useState(false);
   const [importRetryAvailable, setImportRetryAvailable] = useState(false);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState("");
@@ -2981,7 +2995,8 @@ function AcademicImportDialog({
     endpoint:
       | "/api/auth/academic/connect"
       | "/api/auth/academic/sms/send"
-      | "/api/auth/academic/sms",
+      | "/api/auth/academic/sms"
+      | "/api/auth/academic/sso",
     body: Record<string, string>,
   ) {
     setBusy(true);
@@ -3005,13 +3020,21 @@ function AcademicImportDialog({
             transactionId: string;
             maskedPhone: string;
           }
+        | {
+            status: "sso_verification_required";
+            transactionId: string;
+            challenge: AcademicSsoChallenge;
+            verificationFailed?: boolean;
+          }
         | { status: "imported"; snapshot: AcademicSnapshot }
         | { error: string; retryable?: boolean };
       if (!response.ok || "error" in result) {
         const retryable = "error" in result && result.retryable === true;
-        setImportRetryAvailable(retryable);
+        setImportRetryAvailable(ssoChallenge ? false : retryable);
         setFeedback(
-          retryable
+          retryable && ssoChallenge
+            ? "学校验证请求中断，请再提交一次拼图。"
+            : retryable
             ? "学校登录仍有效，可直接重试读取。"
             : academicImportErrorMessage(
                 "error" in result ? result.error : "academic_import_failed",
@@ -3037,6 +3060,18 @@ function AcademicImportDialog({
         setSmsCode("");
         return;
       }
+      if (result.status === "sso_verification_required") {
+        setImportRetryAvailable(false);
+        setTransactionId(result.transactionId);
+        setSmsDestination("");
+        setSsoChallenge(result.challenge);
+        setSsoOffset(0);
+        setSsoTouched(false);
+        setFeedback(
+          result.verificationFailed ? "位置没有对齐，请再试一次。" : "",
+        );
+        return;
+      }
       onImported(result.snapshot);
     } catch {
       setFeedback("网络连接中断，教务密码没有保存，请重新尝试。");
@@ -3053,6 +3088,9 @@ function AcademicImportDialog({
     setSmsPhone("");
     setSmsPhoneIndex("0");
     setPhoneOptions([]);
+    setSsoChallenge(undefined);
+    setSsoOffset(0);
+    setSsoTouched(false);
     setSmsCode("");
     setImportRetryAvailable(false);
     setFeedback("");
@@ -3074,7 +3112,9 @@ function AcademicImportDialog({
           <div>
             <span>正式教务 · 一学期一次</span>
             <h2 id="academic-import-title">
-              {smsDestination
+              {ssoChallenge
+                ? "完成学校验证"
+                : smsDestination
                 ? "选择短信号码"
                 : transactionId
                   ? importRetryAvailable
@@ -3197,6 +3237,67 @@ function AcademicImportDialog({
               }
             >
               {busy ? "正在发送…" : "发送验证码"}
+            </button>
+            <button
+              className="academic-import-restart"
+              type="button"
+              disabled={busy}
+              onClick={restart}
+            >
+              返回重新登录
+            </button>
+          </form>
+        ) : ssoChallenge ? (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void submit("/api/auth/academic/sso", {
+                transactionId,
+                verifyCode: String(ssoOffset),
+              });
+            }}
+          >
+            <p className="academic-import-current">
+              拖动拼图，使图块对准缺口。
+            </p>
+            <div
+              className="academic-sso-puzzle"
+              style={
+                {
+                  "--academic-piece-left": `${(ssoOffset / ssoChallenge.width) * 100}%`,
+                  "--academic-piece-width": `${(ssoChallenge.pieceWidth / ssoChallenge.width) * 100}%`,
+                  aspectRatio: `${ssoChallenge.width} / ${ssoChallenge.height}`,
+                } as CSSProperties
+              }
+            >
+              {/* The school returns short-lived data URLs that cannot use the image optimizer. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={ssoChallenge.backgroundImage} alt="学校验证拼图" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className="academic-sso-piece"
+                src={ssoChallenge.pieceImage}
+                alt=""
+              />
+            </div>
+            <label className="academic-sso-slider">
+              <span>拖动图块</span>
+              <input
+                type="range"
+                min="0"
+                max={ssoChallenge.maxOffset}
+                step="1"
+                value={ssoOffset}
+                onChange={(event) => {
+                  setSsoOffset(Number(event.target.value));
+                  setSsoTouched(true);
+                }}
+                aria-label="拖动拼图图块"
+              />
+            </label>
+            {feedback && <p className="academic-import-error" role="alert">{feedback}</p>}
+            <button type="submit" disabled={busy || !ssoTouched}>
+              {busy ? "正在验证并读取…" : "验证并完成导入"}
             </button>
             <button
               className="academic-import-restart"

@@ -46,6 +46,30 @@ const examHtml = `<!doctype html>
   </table>
 </body></html>`;
 
+const casLoginHtml = `<!doctype html>
+<html><head><title>统一身份认证中心</title></head><body>
+  <form method="post" action="">
+    <input type="hidden" name="fingerprint" value="">
+    <input type="text" name="username" value="">
+    <input type="hidden" name="password" value="">
+    <input type="hidden" name="verify_token" value="">
+    <input type="hidden" name="verify_code" value="">
+    <input type="hidden" name="__token__" value="csrf-test-token">
+  </form>
+  <script>
+    key = CryptoJS.enc.Utf8.parse('12793ff634e57cd59df06598e3be5482'.substr(0,16));
+  </script>
+</body></html>`;
+
+const sliderChallenge = JSON.stringify({
+  code: 1,
+  data: {
+    token: "1234567890abcdef1234567890abcdef",
+    bg: "data:image/png;base64,iVBORw0KGgo=",
+    block: "data:image/png;base64,iVBORw0KGgo=",
+  },
+});
+
 test("week parser preserves ranges and odd/even week sets", () => {
   assert.deepEqual(parseWeeks("1-9周"), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
   assert.deepEqual(parseWeeks("9-18周"), [9, 10, 11, 12, 13, 14, 15, 16, 17, 18]);
@@ -276,6 +300,124 @@ test("connector follows school WebVPN resource redirects after SMS login", async
   });
   assert.equal(completed.status, "imported");
   assert.equal(completed.snapshot.sections.length, 2);
+});
+
+test("connector completes the school CAS slider step before importing", async () => {
+  const challenge = rsaChallengeXml();
+  const ssoHost = "sso-dufe-edu-cn.vpn.dufe.edu.cn:8118";
+  const timetablePath = "/student/courseSelect/thisSemesterCurriculum/index";
+  const serviceUrl = `http://zhjw-dufe-edu-cn.vpn.dufe.edu.cn:8118${timetablePath}`;
+  let casSubmissions = 0;
+  const fetchImpl = async (url, options = {}) => {
+    const parsed = new URL(url);
+    const cookies = String(options.headers?.Cookie ?? "");
+    if (parsed.pathname === "/por/login_auth.csp") return response(challenge);
+    if (parsed.pathname === "/public/psw_config") return response(challenge);
+    if (parsed.pathname === "/por/login_psw.csp") {
+      return response(
+        "<Auth><ErrorCode>1</ErrorCode><NextService>sms</NextService></Auth>",
+      );
+    }
+    if (parsed.pathname === "/por/login_sms.csp") {
+      return response(
+        "<Auth><ErrorCode>1</ErrorCode><USER_PHONE>138****0000</USER_PHONE></Auth>",
+      );
+    }
+    if (parsed.pathname === "/por/post_sms.csp") {
+      return response("<Auth><ErrorCode>1</ErrorCode></Auth>");
+    }
+    if (parsed.pathname === "/por/login_sms1.csp") {
+      return response("<Auth><ErrorCode>1</ErrorCode><TwfID>vpn-session</TwfID></Auth>");
+    }
+    if (parsed.host === ssoHost && parsed.pathname === "/auth/cas/login") {
+      if ((options.method ?? "GET") === "POST") {
+        casSubmissions += 1;
+        const form = new URLSearchParams(options.body);
+        assert.equal(form.get("username"), "20260001");
+        assert.equal(form.get("password"), "R6ANtscKUJD0ksbUwLNNDw==");
+        assert.ok(!String(options.body).includes("test-password"));
+        assert.equal(form.get("verify_token"), "1234567890abcdef1234567890abcdef");
+        assert.match(form.get("verify_code"), /^11[67]$/u);
+        assert.equal(form.get("__token__"), "csrf-test-token");
+        assert.match(form.get("fingerprint"), /^[a-f0-9]{32}$/u);
+        if (form.get("verify_code") === "116") {
+          return response(casLoginHtml);
+        }
+        return response("", {
+          status: 302,
+          headers: {
+            location: serviceUrl,
+            "set-cookie": "SSO_SESSION=ready; Path=/",
+          },
+        });
+      }
+      return response(casLoginHtml, {
+        headers: { "set-cookie": "SSO_PRE=session; Path=/" },
+      });
+    }
+    if (parsed.host === ssoHost && parsed.pathname === "/auth/widget") {
+      assert.equal(options.method, "POST");
+      const form = new URLSearchParams(options.body);
+      assert.equal(form.get("width"), "280");
+      assert.equal(form.get("height"), "155");
+      assert.equal(form.get("block_size"), "80");
+      return response(sliderChallenge, {
+        headers: { "content-type": "application/json" },
+      });
+    }
+    if (parsed.pathname === timetablePath) {
+      if (/SSO_SESSION=ready/u.test(cookies)) {
+        return response(timetableHtml, {
+          headers: { "set-cookie": "ACADEMIC_SESSION=ready; Path=/" },
+        });
+      }
+      return response("", {
+        status: 302,
+        headers: {
+          location: `http://${ssoHost}/auth/cas/login?service=${encodeURIComponent(serviceUrl)}`,
+        },
+      });
+    }
+    if (parsed.pathname.includes("examPlan")) return response(examHtml);
+    throw new Error(`unexpected request: ${parsed}`);
+  };
+  const connector = createAcademicConnector({ fetchImpl });
+  const started = await connector.start({
+    username: "20260001",
+    password: "test-password",
+    principalKey: "device:test",
+  });
+  const prompted = await connector.verifySms({
+    transactionId: started.transactionId,
+    code: "123456",
+    principalKey: "device:test",
+  });
+  assert.equal(prompted.status, "sso_verification_required");
+  assert.equal(prompted.challenge.width, 280);
+  assert.equal(prompted.challenge.pieceWidth, 80);
+  assert.equal(prompted.challenge.maxOffset, 240);
+  assert.match(prompted.challenge.backgroundImage, /^data:image\/png;base64,/u);
+  assert.equal(connector.pendingCount(), 1);
+
+  const retried = await connector.verifySso({
+    transactionId: started.transactionId,
+    verifyCode: "116",
+    principalKey: "device:test",
+  });
+  assert.equal(retried.status, "sso_verification_required");
+  assert.equal(retried.verificationFailed, true);
+  assert.equal(connector.pendingCount(), 1);
+
+  const completed = await connector.verifySso({
+    transactionId: started.transactionId,
+    verifyCode: "117",
+    principalKey: "device:test",
+  });
+  assert.equal(completed.status, "imported");
+  assert.equal(completed.snapshot.sections.length, 2);
+  assert.equal(completed.snapshot.exams.length, 1);
+  assert.equal(casSubmissions, 2);
+  assert.equal(connector.pendingCount(), 0);
 });
 
 test("connector rejects external redirects and retains verified SMS sessions for retry", async () => {

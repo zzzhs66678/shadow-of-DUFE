@@ -102,6 +102,8 @@ function mappedError(error) {
     ["ACADEMIC_SMS_PHONE_UNAVAILABLE", [422, "academic_sms_phone_unavailable"]],
     ["ACADEMIC_SMS_NOT_SENT", [409, "academic_sms_not_sent"]],
     ["ACADEMIC_SMS_SEND_FAILED", [502, "academic_sms_send_failed"]],
+    ["ACADEMIC_SSO_VERIFICATION_INVALID", [400, "academic_sso_verification_invalid"]],
+    ["ACADEMIC_SSO_PROTOCOL_CHANGED", [502, "academic_sso_protocol_changed"]],
     ["ACADEMIC_TRANSACTION_EXPIRED", [410, "academic_transaction_expired"]],
     ["ACADEMIC_ADDITIONAL_AUTH_REQUIRED", [422, "academic_additional_auth_required"]],
     ["ACADEMIC_SESSION_NOT_READY", [502, "academic_session_not_ready"]],
@@ -127,6 +129,8 @@ const DIAGNOSTIC_STAGES = new Set([
   "vpn_sms_config",
   "vpn_sms_send",
   "vpn_sms_verify",
+  "sso_challenge",
+  "sso_verify",
   "timetable_fetch",
   "timetable_parse",
   "exam_fetch",
@@ -247,6 +251,12 @@ export function createAcademicRequestHandler({
         result = await connector.verifySms({
           transactionId: body.transactionId,
           code: body.code,
+          principalKey: principal.key,
+        });
+      } else if (url.pathname === "/api/auth/academic/sso") {
+        result = await connector.verifySso({
+          transactionId: body.transactionId,
+          verifyCode: body.verifyCode,
           principalKey: principal.key,
         });
       } else {

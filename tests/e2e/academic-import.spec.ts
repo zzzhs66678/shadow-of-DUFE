@@ -69,7 +69,7 @@ const snapshot = {
   ],
 };
 
-test("official timetable and exams import through the SMS flow", async ({
+test("official timetable and exams import through SMS and school verification", async ({
   page,
 }) => {
   const pageErrors: string[] = [];
@@ -109,6 +109,28 @@ test("official timetable and exams import through the SMS flow", async ({
       transactionId: "abcdefghijklmnopqrstuvwxyzABCDEFGH",
       code: "123456",
     });
+    const image =
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZK0cAAAAASUVORK5CYII=";
+    await route.fulfill({
+      json: {
+        status: "sso_verification_required",
+        transactionId: "abcdefghijklmnopqrstuvwxyzABCDEFGH",
+        challenge: {
+          backgroundImage: image,
+          pieceImage: image,
+          width: 280,
+          height: 155,
+          pieceWidth: 80,
+          maxOffset: 240,
+        },
+      },
+    });
+  });
+  await page.route("**/api/auth/academic/sso", async (route) => {
+    expect(route.request().postDataJSON()).toEqual({
+      transactionId: "abcdefghijklmnopqrstuvwxyzABCDEFGH",
+      verifyCode: "117",
+    });
     await route.fulfill({ json: { status: "imported", snapshot } });
   });
   await page.goto("/", { waitUntil: "domcontentloaded" });
@@ -131,6 +153,9 @@ test("official timetable and exams import through the SMS flow", async ({
   await page.getByLabel("手机号").fill("13800000000");
   await page.getByRole("button", { name: "发送验证码" }).click();
   await page.getByRole("textbox", { name: "短信验证码" }).fill("123456");
+  await page.getByRole("button", { name: "验证并完成导入" }).click();
+  await expect(page.getByRole("heading", { name: "完成学校验证" })).toBeVisible();
+  await page.getByRole("slider", { name: "拖动拼图图块" }).fill("117");
   await page.getByRole("button", { name: "验证并完成导入" }).click();
 
   await expect(page.locator(".academic-sync-band p")).toContainText(

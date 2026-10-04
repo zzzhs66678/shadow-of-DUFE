@@ -528,6 +528,24 @@ test("academic import routes support anonymous device continuity without exposin
       assert.equal(input.transactionId, "abcdefghijklmnopqrstuvwxyzABCDEFGH");
       assert.equal(input.code, "123456");
       return {
+        status: "sso_verification_required",
+        transactionId: "abcdefghijklmnopqrstuvwxyzABCDEFGH",
+        challenge: {
+          backgroundImage: "data:image/png;base64,iVBORw0KGgo=",
+          pieceImage: "data:image/png;base64,iVBORw0KGgo=",
+          width: 280,
+          height: 155,
+          pieceWidth: 80,
+          maxOffset: 240,
+        },
+        expiresInSeconds: 300,
+      };
+    },
+    async verifySso(input) {
+      assert.equal(input.principalKey, principalKey);
+      assert.equal(input.transactionId, "abcdefghijklmnopqrstuvwxyzABCDEFGH");
+      assert.equal(input.verifyCode, "117");
+      return {
         status: "imported",
         snapshot: {
           schemaVersion: 1,
@@ -591,7 +609,22 @@ test("academic import routes support anonymous device continuity without exposin
         }),
       });
       assert.equal(verified.status, 200);
-      assert.equal((await verified.json()).status, "imported");
+      assert.equal((await verified.json()).status, "sso_verification_required");
+
+      const ssoVerified = await fetch(`${baseUrl}/api/auth/academic/sso`, {
+        method: "POST",
+        headers: {
+          Origin: "https://dufesh.cn",
+          "Content-Type": "application/json",
+          Cookie: deviceCookie,
+        },
+        body: JSON.stringify({
+          transactionId: "abcdefghijklmnopqrstuvwxyzABCDEFGH",
+          verifyCode: "117",
+        }),
+      });
+      assert.equal(ssoVerified.status, 200);
+      assert.equal((await ssoVerified.json()).status, "imported");
 
       const untrusted = await fetch(`${baseUrl}/api/auth/academic/connect`, {
         method: "POST",

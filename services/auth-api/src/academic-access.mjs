@@ -1,5 +1,6 @@
 import {
   constants,
+  createCipheriv,
   createHash,
   createPublicKey,
   publicEncrypt,
@@ -16,6 +17,11 @@ const VPN_AUTH_SUCCESS = 1;
 const VPN_AUTH_RELOGIN = 20_021;
 const VPN_REDIRECT_CODE_START = 40_000;
 const VPN_REDIRECT_CODE_END = 50_000;
+const SSO_CHALLENGE_WIDTH = 280;
+const SSO_CHALLENGE_HEIGHT = 155;
+const SSO_CHALLENGE_PIECE_WIDTH = 80;
+const SSO_CHALLENGE_MAX_OFFSET =
+  SSO_CHALLENGE_WIDTH - SSO_CHALLENGE_PIECE_WIDTH / 2;
 
 const WEEKDAYS = new Map([
   ["一", 1],
@@ -355,6 +361,114 @@ function stripHtml(value) {
     .replace(/[\t\r ]+/gu, " ")
     .replace(/\s*\n\s*/gu, "\n")
     .trim();
+}
+
+function htmlAttribute(value, name) {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const match = String(value ?? "").match(
+    new RegExp(`\\b${escaped}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, "iu"),
+  );
+  return decodeEntities(match?.[1] ?? match?.[2] ?? "").trim();
+}
+
+function namedInputValue(formHtml, name) {
+  for (const match of String(formHtml ?? "").matchAll(/<input\b([^>]*)>/giu)) {
+    if (htmlAttribute(match[1], "name") === name) {
+      return htmlAttribute(match[1], "value");
+    }
+  }
+  return "";
+}
+
+function parseSsoLoginForm(html, finalUrl, isTrustedTarget) {
+  if (!(finalUrl instanceof URL)) return null;
+  for (const match of String(html ?? "").matchAll(
+    /<form\b([^>]*)>([\s\S]*?)<\/form>/giu,
+  )) {
+    const formHtml = match[2];
+    const inputNames = new Set(
+      [...formHtml.matchAll(/<input\b([^>]*)>/giu)]
+        .map((input) => htmlAttribute(input[1], "name"))
+        .filter(Boolean),
+    );
+    if (
+      !inputNames.has("username") ||
+      !inputNames.has("password") ||
+      !inputNames.has("verify_token") ||
+      !inputNames.has("verify_code") ||
+      !inputNames.has("__token__")
+    ) {
+      continue;
+    }
+    let action;
+    try {
+      action = new URL(htmlAttribute(match[1], "action") || finalUrl.href, finalUrl);
+    } catch {
+      throw academicError("ACADEMIC_SSO_PROTOCOL_CHANGED");
+    }
+    if (
+      !isTrustedTarget(action) ||
+      action.origin !== finalUrl.origin ||
+      action.pathname !== "/auth/cas/login"
+    ) {
+      throw academicError("ACADEMIC_SSO_PROTOCOL_CHANGED");
+    }
+    const csrfToken = namedInputValue(formHtml, "__token__");
+    const encryptionSeed = String(html).match(
+      /CryptoJS\.enc\.Utf8\.parse\(\s*['"]([A-Za-z0-9]{16,128})['"]\.substr\(\s*0\s*,\s*16\s*\)\s*\)/u,
+    )?.[1];
+    if (!csrfToken || csrfToken.length > 512 || !encryptionSeed) {
+      throw academicError("ACADEMIC_SSO_PROTOCOL_CHANGED");
+    }
+    return { action, csrfToken, encryptionSeed };
+  }
+  return null;
+}
+
+function encryptSsoPassword(password, encryptionSeed) {
+  const key = Buffer.from(encryptionSeed.slice(0, 16), "utf8");
+  if (key.length !== 16) throw academicError("ACADEMIC_SSO_PROTOCOL_CHANGED");
+  const clear = Buffer.from(String(password).trim(), "utf8");
+  const paddingLength = (16 - (clear.length % 16)) % 16;
+  const padded = paddingLength
+    ? Buffer.concat([clear, Buffer.alloc(paddingLength)])
+    : clear;
+  const cipher = createCipheriv("aes-128-cbc", key, key);
+  cipher.setAutoPadding(false);
+  return Buffer.concat([cipher.update(padded), cipher.final()]).toString("base64");
+}
+
+function validChallengeImage(value) {
+  return (
+    typeof value === "string" &&
+    value.length <= 256 * 1024 &&
+    /^data:image\/(?:png|jpeg);base64,[A-Za-z0-9+/=]+$/u.test(value)
+  );
+}
+
+function parseSsoChallenge(value) {
+  let payload;
+  try {
+    payload = JSON.parse(value);
+  } catch {
+    throw academicError("ACADEMIC_SSO_PROTOCOL_CHANGED");
+  }
+  const data = payload?.data;
+  if (
+    payload?.code !== 1 ||
+    !data ||
+    typeof data.token !== "string" ||
+    !/^[A-Za-z0-9]{16,128}$/u.test(data.token) ||
+    !validChallengeImage(data.bg) ||
+    !validChallengeImage(data.block)
+  ) {
+    throw academicError("ACADEMIC_SSO_PROTOCOL_CHANGED");
+  }
+  return {
+    token: data.token,
+    backgroundImage: data.bg,
+    pieceImage: data.block,
+  };
 }
 
 function tableRows(tableHtml) {
@@ -767,11 +881,37 @@ export function createAcademicConnector({
   const isTrustedTarget = createTrustedTargetPolicy(vpn, academic);
   const transactions = new Map();
 
+  function destroyTransaction(id) {
+    const transaction = transactions.get(id);
+    if (transaction) {
+      transaction.password = "";
+      transaction.sso = null;
+    }
+    transactions.delete(id);
+  }
+
   function cleanup() {
     const current = now();
     for (const [id, transaction] of transactions) {
-      if (transaction.expiresAt <= current) transactions.delete(id);
+      if (transaction.expiresAt <= current) destroyTransaction(id);
     }
+  }
+
+  function createTransaction(jar, principalKey, credentials, details = {}) {
+    const transactionId = randomBytes(24).toString("base64url");
+    const transaction = {
+      jar,
+      principalKey,
+      username: credentials.username,
+      password: credentials.password,
+      fingerprint: randomBytes(16).toString("hex"),
+      authenticated: false,
+      sso: null,
+      expiresAt: now() + transactionTtlMs,
+      ...details,
+    };
+    transactions.set(transactionId, transaction);
+    return { transactionId, transaction };
   }
 
   async function request(jar, url, options = {}) {
@@ -798,7 +938,93 @@ export function createAcademicConnector({
     });
   }
 
-  async function importSnapshot(jar) {
+  function ssoRequired(transactionId, transaction, challenge, verificationFailed = false) {
+    return {
+      status: "sso_verification_required",
+      transactionId,
+      challenge: {
+        backgroundImage: challenge.backgroundImage,
+        pieceImage: challenge.pieceImage,
+        width: SSO_CHALLENGE_WIDTH,
+        height: SSO_CHALLENGE_HEIGHT,
+        pieceWidth: SSO_CHALLENGE_PIECE_WIDTH,
+        maxOffset: SSO_CHALLENGE_MAX_OFFSET,
+      },
+      ...(verificationFailed ? { verificationFailed: true } : {}),
+      expiresInSeconds: Math.floor(
+        Math.max(0, transaction.expiresAt - now()) / 1000,
+      ),
+    };
+  }
+
+  async function prepareSsoChallenge(
+    transactionId,
+    transaction,
+    loginUrl,
+    loginHtml,
+    verificationFailed = false,
+  ) {
+    const form = parseSsoLoginForm(loginHtml, loginUrl, isTrustedTarget);
+    if (!form) throw academicError("ACADEMIC_SSO_PROTOCOL_CHANGED");
+    const widgetUrl = new URL("/auth/widget", form.action);
+    widgetUrl.search = new URLSearchParams({
+      layer: "image_verify",
+      widget: "Slider",
+      action: "get_verify",
+      type: "login_image_verify",
+    }).toString();
+    const widgetResult = await atStage("sso_challenge", () =>
+      request(transaction.jar, widgetUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Origin: form.action.origin,
+          Referer: loginUrl.href,
+        },
+        body: new URLSearchParams({
+          width: String(SSO_CHALLENGE_WIDTH),
+          height: String(SSO_CHALLENGE_HEIGHT),
+          block_size: String(SSO_CHALLENGE_PIECE_WIDTH),
+        }),
+      }),
+    );
+    if (!widgetResult.response.ok) {
+      throw stagedError("ACADEMIC_UPSTREAM_UNAVAILABLE", "sso_challenge");
+    }
+    const challenge = parseSsoChallenge(
+      await atStage("sso_challenge", () =>
+        readLimitedText(widgetResult.response, 512 * 1024),
+      ),
+    );
+    transaction.sso = {
+      action: form.action,
+      csrfToken: form.csrfToken,
+      encryptionSeed: form.encryptionSeed,
+      loginUrl,
+      sliderToken: challenge.token,
+    };
+    transaction.expiresAt = now() + transactionTtlMs;
+    return ssoRequired(
+      transactionId,
+      transaction,
+      challenge,
+      verificationFailed,
+    );
+  }
+
+  function findSsoLogin(html, finalUrl) {
+    const form = parseSsoLoginForm(html, finalUrl, isTrustedTarget);
+    if (form) return form;
+    if (
+      finalUrl.pathname === "/auth/cas/login" ||
+      /<title\b[^>]*>\s*统一身份认证中心\s*<\/title>/iu.test(html)
+    ) {
+      throw academicError("ACADEMIC_SSO_PROTOCOL_CHANGED");
+    }
+    return null;
+  }
+
+  async function importSnapshot(transactionId, transaction) {
     const timetableUrl = new URL(
       "/student/courseSelect/thisSemesterCurriculum/index",
       academic,
@@ -808,7 +1034,7 @@ export function createAcademicConnector({
       academic,
     );
     const timetableResult = await atStage("timetable_fetch", () =>
-      request(jar, timetableUrl),
+      request(transaction.jar, timetableUrl),
     );
     if (timetableResult.finalUrl.host === vpn.host) {
       throw stagedError("ACADEMIC_SESSION_NOT_READY", "timetable_fetch");
@@ -819,30 +1045,57 @@ export function createAcademicConnector({
     const timetableHtml = await atStage("timetable_fetch", () =>
       readLimitedText(timetableResult.response),
     );
+    if (findSsoLogin(timetableHtml, timetableResult.finalUrl)) {
+      return prepareSsoChallenge(
+        transactionId,
+        transaction,
+        timetableResult.finalUrl,
+        timetableHtml,
+      );
+    }
     const timetable = await atStage("timetable_parse", () =>
       parseTimetableHtml(timetableHtml),
     );
     const examResult = await atStage("exam_fetch", () =>
-      request(jar, examUrl),
+      request(transaction.jar, examUrl),
     );
-    if (examResult.finalUrl.host !== academic.host) {
-      throw stagedError("ACADEMIC_SESSION_NOT_READY", "exam_fetch");
-    }
     if (!examResult.response.ok) {
       throw stagedError("ACADEMIC_UPSTREAM_UNAVAILABLE", "exam_fetch");
     }
     const examHtml = await atStage("exam_fetch", () =>
       readLimitedText(examResult.response),
     );
+    if (findSsoLogin(examHtml, examResult.finalUrl)) {
+      return prepareSsoChallenge(
+        transactionId,
+        transaction,
+        examResult.finalUrl,
+        examHtml,
+      );
+    }
     return {
-      schemaVersion: 1,
-      ...timetable.term,
-      importedAt: new Date(now()).toISOString(),
-      sections: timetable.sections,
-      exams: await atStage("exam_parse", () =>
-        parseExamHtml(examHtml, timetable.term),
-      ),
+      status: "imported",
+      snapshot: {
+        schemaVersion: 1,
+        ...timetable.term,
+        importedAt: new Date(now()).toISOString(),
+        sections: timetable.sections,
+        exams: await atStage("exam_parse", () =>
+          parseExamHtml(examHtml, timetable.term),
+        ),
+      },
     };
+  }
+
+  async function continueImport(transactionId, transaction) {
+    try {
+      const result = await importSnapshot(transactionId, transaction);
+      if (result.status === "imported") destroyTransaction(transactionId);
+      return result;
+    } catch (error) {
+      if (error && typeof error === "object") error.retryable = true;
+      throw error;
+    }
   }
 
   async function requestSmsConfig(jar) {
@@ -912,27 +1165,32 @@ export function createAcademicConnector({
     return smsRequired(transactionId, transaction);
   }
 
-  async function handleAuthResult(result, jar, principalKey) {
+  async function handleAuthResult(result, jar, principalKey, credentials) {
     if (successAuth(result)) {
-      return { status: "imported", snapshot: await importSnapshot(jar) };
+      const { transactionId, transaction } = createTransaction(
+        jar,
+        principalKey,
+        credentials,
+        { authenticated: true },
+      );
+      return continueImport(transactionId, transaction);
     }
     if (result.nextService && smsService(result.nextService)) {
       const config = await requestSmsConfig(jar);
       const phones = phoneChoices(config.phone || result.phone);
       cleanup();
-      const transactionId = randomBytes(24).toString("base64url");
-      const transaction = {
+      const { transactionId, transaction } = createTransaction(
         jar,
         principalKey,
-        authenticated: false,
-        phones,
-        destination:
-          phones.length === 0 ? "enter" : phones.length > 1 ? "choose" : "bound",
-        smsPhone: null,
-        maskedPhone: phones.length === 1 ? maskedPhone(phones[0]) : "",
-        expiresAt: now() + transactionTtlMs,
-      };
-      transactions.set(transactionId, transaction);
+        credentials,
+        {
+          phones,
+          destination:
+            phones.length === 0 ? "enter" : phones.length > 1 ? "choose" : "bound",
+          smsPhone: null,
+          maskedPhone: phones.length === 1 ? maskedPhone(phones[0]) : "",
+        },
+      );
       if (phones.length !== 1) {
         return smsDestinationRequired(transactionId, transaction);
       }
@@ -943,7 +1201,7 @@ export function createAcademicConnector({
       try {
         return await dispatchSms(transactionId, transaction, "", 0);
       } catch (error) {
-        transactions.delete(transactionId);
+        destroyTransaction(transactionId);
         throw error;
       }
     }
@@ -1016,7 +1274,7 @@ export function createAcademicConnector({
         },
         "vpn_password",
       );
-      return handleAuthResult(result, jar, principalKey);
+      return handleAuthResult(result, jar, principalKey, credentials);
     },
 
     async sendSms({ transactionId, phone, phoneIndex, principalKey }) {
@@ -1100,14 +1358,76 @@ export function createAcademicConnector({
         transaction.authenticated = true;
         transaction.expiresAt = now() + transactionTtlMs;
       }
-      try {
-        const snapshot = await importSnapshot(transaction.jar);
-        transactions.delete(transactionId);
-        return { status: "imported", snapshot };
-      } catch (error) {
-        if (error && typeof error === "object") error.retryable = true;
-        throw error;
+      return continueImport(transactionId, transaction);
+    },
+
+    async verifySso({ transactionId, verifyCode, principalKey }) {
+      cleanup();
+      if (
+        typeof transactionId !== "string" ||
+        !/^[A-Za-z0-9_-]{32,64}$/u.test(transactionId)
+      ) {
+        throw academicError("ACADEMIC_SSO_VERIFICATION_INVALID");
       }
+      const transaction = transactions.get(transactionId);
+      if (!transaction || transaction.principalKey !== principalKey) {
+        throw academicError("ACADEMIC_TRANSACTION_EXPIRED");
+      }
+      if (!transaction.authenticated || !transaction.sso) {
+        throw academicError("ACADEMIC_SSO_VERIFICATION_INVALID");
+      }
+      const normalizedCode = String(verifyCode ?? "").trim();
+      if (!/^\d{1,3}$/u.test(normalizedCode)) {
+        throw academicError("ACADEMIC_SSO_VERIFICATION_INVALID");
+      }
+      const code = Number.parseInt(normalizedCode, 10);
+      if (code < 0 || code > SSO_CHALLENGE_MAX_OFFSET) {
+        throw academicError("ACADEMIC_SSO_VERIFICATION_INVALID");
+      }
+      const sso = transaction.sso;
+      const loginResult = await atStage("sso_verify", () =>
+        request(transaction.jar, sso.action, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Origin: sso.action.origin,
+            Referer: sso.loginUrl.href,
+          },
+          body: new URLSearchParams({
+            fingerprint: transaction.fingerprint,
+            username: transaction.username,
+            password: encryptSsoPassword(
+              transaction.password,
+              sso.encryptionSeed,
+            ),
+            verify_token: sso.sliderToken,
+            verify_code: normalizedCode,
+            __token__: sso.csrfToken,
+          }),
+        }),
+      );
+      if (!loginResult.response.ok) {
+        throw stagedError("ACADEMIC_UPSTREAM_UNAVAILABLE", "sso_verify");
+      }
+      const loginHtml = await atStage("sso_verify", () =>
+        readLimitedText(loginResult.response),
+      );
+      if (findSsoLogin(loginHtml, loginResult.finalUrl)) {
+        if (/用户名或密码(?:错误|不正确)|账号或密码(?:错误|不正确)/u.test(stripHtml(loginHtml))) {
+          destroyTransaction(transactionId);
+          throw academicError("ACADEMIC_INVALID_CREDENTIALS");
+        }
+        return prepareSsoChallenge(
+          transactionId,
+          transaction,
+          loginResult.finalUrl,
+          loginHtml,
+          true,
+        );
+      }
+      transaction.sso = null;
+      transaction.expiresAt = now() + transactionTtlMs;
+      return continueImport(transactionId, transaction);
     },
 
     pendingCount() {
