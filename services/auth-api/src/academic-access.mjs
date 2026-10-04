@@ -1735,10 +1735,34 @@ function trainingPlanDetailCandidates(html, planNumber) {
   return { candidates, normalized };
 }
 
+function selectTrainingPlanDetailCandidate(candidates) {
+  const available = [...candidates];
+  const primary = available.filter((candidate) =>
+    /\/1\/detail(?:$|[?#])/iu.test(candidate),
+  );
+  const eligible = primary.length ? primary : available;
+  const byEndpoint = new Map();
+  for (const candidate of eligible) {
+    const marker = candidate.search(/rollManagement\/project\//iu);
+    if (marker < 0) continue;
+    const endpoint = candidate.slice(marker);
+    const variants = byEndpoint.get(endpoint) ?? [];
+    variants.push(candidate);
+    byEndpoint.set(endpoint, variants);
+  }
+  if (byEndpoint.size !== 1) return null;
+  const variants = [...byEndpoint.values()][0];
+  return (
+    variants.find((candidate) =>
+      /^\/student\/rollManagement\/project\//iu.test(candidate),
+    ) ?? variants[0]
+  );
+}
+
 export function findTrainingPlanDetailPath(html, planNumber) {
   if (!String(planNumber ?? "").trim()) return null;
   const { candidates } = trainingPlanDetailCandidates(html, planNumber);
-  return candidates.size === 1 ? [...candidates][0] : null;
+  return selectTrainingPlanDetailCandidate(candidates);
 }
 
 export function parseTrainingPlanProfile(html) {

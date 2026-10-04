@@ -440,6 +440,34 @@ test("training plan detail path rejects ambiguous callbacks", () => {
   assert.equal(findTrainingPlanDetailPath(html, "P2024"), null);
 });
 
+test("training plan detail path selects the primary plan callback", () => {
+  const html = `<!doctype html><html><body>
+    <input value="P2024" id="zx">
+    <script>
+      const primary = "/student/rollManagement/project/token/P2024/1/detail";
+      const secondary = "/student/rollManagement/project/token/P2024/2/detail";
+    </script>
+  </body></html>`;
+  assert.equal(
+    findTrainingPlanDetailPath(html, "P2024"),
+    "/student/rollManagement/project/token/P2024/1/detail",
+  );
+});
+
+test("training plan detail path deduplicates relative and root variants", () => {
+  const html = `<!doctype html><html><body>
+    <input value="P2024" id="zx">
+    <script>
+      const relative = "../rollManagement/project/token/P2024/1/detail";
+      const root = "/student/rollManagement/project/token/P2024/1/detail";
+    </script>
+  </body></html>`;
+  assert.equal(
+    findTrainingPlanDetailPath(html, "P2024"),
+    "/student/rollManagement/project/token/P2024/1/detail",
+  );
+});
+
 test("training plan detail path does not execute arbitrary JavaScript", () => {
   const html = `<!doctype html><html><body>
     <input value="P2024" id="zx">
