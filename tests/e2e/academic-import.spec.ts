@@ -159,7 +159,7 @@ test("official timetable and exams import through SMS and school verification", 
   await page.getByRole("button", { name: "验证并完成导入" }).click();
 
   await expect(page.locator(".academic-sync-band p")).toContainText(
-    "已导入 1 门课、1 项考试",
+    "已导入 1 门课、2 个上课时段、1 项考试",
   );
   await page
     .getByRole("button", { name: "我的课表", exact: true })

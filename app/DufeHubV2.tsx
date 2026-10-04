@@ -468,6 +468,13 @@ function schedulesFromAcademicSnapshot(
   );
 }
 
+function academicMeetingCount(snapshot: AcademicSnapshot) {
+  return snapshot.sections.reduce(
+    (count, section) => count + section.meetings.length,
+    0,
+  );
+}
+
 function latestAcademicSnapshot(
   snapshots: AcademicSnapshot[],
   term: Term,
@@ -1194,7 +1201,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
     setTerm(snapshot.term);
     setAcademicImportOpen(false);
     setAddFeedback(
-      `${snapshot.academicYear} ${snapshot.termLabel}：已导入 ${snapshot.sections.length} 门课、${snapshot.exams.length} 项考试`,
+      `${snapshot.academicYear} ${snapshot.termLabel}：已导入 ${snapshot.sections.length} 门课、${academicMeetingCount(snapshot)} 个上课时段、${snapshot.exams.length} 项考试`,
     );
     window.setTimeout(() => setAddFeedback(""), 4_500);
   }
@@ -2516,7 +2523,7 @@ function HomePage({
           </strong>
           <p>
             {academicSnapshot
-              ? `已导入 ${academicSnapshot.sections.length} 门课、${academicSnapshot.exams.length} 项考试 · ${new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(academicSnapshot.importedAt))} 更新`
+              ? `已导入 ${academicSnapshot.sections.length} 门课、${academicMeetingCount(academicSnapshot)} 个上课时段、${academicSnapshot.exams.length} 项考试 · ${new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(academicSnapshot.importedAt))} 更新`
               : "输入教务账号后自动完成，不需要下载、复制或上传文件。"}
           </p>
         </div>
@@ -3141,7 +3148,7 @@ function AcademicImportDialog({
             {existing && (
               <p className="academic-import-current">
                 当前：{existing.academicYear} {existing.termLabel} ·{" "}
-                {existing.sections.length} 门课 · {existing.exams.length} 项考试
+                {existing.sections.length} 门课 · {academicMeetingCount(existing)} 个时段 · {existing.exams.length} 项考试
               </p>
             )}
             <FormField label="教务账号" hint="通常是学号；不是东财之影账号。">

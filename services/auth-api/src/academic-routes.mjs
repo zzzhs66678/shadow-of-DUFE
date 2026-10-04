@@ -263,6 +263,25 @@ export function createAcademicRequestHandler({
         sendJson(response, 404, { error: "not_found" });
         return true;
       }
+      if (result?.status === "imported") {
+        const sections = Array.isArray(result.snapshot?.sections)
+          ? result.snapshot.sections
+          : [];
+        console.info(
+          JSON.stringify({
+            event: "academic_import_completed",
+            sections: sections.length,
+            meetings: sections.reduce(
+              (count, section) =>
+                count + (Array.isArray(section?.meetings) ? section.meetings.length : 0),
+              0,
+            ),
+            exams: Array.isArray(result.snapshot?.exams)
+              ? result.snapshot.exams.length
+              : 0,
+          }),
+        );
+      }
       sendJson(response, 200, result, principal.setCookies);
     } catch (error) {
       const mapped = mappedError(error);

@@ -471,28 +471,161 @@ function parseSsoChallenge(value) {
   };
 }
 
-function tableRows(tableHtml) {
-  const rows = [];
-  for (const rowMatch of tableHtml.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/giu)) {
-    const cells = [];
-    for (const cellMatch of rowMatch[1].matchAll(
-      /<(th|td)\b[^>]*>([\s\S]*?)<\/\1>/giu,
-    )) {
-      cells.push({
-        kind: cellMatch[1].toLowerCase(),
-        html: cellMatch[2],
-        text: stripHtml(cellMatch[2]),
+function structuralHtml(value) {
+  return String(value ?? "").replace(
+    /<!--[\s\S]*?-->|<(script|style)\b[^>]*>[\s\S]*?<\/\1>/giu,
+    (match) => " ".repeat(match.length),
+  );
+}
+
+function tableElements(html) {
+  const source = String(html ?? "");
+  const masked = structuralHtml(source);
+  const stack = [];
+  const elements = [];
+  for (const match of masked.matchAll(/<\s*(\/?)\s*table\b[^>]*>/giu)) {
+    if (!match[1]) {
+      stack.push(match.index);
+      continue;
+    }
+    const start = stack.pop();
+    if (start !== undefined) {
+      elements.push({
+        start,
+        html: source.slice(start, match.index + match[0].length),
       });
     }
-    if (cells.length) rows.push(cells);
+  }
+  return elements
+    .sort((left, right) => left.start - right.start)
+    .map((element) => element.html);
+}
+
+function positiveSpan(attributes, name) {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const match = String(attributes ?? "").match(
+    new RegExp(
+      `\\b${escaped}\\s*=\\s*(?:"(\\d+)"|'(\\d+)'|(\\d+))`,
+      "iu",
+    ),
+  );
+  const value = Number(match?.[1] ?? match?.[2] ?? match?.[3] ?? 1);
+  return Number.isInteger(value) && value >= 1 && value <= 50 ? value : 1;
+}
+
+function rawTableRows(tableHtml) {
+  const source = String(tableHtml ?? "");
+  const masked = structuralHtml(source);
+  const rows = [];
+  let tableDepth = 0;
+  let row = null;
+  let cell = null;
+
+  function finishCell(end) {
+    if (!row || !cell) return;
+    const html = source.slice(cell.contentStart, end);
+    row.push({
+      kind: cell.kind,
+      html,
+      text: stripHtml(html),
+      rowspan: positiveSpan(cell.attributes, "rowspan"),
+      colspan: positiveSpan(cell.attributes, "colspan"),
+    });
+    cell = null;
+  }
+
+  function finishRow() {
+    if (row?.length) rows.push(row);
+    row = null;
+    cell = null;
+  }
+
+  for (const match of masked.matchAll(
+    /<\s*(\/?)\s*(table|tr|th|td)\b([^>]*)>/giu,
+  )) {
+    const closing = Boolean(match[1]);
+    const tag = match[2].toLowerCase();
+    if (tag === "table") {
+      if (!closing) {
+        tableDepth += 1;
+      } else {
+        if (tableDepth === 1) {
+          finishCell(match.index);
+          finishRow();
+        }
+        tableDepth = Math.max(0, tableDepth - 1);
+      }
+      continue;
+    }
+    if (tableDepth !== 1) continue;
+    if (tag === "tr") {
+      if (!closing) {
+        finishCell(match.index);
+        finishRow();
+        row = [];
+      } else {
+        finishCell(match.index);
+        finishRow();
+      }
+      continue;
+    }
+    if (!row) continue;
+    if (!closing) {
+      finishCell(match.index);
+      cell = {
+        kind: tag,
+        attributes: match[3],
+        contentStart: match.index + match[0].length,
+      };
+    } else if (cell?.kind === tag) {
+      finishCell(match.index);
+    }
   }
   return rows;
 }
 
+function expandTableRows(rows) {
+  const pending = new Map();
+  const expanded = [];
+  for (const sourceRow of rows) {
+    const row = [];
+    for (const [column, entry] of pending) {
+      row[column] = entry.cell;
+      entry.remaining -= 1;
+      if (entry.remaining === 0) pending.delete(column);
+    }
+    for (const cell of sourceRow) {
+      let column = 0;
+      while (row[column]) column += 1;
+      const colspan = cell.colspan ?? 1;
+      while (
+        Array.from({ length: colspan }, (_, offset) => row[column + offset]).some(
+          Boolean,
+        )
+      ) {
+        column += 1;
+      }
+      for (let offset = 0; offset < colspan; offset += 1) {
+        row[column + offset] = cell;
+        if ((cell.rowspan ?? 1) > 1) {
+          pending.set(column + offset, {
+            cell,
+            remaining: cell.rowspan - 1,
+          });
+        }
+      }
+    }
+    if (row.some(Boolean)) expanded.push(row);
+  }
+  return expanded;
+}
+
+function tableRows(tableHtml) {
+  return expandTableRows(rawTableRows(tableHtml));
+}
+
 function tables(html) {
-  return [...String(html).matchAll(/<table\b[^>]*>[\s\S]*?<\/table>/giu)].map(
-    (match) => tableRows(match[0]),
-  );
+  return tableElements(html).map(tableRows).filter((rows) => rows.length);
 }
 
 function normalizedHeader(value) {
@@ -523,12 +656,34 @@ export function parseWeeks(value) {
     .replace(/\s+/gu, "")
     .replace(/[—–~至]/gu, "-")
     .replace(/[，、；;]/gu, ",");
-  const parity = normalized.includes("单周")
+  const parity = /单(?:周)?/u.test(normalized)
     ? 1
-    : normalized.includes("双周")
+    : /双(?:周)?/u.test(normalized)
       ? 0
       : null;
   const weeks = new Set();
+  if (/全周|全学期|每周/u.test(normalized)) {
+    for (let week = 1; week <= 18; week += 1) weeks.add(week);
+  }
+  const chineseNumbers = new Map([
+    ["一", 1],
+    ["二", 2],
+    ["三", 3],
+    ["四", 4],
+    ["五", 5],
+    ["六", 6],
+    ["七", 7],
+    ["八", 8],
+    ["九", 9],
+    ["十", 10],
+  ]);
+  const frontWeeks = normalized.match(/前([一二三四五六七八九十]|\d{1,2})周/u)?.[1];
+  if (frontWeeks) {
+    const end = chineseNumbers.get(frontWeeks) ?? Number(frontWeeks);
+    if (Number.isInteger(end) && end >= 1 && end <= 30) {
+      for (let week = 1; week <= end; week += 1) weeks.add(week);
+    }
+  }
   for (const match of normalized.matchAll(/(\d{1,2})(?:-(\d{1,2}))?/gu)) {
     const start = Number(match[1]);
     const end = Number(match[2] ?? match[1]);
@@ -537,7 +692,9 @@ export function parseWeeks(value) {
       if (parity === null || week % 2 === parity) weeks.add(week);
     }
   }
-  return [...weeks].sort((left, right) => left - right);
+  return [...weeks]
+    .filter((week) => parity === null || week % 2 === parity)
+    .sort((left, right) => left - right);
 }
 
 function blockForPeriods(periods) {
@@ -576,13 +733,44 @@ function meetingLocations(cell) {
   return matches.map((match) => locationParts(match.slice(1).join(" / ")));
 }
 
+function createMeeting({
+  sectionId,
+  weekday,
+  periods,
+  weeks,
+  weekText,
+  location,
+}) {
+  const weekdayName = [...WEEKDAYS].find(([, value]) => value === weekday)?.[0] ?? "";
+  const start = periods[0];
+  const end = periods.at(-1);
+  return {
+    id: digestId("academic-meeting", [
+      sectionId,
+      weekday,
+      periods.join(","),
+      weeks.join(","),
+      location.campus,
+      location.building,
+      location.room,
+    ]),
+    weekday,
+    periods,
+    block: blockForPeriods(periods),
+    weeks,
+    weekText,
+    timeText: `${weekText} / 星期${weekdayName} / ${start}${end === start ? "" : `-${end}`}节`,
+    ...location,
+  };
+}
+
 function parseMeetings(timeText, locationCell, sectionId) {
   const meetings = [];
   const locations = meetingLocations(locationCell);
   const normalized = String(timeText ?? "")
     .replace(/[—–~至]/gu, "-")
     .replace(/[，；;]/gu, ",");
-  const pattern = /((?:\d{1,2}(?:\s*-\s*\d{1,2})?)(?:\s*[,、]\s*\d{1,2}(?:\s*-\s*\d{1,2})?)*)\s*周(?:\s*[（(](单|双)周?[）)])?\s*\/\s*星期([一二三四五六日天])\s*\/\s*(\d{1,2})(?:\s*-\s*(\d{1,2}))?\s*节/gu;
+  const pattern = /((?:\d{1,2}(?:\s*-\s*\d{1,2})?)(?:\s*[,、]\s*\d{1,2}(?:\s*-\s*\d{1,2})?)*)\s*周(?:\s*[（(]?\s*(单|双)\s*周?\s*[）)]?)?[\s/|]+(?:星期|周)([一二三四五六日天1-7])[\s/|]+(?:第\s*)?(\d{1,2})(?:\s*-\s*(\d{1,2}))?\s*节/gu;
   let index = 0;
   for (const match of normalized.matchAll(pattern)) {
     const weekText = `${match[1]}周${match[2] ? `(${match[2]}周)` : ""}`;
@@ -595,29 +783,79 @@ function parseMeetings(timeText, locationCell, sectionId) {
       building: "",
       room: "",
     };
-    const weekday = WEEKDAYS.get(match[3]) ?? 0;
+    const weekday = WEEKDAYS.get(match[3]) ?? Number(match[3]);
     const weeks = parseWeeks(weekText);
-    meetings.push({
-      id: digestId("academic-meeting", [
-        sectionId,
-        weekday,
-        periods.join(","),
-        weeks.join(","),
-        location.campus,
-        location.building,
-        location.room,
-      ]),
+    if (!weekday || !weeks.length) continue;
+    meetings.push(createMeeting({
+      sectionId,
       weekday,
       periods,
-      block: blockForPeriods(periods),
       weeks,
       weekText,
-      timeText: `${weekText} / 星期${match[3]} / ${start}${end === start ? "" : `-${end}`}节`,
-      ...location,
-    });
+      location,
+    }));
     index += 1;
   }
   return meetings;
+}
+
+function parseWeekday(value) {
+  const normalized = String(value ?? "").replace(/\s+/gu, "");
+  const chinese = normalized.match(/(?:星期|周)?([一二三四五六日天])/u)?.[1];
+  if (chinese) return WEEKDAYS.get(chinese) ?? 0;
+  const numeric = Number(normalized.match(/(?:星期|周)?([1-7])(?:\D|$)/u)?.[1]);
+  return numeric >= 1 && numeric <= 7 ? numeric : 0;
+}
+
+function parsePeriods(value, countValue) {
+  const normalized = String(value ?? "")
+    .replace(/[—–~至]/gu, "-")
+    .replace(/[，、；;]/gu, ",");
+  const range = normalized.match(/(\d{1,2})\s*-\s*(\d{1,2})/u);
+  let periods = [];
+  if (range) {
+    const start = Number(range[1]);
+    const end = Number(range[2]);
+    if (start >= 1 && end >= start && end <= 14) {
+      periods = Array.from({ length: end - start + 1 }, (_, index) => start + index);
+    }
+  } else {
+    periods = [...normalized.matchAll(/\d{1,2}/gu)]
+      .map((match) => Number(match[0]))
+      .filter((period) => period >= 1 && period <= 14);
+  }
+  const count = Number(String(countValue ?? "").match(/\d{1,2}/u)?.[0]);
+  if (periods.length === 1 && count > 1 && periods[0] + count - 1 <= 14) {
+    periods = Array.from({ length: count }, (_, index) => periods[0] + index);
+  }
+  return [...new Set(periods)].sort((left, right) => left - right);
+}
+
+function parseSeparatedMeeting(cells, columns, sectionId) {
+  const weekText = cellAt(cells, columns.weeks);
+  const weeks = parseWeeks(weekText);
+  const weekday = parseWeekday(cellAt(cells, columns.weekday));
+  const periods = parsePeriods(
+    cellAt(cells, columns.periods),
+    cellAt(cells, columns.periodCount),
+  );
+  if (!weeks.length || !weekday || !periods.length) return [];
+  const parsedLocation = locationParts(cellAt(cells, columns.location));
+  const location = {
+    campus: cellAt(cells, columns.campus) || parsedLocation.campus,
+    building: cellAt(cells, columns.building) || parsedLocation.building,
+    room: cellAt(cells, columns.room) || parsedLocation.room,
+  };
+  return [
+    createMeeting({
+      sectionId,
+      weekday,
+      periods,
+      weeks,
+      weekText,
+      location,
+    }),
+  ];
 }
 
 function parseTermMetadata(html) {
@@ -648,20 +886,34 @@ function splitTeachers(value) {
   )];
 }
 
+function findTableHeader(candidates, predicate) {
+  for (const rows of candidates) {
+    for (let index = 0; index < Math.min(rows.length, 12); index += 1) {
+      const headers = rows[index].map((cell) => cell.text);
+      if (predicate(headers)) return { rows, headerIndex: index, headers };
+    }
+  }
+  return null;
+}
+
 export function parseTimetableHtml(html) {
   const term = parseTermMetadata(html);
   const candidates = tables(html);
-  const rows = candidates.find((candidate) => {
-    const headers = candidate[0]?.map((cell) => cell.text) ?? [];
-    return (
+  const table = findTableHeader(candidates, (headers) => {
+    const hasCourse =
       findHeaderIndex(headers, ["课程号", "课程代码", "课程编号"]) >= 0 &&
       findHeaderIndex(headers, ["课程名", "课程名称"]) >= 0 &&
-      findHeaderIndex(headers, ["课序号", "教学班号"]) >= 0 &&
-      findHeaderIndex(headers, ["时间", "上课时间"]) >= 0
-    );
+      findHeaderIndex(headers, ["课序号", "教学班号"]) >= 0;
+    const hasCombinedTime =
+      findHeaderIndex(headers, ["时间", "上课时间"]) >= 0;
+    const hasSeparatedTime =
+      findHeaderIndex(headers, ["周次", "上课周次", "起止周"]) >= 0 &&
+      findHeaderIndex(headers, ["星期", "上课星期"]) >= 0 &&
+      findHeaderIndex(headers, ["节次", "上课节次", "开始节次"]) >= 0;
+    return hasCourse && (hasCombinedTime || hasSeparatedTime);
   });
-  if (!rows?.length) throw academicError("ACADEMIC_TIMETABLE_FORMAT_CHANGED");
-  const headers = rows[0].map((cell) => cell.text);
+  if (!table) throw academicError("ACADEMIC_TIMETABLE_FORMAT_CHANGED");
+  const { rows, headerIndex, headers } = table;
   const columns = {
     courseCode: findHeaderIndex(headers, ["课程号", "课程代码", "课程编号"]),
     courseName: findHeaderIndex(headers, ["课程名", "课程名称"]),
@@ -675,9 +927,16 @@ export function parseTimetableHtml(html) {
     selectionStatus: findHeaderIndex(headers, ["选课状态"]),
     time: findHeaderIndex(headers, ["时间", "上课时间"]),
     location: findHeaderIndex(headers, ["地点", "上课地点"]),
+    weeks: findHeaderIndex(headers, ["周次", "上课周次", "起止周"]),
+    weekday: findHeaderIndex(headers, ["星期", "上课星期"]),
+    periods: findHeaderIndex(headers, ["节次", "上课节次", "开始节次"]),
+    periodCount: findHeaderIndex(headers, ["节数", "连上节数", "持续节数"]),
+    campus: findHeaderIndex(headers, ["校区", "校区名称"]),
+    building: findHeaderIndex(headers, ["教学楼", "楼宇", "楼栋"]),
+    room: findHeaderIndex(headers, ["教室", "上课教室"]),
   };
-  const sections = [];
-  for (const cells of rows.slice(1)) {
+  const sectionMap = new Map();
+  for (const cells of rows.slice(headerIndex + 1)) {
     const courseCode = cellAt(cells, columns.courseCode);
     const courseName = cellAt(cells, columns.courseName);
     const sectionCode = cellAt(cells, columns.sectionCode);
@@ -687,7 +946,23 @@ export function parseTimetableHtml(html) {
       courseCode,
       sectionCode,
     ]);
-    sections.push({
+    let meetings = columns.time >= 0
+      ? parseMeetings(cellAt(cells, columns.time), cells[columns.location], id)
+      : [];
+    if (!meetings.length && columns.weeks >= 0) {
+      meetings = parseSeparatedMeeting(cells, columns, id);
+    }
+    const teachers = splitTeachers(cellAt(cells, columns.teachers));
+    const existing = sectionMap.get(id);
+    if (existing) {
+      existing.teachers = [...new Set([...existing.teachers, ...teachers])];
+      const meetingIds = new Set(existing.meetings.map((meeting) => meeting.id));
+      existing.meetings.push(
+        ...meetings.filter((meeting) => !meetingIds.has(meeting.id)),
+      );
+      continue;
+    }
+    sectionMap.set(id, {
       id,
       courseCode,
       courseName,
@@ -696,17 +971,17 @@ export function parseTimetableHtml(html) {
       property: cellAt(cells, columns.property),
       category: cellAt(cells, columns.category),
       assessmentType: cellAt(cells, columns.assessmentType),
-      teachers: splitTeachers(cellAt(cells, columns.teachers)),
+      teachers,
       studyMode: cellAt(cells, columns.studyMode),
       selectionStatus: cellAt(cells, columns.selectionStatus),
-      meetings: parseMeetings(
-        cellAt(cells, columns.time),
-        cells[columns.location],
-        id,
-      ),
+      meetings,
     });
   }
+  const sections = [...sectionMap.values()];
   if (!sections.length) throw academicError("ACADEMIC_TIMETABLE_EMPTY");
+  if (!sections.some((section) => section.meetings.length)) {
+    throw academicError("ACADEMIC_TIMETABLE_FORMAT_CHANGED");
+  }
   return { term, sections };
 }
 
@@ -726,22 +1001,21 @@ function parseDateAndTime(value) {
 
 export function parseExamHtml(html, term) {
   const candidates = tables(html);
-  const rows = candidates.find((candidate) => {
-    const headers = candidate[0]?.map((cell) => cell.text) ?? [];
+  const table = findTableHeader(candidates, (headers) => {
     const hasCourse =
       findHeaderIndex(headers, ["课程名", "课程名称"]) >= 0 ||
       findHeaderIndex(headers, ["课程号", "课程代码", "课程编号"]) >= 0;
     const hasExam = headers.some((header) => /考试|考场|座位/u.test(header));
     return hasCourse && hasExam;
   });
-  if (!rows?.length) {
+  if (!table) {
     const text = stripHtml(html);
     if (/暂无(?:考试|数据|记录)|没有(?:考试|数据|记录)|无考试安排/u.test(text)) {
       return [];
     }
     throw academicError("ACADEMIC_EXAM_FORMAT_CHANGED");
   }
-  const headers = rows[0].map((cell) => cell.text);
+  const { rows, headerIndex, headers } = table;
   const columns = {
     courseCode: findHeaderIndex(headers, ["课程号", "课程代码", "课程编号"]),
     courseName: findHeaderIndex(headers, ["课程名", "课程名称"]),
@@ -761,7 +1035,7 @@ export function parseExamHtml(html, term) {
     status: findHeaderIndex(headers, ["考试状态", "状态"]),
   };
   const exams = [];
-  for (const cells of rows.slice(1)) {
+  for (const cells of rows.slice(headerIndex + 1)) {
     const courseName = cellAt(cells, columns.courseName);
     const courseCode = cellAt(cells, columns.courseCode);
     if (!courseName && !courseCode) continue;

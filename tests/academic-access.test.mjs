@@ -37,6 +37,41 @@ const timetableHtml = `<!doctype html>
   </table>
 </body></html>`;
 
+const rowspanTimetableHtml = `<!doctype html>
+<html><body>
+  <div>2026-2027学年第一学期</div>
+  <table class="layout"><tr><td>
+    <table class="curriculum">
+      <thead><tr>
+        <th>序号</th><th>课程号</th><th>课程名</th><th>课序号</th>
+        <th>学分</th><th>课程属性</th><th>考试类型</th><th>教师</th>
+        <th>修读方式</th><th>选课状态</th><th>周次</th><th>星期</th>
+        <th>节次</th><th>节数</th><th>校区</th><th>教学楼</th><th>教室</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td rowspan=2>1</td><td rowspan=2>31131862</td>
+          <td rowspan=2>内部审计</td><td rowspan=2>01</td><td rowspan=2>2</td>
+          <td rowspan=2>必修</td><td rowspan=2>考试</td><td rowspan=2>姜博*</td>
+          <td rowspan=2>正常</td><td rowspan=2>选中</td>
+          <td>1-9周</td><td>1</td><td>1</td><td>2</td>
+          <td>校本部</td><td>之远楼</td><td>(5＃)516</td>
+        </tr>
+        <tr>
+          <td>10-18周</td><td>星期三</td><td>5</td><td>3</td>
+          <td>校本部</td><td>笃行楼</td><td>403</td>
+        </tr>
+        <tr>
+          <td>2</td><td>51132062</td><td>数字化管理会计</td><td>02</td><td>2</td>
+          <td>限选</td><td>考试</td><td>谭袁月* 宋淑琴</td>
+          <td>正常</td><td>抽中</td><td>全周</td><td>四</td><td>8-9节</td><td>2</td>
+          <td>校本部</td><td>播慧楼</td><td>J4-3</td>
+        </tr>
+      </tbody>
+    </table>
+  </td></tr></table>
+</body></html>`;
+
 const examHtml = `<!doctype html>
 <html><body>
   <div>2026-2027 第一学期</div>
@@ -76,6 +111,8 @@ test("week parser preserves ranges and odd/even week sets", () => {
   assert.deepEqual(parseWeeks("1-9周"), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
   assert.deepEqual(parseWeeks("9-18周"), [9, 10, 11, 12, 13, 14, 15, 16, 17, 18]);
   assert.deepEqual(parseWeeks("1-8周(单周)"), [1, 3, 5, 7]);
+  assert.deepEqual(parseWeeks("1-8周上"), [1, 2, 3, 4, 5, 6, 7, 8]);
+  assert.deepEqual(parseWeeks("前八周"), [1, 2, 3, 4, 5, 6, 7, 8]);
 });
 
 test("timetable parser keeps teaching sections and multiple meetings", () => {
@@ -89,6 +126,32 @@ test("timetable parser keeps teaching sections and multiple meetings", () => {
   assert.equal(parsed.sections[0].meetings[1].block, 3);
   assert.equal(parsed.sections[0].meetings[1].room, "403");
   assert.deepEqual(parsed.sections[1].teachers, ["谭袁月", "宋淑琴"]);
+});
+
+test("timetable parser expands rowspans and separate meeting columns", () => {
+  const parsed = parseTimetableHtml(rowspanTimetableHtml);
+  assert.equal(parsed.sections.length, 2);
+  assert.equal(parsed.sections[0].courseName, "内部审计");
+  assert.equal(parsed.sections[0].meetings.length, 2);
+  assert.deepEqual(parsed.sections[0].meetings[0].periods, [1, 2]);
+  assert.deepEqual(parsed.sections[0].meetings[1].periods, [5, 6, 7]);
+  assert.equal(parsed.sections[0].meetings[1].weekday, 3);
+  assert.equal(parsed.sections[0].meetings[1].room, "403");
+  assert.equal(parsed.sections[1].meetings.length, 1);
+  assert.deepEqual(parsed.sections[1].meetings[0].weeks, [
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
+  ]);
+  assert.deepEqual(parsed.sections[1].teachers, ["谭袁月", "宋淑琴"]);
+});
+
+test("timetable parser rejects false success when no meeting was decoded", () => {
+  const html = timetableHtml.replace(
+    /1-9周 \/ 星期一 \/ 1-2节<br>10-18周 \/ 星期三 \/ 5-7节|2-18 周 \/ 星期四 \/ 8-9节/gu,
+    "待安排",
+  );
+  assert.throws(() => parseTimetableHtml(html), {
+    code: "ACADEMIC_TIMETABLE_FORMAT_CHANGED",
+  });
 });
 
 test("exam parser accepts combined date/time and location fields", () => {
