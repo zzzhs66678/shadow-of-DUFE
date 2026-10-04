@@ -28,7 +28,9 @@ import {
   mergeInitialPersonalState,
   savePersonalSyncMetadata,
   synchronizePersonalState,
+  normalizeAcademicTrainingPlan,
   type AcademicSnapshot,
+  type AcademicTrainingPlan,
   type PersonalSyncState,
 } from "./personal-sync";
 import { FormField } from "./FormField";
@@ -224,6 +226,7 @@ type SavedState = {
   activities: PersonalActivity[];
   assignments: Assignment[];
   academicSnapshots: AcademicSnapshot[];
+  trainingPlan: AcademicTrainingPlan | null;
   favoriteRooms: string[];
   recentRooms: string[];
 };
@@ -324,6 +327,7 @@ const emptySavedState: SavedState = {
   activities: [],
   assignments: [],
   academicSnapshots: [],
+  trainingPlan: null,
   favoriteRooms: [],
   recentRooms: [],
 };
@@ -354,6 +358,7 @@ function normalizeSavedState(value: unknown): SavedState {
     academicSnapshots: Array.isArray(parsed.academicSnapshots)
       ? parsed.academicSnapshots
       : [],
+    trainingPlan: normalizeAcademicTrainingPlan(parsed.trainingPlan),
     favoriteRooms: Array.isArray(parsed.favoriteRooms)
       ? parsed.favoriteRooms
       : [],
@@ -370,6 +375,7 @@ function hasMeaningfulSavedState(value: SavedState) {
       value.activities.length > 0 ||
       value.assignments.length > 0 ||
       value.academicSnapshots.length > 0 ||
+      value.trainingPlan !== null ||
       value.favoriteRooms.length > 0 ||
       value.recentRooms.length > 0,
   );
@@ -395,6 +401,7 @@ function fromPersonalSyncState(state: PersonalSyncState): SavedState {
     activities: state.activities,
     assignments: state.assignments,
     academicSnapshots: state.academicSnapshots,
+    trainingPlan: state.trainingPlan,
     favoriteRooms: state.favoriteRooms,
     recentRooms: state.recentRooms,
   };
@@ -510,6 +517,15 @@ function schedulesOverlap(first: Schedule, second: Schedule) {
 
 function normalize(value: string) {
   return value.toLocaleLowerCase("zh-CN").replace(/[\s·•—_\-（）()]/g, "");
+}
+
+function normalizeCourseCode(value: string) {
+  return value.trim().toLocaleUpperCase("zh-CN");
+}
+
+function formatPlanCredits(value: number | null) {
+  if (value === null) return "学分未标注";
+  return `${Number.isInteger(value) ? value : value.toFixed(1)} 学分`;
 }
 
 function splitClasses(value: string) {
@@ -1186,7 +1202,11 @@ function HubApp({ data: initialData }: { data: SiteData }) {
     ];
   }, [academicSnapshot, manualSchedules]);
 
-  function applyAcademicSnapshot(snapshot: AcademicSnapshot) {
+  function applyAcademicImport(result: {
+    snapshot: AcademicSnapshot;
+    trainingPlan: AcademicTrainingPlan;
+  }) {
+    const { snapshot, trainingPlan } = result;
     setSaved((state) => ({
       ...state,
       academicSnapshots: [
@@ -1197,11 +1217,12 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           left.academicYear.localeCompare(right.academicYear),
         )
         .slice(-12),
+      trainingPlan,
     }));
     setTerm(snapshot.term);
     setAcademicImportOpen(false);
     setAddFeedback(
-      `${snapshot.academicYear} ${snapshot.termLabel}：已导入 ${snapshot.sections.length} 门课、${academicMeetingCount(snapshot)} 个上课时段、${snapshot.exams.length} 项考试`,
+      `${snapshot.academicYear} ${snapshot.termLabel}：${snapshot.sections.length} 门课、${snapshot.exams.length} 项考试、培养方案 ${trainingPlan.courses.length} 门课程`,
     );
     window.setTimeout(() => setAddFeedback(""), 4_500);
   }
@@ -1825,6 +1846,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           activePlan={activePlan}
           activeSchedules={activeSchedules}
           academicSnapshot={academicSnapshot}
+          trainingPlan={saved.trainingPlan}
           courses={courses}
           query={coursePoolQuery}
           setQuery={setCoursePoolQuery}
@@ -2241,7 +2263,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
         <AcademicImportDialog
           existing={academicSnapshot}
           onClose={() => setAcademicImportOpen(false)}
-          onImported={applyAcademicSnapshot}
+          onImported={applyAcademicImport}
         />
       )}
       <CreatorsCorner
@@ -2566,7 +2588,7 @@ function HomePage({
             </span>
           </div>
           <footer>
-            <button onClick={() => !hasTimetable ? onAcademicImport() : onGo("schedule")}>{!hasTimetable ? "导入教务课表" : "打开课表"}</button>
+            <button onClick={() => !hasTimetable ? onAcademicImport() : onGo("schedule")}>{!hasTimetable ? "导入教务数据" : "打开课表"}</button>
             <button onClick={() => onGo("rooms")}>找空教室</button>
           </footer>
         </article>
@@ -2946,6 +2968,9 @@ function academicImportErrorMessage(code: string) {
       "学校调整了课表页面，暂时无法安全识别，已停止导入。",
     academic_exam_format_changed:
       "学校调整了考试安排页面，暂时无法安全识别，课表也没有被部分导入。",
+    academic_plan_not_found: "当前学生账号没有可读取的培养方案。",
+    academic_plan_format_changed:
+      "学校调整了培养方案页面，暂时无法安全识别，本次数据没有导入。",
     academic_protocol_changed:
       "学校登录流程刚刚发生变化，暂时无法连接。",
     academic_timetable_empty: "教务系统返回的本学期课表为空。",
@@ -2978,7 +3003,10 @@ function AcademicImportDialog({
 }: {
   existing?: AcademicSnapshot;
   onClose: () => void;
-  onImported: (snapshot: AcademicSnapshot) => void;
+  onImported: (result: {
+    snapshot: AcademicSnapshot;
+    trainingPlan: AcademicTrainingPlan;
+  }) => void;
 }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -3033,7 +3061,11 @@ function AcademicImportDialog({
             challenge: AcademicSsoChallenge;
             verificationFailed?: boolean;
           }
-        | { status: "imported"; snapshot: AcademicSnapshot }
+        | {
+            status: "imported";
+            snapshot: AcademicSnapshot;
+            trainingPlan: AcademicTrainingPlan;
+          }
         | { error: string; retryable?: boolean; stage?: string };
       if (!response.ok || "error" in result) {
         const retryable = "error" in result && result.retryable === true;
@@ -3041,7 +3073,14 @@ function AcademicImportDialog({
           "error" in result ? result.error : "academic_import_failed";
         const importStageReached =
           "stage" in result &&
-          ["timetable_fetch", "timetable_parse", "exam_fetch", "exam_parse"].includes(
+          [
+            "timetable_fetch",
+            "timetable_parse",
+            "exam_fetch",
+            "exam_parse",
+            "plan_fetch",
+            "plan_parse",
+          ].includes(
             result.stage ?? "",
           );
         if (retryable && ssoChallenge && importStageReached) {
@@ -3091,7 +3130,10 @@ function AcademicImportDialog({
         );
         return;
       }
-      onImported(result.snapshot);
+      onImported({
+        snapshot: result.snapshot,
+        trainingPlan: result.trainingPlan,
+      });
     } catch {
       setFeedback("网络连接中断，教务密码没有保存，请重新尝试。");
     } finally {
@@ -3139,7 +3181,7 @@ function AcademicImportDialog({
                   ? importRetryAvailable
                     ? "继续读取教务数据"
                     : "输入短信验证码"
-                  : "导入课表与考试安排"}
+                  : "导入教务数据"}
             </h2>
           </div>
           <button onClick={onClose} disabled={busy} aria-label="关闭教务导入">
@@ -3189,10 +3231,10 @@ function AcademicImportDialog({
             </FormField>
             {feedback && <p className="academic-import-error" role="alert">{feedback}</p>}
             <button type="submit" disabled={busy || !username.trim() || !password}>
-              {busy ? "正在登录并读取教务…" : existing ? "重新抓取本学期" : "登录并自动导入"}
+              {busy ? "正在登录并读取教务…" : existing ? "更新教务数据" : "登录并自动导入"}
             </button>
             <small className="academic-import-note">
-              登录由学校 VPN 验证。成功后只保存规范化的课程与考试数据，登录会话立即丢弃。
+              登录由学校 VPN 验证。成功后只保存课表、考试和培养方案，登录会话立即丢弃。
             </small>
           </form>
         ) : smsDestination ? (
@@ -3363,7 +3405,7 @@ function AcademicImportDialog({
               disabled={busy || (!importRetryAvailable && smsCode.length < 4)}
             >
               {busy
-                ? "正在读取课表与考试…"
+                ? "正在读取教务数据…"
                 : importRetryAvailable
                   ? "直接重试读取"
                   : "验证并完成导入"}
@@ -3485,6 +3527,7 @@ function SchedulePage({
   activePlan,
   activeSchedules,
   academicSnapshot,
+  trainingPlan,
   courses,
   query,
   setQuery,
@@ -3502,6 +3545,7 @@ function SchedulePage({
   activePlan?: Plan;
   activeSchedules: Schedule[];
   academicSnapshot?: AcademicSnapshot;
+  trainingPlan: AcademicTrainingPlan | null;
   courses: Map<string, Course>;
   query: string;
   setQuery: (v: string) => void;
@@ -3512,9 +3556,9 @@ function SchedulePage({
   onAcademicImport: () => void;
   onEditCalendar: (request: CalendarEditorRequest) => void;
 }) {
-  const [finderMode, setFinderMode] = useState<"search" | "major" | "time">(
-    "search",
-  );
+  const [finderMode, setFinderMode] = useState<
+    "plan" | "search" | "major" | "time"
+  >(() => (trainingPlan ? "plan" : "search"));
   const [finderCollege, setFinderCollege] = useState(
     saved.profile?.college ?? data.colleges[0]?.name ?? "",
   );
@@ -3567,6 +3611,16 @@ function SchedulePage({
     }
     return grouped;
   }, [data.schedules, term]);
+  const coursesByCode = useMemo(
+    () =>
+      new Map(
+        [...courses.values()].map((course) => [
+          normalizeCourseCode(course.id),
+          course,
+        ]),
+      ),
+    [courses],
+  );
   const finderKey = JSON.stringify([
     term,
     finderMode,
@@ -3576,6 +3630,8 @@ function SchedulePage({
     finderWeekday,
     finderYear,
     query,
+    trainingPlan?.planNumber ?? "",
+    trainingPlan?.importedAt ?? "",
   ]);
   const visibleLimit =
     visibleWindow.key === finderKey ? visibleWindow.limit : 40;
@@ -3583,6 +3639,44 @@ function SchedulePage({
     setVisibleWindow({ key: "", limit: 40 });
   }
   const needle = normalize(query);
+  const activeAcademicCourseCodes = new Set(
+    (academicSnapshot?.sections ?? []).map((section) =>
+      normalizeCourseCode(section.courseCode),
+    ),
+  );
+  const filteredPlanCourses = (trainingPlan?.courses ?? []).filter(
+    (course) =>
+      !needle ||
+      normalize(
+        [course.courseCode, course.courseName, course.categoryName].join(" "),
+      ).includes(needle),
+  );
+  const planCoursesByCategory = new Map<
+    string,
+    AcademicTrainingPlan["courses"]
+  >();
+  for (const course of filteredPlanCourses) {
+    const grouped = planCoursesByCategory.get(course.categoryCode);
+    if (grouped) grouped.push(course);
+    else planCoursesByCategory.set(course.categoryCode, [course]);
+  }
+  const trainingPlanGroups = [
+    ...(trainingPlan?.categories ?? []).map((category) => ({
+      ...category,
+      courses: planCoursesByCategory.get(category.code) ?? [],
+    })),
+    ...[...planCoursesByCategory]
+      .filter(
+        ([code]) =>
+          !trainingPlan?.categories.some((category) => category.code === code),
+      )
+      .map(([code, grouped]) => ({
+        code,
+        name: grouped[0]?.categoryName || "其他课程",
+        requiredCredits: 0,
+        courses: grouped,
+      })),
+  ].filter((group) => !needle || group.courses.length > 0);
   const searchPool = data.courses.filter(
     (course) =>
       course.terms.includes(term) &&
@@ -3617,7 +3711,9 @@ function SchedulePage({
       .map((item) => item.courseId),
   );
   const poolAll = (
-    finderMode === "search"
+    finderMode === "plan"
+      ? []
+      : finderMode === "search"
       ? searchPool
       : finderMode === "major"
         ? data.courses.filter((course) => majorCourseIds.has(course.id))
@@ -3759,7 +3855,7 @@ function SchedulePage({
         </div>
         <div className="schedule-heading-actions">
           <button className="academic-import-action" onClick={onAcademicImport}>
-            {academicSnapshot ? "刷新教务数据" : "导入教务课表与考试"}
+            {academicSnapshot ? "刷新教务数据" : "导入教务数据"}
           </button>
           <button onClick={() => onEditCalendar({ kind: "activity" })}>
             ＋ 添加日程
@@ -3811,13 +3907,22 @@ function SchedulePage({
             </div>
             <div className="finder-tabs">
               <button
+                className={finderMode === "plan" ? "active" : ""}
+                onClick={() => {
+                  resetFinderWindow();
+                  setFinderMode("plan");
+                }}
+              >
+                培养方案
+              </button>
+              <button
                 className={finderMode === "search" ? "active" : ""}
                 onClick={() => {
                   resetFinderWindow();
                   setFinderMode("search");
                 }}
               >
-                全校搜索
+                全校
               </button>
               <button
                 className={finderMode === "major" ? "active" : ""}
@@ -3826,7 +3931,7 @@ function SchedulePage({
                   setFinderMode("major");
                 }}
               >
-                按专业
+                专业
               </button>
               <button
                 className={finderMode === "time" ? "active" : ""}
@@ -3835,12 +3940,14 @@ function SchedulePage({
                   setFinderMode("time");
                 }}
               >
-                按时间
+                时间
               </button>
             </div>
-            {finderMode === "search" && (
+            {(finderMode === "plan" || finderMode === "search") && (
               <input
-                aria-label="搜索全校课程"
+                aria-label={
+                  finderMode === "plan" ? "搜索培养方案课程" : "搜索全校课程"
+                }
                 name="course-search"
                 autoComplete="off"
                 value={query}
@@ -3848,7 +3955,11 @@ function SchedulePage({
                   resetFinderWindow();
                   setQuery(event.target.value);
                 }}
-                placeholder="课程、简称或教师…"
+                placeholder={
+                  finderMode === "plan"
+                    ? "课程名称或课程号"
+                    : "课程、简称或教师…"
+                }
               />
             )}
             {finderMode === "major" && (
@@ -3935,16 +4046,153 @@ function SchedulePage({
               </div>
             )}
             <p>
-              {finderMode === "search"
-                ? "全校课程"
-                : finderMode === "major"
-                  ? `大${"一二三四"[finderYear - 1]}课程`
-                  : `周${weekdayShort[finderWeekday - 1]} · ${data.periods[finderBlock - 1]?.short}`}{" "}
-              · {poolAll.length} 个结果
+              {finderMode === "plan"
+                ? trainingPlan
+                  ? `培养方案 · ${filteredPlanCourses.length} 门`
+                  : "培养方案 · 未导入"
+                : finderMode === "search"
+                  ? `全校课程 · ${poolAll.length} 个结果`
+                  : finderMode === "major"
+                    ? `大${"一二三四"[finderYear - 1]}课程 · ${poolAll.length} 个结果`
+                    : `周${weekdayShort[finderWeekday - 1]} · ${data.periods[finderBlock - 1]?.short} · ${poolAll.length} 个结果`}
             </p>
           </header>
-          <div>
-            {pool.length ? (
+          <div className={finderMode === "plan" ? "training-plan-ledger" : ""}>
+            {finderMode === "plan" ? (
+              trainingPlan ? (
+                <>
+                  <section
+                    className="training-plan-summary"
+                    aria-label="培养方案概况"
+                  >
+                    <strong>
+                      {trainingPlan.majorName || trainingPlan.planName}
+                    </strong>
+                    <span>
+                      {trainingPlan.cohortYear} 级 · 最低 {formatPlanCredits(trainingPlan.requiredCredits)} · {trainingPlan.courses.length} 门
+                    </span>
+                  </section>
+                  {trainingPlanGroups.length ? (
+                    <div className="training-plan-groups">
+                      {trainingPlanGroups.map((group) => (
+                        <section className="training-plan-group" key={group.code}>
+                          <header>
+                            <strong>{group.name}</strong>
+                            <small>
+                              {group.requiredCredits > 0
+                                ? `最低 ${formatPlanCredits(group.requiredCredits)} · `
+                                : ""}
+                              {group.courses.length} 门
+                            </small>
+                          </header>
+                          <div>
+                            {group.courses.map((planCourse) => {
+                              const normalizedCode = normalizeCourseCode(
+                                planCourse.courseCode,
+                              );
+                              const catalogCourse =
+                                coursesByCode.get(normalizedCode);
+                              const offerings = catalogCourse
+                                ? offeringsByCourse.get(catalogCourse.id) ?? []
+                                : [];
+                              const sectionIds = [
+                                ...new Set(
+                                  offerings.map(
+                                    (item) => item.sectionId ?? item.id,
+                                  ),
+                                ),
+                              ];
+                              const isActive =
+                                activeAcademicCourseCodes.has(normalizedCode);
+                              const attribute = {
+                                required: ["必", "必修"],
+                                limited: ["限", "限选"],
+                                elective: ["任", "任选"],
+                                unknown: ["—", "性质未标注"],
+                              }[planCourse.attribute];
+                              const key = `${planCourse.categoryCode}\u0000${planCourse.courseCode}`;
+                              const details = (
+                                <>
+                                  <span
+                                    className={`plan-course-attribute ${planCourse.attribute}`}
+                                    aria-label={attribute[1]}
+                                    title={attribute[1]}
+                                  >
+                                    {attribute[0]}
+                                  </span>
+                                  <span className="plan-course-copy">
+                                    <strong>{planCourse.courseName}</strong>
+                                    <small>
+                                      {planCourse.courseCode} · {formatPlanCredits(planCourse.credits)}
+                                    </small>
+                                  </span>
+                                </>
+                              );
+                              return (
+                                <article
+                                  key={key}
+                                  className="training-plan-course"
+                                >
+                                  {catalogCourse ? (
+                                    <button
+                                      className="plan-course-main"
+                                      onClick={() => onCourse(catalogCourse)}
+                                    >
+                                      {details}
+                                    </button>
+                                  ) : (
+                                    <div className="plan-course-main">
+                                      {details}
+                                    </div>
+                                  )}
+                                  {isActive ? (
+                                    <span className="plan-course-state active">
+                                      已在课表
+                                    </span>
+                                  ) : offerings.length && catalogCourse ? (
+                                    <button
+                                      className="quick-add"
+                                      onClick={() => {
+                                        if (sectionIds.length > 1) {
+                                          onCourse(catalogCourse);
+                                          return;
+                                        }
+                                        offerings.forEach((item) =>
+                                          onAdd(item.id),
+                                        );
+                                      }}
+                                      aria-label={
+                                        sectionIds.length > 1
+                                          ? `选择${planCourse.courseName}的教师和教学班`
+                                          : `添加${planCourse.courseName}`
+                                      }
+                                    >
+                                      {sectionIds.length > 1 ? "选" : "＋"}
+                                    </button>
+                                  ) : (
+                                    <span className="plan-course-state">
+                                      本学期未开
+                                    </span>
+                                  )}
+                                </article>
+                              );
+                            })}
+                          </div>
+                        </section>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="pool-empty">没有匹配的培养方案课程。</p>
+                  )}
+                </>
+              ) : (
+                <div className="training-plan-empty">
+                  <strong>还没有培养方案</strong>
+                  <p>连接教务后即可查看。</p>
+                  <button onClick={onAcademicImport}>连接教务</button>
+                </div>
+              )
+            ) : pool.length ? (
               pool.map((course) => {
                 const courseOfferings = offeringsByCourse.get(course.id) ?? [];
                 const offerings =
@@ -4006,7 +4254,7 @@ function SchedulePage({
             ) : (
               <p className="pool-empty">没找到课程，换个关键词或条件试试。</p>
             )}
-            {pool.length < poolAll.length && (
+            {finderMode !== "plan" && pool.length < poolAll.length && (
               <button
                 className="load-more-courses"
                 onClick={() =>

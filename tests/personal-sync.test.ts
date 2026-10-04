@@ -5,9 +5,11 @@ import {
   loadPersonalSyncMetadata,
   mergeInitialPersonalState,
   mergePersonalStateThreeWay,
+  normalizeAcademicTrainingPlan,
   savePersonalSyncMetadata,
   type PersonalSyncMetadata,
   type PersonalSyncState,
+  type AcademicTrainingPlan,
 } from "../app/personal-sync.ts";
 
 function state(): PersonalSyncState {
@@ -19,10 +21,38 @@ function state(): PersonalSyncState {
     activities: [],
     assignments: [],
     academicSnapshots: [],
+    trainingPlan: null,
     favoriteRooms: [],
     recentRooms: [],
     preferredTerm: "fall",
     theme: "system",
+  };
+}
+
+function plan(name = "2026级审计学培养方案"): AcademicTrainingPlan {
+  return {
+    schemaVersion: 1,
+    planNumber: "P2026",
+    planName: name,
+    majorCode: "120207",
+    majorName: "审计学",
+    cohortYear: 2026,
+    requiredCredits: 160,
+    categories: [
+      { code: "A", name: "专业必修课", requiredCredits: 80 },
+    ],
+    courses: [
+      {
+        courseCode: "31131862",
+        courseName: "内部审计",
+        categoryCode: "A",
+        categoryName: "专业必修课",
+        attribute: "required",
+        credits: 2,
+        replacementCourseCodes: [],
+      },
+    ],
+    importedAt: "2026-10-04T01:02:03.000Z",
   };
 }
 
@@ -63,6 +93,26 @@ test("first login keeps unique local records without replacing cloud records", (
   assert.equal(merged.plans[1].id, "local-plan");
   assert.equal(merged.activities[0].id, "activity-local");
   assert.equal(merged.assignments[0].id, "assignment-cloud");
+});
+
+test("first login keeps the cloud training plan as one verified snapshot", () => {
+  const local = state();
+  const remote = state();
+  local.trainingPlan = plan("本机旧方案");
+  remote.trainingPlan = plan("云端新方案");
+
+  const merged = mergeInitialPersonalState(local, remote);
+  assert.equal(merged.trainingPlan?.planName, "云端新方案");
+});
+
+test("malformed local training-plan data is discarded instead of reaching the UI", () => {
+  assert.equal(
+    normalizeAcademicTrainingPlan({
+      ...plan(),
+      courses: [{ ...plan().courses[0], courseCode: "" }],
+    }),
+    null,
+  );
 });
 
 test("three-way merge combines changes made on different devices", () => {
@@ -136,6 +186,19 @@ test("same-record concurrent edits are reported and keep the cloud copy visible"
     (result.conflicts[0].local as { title: string }).title,
     "本地修改",
   );
+});
+
+test("concurrent training-plan imports report one atomic conflict", () => {
+  const base = state();
+  const local = structuredClone(base);
+  const remote = structuredClone(base);
+  local.trainingPlan = plan("本机方案");
+  remote.trainingPlan = plan("另一设备方案");
+
+  const result = mergePersonalStateThreeWay(base, local, remote);
+  assert.equal(result.conflicts.length, 1);
+  assert.equal(result.conflicts[0].scope, "trainingPlan");
+  assert.equal(result.state.trainingPlan?.planName, "另一设备方案");
 });
 
 function memoryStorage() {

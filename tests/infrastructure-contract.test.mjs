@@ -142,6 +142,10 @@ test("CI checks five main views across all target widths", async () => {
 
 test("PostgreSQL is private, resource-limited, health-checked, and log-rotated", async () => {
   const compose = await read("docker-compose.yml");
+  const trainingPlanMigration = await read(
+    "ops/postgres/migrations/0022_user_training_plan.sql",
+  );
+  const personalStore = await read("services/auth-api/src/personal-store.mjs");
 
   assert.match(compose, /postgres:/);
   assert.match(compose, /expose:\s*\n\s*- "5432"/);
@@ -149,6 +153,10 @@ test("PostgreSQL is private, resource-limited, health-checked, and log-rotated",
   assert.match(compose, /mem_limit: 384m/);
   assert.match(compose, /pg_isready/);
   assert.match(compose, /max-size: "10m"/);
+  assert.match(trainingPlanMigration, /ADD COLUMN IF NOT EXISTS training_plan jsonb/);
+  assert.match(trainingPlanMigration, /octet_length\(training_plan::text\) <= 1048576/);
+  assert.match(personalStore, /trainingPlan: settings\?\.training_plan \?\? null/);
+  assert.match(personalStore, /training_plan = EXCLUDED\.training_plan/);
 });
 
 test("CI runs migrations twice against native PostgreSQL 17 and checks runtime roles", async () => {

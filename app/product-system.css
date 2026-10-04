@@ -3043,7 +3043,7 @@ body:has(.hub-v2) .preload-intro {
   border: 1px solid var(--ui-border);
   border-radius: var(--ui-radius-md);
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   padding: 3px;
 }
 
@@ -3058,6 +3058,139 @@ body:has(.hub-v2) .preload-intro {
 .finder-tabs button.active {
   box-shadow: var(--ui-shadow-sm);
   font-weight: 700;
+}
+
+.training-plan-ledger {
+  align-content: start;
+  padding: 0;
+}
+
+.training-plan-summary {
+  border-bottom: 1px solid var(--ui-border);
+  border-left: 3px solid var(--journal-red, var(--dufe-red));
+  display: grid;
+  gap: 4px;
+  margin: 16px;
+  padding: 4px 0 4px 13px;
+}
+
+.training-plan-summary strong {
+  font-size: 14px;
+}
+
+.training-plan-summary span,
+.training-plan-group > header small,
+.plan-course-copy small,
+.plan-course-state {
+  color: var(--ui-text-secondary);
+  font-size: 11px;
+}
+
+.training-plan-groups {
+  display: block;
+}
+
+.training-plan-group {
+  border-top: 1px solid var(--ui-border);
+}
+
+.training-plan-group > header {
+  align-items: baseline;
+  background: var(--ui-surface-subtle);
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 11px 16px;
+}
+
+.training-plan-group > header strong {
+  font-size: 12px;
+}
+
+.training-plan-course {
+  min-height: 66px;
+}
+
+.plan-course-main {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  display: flex;
+  flex: 1;
+  gap: 10px;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+button.plan-course-main:hover .plan-course-copy strong {
+  color: var(--journal-red, var(--dufe-red));
+}
+
+.plan-course-attribute {
+  align-items: center;
+  border-left: 2px solid var(--ui-border-strong);
+  color: var(--ui-text-secondary);
+  display: flex;
+  flex: 0 0 26px;
+  font: 700 12px/1 var(--sans);
+  height: 30px;
+  justify-content: center;
+}
+
+.plan-course-attribute.required {
+  border-color: var(--journal-red, var(--dufe-red));
+  color: var(--journal-red, var(--dufe-red));
+}
+
+.plan-course-attribute.limited {
+  border-color: var(--dufe-gold);
+  color: var(--dufe-gold);
+}
+
+.plan-course-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.plan-course-copy strong,
+.plan-course-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-course-state {
+  flex: 0 0 auto;
+  text-align: right;
+}
+
+.plan-course-state.active {
+  color: var(--dufe-pine);
+  font-weight: 700;
+}
+
+.training-plan-empty {
+  border-left: 3px solid var(--journal-red, var(--dufe-red));
+  display: grid;
+  gap: 8px;
+  margin: 24px 18px;
+  padding: 2px 0 2px 14px;
+}
+
+.training-plan-empty p {
+  color: var(--ui-text-secondary);
+  font-size: 12px;
+  margin: 0;
+}
+
+.training-plan-empty button {
+  background: transparent;
+  border: 0;
+  color: var(--journal-red, var(--dufe-red));
+  justify-self: start;
+  padding: 5px 0;
 }
 
 .course-pool article,

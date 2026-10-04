@@ -5,6 +5,12 @@ const ACADEMIC_YEAR_PATTERN = /^20\d{2}-20\d{2}$/;
 const COLORS = new Set(["red", "blue", "green", "amber"]);
 const TERMS = new Set(["fall", "spring"]);
 const THEMES = new Set(["system", "day", "night"]);
+const PLAN_COURSE_ATTRIBUTES = new Set([
+  "required",
+  "limited",
+  "elective",
+  "unknown",
+]);
 
 function invalid(message) {
   const error = new Error(message);
@@ -179,6 +185,13 @@ function assignment(value, index) {
   };
 }
 
+function finiteNumber(value, name, min, max) {
+  if (!Number.isFinite(value) || value < min || value > max) {
+    throw invalid(`${name} must be a number between ${min} and ${max}`);
+  }
+  return value;
+}
+
 function instant(value, name) {
   const normalized = string(value, name, 40, { empty: false });
   const parsed = new Date(normalized);
@@ -327,6 +340,117 @@ function academicSnapshot(value, index) {
   };
 }
 
+function trainingPlan(value) {
+  if (value === null || value === undefined) return null;
+  const name = "state.trainingPlan";
+  const input = object(value, name);
+  if (input.schemaVersion !== 1) {
+    throw invalid(`${name}.schemaVersion is unsupported`);
+  }
+  const categories = array(input.categories, `${name}.categories`, 100).map(
+    (value, index) => {
+      const category = object(value, `${name}.categories[${index}]`);
+      return {
+        code: string(category.code, `${name}.categories[${index}].code`, 80, {
+          empty: false,
+        }),
+        name: string(category.name, `${name}.categories[${index}].name`, 160, {
+          empty: false,
+        }),
+        requiredCredits: finiteNumber(
+          category.requiredCredits,
+          `${name}.categories[${index}].requiredCredits`,
+          0,
+          500,
+        ),
+      };
+    },
+  );
+  uniqueBy(categories, "code", `${name}.categories`);
+  const seenCourses = new Set();
+  const courses = array(input.courses, `${name}.courses`, 500).map(
+    (value, index) => {
+      const course = object(value, `${name}.courses[${index}]`);
+      if (!PLAN_COURSE_ATTRIBUTES.has(course.attribute)) {
+        throw invalid(`${name}.courses[${index}].attribute is unsupported`);
+      }
+      const normalized = {
+        courseCode: string(
+          course.courseCode,
+          `${name}.courses[${index}].courseCode`,
+          80,
+          { empty: false },
+        ),
+        courseName: string(
+          course.courseName,
+          `${name}.courses[${index}].courseName`,
+          200,
+          { empty: false },
+        ),
+        categoryCode: string(
+          course.categoryCode,
+          `${name}.courses[${index}].categoryCode`,
+          80,
+          { empty: false },
+        ),
+        categoryName: string(
+          course.categoryName,
+          `${name}.courses[${index}].categoryName`,
+          160,
+          { empty: false },
+        ),
+        attribute: course.attribute,
+        credits:
+          course.credits === null || course.credits === undefined
+            ? null
+            : finiteNumber(
+                course.credits,
+                `${name}.courses[${index}].credits`,
+                0,
+                50,
+              ),
+        replacementCourseCodes: stringList(
+          course.replacementCourseCodes ?? [],
+          `${name}.courses[${index}].replacementCourseCodes`,
+          20,
+          80,
+        ),
+      };
+      const key = `${normalized.categoryCode}\u0000${normalized.courseCode}`;
+      if (seenCourses.has(key)) {
+        throw invalid(`${name}.courses contains a duplicate category/course`);
+      }
+      seenCourses.add(key);
+      return normalized;
+    },
+  );
+  return {
+    schemaVersion: 1,
+    planNumber: string(input.planNumber, `${name}.planNumber`, 100, {
+      empty: false,
+    }),
+    planName: string(input.planName, `${name}.planName`, 240, {
+      empty: false,
+    }),
+    majorCode: string(input.majorCode, `${name}.majorCode`, 80, {
+      empty: false,
+    }),
+    majorName: string(input.majorName, `${name}.majorName`, 160, {
+      empty: false,
+    }),
+    cohortYear: integer(input.cohortYear, `${name}.cohortYear`, 2000, 2100),
+    requiredCredits: finiteNumber(
+      input.requiredCredits,
+      `${name}.requiredCredits`,
+      1,
+      500,
+    ),
+    categories,
+    courses,
+    importedAt: instant(input.importedAt, `${name}.importedAt`),
+  };
+}
+
 export function validateSyncWrite(value) {
   const input = object(value, "body");
   const state = object(input.state, "state");
@@ -357,6 +481,7 @@ export function validateSyncWrite(value) {
     "id",
     "state.academicSnapshots",
   );
+  const normalizedTrainingPlan = trainingPlan(state.trainingPlan);
   const activePlanId = string(
     state.activePlanId,
     "state.activePlanId",
@@ -408,6 +533,7 @@ export function validateSyncWrite(value) {
       activities,
       assignments,
       academicSnapshots,
+      trainingPlan: normalizedTrainingPlan,
       favoriteRooms: stringList(
         state.favoriteRooms,
         "state.favoriteRooms",

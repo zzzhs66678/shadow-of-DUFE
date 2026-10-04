@@ -61,6 +61,7 @@ function createFakeStore() {
       activities: [],
       assignments: [],
       academicSnapshots: [],
+      trainingPlan: null,
       favoriteRooms: [],
       recentRooms: [],
       preferredTerm: "fall",
@@ -960,6 +961,31 @@ test("personal sync requires a session, validates input, deduplicates, and detec
           completed: false,
         },
       ],
+      academicSnapshots: [],
+      trainingPlan: {
+        schemaVersion: 1,
+        planNumber: "P2025",
+        planName: "2025级审计学培养方案",
+        majorCode: "120207",
+        majorName: "审计学",
+        cohortYear: 2025,
+        requiredCredits: 160,
+        categories: [
+          { code: "A", name: "专业必修课", requiredCredits: 80 },
+        ],
+        courses: [
+          {
+            courseCode: "31131862",
+            courseName: "内部审计",
+            categoryCode: "A",
+            categoryName: "专业必修课",
+            attribute: "required",
+            credits: 2,
+            replacementCourseCodes: [],
+          },
+        ],
+        importedAt: "2026-10-04T01:02:03.000Z",
+      },
       favoriteRooms: ["之远楼401"],
       recentRooms: ["笃行楼302"],
       preferredTerm: "fall",
@@ -1007,6 +1033,7 @@ test("personal sync requires a session, validates input, deduplicates, and detec
     assert.equal(accepted.status, 200);
     assert.equal(acceptedBody.revision, 1);
     assert.equal(acceptedBody.state.plans[0].scheduleIds.length, 2);
+    assert.equal(acceptedBody.state.trainingPlan.courses.length, 1);
 
     const retry = await fetch(`${baseUrl}/api/auth/sync`, {
       method: "PUT",

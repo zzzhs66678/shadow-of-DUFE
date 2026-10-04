@@ -69,6 +69,41 @@ const snapshot = {
   ],
 };
 
+const trainingPlan = {
+  schemaVersion: 1,
+  planNumber: "P2026",
+  planName: "2026级审计学专业培养方案",
+  majorCode: "120207",
+  majorName: "审计学",
+  cohortYear: 2026,
+  requiredCredits: 160,
+  categories: [
+    { code: "A", name: "专业必修课", requiredCredits: 80 },
+    { code: "B", name: "专业选修课", requiredCredits: 20 },
+  ],
+  courses: [
+    {
+      courseCode: "31131862",
+      courseName: "内部审计",
+      categoryCode: "A",
+      categoryName: "专业必修课",
+      attribute: "required",
+      credits: 2,
+      replacementCourseCodes: [],
+    },
+    {
+      courseCode: "NO-CURRENT-OFFERING",
+      courseName: "审计专题",
+      categoryCode: "B",
+      categoryName: "专业选修课",
+      attribute: "limited",
+      credits: 2,
+      replacementCourseCodes: [],
+    },
+  ],
+  importedAt: "2026-09-28T02:03:04.000Z",
+};
+
 test("official timetable and exams import through SMS and school verification", async ({
   page,
 }) => {
@@ -110,7 +145,9 @@ test("official timetable and exams import through SMS and school verification", 
       expect(body).toEqual({
         transactionId: "abcdefghijklmnopqrstuvwxyzABCDEFGH",
       });
-      await route.fulfill({ json: { status: "imported", snapshot } });
+      await route.fulfill({
+        json: { status: "imported", snapshot, trainingPlan },
+      });
       return;
     }
     expect(body).toEqual({
@@ -194,11 +231,19 @@ test("official timetable and exams import through SMS and school verification", 
   await expect(page.locator(".academic-exam-list article")).toHaveCount(1);
   await expect(page.locator(".academic-exam-list")).toContainText("内部审计");
   await expect(page.locator(".academic-exam-list")).toContainText("座位 18");
+  await expect(
+    page.getByRole("button", { name: "培养方案", exact: true }),
+  ).toHaveClass(/active/);
+  await expect(page.locator(".training-plan-course")).toHaveCount(2);
+  await expect(page.locator(".training-plan-ledger")).toContainText("内部审计");
+  await expect(page.locator(".training-plan-ledger")).toContainText("已在课表");
+  await expect(page.locator(".training-plan-ledger")).toContainText("本学期未开");
 
   const storage = await page.evaluate(() =>
     localStorage.getItem("dufesh:student-profile:v3:anonymous"),
   );
   expect(storage).toContain("2026-2027-fall");
+  expect(storage).toContain("2026级审计学专业培养方案");
   expect(storage).not.toContain("school-password");
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),

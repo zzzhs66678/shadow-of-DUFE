@@ -86,6 +86,35 @@ export type AcademicSnapshot = {
   exams: AcademicExam[];
 };
 
+export type AcademicTrainingPlanCategory = {
+  code: string;
+  name: string;
+  requiredCredits: number;
+};
+
+export type AcademicTrainingPlanCourse = {
+  courseCode: string;
+  courseName: string;
+  categoryCode: string;
+  categoryName: string;
+  attribute: "required" | "limited" | "elective" | "unknown";
+  credits: number | null;
+  replacementCourseCodes: string[];
+};
+
+export type AcademicTrainingPlan = {
+  schemaVersion: 1;
+  planNumber: string;
+  planName: string;
+  majorCode: string;
+  majorName: string;
+  cohortYear: number;
+  requiredCredits: number;
+  categories: AcademicTrainingPlanCategory[];
+  courses: AcademicTrainingPlanCourse[];
+  importedAt: string;
+};
+
 export type PersonalSyncState = {
   profile: PersonalProfile | null;
   skipped: boolean;
@@ -94,6 +123,7 @@ export type PersonalSyncState = {
   activities: PersonalActivity[];
   assignments: PersonalAssignment[];
   academicSnapshots: AcademicSnapshot[];
+  trainingPlan: AcademicTrainingPlan | null;
   favoriteRooms: string[];
   recentRooms: string[];
   preferredTerm: "fall" | "spring";
@@ -107,6 +137,7 @@ export type PersonalSyncConflict = {
     | "activity"
     | "assignment"
     | "academic"
+    | "trainingPlan"
     | "settings";
   id?: string;
   local: unknown;
@@ -149,6 +180,98 @@ function unique(values: string[], limit?: number) {
   return typeof limit === "number" ? result.slice(0, limit) : result;
 }
 
+export function normalizeAcademicTrainingPlan(
+  value: unknown,
+): AcademicTrainingPlan | null {
+  if (!value || typeof value !== "object") return null;
+  const plan = value as Partial<AcademicTrainingPlan>;
+  const validString = (input: unknown, maximum: number) =>
+    typeof input === "string" && input.length > 0 && input.length <= maximum;
+  if (
+    plan.schemaVersion !== 1 ||
+    !validString(plan.planNumber, 100) ||
+    !validString(plan.planName, 240) ||
+    !validString(plan.majorCode, 80) ||
+    !validString(plan.majorName, 160) ||
+    !Number.isInteger(plan.cohortYear) ||
+    plan.cohortYear! < 2000 ||
+    plan.cohortYear! > 2100 ||
+    !Number.isFinite(plan.requiredCredits) ||
+    plan.requiredCredits! <= 0 ||
+    plan.requiredCredits! > 500 ||
+    !Array.isArray(plan.categories) ||
+    plan.categories.length > 100 ||
+    !Array.isArray(plan.courses) ||
+    plan.courses.length > 500 ||
+    typeof plan.importedAt !== "string" ||
+    Number.isNaN(Date.parse(plan.importedAt))
+  ) {
+    return null;
+  }
+  const categoryCodes = new Set<string>();
+  const categories: AcademicTrainingPlanCategory[] = [];
+  for (const category of plan.categories) {
+    if (
+      !category ||
+      typeof category !== "object" ||
+      !validString(category.code, 80) ||
+      !validString(category.name, 160) ||
+      !Number.isFinite(category.requiredCredits) ||
+      category.requiredCredits < 0 ||
+      category.requiredCredits > 500 ||
+      categoryCodes.has(category.code)
+    ) {
+      return null;
+    }
+    categoryCodes.add(category.code);
+    categories.push({ ...category });
+  }
+  const seenCourses = new Set<string>();
+  const attributes = new Set(["required", "limited", "elective", "unknown"]);
+  const courses: AcademicTrainingPlanCourse[] = [];
+  for (const course of plan.courses) {
+    if (
+      !course ||
+      typeof course !== "object" ||
+      !validString(course.courseCode, 80) ||
+      !validString(course.courseName, 200) ||
+      !validString(course.categoryCode, 80) ||
+      !validString(course.categoryName, 160) ||
+      !attributes.has(course.attribute) ||
+      (course.credits !== null &&
+        (!Number.isFinite(course.credits) ||
+          course.credits < 0 ||
+          course.credits > 50)) ||
+      !Array.isArray(course.replacementCourseCodes) ||
+      course.replacementCourseCodes.length > 20 ||
+      course.replacementCourseCodes.some(
+        (code) => !validString(code, 80),
+      )
+    ) {
+      return null;
+    }
+    const key = `${course.categoryCode}\u0000${course.courseCode}`;
+    if (seenCourses.has(key)) return null;
+    seenCourses.add(key);
+    courses.push({
+      ...course,
+      replacementCourseCodes: unique(course.replacementCourseCodes),
+    });
+  }
+  return {
+    schemaVersion: 1,
+    planNumber: plan.planNumber!,
+    planName: plan.planName!,
+    majorCode: plan.majorCode!,
+    majorName: plan.majorName!,
+    cohortYear: plan.cohortYear!,
+    requiredCredits: plan.requiredCredits!,
+    categories,
+    courses,
+    importedAt: plan.importedAt,
+  };
+}
+
 function normalizeState(state: PersonalSyncState): PersonalSyncState {
   const plans =
     Array.isArray(state.plans) && state.plans.length > 0
@@ -182,6 +305,7 @@ function normalizeState(state: PersonalSyncState): PersonalSyncState {
           )
           .slice(-12)
       : [],
+    trainingPlan: normalizeAcademicTrainingPlan(state.trainingPlan),
     favoriteRooms: unique(state.favoriteRooms ?? [], 100),
     recentRooms: unique(state.recentRooms ?? [], 50),
     preferredTerm: state.preferredTerm === "spring" ? "spring" : "fall",
@@ -247,6 +371,7 @@ export function mergeInitialPersonalState(
       remote.academicSnapshots,
       local.academicSnapshots,
     ),
+    trainingPlan: remote.trainingPlan ?? local.trainingPlan,
     favoriteRooms: unique(
       [...remote.favoriteRooms, ...local.favoriteRooms],
       100,
@@ -302,7 +427,7 @@ function mergeRecordSet<T extends { id: string }>(
 }
 
 function mergeAtomic<T>(
-  scope: "profile" | "settings",
+  scope: "profile" | "trainingPlan" | "settings",
   base: T,
   local: T,
   remote: T,
@@ -364,6 +489,13 @@ export function mergePersonalStateThreeWay(
     },
     conflicts,
   );
+  const trainingPlan = mergeAtomic(
+    "trainingPlan",
+    base.trainingPlan,
+    local.trainingPlan,
+    remote.trainingPlan,
+    conflicts,
+  );
 
   const merged = normalizeState({
     ...profileBundle,
@@ -395,6 +527,7 @@ export function mergePersonalStateThreeWay(
       remote.academicSnapshots,
       conflicts,
     ),
+    trainingPlan,
     ...settings,
   });
 

@@ -107,7 +107,8 @@ async function readPersonalState(database, userId) {
        preferred_term,
        theme,
        favorite_rooms,
-       recent_rooms
+       recent_rooms,
+       training_plan
      FROM user_settings
      WHERE user_id = $1`,
     [userId],
@@ -145,6 +146,7 @@ async function readPersonalState(database, userId) {
         completed: row.completed,
       })),
       academicSnapshots: academicResult.rows.map((row) => row.snapshot),
+      trainingPlan: settings?.training_plan ?? null,
       favoriteRooms: settings?.favorite_rooms ?? [],
       recentRooms: settings?.recent_rooms ?? [],
       preferredTerm: settings?.preferred_term ?? "fall",
@@ -658,10 +660,11 @@ export function createPersonalStore(pool) {
              theme,
              favorite_rooms,
              recent_rooms,
+             training_plan,
              revision,
              client_updated_at
            )
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
            ON CONFLICT (user_id) DO UPDATE
            SET
              active_plan_client_id = EXCLUDED.active_plan_client_id,
@@ -669,6 +672,7 @@ export function createPersonalStore(pool) {
              theme = EXCLUDED.theme,
              favorite_rooms = EXCLUDED.favorite_rooms,
              recent_rooms = EXCLUDED.recent_rooms,
+             training_plan = EXCLUDED.training_plan,
              revision = EXCLUDED.revision,
              client_updated_at = EXCLUDED.client_updated_at,
              updated_at = now()`,
@@ -679,6 +683,7 @@ export function createPersonalStore(pool) {
             state.theme,
             state.favoriteRooms,
             state.recentRooms,
+            state.trainingPlan,
             revision,
             payload.clientUpdatedAt,
           ],
