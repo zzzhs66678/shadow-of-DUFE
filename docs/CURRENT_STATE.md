@@ -265,7 +265,7 @@
 - 平板与手机横屏布局门禁：`npm run test:responsive`
 - 完整浏览器门禁：`npm run test:browser`
 - 小影回归：`npm run test:xiaoying`
-- 生产依赖审计：主站和 `xiaoying-executor` 分别执行 `npm audit --omit=dev --audit-level=high`
+- 生产依赖审计：主站执行 `npm run audit:production`，只对运行镜像已剔除的 vinext 构建链 advisory 做精确、锁版本且到期失败的临时例外；`services/auth-api` 与 `xiaoying-executor` 继续直接执行 `npm audit --omit=dev --audit-level=high`
 - 代码检查：`npx eslint app services tests scripts xiaoying-executor/bin xiaoying-executor/src`
 - 全站构建：`npm run build`
 - 发布采用不可变 release 目录并原子切换，保留上一版本用于回滚。

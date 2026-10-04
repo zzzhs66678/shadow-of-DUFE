@@ -217,6 +217,8 @@ test("CI drives the authenticated browser critical path through PostgreSQL", asy
 test("CI builds and smoke-tests every production Linux image", async () => {
   const workflow = await read(".github/workflows/quality.yml");
   const appDockerfile = await read("Dockerfile");
+  const productionAudit = await read("scripts/audit-production-dependencies.mjs");
+  const runtimePrune = await read("scripts/prune-vinext-runtime.mjs");
   const authDockerfile = await read("services/auth-api/Dockerfile");
   const xiaoyingDockerfile = await read("xiaoying-executor/Dockerfile");
 
@@ -230,6 +232,8 @@ test("CI builds and smoke-tests every production Linux image", async () => {
   assert.match(workflow, /import\('sharp'\)/);
   assert.match(workflow, /ls image-size --all/);
   assert.match(workflow, /manifest\.version !== '2\.0\.3-dufesh\.0'/);
+  assert.match(workflow, /vinext production server loads without the build-plugin chain/);
+  assert.match(workflow, /npm run audit:production/);
   assert.match(workflow, /http:\/\/127\.0\.0\.1:3000\//);
   assert.match(workflow, /docker image inspect --format '\{\{\.Config\.User\}\}'/);
   assert.equal(
@@ -237,6 +241,21 @@ test("CI builds and smoke-tests every production Linux image", async () => {
     2,
     "the fail-closed local dependency must exist during install in both build and runtime stages",
   );
+  assert.match(appDockerfile, /node \/tmp\/prune-vinext-runtime\.mjs/);
+  assert.match(appDockerfile, /rm \/tmp\/prune-vinext-runtime\.mjs/);
+  assert.match(productionAudit, /GHSA-vfj7-8cjw-p6xm/);
+  assert.match(productionAudit, /expiresAt: "2026-11-04T00:00:00Z"/);
+  assert.match(productionAudit, /review it instead of widening the exception/);
+  assert.match(runtimePrune, /Refusing to prune unreviewed/);
+  for (const packageName of [
+    "braces",
+    "micromatch",
+    "vite-plugin-commonjs",
+    "vite-plugin-dynamic-import",
+  ]) {
+    assert.match(productionAudit, new RegExp(`"${packageName}"`));
+    assert.match(runtimePrune, new RegExp(`node_modules/${packageName}`));
+  }
 
   for (const dockerfile of [appDockerfile, authDockerfile, xiaoyingDockerfile]) {
     assert.match(

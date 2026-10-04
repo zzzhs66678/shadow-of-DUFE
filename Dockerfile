@@ -27,7 +27,10 @@ ENV HOSTNAME=0.0.0.0
 
 COPY package.json package-lock.json ./
 COPY vendor/image-size-disabled ./vendor/image-size-disabled
+COPY scripts/prune-vinext-runtime.mjs /tmp/prune-vinext-runtime.mjs
 RUN npm ci --omit=dev --omit=optional --ignore-scripts --no-audit --no-fund \
+    && node /tmp/prune-vinext-runtime.mjs \
+    && rm /tmp/prune-vinext-runtime.mjs \
     && npm cache clean --force
 
 COPY --from=build /app/dist ./dist

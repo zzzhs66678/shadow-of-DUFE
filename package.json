@@ -11,6 +11,7 @@
     "start": "node server.mjs",
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
     "typecheck": "tsc --noEmit",
+    "audit:production": "node scripts/audit-production-dependencies.mjs",
     "audit:css": "node scripts/audit-css-cascade.mjs",
     "test:a11y": "playwright test tests/e2e/accessibility.spec.ts",
     "test:responsive": "playwright test tests/e2e/responsive.spec.ts",

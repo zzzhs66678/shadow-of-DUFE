@@ -48,6 +48,9 @@ jobs:
           docker run --rm --entrypoint node dufesh-app:ci \
             --input-type=module \
             --eval "const manifest = JSON.parse(await (await import('node:fs/promises')).readFile(new URL('./node_modules/image-size/package.json', import.meta.url), 'utf8')); if (manifest.version !== '2.0.3-dufesh.0') throw new Error('unexpected image-size version: ' + manifest.version); console.log('fail-closed image-size package loaded')"
+          docker run --rm --entrypoint node dufesh-app:ci \
+            --input-type=module \
+            --eval "const fs = await import('node:fs/promises'); const removed = ['braces', 'micromatch', 'vite-plugin-commonjs', 'vite-plugin-dynamic-import']; for (const name of removed) { try { await fs.access('/app/node_modules/' + name); throw new Error(name + ' remains in the runtime image'); } catch (error) { if (error.code !== 'ENOENT') throw error; } } await import('./node_modules/vinext/dist/server/prod-server.js'); console.log('vinext production server loads without the build-plugin chain')"
       - name: Smoke-test the production gateway
         run: |
           container_id="$(docker run --detach --publish 127.0.0.1:3000:3000 dufesh-app:ci)"
@@ -286,7 +289,7 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Check production dependencies
         run: |
-          npm audit --omit=dev --omit=optional --audit-level=high
+          npm run audit:production
           npm audit --prefix services/auth-api --omit=dev --audit-level=high
           npm audit --prefix xiaoying-executor --omit=dev --audit-level=high
       - name: Run regression tests
