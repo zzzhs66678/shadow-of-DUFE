@@ -28,6 +28,10 @@ services:
       - /tmp:size=64m,mode=1777
     security_opt:
       - no-new-privileges:true
+    networks:
+      default:
+        aliases:
+          - production-app
     logging:
       driver: json-file
       options:
@@ -70,6 +74,10 @@ services:
       - /tmp:size=32m,mode=1777
     security_opt:
       - no-new-privileges:true
+    networks:
+      default:
+        aliases:
+          - production-xiaoying
     logging:
       driver: json-file
       options:
@@ -163,6 +171,10 @@ services:
       - /tmp:size=16m,mode=1777
     security_opt:
       - no-new-privileges:true
+    networks:
+      default:
+        aliases:
+          - production-auth-api
     logging:
       driver: json-file
       options:

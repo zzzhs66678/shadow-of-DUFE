@@ -318,7 +318,7 @@ test("auth API is private, pooled, health-checked, and routed on the same origin
   assert.match(compose, /mem_limit: 128m/);
   assert.match(compose, /read_only: true/);
   assert.match(caddy, /handle \/api\/auth\/\*/);
-  assert.match(caddy, /reverse_proxy auth-api:3100/);
+  assert.match(caddy, /reverse_proxy production-auth-api:3100/);
   assert.match(caddy, /@teacher_api path \/api\/teachers \/api\/teachers\/\*/);
   assert.match(vite, /AUTH_API_DEV_TARGET/);
   assert.match(vite, /"\/api\/auth"/);
@@ -326,6 +326,28 @@ test("auth API is private, pooled, health-checked, and routed on the same origin
   assert.match(database, /max: config\.poolMax/);
   assert.match(database, /connectionTimeoutMillis: 3_000/);
   assert.match(dockerfile, /COPY --chown=node:node src \.\/src/);
+});
+
+test("production upstream names cannot collide with staging service aliases", async () => {
+  const compose = await read("docker-compose.yml");
+  const caddy = await read("deploy/Caddyfile");
+
+  for (const alias of [
+    "production-app",
+    "production-auth-api",
+    "production-xiaoying",
+  ]) {
+    assert.match(compose, new RegExp(`- ${alias}`));
+    assert.match(caddy, new RegExp(`reverse_proxy ${alias}:`));
+  }
+
+  assert.doesNotMatch(
+    caddy,
+    /reverse_proxy (?:app:3000|auth-api:3100|xiaoying:43120)/,
+  );
+  assert.match(caddy, /staging\.dufesh\.cn/);
+  assert.match(caddy, /reverse_proxy staging-app:3000/);
+  assert.match(caddy, /reverse_proxy staging-auth-api:3100/);
 });
 
 test("OAuth transactions are one-time, browser-bound, and store only digests", async () => {
