@@ -368,7 +368,7 @@ function trainingPlan(value) {
   );
   uniqueBy(categories, "code", `${name}.categories`);
   const seenCourses = new Set();
-  const courses = array(input.courses, `${name}.courses`, 500).map(
+  const courses = array(input.courses, `${name}.courses`, 1_500).map(
     (value, index) => {
       const course = object(value, `${name}.courses[${index}]`);
       if (!PLAN_COURSE_ATTRIBUTES.has(course.attribute)) {

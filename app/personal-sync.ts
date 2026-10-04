@@ -202,7 +202,7 @@ export function normalizeAcademicTrainingPlan(
     !Array.isArray(plan.categories) ||
     plan.categories.length > 100 ||
     !Array.isArray(plan.courses) ||
-    plan.courses.length > 500 ||
+    plan.courses.length > 1_500 ||
     typeof plan.importedAt !== "string" ||
     Number.isNaN(Date.parse(plan.importedAt))
   ) {
