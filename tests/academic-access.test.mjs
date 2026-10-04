@@ -176,11 +176,12 @@ test("connector uses the official single-bound-phone SMS endpoints", async () =>
       const code = new URLSearchParams(options.body).get("svpn_inputsms");
       return response(
         code === "123456"
-          ? "<Auth><ErrorCode>1</ErrorCode></Auth>"
+          ? "<Auth><ErrorCode>20021</ErrorCode><TwfID>authenticated-session</TwfID></Auth>"
           : "<Auth><ErrorCode>20012</ErrorCode></Auth>",
       );
     }
     if (parsed.pathname.includes("thisSemesterCurriculum")) {
+      assert.match(options.headers.Cookie, /TWFID=authenticated-session/u);
       return response(timetableHtml);
     }
     if (parsed.pathname.includes("examPlan")) return response(examHtml);
@@ -215,6 +216,32 @@ test("connector uses the official single-bound-phone SMS endpoints", async () =>
   assert.ok(!paths.includes("/por/get_sms.csp"));
   assert.ok(!paths.includes("/por/login_sms2.csp"));
   assert.equal(connector.pendingCount(), 0);
+});
+
+test("connector accepts the official redirect-range auth completion codes", async () => {
+  const challenge = rsaChallengeXml();
+  const fetchImpl = async (url) => {
+    const parsed = new URL(url);
+    if (parsed.pathname === "/por/login_auth.csp") {
+      return response(challenge, { headers: { "set-cookie": "TWFID=abc; Path=/" } });
+    }
+    if (parsed.pathname === "/public/psw_config") return response(challenge);
+    if (parsed.pathname === "/por/login_psw.csp") {
+      return response("<Auth><ErrorCode>40001</ErrorCode><TwfID>redirect-session</TwfID></Auth>");
+    }
+    if (parsed.pathname.includes("thisSemesterCurriculum")) {
+      return response(timetableHtml);
+    }
+    if (parsed.pathname.includes("examPlan")) return response(examHtml);
+    throw new Error(`unexpected request: ${parsed}`);
+  };
+  const connector = createAcademicConnector({ fetchImpl });
+  const completed = await connector.start({
+    username: "20260001",
+    password: "test-password",
+    principalKey: "device:test",
+  });
+  assert.equal(completed.status, "imported");
 });
 
 test("connector requests a phone only when the school account has none", async () => {

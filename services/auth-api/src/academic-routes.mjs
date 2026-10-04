@@ -120,6 +120,23 @@ function mappedError(error) {
   return mapping.get(error?.code) ?? null;
 }
 
+const DIAGNOSTIC_STAGES = new Set([
+  "vpn_init",
+  "vpn_password_config",
+  "vpn_password",
+  "vpn_sms_config",
+  "vpn_sms_send",
+  "vpn_sms_verify",
+  "timetable_fetch",
+  "timetable_parse",
+  "exam_fetch",
+  "exam_parse",
+]);
+
+function safeDiagnosticStage(error) {
+  return DIAGNOSTIC_STAGES.has(error?.stage) ? error.stage : "unknown";
+}
+
 export function createAcademicRequestHandler({
   store,
   config,
@@ -202,10 +219,19 @@ export function createAcademicRequestHandler({
     } catch (error) {
       const mapped = mappedError(error);
       if (!mapped) throw error;
+      const stage = safeDiagnosticStage(error);
+      console.warn(
+        JSON.stringify({
+          event: "academic_import_rejected",
+          action: url.pathname.split("/").at(-1) || "unknown",
+          code: error.code,
+          stage,
+        }),
+      );
       sendJson(
         response,
         mapped[0],
-        { error: mapped[1] },
+        { error: mapped[1], stage },
         principal.setCookies,
       );
     }

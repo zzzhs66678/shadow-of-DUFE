@@ -2944,6 +2944,11 @@ function academicImportErrorMessage(code: string) {
     academic_upstream_unavailable: "学校 VPN 或教务系统当前不可用。",
     academic_rate_limit_exceeded: "尝试次数较多，请五分钟后再试。",
     academic_import_unavailable: "教务导入服务正在维护，请稍后再试。",
+    academic_request_invalid: "本次导入请求已失效，请重新连接。",
+    academic_response_invalid: "学校登录后的跳转异常，请重新连接后再试。",
+    academic_login_failed: "学校没有确认登录，请重新连接。",
+    untrusted_origin: "当前页面无法发起教务导入，请刷新后重试。",
+    academic_import_failed: "服务返回了无法识别的结果，请重新连接。",
   };
   return messages[code] ?? "导入没有完成，请稍后重试。";
 }

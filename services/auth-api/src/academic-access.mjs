@@ -12,6 +12,10 @@ const DEFAULT_ACADEMIC_ORIGIN =
 const MAX_PAGE_BYTES = 4 * 1024 * 1024;
 const REQUEST_TIMEOUT_MS = 20_000;
 const TRANSACTION_TTL_MS = 5 * 60_000;
+const VPN_AUTH_SUCCESS = 1;
+const VPN_AUTH_RELOGIN = 20_021;
+const VPN_REDIRECT_CODE_START = 40_000;
+const VPN_REDIRECT_CODE_END = 50_000;
 
 const WEEKDAYS = new Map([
   ["一", 1],
@@ -28,6 +32,23 @@ function academicError(code, message = code) {
   const error = new Error(message);
   error.code = code;
   return error;
+}
+
+function stagedError(code, stage) {
+  const error = academicError(code);
+  error.stage = stage;
+  return error;
+}
+
+async function atStage(stage, action) {
+  try {
+    return await action();
+  } catch (error) {
+    if (error && typeof error === "object" && !error.stage) {
+      error.stage = stage;
+    }
+    throw error;
+  }
 }
 
 function decodeEntities(value) {
@@ -80,6 +101,7 @@ function parseAuthResponse(xml) {
       xmlValue(xml, "SmsSendInterval") || "0",
       10,
     ),
+    twfId: xmlValue(xml, "TwfID"),
   };
 }
 
@@ -139,6 +161,19 @@ class CookieJar {
     return [...this.#cookies]
       .map(([name, value]) => `${name}=${value}`)
       .join("; ");
+  }
+
+  set(name, value) {
+    const normalizedName = String(name ?? "").trim();
+    const normalizedValue = String(value ?? "").trim();
+    if (
+      !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/u.test(normalizedName) ||
+      !normalizedValue ||
+      /[;\r\n]/u.test(normalizedValue)
+    ) {
+      throw academicError("ACADEMIC_PROTOCOL_CHANGED");
+    }
+    this.#cookies.set(normalizedName, normalizedValue);
   }
 }
 
@@ -595,7 +630,13 @@ function validateCredentials(username, password) {
 }
 
 function successAuth(result) {
-  return (result.errorCode === 0 || result.errorCode === 1) && !result.nextService;
+  return (
+    !result.nextService &&
+    (result.errorCode === VPN_AUTH_SUCCESS ||
+      result.errorCode === VPN_AUTH_RELOGIN ||
+      (result.errorCode >= VPN_REDIRECT_CODE_START &&
+        result.errorCode < VPN_REDIRECT_CODE_END))
+  );
 }
 
 function smsService(value) {
@@ -663,10 +704,18 @@ export function createAcademicConnector({
     });
   }
 
-  async function readAuthResponse(jar, url, options = {}) {
-    const { response } = await request(jar, url, options);
-    if (!response.ok) throw academicError("ACADEMIC_UPSTREAM_UNAVAILABLE");
-    return parseAuthResponse(await readLimitedText(response, 256 * 1024));
+  async function readAuthResponse(jar, url, options = {}, stage = "vpn_auth") {
+    return atStage(stage, async () => {
+      const { response } = await request(jar, url, options);
+      if (!response.ok) throw academicError("ACADEMIC_UPSTREAM_UNAVAILABLE");
+      const result = parseAuthResponse(
+        await readLimitedText(response, 256 * 1024),
+      );
+      // Sangfor's official portal updates its active TWFID from the XML auth
+      // response. The value is not guaranteed to arrive as a Set-Cookie header.
+      if (result.twfId) jar.set("TWFID", result.twfId);
+      return result;
+    });
   }
 
   async function importSnapshot(jar) {
@@ -678,29 +727,41 @@ export function createAcademicConnector({
       "/student/examinationManagement/examPlan/index",
       academic,
     );
-    const timetableResult = await request(jar, timetableUrl);
+    const timetableResult = await atStage("timetable_fetch", () =>
+      request(jar, timetableUrl),
+    );
     if (timetableResult.finalUrl.host === vpn.host) {
-      throw academicError("ACADEMIC_SESSION_NOT_READY");
+      throw stagedError("ACADEMIC_SESSION_NOT_READY", "timetable_fetch");
     }
     if (!timetableResult.response.ok) {
-      throw academicError("ACADEMIC_UPSTREAM_UNAVAILABLE");
+      throw stagedError("ACADEMIC_UPSTREAM_UNAVAILABLE", "timetable_fetch");
     }
-    const timetableHtml = await readLimitedText(timetableResult.response);
-    const timetable = parseTimetableHtml(timetableHtml);
-    const examResult = await request(jar, examUrl);
+    const timetableHtml = await atStage("timetable_fetch", () =>
+      readLimitedText(timetableResult.response),
+    );
+    const timetable = await atStage("timetable_parse", () =>
+      parseTimetableHtml(timetableHtml),
+    );
+    const examResult = await atStage("exam_fetch", () =>
+      request(jar, examUrl),
+    );
     if (examResult.finalUrl.host !== academic.host) {
-      throw academicError("ACADEMIC_SESSION_NOT_READY");
+      throw stagedError("ACADEMIC_SESSION_NOT_READY", "exam_fetch");
     }
     if (!examResult.response.ok) {
-      throw academicError("ACADEMIC_UPSTREAM_UNAVAILABLE");
+      throw stagedError("ACADEMIC_UPSTREAM_UNAVAILABLE", "exam_fetch");
     }
-    const examHtml = await readLimitedText(examResult.response);
+    const examHtml = await atStage("exam_fetch", () =>
+      readLimitedText(examResult.response),
+    );
     return {
       schemaVersion: 1,
       ...timetable.term,
       importedAt: new Date(now()).toISOString(),
       sections: timetable.sections,
-      exams: parseExamHtml(examHtml, timetable.term),
+      exams: await atStage("exam_parse", () =>
+        parseExamHtml(examHtml, timetable.term),
+      ),
     };
   }
 
@@ -713,6 +774,7 @@ export function createAcademicConnector({
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams(),
       },
+      "vpn_sms_config",
     );
     if (config.errorCode !== 1) throw smsSendError(config);
     return config;
@@ -760,6 +822,7 @@ export function createAcademicConnector({
           phone_index: String(phoneIndex),
         }),
       },
+      "vpn_sms_send",
     );
     if (sent.errorCode !== 1) throw smsSendError(sent);
     transaction.smsPhone = phone;
@@ -823,19 +886,23 @@ export function createAcademicConnector({
       const initial = await readAuthResponse(
         jar,
         new URL("/por/login_auth.csp?apiversion=1", vpn),
+        {},
+        "vpn_init",
       );
       if (
         !initial.csrfRandCode ||
         !initial.rsaKey ||
-        ![0, 1].includes(initial.errorCode)
+        initial.errorCode !== VPN_AUTH_SUCCESS
       ) {
-        throw academicError("ACADEMIC_PROTOCOL_CHANGED");
+        throw stagedError("ACADEMIC_PROTOCOL_CHANGED", "vpn_init");
       }
       let challenge = initial;
       try {
         const passwordConfig = await readAuthResponse(
           jar,
           new URL("/public/psw_config?apiversion=1", vpn),
+          {},
+          "vpn_password_config",
         );
         if (passwordConfig.csrfRandCode && passwordConfig.rsaKey) {
           challenge = passwordConfig;
@@ -866,6 +933,7 @@ export function createAcademicConnector({
             svpn_rand_code: "",
           }),
         },
+        "vpn_password",
       );
       return handleAuthResult(result, jar, principalKey);
     },
@@ -935,9 +1003,16 @@ export function createAcademicConnector({
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: new URLSearchParams({ svpn_inputsms: code }),
         },
+        "vpn_sms_verify",
       );
-      if (result.errorCode !== 0 && result.errorCode !== 1) {
-        throw academicError("ACADEMIC_SMS_INVALID");
+      if (!successAuth(result)) {
+        if (result.nextService) {
+          throw stagedError(
+            "ACADEMIC_ADDITIONAL_AUTH_REQUIRED",
+            "vpn_sms_verify",
+          );
+        }
+        throw stagedError("ACADEMIC_SMS_INVALID", "vpn_sms_verify");
       }
       transactions.delete(transactionId);
       return {
