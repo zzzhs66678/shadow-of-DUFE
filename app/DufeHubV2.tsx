@@ -2973,6 +2973,7 @@ function AcademicImportDialog({
   const [phoneOptions, setPhoneOptions] = useState<
     Array<{ index: number; label: string }>
   >([]);
+  const [importRetryAvailable, setImportRetryAvailable] = useState(false);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState("");
 
@@ -3005,16 +3006,21 @@ function AcademicImportDialog({
             maskedPhone: string;
           }
         | { status: "imported"; snapshot: AcademicSnapshot }
-        | { error: string };
+        | { error: string; retryable?: boolean };
       if (!response.ok || "error" in result) {
+        const retryable = "error" in result && result.retryable === true;
+        setImportRetryAvailable(retryable);
         setFeedback(
-          academicImportErrorMessage(
-            "error" in result ? result.error : "academic_import_failed",
-          ),
+          retryable
+            ? "学校登录仍有效，可直接重试读取。"
+            : academicImportErrorMessage(
+                "error" in result ? result.error : "academic_import_failed",
+              ),
         );
         return;
       }
       if (result.status === "sms_destination_required") {
+        setImportRetryAvailable(false);
         setTransactionId(result.transactionId);
         setSmsDestination(result.destination);
         setPhoneOptions(result.phoneOptions);
@@ -3024,6 +3030,7 @@ function AcademicImportDialog({
         return;
       }
       if (result.status === "sms_required") {
+        setImportRetryAvailable(false);
         setTransactionId(result.transactionId);
         setSmsDestination("");
         setMaskedPhone(result.maskedPhone);
@@ -3047,6 +3054,7 @@ function AcademicImportDialog({
     setSmsPhoneIndex("0");
     setPhoneOptions([]);
     setSmsCode("");
+    setImportRetryAvailable(false);
     setFeedback("");
   }
 
@@ -3069,7 +3077,9 @@ function AcademicImportDialog({
               {smsDestination
                 ? "选择短信号码"
                 : transactionId
-                  ? "输入短信验证码"
+                  ? importRetryAvailable
+                    ? "继续读取教务数据"
+                    : "输入短信验证码"
                   : "导入课表与考试安排"}
             </h2>
           </div>
@@ -3203,31 +3213,40 @@ function AcademicImportDialog({
               event.preventDefault();
               void submit("/api/auth/academic/sms", {
                 transactionId,
-                code: smsCode,
+                ...(importRetryAvailable ? {} : { code: smsCode }),
               });
             }}
           >
             <p className="academic-import-current">
               学校已向 {maskedPhone || "绑定手机"} 发送验证码。
             </p>
-            <FormField label="短信验证码">
-              <input
-                name="academic-sms"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                value={smsCode}
-                onChange={(event) =>
-                  setSmsCode(event.target.value.replace(/\D/gu, "").slice(0, 8))
-                }
-                minLength={4}
-                maxLength={8}
-                required
-                autoFocus
-              />
-            </FormField>
+            {!importRetryAvailable && (
+              <FormField label="短信验证码">
+                <input
+                  name="academic-sms"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={smsCode}
+                  onChange={(event) =>
+                    setSmsCode(event.target.value.replace(/\D/gu, "").slice(0, 8))
+                  }
+                  minLength={4}
+                  maxLength={8}
+                  required
+                  autoFocus
+                />
+              </FormField>
+            )}
             {feedback && <p className="academic-import-error" role="alert">{feedback}</p>}
-            <button type="submit" disabled={busy || smsCode.length < 4}>
-              {busy ? "正在读取课表与考试…" : "验证并完成导入"}
+            <button
+              type="submit"
+              disabled={busy || (!importRetryAvailable && smsCode.length < 4)}
+            >
+              {busy
+                ? "正在读取课表与考试…"
+                : importRetryAvailable
+                  ? "直接重试读取"
+                  : "验证并完成导入"}
             </button>
             <button
               className="academic-import-restart"

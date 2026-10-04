@@ -218,6 +218,142 @@ test("connector uses the official single-bound-phone SMS endpoints", async () =>
   assert.equal(connector.pendingCount(), 0);
 });
 
+test("connector follows school WebVPN resource redirects after SMS login", async () => {
+  const challenge = rsaChallengeXml();
+  const redirectedHost = "202-199-165-193.vpn.dufe.edu.cn:8118";
+  const fetchImpl = async (url) => {
+    const parsed = new URL(url);
+    if (parsed.pathname === "/por/login_auth.csp") return response(challenge);
+    if (parsed.pathname === "/public/psw_config") return response(challenge);
+    if (parsed.pathname === "/por/login_psw.csp") {
+      return response(
+        "<Auth><ErrorCode>1</ErrorCode><NextService>sms</NextService></Auth>",
+      );
+    }
+    if (parsed.pathname === "/por/login_sms.csp") {
+      return response(
+        "<Auth><ErrorCode>1</ErrorCode><USER_PHONE>138****0000</USER_PHONE></Auth>",
+      );
+    }
+    if (parsed.pathname === "/por/post_sms.csp") {
+      return response("<Auth><ErrorCode>1</ErrorCode></Auth>");
+    }
+    if (parsed.pathname === "/por/login_sms1.csp") {
+      return response(
+        "<Auth><ErrorCode>1</ErrorCode><TwfID>authenticated-session</TwfID></Auth>",
+      );
+    }
+    if (
+      parsed.hostname === "zhjw-dufe-edu-cn.vpn.dufe.edu.cn" &&
+      parsed.pathname.includes("thisSemesterCurriculum")
+    ) {
+      return response("", {
+        status: 302,
+        headers: {
+          location: `http://${redirectedHost}${parsed.pathname}`,
+        },
+      });
+    }
+    if (
+      parsed.host === redirectedHost &&
+      parsed.pathname.includes("thisSemesterCurriculum")
+    ) {
+      return response(timetableHtml);
+    }
+    if (parsed.pathname.includes("examPlan")) return response(examHtml);
+    throw new Error(`unexpected request: ${parsed}`);
+  };
+  const connector = createAcademicConnector({ fetchImpl });
+  const started = await connector.start({
+    username: "20260001",
+    password: "test-password",
+    principalKey: "device:test",
+  });
+  const completed = await connector.verifySms({
+    transactionId: started.transactionId,
+    code: "123456",
+    principalKey: "device:test",
+  });
+  assert.equal(completed.status, "imported");
+  assert.equal(completed.snapshot.sections.length, 2);
+});
+
+test("connector rejects external redirects and retains verified SMS sessions for retry", async () => {
+  const challenge = rsaChallengeXml();
+  let timetableAttempts = 0;
+  let smsVerificationAttempts = 0;
+  const fetchImpl = async (url) => {
+    const parsed = new URL(url);
+    if (parsed.pathname === "/por/login_auth.csp") return response(challenge);
+    if (parsed.pathname === "/public/psw_config") return response(challenge);
+    if (parsed.pathname === "/por/login_psw.csp") {
+      return response(
+        "<Auth><ErrorCode>1</ErrorCode><NextService>sms</NextService></Auth>",
+      );
+    }
+    if (parsed.pathname === "/por/login_sms.csp") {
+      return response(
+        "<Auth><ErrorCode>1</ErrorCode><USER_PHONE>138****0000</USER_PHONE></Auth>",
+      );
+    }
+    if (parsed.pathname === "/por/post_sms.csp") {
+      return response("<Auth><ErrorCode>1</ErrorCode></Auth>");
+    }
+    if (parsed.pathname === "/por/login_sms1.csp") {
+      smsVerificationAttempts += 1;
+      return response("<Auth><ErrorCode>1</ErrorCode></Auth>");
+    }
+    if (parsed.pathname.includes("thisSemesterCurriculum")) {
+      timetableAttempts += 1;
+      if (timetableAttempts === 1) {
+        return response("", {
+          status: 302,
+          headers: { location: "https://attacker.example/capture" },
+        });
+      }
+      return response(timetableHtml);
+    }
+    if (parsed.pathname.includes("examPlan")) return response(examHtml);
+    throw new Error(`unexpected request: ${parsed}`);
+  };
+  const connector = createAcademicConnector({ fetchImpl });
+  const started = await connector.start({
+    username: "20260001",
+    password: "test-password",
+    principalKey: "device:test",
+  });
+  await assert.rejects(
+    connector.verifySms({
+      transactionId: started.transactionId,
+      code: "123456",
+      principalKey: "device:test",
+    }),
+    (error) => {
+      assert.equal(error.code, "ACADEMIC_UNTRUSTED_REDIRECT");
+      assert.equal(error.stage, "timetable_fetch");
+      assert.equal(error.retryable, true);
+      assert.equal(
+        error.diagnostic.redirectFromOrigin,
+        "http://zhjw-dufe-edu-cn.vpn.dufe.edu.cn:8118",
+      );
+      assert.equal(
+        error.diagnostic.redirectToOrigin,
+        "https://attacker.example",
+      );
+      assert.equal(error.diagnostic.redirectStatus, 302);
+      return true;
+    },
+  );
+  assert.equal(connector.pendingCount(), 1);
+  const completed = await connector.verifySms({
+    transactionId: started.transactionId,
+    principalKey: "device:test",
+  });
+  assert.equal(completed.status, "imported");
+  assert.equal(smsVerificationAttempts, 1);
+  assert.equal(connector.pendingCount(), 0);
+});
+
 test("connector accepts the official redirect-range auth completion codes", async () => {
   const challenge = rsaChallengeXml();
   const fetchImpl = async (url) => {

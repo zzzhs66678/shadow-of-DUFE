@@ -137,6 +137,44 @@ function safeDiagnosticStage(error) {
   return DIAGNOSTIC_STAGES.has(error?.stage) ? error.stage : "unknown";
 }
 
+function safeDiagnosticOrigin(value) {
+  if (typeof value !== "string" || value.length > 512) return undefined;
+  try {
+    const parsed = new URL(value);
+    if (
+      !["http:", "https:"].includes(parsed.protocol) ||
+      parsed.username ||
+      parsed.password
+    ) {
+      return undefined;
+    }
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch {
+    return undefined;
+  }
+}
+
+function safeDiagnosticDetails(error) {
+  const diagnostic = error?.diagnostic;
+  if (!diagnostic || typeof diagnostic !== "object") return {};
+  const redirectFromOrigin = safeDiagnosticOrigin(
+    diagnostic.redirectFromOrigin,
+  );
+  const redirectToOrigin = safeDiagnosticOrigin(diagnostic.redirectToOrigin);
+  const redirectStatus = Number.isInteger(diagnostic.redirectStatus)
+    ? diagnostic.redirectStatus
+    : undefined;
+  const redirectIndex = Number.isInteger(diagnostic.redirectIndex)
+    ? diagnostic.redirectIndex
+    : undefined;
+  return {
+    ...(redirectFromOrigin ? { redirectFromOrigin } : {}),
+    ...(redirectToOrigin ? { redirectToOrigin } : {}),
+    ...(redirectStatus !== undefined ? { redirectStatus } : {}),
+    ...(redirectIndex !== undefined ? { redirectIndex } : {}),
+  };
+}
+
 export function createAcademicRequestHandler({
   store,
   config,
@@ -226,12 +264,17 @@ export function createAcademicRequestHandler({
           action: url.pathname.split("/").at(-1) || "unknown",
           code: error.code,
           stage,
+          ...safeDiagnosticDetails(error),
         }),
       );
       sendJson(
         response,
         mapped[0],
-        { error: mapped[1], stage },
+        {
+          error: mapped[1],
+          stage,
+          ...(error?.retryable === true ? { retryable: true } : {}),
+        },
         principal.setCookies,
       );
     }

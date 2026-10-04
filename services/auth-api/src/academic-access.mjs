@@ -34,6 +34,17 @@ function academicError(code, message = code) {
   return error;
 }
 
+function redirectError(code, from, to, status, redirectIndex) {
+  const error = academicError(code);
+  error.diagnostic = {
+    redirectFromOrigin: safeOrigin(from),
+    redirectToOrigin: safeOrigin(to),
+    redirectStatus: status,
+    redirectIndex,
+  };
+  return error;
+}
+
 function stagedError(code, stage) {
   const error = academicError(code);
   error.stage = stage;
@@ -49,6 +60,48 @@ async function atStage(stage, action) {
     }
     throw error;
   }
+}
+
+function effectivePort(url) {
+  if (url.port) return url.port;
+  if (url.protocol === "https:") return "443";
+  if (url.protocol === "http:") return "80";
+  return "";
+}
+
+function safeOrigin(url) {
+  if (!(url instanceof URL) || !["http:", "https:"].includes(url.protocol)) {
+    return "invalid";
+  }
+  return `${url.protocol}//${url.host}`;
+}
+
+function createTrustedTargetPolicy(vpn, academic) {
+  const webVpnSuffix = `.${vpn.hostname}`;
+  const webVpnPorts = new Map([
+    ["http:", new Set(["80"])],
+    ["https:", new Set(["443"])],
+  ]);
+  webVpnPorts.get(academic.protocol)?.add(effectivePort(academic));
+  return (url) => {
+    if (
+      !(url instanceof URL) ||
+      url.username ||
+      url.password ||
+      !["http:", "https:"].includes(url.protocol)
+    ) {
+      return false;
+    }
+    if (url.hostname === vpn.hostname) {
+      return (
+        url.protocol === vpn.protocol && effectivePort(url) === effectivePort(vpn)
+      );
+    }
+    return (
+      url.hostname.endsWith(webVpnSuffix) &&
+      webVpnPorts.get(url.protocol)?.has(effectivePort(url)) === true
+    );
+  };
 }
 
 function decodeEntities(value) {
@@ -214,7 +267,7 @@ async function requestWithCookies({
   fetchImpl,
   jar,
   url,
-  allowedHosts,
+  isTrustedTarget,
   method = "GET",
   body,
   headers = {},
@@ -224,8 +277,14 @@ async function requestWithCookies({
   let currentMethod = method;
   let currentBody = body;
   for (let redirect = 0; redirect <= maxRedirects; redirect += 1) {
-    if (!allowedHosts.has(current.host)) {
-      throw academicError("ACADEMIC_UNTRUSTED_REDIRECT");
+    if (!isTrustedTarget(current)) {
+      throw redirectError(
+        "ACADEMIC_UNTRUSTED_REDIRECT",
+        current,
+        current,
+        0,
+        redirect,
+      );
     }
     let response;
     try {
@@ -254,7 +313,28 @@ async function requestWithCookies({
     }
     const location = response.headers.get("location");
     if (!location) throw academicError("ACADEMIC_PROTOCOL_CHANGED");
-    current = new URL(location, current);
+    let next;
+    try {
+      next = new URL(location, current);
+    } catch {
+      throw redirectError(
+        "ACADEMIC_PROTOCOL_CHANGED",
+        current,
+        null,
+        response.status,
+        redirect + 1,
+      );
+    }
+    if (!isTrustedTarget(next)) {
+      throw redirectError(
+        "ACADEMIC_UNTRUSTED_REDIRECT",
+        current,
+        next,
+        response.status,
+        redirect + 1,
+      );
+    }
+    current = next;
     if (response.status === 303 || ((response.status === 301 || response.status === 302) && currentMethod === "POST")) {
       currentMethod = "GET";
       currentBody = undefined;
@@ -684,7 +764,7 @@ export function createAcademicConnector({
 } = {}) {
   const vpn = new URL(vpnOrigin);
   const academic = new URL(academicOrigin);
-  const allowedHosts = new Set([vpn.host, academic.host]);
+  const isTrustedTarget = createTrustedTargetPolicy(vpn, academic);
   const transactions = new Map();
 
   function cleanup() {
@@ -699,7 +779,7 @@ export function createAcademicConnector({
       fetchImpl,
       jar,
       url,
-      allowedHosts,
+      isTrustedTarget,
       ...options,
     });
   }
@@ -844,6 +924,7 @@ export function createAcademicConnector({
       const transaction = {
         jar,
         principalKey,
+        authenticated: false,
         phones,
         destination:
           phones.length === 0 ? "enter" : phones.length > 1 ? "choose" : "bound",
@@ -979,9 +1060,7 @@ export function createAcademicConnector({
       cleanup();
       if (
         typeof transactionId !== "string" ||
-        !/^[A-Za-z0-9_-]{32,64}$/u.test(transactionId) ||
-        typeof code !== "string" ||
-        !/^\d{4,8}$/u.test(code)
+        !/^[A-Za-z0-9_-]{32,64}$/u.test(transactionId)
       ) {
         throw academicError("ACADEMIC_SMS_INVALID");
       }
@@ -989,36 +1068,46 @@ export function createAcademicConnector({
       if (!transaction || transaction.principalKey !== principalKey) {
         throw academicError("ACADEMIC_TRANSACTION_EXPIRED");
       }
-      if (transaction.smsPhone === null) {
-        throw academicError("ACADEMIC_SMS_NOT_SENT");
-      }
-      const path = transaction.smsPhone
-        ? "/por/login_sms2.csp?apiversion=1"
-        : "/por/login_sms1.csp?apiversion=1";
-      const result = await readAuthResponse(
-        transaction.jar,
-        new URL(path, vpn),
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({ svpn_inputsms: code }),
-        },
-        "vpn_sms_verify",
-      );
-      if (!successAuth(result)) {
-        if (result.nextService) {
-          throw stagedError(
-            "ACADEMIC_ADDITIONAL_AUTH_REQUIRED",
-            "vpn_sms_verify",
-          );
+      if (!transaction.authenticated) {
+        if (typeof code !== "string" || !/^\d{4,8}$/u.test(code)) {
+          throw academicError("ACADEMIC_SMS_INVALID");
         }
-        throw stagedError("ACADEMIC_SMS_INVALID", "vpn_sms_verify");
+        if (transaction.smsPhone === null) {
+          throw academicError("ACADEMIC_SMS_NOT_SENT");
+        }
+        const path = transaction.smsPhone
+          ? "/por/login_sms2.csp?apiversion=1"
+          : "/por/login_sms1.csp?apiversion=1";
+        const result = await readAuthResponse(
+          transaction.jar,
+          new URL(path, vpn),
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({ svpn_inputsms: code }),
+          },
+          "vpn_sms_verify",
+        );
+        if (!successAuth(result)) {
+          if (result.nextService) {
+            throw stagedError(
+              "ACADEMIC_ADDITIONAL_AUTH_REQUIRED",
+              "vpn_sms_verify",
+            );
+          }
+          throw stagedError("ACADEMIC_SMS_INVALID", "vpn_sms_verify");
+        }
+        transaction.authenticated = true;
+        transaction.expiresAt = now() + transactionTtlMs;
       }
-      transactions.delete(transactionId);
-      return {
-        status: "imported",
-        snapshot: await importSnapshot(transaction.jar),
-      };
+      try {
+        const snapshot = await importSnapshot(transaction.jar);
+        transactions.delete(transactionId);
+        return { status: "imported", snapshot };
+      } catch (error) {
+        if (error && typeof error === "object") error.retryable = true;
+        throw error;
+      }
     },
 
     pendingCount() {
