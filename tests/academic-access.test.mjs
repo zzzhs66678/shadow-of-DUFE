@@ -61,10 +61,12 @@ const casLoginHtml = `<!doctype html>
   </script>
 </body></html>`;
 
+const sliderToken = "testslider".repeat(4);
+
 const sliderChallenge = JSON.stringify({
   code: 1,
   data: {
-    token: "1234567890abcdef1234567890abcdef",
+    token: sliderToken,
     bg: "data:image/png;base64,iVBORw0KGgo=",
     block: "data:image/png;base64,iVBORw0KGgo=",
   },
@@ -336,7 +338,7 @@ test("connector completes the school CAS slider step before importing", async ()
         assert.equal(form.get("username"), "20260001");
         assert.equal(form.get("password"), "R6ANtscKUJD0ksbUwLNNDw==");
         assert.ok(!String(options.body).includes("test-password"));
-        assert.equal(form.get("verify_token"), "1234567890abcdef1234567890abcdef");
+        assert.equal(form.get("verify_token"), sliderToken);
         assert.match(form.get("verify_code"), /^11[67]$/u);
         assert.equal(form.get("__token__"), "csrf-test-token");
         assert.match(form.get("fingerprint"), /^[a-f0-9]{32}$/u);
