@@ -24,7 +24,7 @@ const SSO_CHALLENGE_MAX_OFFSET =
   SSO_CHALLENGE_WIDTH - SSO_CHALLENGE_PIECE_WIDTH / 2;
 const MAX_PLAN_NODES = 2_000;
 const MAX_PLAN_CATEGORIES = 100;
-const MAX_PLAN_COURSES = 500;
+const MAX_PLAN_COURSES = 1_500;
 
 const WEEKDAYS = new Map([
   ["一", 1],
@@ -1827,16 +1827,6 @@ function planNodePath(node) {
   return textValue(node, ["info1", "urlPath", "url"]);
 }
 
-function trainingPlanCategoryRequests(payload) {
-  const { roots } = trainingPlanTree(payload);
-  return roots.map((root) => {
-    const id = textValue(root, ["id"]);
-    const path = planNodePath(root);
-    if (!id || !path) throw trainingPlanFormatError("plan_category_invalid");
-    return { id, path };
-  });
-}
-
 function planCourseCode(node) {
   const direct = textValue(node, ["courseNumber", "coureNumber", "courseCode", "kch"]);
   if (direct) return direct;
@@ -1877,13 +1867,221 @@ function replacementCourseCodes(node) {
   return codes;
 }
 
+function normalizedTrainingPlanMetadata(payload, profile) {
+  const data = recordValue(payload);
+  const metadata = recordValue(data?.jhFajhb);
+  if (!data || !metadata) {
+    throw trainingPlanFormatError("plan_json_invalid");
+  }
+  const planNumber = textValue(metadata, ["fajhh"]) || profile.planNumber;
+  const planName = textValue(metadata, ["famc"]) || textValue(data, ["title"]);
+  const majorCode = textValue(metadata, ["zyh"]);
+  const majorName = textValue(metadata, ["zym"]) || profile.majorName;
+  const cohortYear = Number(
+    textValue(metadata, ["nj", "njmc"]).match(/(?:19|20)\d{2}/u)?.[0] ??
+      profile.cohortYear,
+  );
+  const requiredCredits = finiteNumber(metadata.yqzxf, { positive: true });
+  if (
+    !planNumber ||
+    !planName ||
+    !majorCode ||
+    !majorName ||
+    !Number.isInteger(cohortYear) ||
+    requiredCredits === null ||
+    planNumber !== profile.planNumber ||
+    (profile.majorName && majorName !== profile.majorName)
+  ) {
+    throw trainingPlanFormatError("plan_metadata_invalid");
+  }
+  return {
+    planNumber,
+    planName,
+    majorCode,
+    majorName,
+    cohortYear,
+    requiredCredits,
+  };
+}
+
+function planCompletionNodes(html) {
+  const source = String(html ?? "");
+  const assignment = source.match(/\b(?:var|let|const)\s+zNodes\s*=\s*/u);
+  if (!assignment) throw trainingPlanFormatError("plan_completion_missing");
+  const start = assignment.index + assignment[0].length;
+  if (source[start] !== "[") {
+    throw trainingPlanFormatError("plan_completion_invalid");
+  }
+  let depth = 0;
+  let quote = "";
+  let escaped = false;
+  let end = -1;
+  for (let index = start; index < source.length; index += 1) {
+    const character = source[index];
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (character === "\\") escaped = true;
+      else if (character === quote) quote = "";
+      continue;
+    }
+    if (character === '"') {
+      quote = character;
+      continue;
+    }
+    if (character === "[") depth += 1;
+    else if (character === "]") {
+      depth -= 1;
+      if (depth === 0) {
+        end = index + 1;
+        break;
+      }
+    }
+  }
+  if (end < 0) throw trainingPlanFormatError("plan_completion_invalid");
+  let values;
+  try {
+    values = JSON.parse(source.slice(start, end));
+  } catch {
+    throw trainingPlanFormatError("plan_completion_invalid");
+  }
+  if (
+    !Array.isArray(values) ||
+    values.length === 0 ||
+    values.length > MAX_PLAN_NODES
+  ) {
+    throw trainingPlanFormatError("plan_tree_size_invalid");
+  }
+  const nodes = values.map((value) => {
+    const node = recordValue(value);
+    if (!node) throw trainingPlanFormatError("plan_completion_invalid");
+    return node;
+  });
+  const ids = new Set();
+  for (const node of nodes) {
+    const id = textValue(node, ["id"]);
+    if (!id || ids.has(id)) {
+      throw trainingPlanFormatError("plan_completion_invalid");
+    }
+    ids.add(id);
+  }
+  return nodes;
+}
+
+function planCompletionCategoryName(node) {
+  return stripHtml(node.name)
+    .replace(/\s*\(最低修读学分[\s\S]*$/u, "")
+    .trim();
+}
+
+function planCompletionAttribute(nodes) {
+  const label = nodes.map((node) => planCompletionCategoryName(node)).join(" ");
+  if (/必修/u.test(label)) return "required";
+  if (/限选/u.test(label)) return "limited";
+  if (/任选|选修/u.test(label)) return "elective";
+  return "unknown";
+}
+
+function parsePlanCompletionCourse(node) {
+  const raw = stripHtml(node.name);
+  const match = raw.match(
+    /^\s*\[([^\]]+)\](.*?)\[([0-9]+(?:\.[0-9]+)?)学分(?:,([^\]]+))?\](?:\((.*)\))?\s*$/u,
+  );
+  if (!match) throw trainingPlanFormatError("plan_course_invalid");
+  const credits = finiteNumber(match[3], { positive: true });
+  if (!match[1].trim() || !match[2].trim() || credits === null) {
+    throw trainingPlanFormatError("plan_course_invalid");
+  }
+  return {
+    courseCode: match[1].trim(),
+    courseName: match[2].trim(),
+    credits,
+  };
+}
+
+export function parseTrainingPlanCompletionHtml(
+  html,
+  detailPayload,
+  profile,
+  importedAt,
+) {
+  const nodes = planCompletionNodes(html);
+  const nodeById = new Map(nodes.map((node) => [textValue(node, ["id"]), node]));
+  const roots = nodes.filter(
+    (node) =>
+      ["001", "002"].includes(textValue(node, ["flagType"])) &&
+      textValue(node, ["pId", "pid"]) === "0",
+  );
+  if (!roots.length || roots.length > MAX_PLAN_CATEGORIES) {
+    throw trainingPlanFormatError("plan_categories_missing");
+  }
+  const rootById = new Map();
+  const categories = [];
+  for (const root of roots) {
+    const code = textValue(root, ["id"]);
+    const name = planCompletionCategoryName(root);
+    const requiredCredits = finiteNumber(root.zsxf);
+    if (!code || !name || requiredCredits === null || rootById.has(code)) {
+      throw trainingPlanFormatError("plan_category_invalid");
+    }
+    const category = { code, name, requiredCredits };
+    rootById.set(code, category);
+    categories.push(category);
+  }
+  function ancestryFor(node) {
+    const ancestors = [];
+    const visited = new Set();
+    let parentId = textValue(node, ["pId", "pid"]);
+    while (parentId && parentId !== "0" && !visited.has(parentId)) {
+      visited.add(parentId);
+      const parent = nodeById.get(parentId);
+      if (!parent) throw trainingPlanFormatError("plan_category_invalid");
+      ancestors.push(parent);
+      parentId = textValue(parent, ["pId", "pid"]);
+    }
+    return ancestors;
+  }
+  const courses = [];
+  const seen = new Set();
+  for (const node of nodes) {
+    if (textValue(node, ["flagType"]) !== "kch") continue;
+    const ancestors = ancestryFor(node);
+    const root = ancestors.find((ancestor) =>
+      rootById.has(textValue(ancestor, ["id"])),
+    );
+    const category = root && rootById.get(textValue(root, ["id"]));
+    if (!category) throw trainingPlanFormatError("plan_category_invalid");
+    const course = parsePlanCompletionCourse(node);
+    const key = `${category.code}\u0000${course.courseCode}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    courses.push({
+      ...course,
+      categoryCode: category.code,
+      categoryName: category.name,
+      attribute: planCompletionAttribute(ancestors),
+      replacementCourseCodes: [],
+    });
+    if (courses.length > MAX_PLAN_COURSES) {
+      throw trainingPlanFormatError("plan_courses_too_many");
+    }
+  }
+  if (!courses.length) throw trainingPlanFormatError("plan_courses_missing");
+  return {
+    schemaVersion: 1,
+    ...normalizedTrainingPlanMetadata(detailPayload, profile),
+    categories,
+    courses,
+    importedAt,
+  };
+}
+
 export function parseTrainingPlanDetail(
   payload,
   profile,
   categoryPayloads,
   importedAt,
 ) {
-  const { data, metadata, nodes, roots } = trainingPlanTree(payload);
+  const { nodes, roots } = trainingPlanTree(payload);
   const categoryByRoot = new Map();
   const categoryCodes = new Set();
   const categories = [];
@@ -1951,35 +2149,9 @@ export function parseTrainingPlanDetail(
     }
   }
   if (!courses.length) throw trainingPlanFormatError("plan_courses_missing");
-  const planNumber = textValue(metadata, ["fajhh"]) || profile.planNumber;
-  const planName = textValue(metadata, ["famc"]) || textValue(data, ["title"]);
-  const majorCode = textValue(metadata, ["zyh"]);
-  const majorName = textValue(metadata, ["zym"]) || profile.majorName;
-  const cohortYear = Number(
-    textValue(metadata, ["nj", "njmc"]).match(/(?:19|20)\d{2}/u)?.[0] ??
-      profile.cohortYear,
-  );
-  const requiredCredits = finiteNumber(metadata.yqzxf, { positive: true });
-  if (
-    !planNumber ||
-    !planName ||
-    !majorCode ||
-    !majorName ||
-    !Number.isInteger(cohortYear) ||
-    requiredCredits === null ||
-    planNumber !== profile.planNumber ||
-    (profile.majorName && majorName !== profile.majorName)
-  ) {
-    throw trainingPlanFormatError("plan_metadata_invalid");
-  }
   return {
     schemaVersion: 1,
-    planNumber,
-    planName,
-    majorCode,
-    majorName,
-    cohortYear,
-    requiredCredits,
+    ...normalizedTrainingPlanMetadata(payload, profile),
     categories,
     courses,
     importedAt,
@@ -2365,47 +2537,35 @@ export function createAcademicConnector({
     } catch {
       throw trainingPlanFormatError("plan_json_invalid");
     }
-    const categoryRequests = await atStage("plan_parse", () =>
-      trainingPlanCategoryRequests(planPayload),
+    const completionUrl = new URL(
+      "/student/integratedQuery/planCompletion/index",
+      academic,
     );
-    const categoryPayloads = new Map();
-    for (const categoryRequest of categoryRequests) {
-      const categoryUrl = new URL(categoryRequest.path, planResult.finalUrl);
-      const categoryResult = await atStage("plan_fetch", () =>
-        request(transaction.jar, categoryUrl, {
-          headers: {
-            Accept: "application/json, text/javascript, */*; q=0.01",
-            "X-Requested-With": "XMLHttpRequest",
-            Referer: planResult.finalUrl.href,
-          },
-        }),
+    const completionResult = await atStage("plan_fetch", () =>
+      request(transaction.jar, completionUrl, {
+        headers: { Referer: planResult.finalUrl.href },
+      }),
+    );
+    if (!completionResult.response.ok) {
+      throw stagedError("ACADEMIC_UPSTREAM_UNAVAILABLE", "plan_fetch");
+    }
+    const completionHtml = await atStage("plan_fetch", () =>
+      readLimitedText(completionResult.response),
+    );
+    if (findSsoLogin(completionHtml, completionResult.finalUrl)) {
+      return prepareSsoChallenge(
+        transactionId,
+        transaction,
+        completionResult.finalUrl,
+        completionHtml,
       );
-      if (!categoryResult.response.ok) {
-        throw stagedError("ACADEMIC_UPSTREAM_UNAVAILABLE", "plan_fetch");
-      }
-      const categoryText = await atStage("plan_fetch", () =>
-        readLimitedText(categoryResult.response),
-      );
-      if (findSsoLogin(categoryText, categoryResult.finalUrl)) {
-        return prepareSsoChallenge(
-          transactionId,
-          transaction,
-          categoryResult.finalUrl,
-          categoryText,
-        );
-      }
-      try {
-        categoryPayloads.set(categoryRequest.id, JSON.parse(categoryText));
-      } catch {
-        throw trainingPlanFormatError("plan_category_invalid");
-      }
     }
     const importedAt = new Date(now()).toISOString();
     const trainingPlan = await atStage("plan_parse", () =>
-      parseTrainingPlanDetail(
+      parseTrainingPlanCompletionHtml(
+        completionHtml,
         planPayload,
         profile,
-        categoryPayloads,
         importedAt,
       ),
     );

@@ -8,6 +8,7 @@ import {
   parseExamHtml,
   parseTimetableHtml,
   parseTimetableJson,
+  parseTrainingPlanCompletionHtml,
   parseTrainingPlanDetail,
   parseTrainingPlanProfile,
   parseWeeks,
@@ -221,6 +222,48 @@ const planCategoryPayloads = new Map([
   ["B", { kz: { id: { kzh: "B" }, kzm: "专业选修课", zsxf: 20 } }],
 ]);
 
+const planCompletionHtml = `<!doctype html><html><body>
+  <ul id="treeDemo" class="ztree"></ul>
+  <script>
+    var zNodes = ${JSON.stringify([
+      {
+        id: "A",
+        pId: "0",
+        flagType: "001",
+        name: "专业必修课(最低修读学分:80,通过学分:10)",
+        zsxf: "80",
+      },
+      {
+        id: "A-1",
+        pId: "A",
+        flagType: "002",
+        name: "专业基础必修",
+        zsxf: "20",
+      },
+      {
+        id: "A-C1",
+        pId: "A-1",
+        flagType: "kch",
+        name: "<i></i>&nbsp;[31131862]内部审计[2学分,2026-2027学年第一学期](已修读及格,79.0(正常))",
+      },
+      {
+        id: "B",
+        pId: "0",
+        flagType: "001",
+        name: "专业选修课(最低修读学分:20,通过学分:0)",
+        zsxf: "20",
+      },
+      {
+        id: "B-C1",
+        pId: "B",
+        flagType: "kch",
+        name: "[51132062]数字化管理会计[2学分]",
+      },
+    ])};
+    $.fn.zTree.init($("#treeDemo"), {}, zNodes);
+  </script>
+</body></html>`;
+
 const casLoginHtml = `<!doctype html>
 <html><head><title>统一身份认证中心</title></head><body>
   <form method="post" action="">
@@ -390,6 +433,57 @@ test("training plan parser preserves groups, identifiers, credits, and course at
   ]);
 });
 
+test("training plan completion parser reads the complete inline course tree", () => {
+  const profile = parseTrainingPlanProfile(planProfileHtml);
+  const plan = parseTrainingPlanCompletionHtml(
+    planCompletionHtml,
+    planDetailPayload,
+    profile,
+    "2026-10-04T01:02:03.000Z",
+  );
+  assert.deepEqual(plan.categories, [
+    { code: "A", name: "专业必修课", requiredCredits: 80 },
+    { code: "B", name: "专业选修课", requiredCredits: 20 },
+  ]);
+  assert.deepEqual(plan.courses, [
+    {
+      courseCode: "31131862",
+      courseName: "内部审计",
+      credits: 2,
+      categoryCode: "A",
+      categoryName: "专业必修课",
+      attribute: "required",
+      replacementCourseCodes: [],
+    },
+    {
+      courseCode: "51132062",
+      courseName: "数字化管理会计",
+      credits: 2,
+      categoryCode: "B",
+      categoryName: "专业选修课",
+      attribute: "elective",
+      replacementCourseCodes: [],
+    },
+  ]);
+});
+
+test("training plan completion parser fails closed on malformed course rows", () => {
+  const profile = parseTrainingPlanProfile(planProfileHtml);
+  assert.throws(
+    () =>
+      parseTrainingPlanCompletionHtml(
+        planCompletionHtml.replace(
+          "[31131862]内部审计[2学分,2026-2027学年第一学期]",
+          "内部审计",
+        ),
+        planDetailPayload,
+        profile,
+        "2026-10-04T01:02:03.000Z",
+      ),
+    { code: "ACADEMIC_PLAN_FORMAT_CHANGED" },
+  );
+});
+
 test("training plan parser accepts profile pages that leave identity to plan metadata", () => {
   const profile = parseTrainingPlanProfile(planProfileWithoutVisibleFieldsHtml);
   assert.equal(profile.majorName, "");
@@ -513,6 +607,9 @@ function trainingPlanResponse(url) {
       headers: { "content-type": "application/json; charset=utf-8" },
     });
   }
+  if (url.pathname === "/student/integratedQuery/planCompletion/index") {
+    return response(planCompletionHtml);
+  }
   if (url.pathname === "/plan/category/A") {
     return response(JSON.stringify(planCategoryPayloads.get("A")));
   }
@@ -573,7 +670,7 @@ test("connector performs encrypted login and imports both official pages", async
   assert.equal(result.snapshot.exams.length, 1);
   assert.equal(result.trainingPlan.courses.length, 2);
   assert.equal(result.snapshot.importedAt, "2026-09-28T01:02:03.000Z");
-  assert.equal(requests.length, 10);
+  assert.equal(requests.length, 9);
 });
 
 test("connector uses the official single-bound-phone SMS endpoints", async () => {
