@@ -3,8 +3,13 @@ import { generateKeyPairSync } from "node:crypto";
 import test from "node:test";
 import {
   createAcademicConnector,
+  findTimetableCallbackPath,
+  findTrainingPlanDetailPath,
   parseExamHtml,
   parseTimetableHtml,
+  parseTimetableJson,
+  parseTrainingPlanDetail,
+  parseTrainingPlanProfile,
   parseWeeks,
 } from "../services/auth-api/src/academic-access.mjs";
 
@@ -81,6 +86,126 @@ const examHtml = `<!doctype html>
   </table>
 </body></html>`;
 
+const timetableShellHtml = `<!doctype html>
+<html><body>
+  <div>2026-2027学年第一学期</div>
+  <table><tr><th>节次</th><th>星期一</th><th>星期二</th><th>星期三</th></tr></table>
+  <table><tr><th>课程号</th><th>课序号</th><th>课程名</th><th>学分</th><th>教师</th><th>必修</th><th>考试类型</th><th>时间</th><th>地点</th></tr></table>
+  <script>const url = "/student/courseSelect/thisSemesterCurriculum/token-a/ajaxStudentSchedule/curr/callback";</script>
+</body></html>`;
+
+const timetablePayload = {
+  allUnits: 4,
+  dateList: [
+    {
+      programPlanCode: "2026-2027-1-1",
+      selectCourseList: [
+        {
+          id: {
+            executiveEducationPlanNumber: "2026-2027-1-1",
+            coureNumber: "31131862",
+            coureSequenceNumber: "01",
+          },
+          courseName: "内部审计",
+          unit: 2,
+          attendClassTeacher: "姜博*",
+          coursePropertiesName: "必修",
+          courseCategoryName: "专业必修",
+          examTypeName: "考试",
+          studyModeName: "正常",
+          selectCourseStatusName: "选中",
+          timeAndPlaceList: [
+            {
+              classWeek: "111111111000000000000000",
+              weekDescription: "1-9周",
+              classDay: 1,
+              classSessions: 1,
+              continuingSession: 2,
+              campusName: "校本部",
+              teachingBuildingName: "之远楼",
+              classroomName: "516",
+            },
+            {
+              classWeek: "000000000111111111000000",
+              weekDescription: "10-18周",
+              classDay: 3,
+              classSessions: 5,
+              continuingSession: 3,
+              campusName: "校本部",
+              teachingBuildingName: "笃行楼",
+              classroomName: "403",
+            },
+          ],
+        },
+        {
+          id: {
+            executiveEducationPlanNumber: "2026-2027-1-1",
+            coureNumber: "51132062",
+            coureSequenceNumber: "02",
+          },
+          courseName: "数字化管理会计",
+          unit: 2,
+          attendClassTeacher: "谭袁月* 宋淑琴",
+          timeAndPlaceList: [
+            {
+              classWeek: "011111111111111111000000",
+              weekDescription: "2-18周",
+              classDay: 4,
+              classSessions: 8,
+              continuingSession: 2,
+              campusName: "校本部",
+              teachingBuildingName: "播慧楼",
+              classroomName: "J4-3",
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+const examCardsHtml = `<!doctype html><html><body>
+  <div class="widget-box widget-color-blue">
+    <div class="widget-header"><h5 class="widget-title smaller">（ 31131862-01 ）内部审计</h5></div>
+    <div class="widget-main">
+      考试名称:&nbsp;期末考试<br>
+      考试时间:&nbsp;2027-01-08 星期五 09:00-11:00<br>
+      地点:&nbsp;校本部 梅园 201<br>
+      座位号:&nbsp;18<br>
+    </div>
+  </div>
+</body></html>`;
+
+const planProfileHtml = `<!doctype html><html><body>
+  <div class="profile-info-name">年级</div><div class="profile-info-value">2024级</div>
+  <div class="profile-info-name">专业</div><div class="profile-info-value">会计学</div>
+  <input value="P2024" id="zx">
+  <script>const url = "/student/rollManagement/project/plan-token/P2024/1/detail";</script>
+</body></html>`;
+
+const planDetailPayload = {
+  title: "培养方案",
+  jhFajhb: {
+    fajhh: "P2024",
+    famc: "2024级会计学专业培养方案",
+    zyh: "120203K",
+    zym: "会计学",
+    nj: "2024",
+    yqzxf: 160,
+  },
+  treeList: [
+    { id: "A", pId: "0", name: "专业必修课", info1: "/plan/category/A" },
+    { id: "A-1", pId: "A", name: "内部审计 必修", info1: "/plan/course/@31131862", xf: 2 },
+    { id: "B", pId: "0", name: "专业选修课", info1: "/plan/category/B" },
+    { id: "B-1", pId: "B", name: "数字化管理会计 限选", info1: "/plan/course/@51132062", xf: 2 },
+  ],
+};
+
+const planCategoryPayloads = new Map([
+  ["A", { kz: { id: { kzh: "A" }, kzm: "专业必修课", zsxf: 80 } }],
+  ["B", { kz: { id: { kzh: "B" }, kzm: "专业选修课", zsxf: 20 } }],
+]);
+
 const casLoginHtml = `<!doctype html>
 <html><head><title>统一身份认证中心</title></head><body>
   <form method="post" action="">
@@ -144,6 +269,34 @@ test("timetable parser expands rowspans and separate meeting columns", () => {
   assert.deepEqual(parsed.sections[1].teachers, ["谭袁月", "宋淑琴"]);
 });
 
+test("timetable JSON parser follows the official dynamic callback and keeps every meeting", () => {
+  assert.equal(
+    findTimetableCallbackPath(timetableShellHtml),
+    "/student/courseSelect/thisSemesterCurriculum/token-a/ajaxStudentSchedule/curr/callback",
+  );
+  const term = parseTimetableHtml(timetableHtml).term;
+  const parsed = parseTimetableJson(timetablePayload, term);
+  assert.equal(parsed.sections.length, 2);
+  assert.equal(parsed.sections[0].courseCode, "31131862");
+  assert.equal(parsed.sections[0].sectionCode, "01");
+  assert.equal(parsed.sections[0].meetings.length, 2);
+  assert.deepEqual(parsed.sections[0].meetings[0].weeks, [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  assert.deepEqual(parsed.sections[0].meetings[1].periods, [5, 6, 7]);
+  assert.deepEqual(parsed.sections[1].teachers, ["谭袁月", "宋淑琴"]);
+});
+
+test("timetable JSON parser fails closed when identifiers or meetings are malformed", () => {
+  const term = parseTimetableHtml(timetableHtml).term;
+  assert.throws(
+    () => parseTimetableJson({ dateList: [{ selectCourseList: [{ courseName: "同名课" }] }] }, term),
+    { code: "ACADEMIC_TIMETABLE_FORMAT_CHANGED" },
+  );
+  assert.throws(
+    () => parseTimetableJson({ data: [] }, term),
+    { code: "ACADEMIC_TIMETABLE_FORMAT_CHANGED" },
+  );
+});
+
 test("timetable parser rejects false success when no meeting was decoded", () => {
   const html = timetableHtml.replace(
     /1-9周 \/ 星期一 \/ 1-2节<br>10-18周 \/ 星期三 \/ 5-7节|2-18 周 \/ 星期四 \/ 8-9节/gu,
@@ -168,6 +321,58 @@ test("exam parser accepts combined date/time and location fields", () => {
   assert.equal(exams[0].endTime, "11:00");
   assert.equal(exams[0].building, "梅园");
   assert.equal(exams[0].seat, "18");
+});
+
+test("exam parser accepts the official timeline card layout", () => {
+  const term = parseTimetableHtml(timetableHtml).term;
+  const exams = parseExamHtml(examCardsHtml, term);
+  assert.equal(exams.length, 1);
+  assert.equal(exams[0].courseCode, "31131862");
+  assert.equal(exams[0].sectionCode, "01");
+  assert.equal(exams[0].courseName, "内部审计");
+  assert.equal(exams[0].examType, "期末考试");
+  assert.equal(exams[0].date, "2027-01-08");
+  assert.equal(exams[0].startTime, "09:00");
+  assert.equal(exams[0].endTime, "11:00");
+  assert.equal(exams[0].seat, "18");
+});
+
+test("training plan parser preserves groups, identifiers, credits, and course attributes", () => {
+  assert.equal(
+    findTrainingPlanDetailPath(planProfileHtml, "P2024"),
+    "/student/rollManagement/project/plan-token/P2024/1/detail",
+  );
+  const profile = parseTrainingPlanProfile(planProfileHtml);
+  const plan = parseTrainingPlanDetail(
+    planDetailPayload,
+    profile,
+    planCategoryPayloads,
+    "2026-10-04T01:02:03.000Z",
+  );
+  assert.equal(plan.planNumber, "P2024");
+  assert.equal(plan.majorName, "会计学");
+  assert.equal(plan.requiredCredits, 160);
+  assert.equal(plan.categories.length, 2);
+  assert.deepEqual(plan.courses, [
+    {
+      courseCode: "31131862",
+      courseName: "内部审计",
+      categoryCode: "A",
+      categoryName: "专业必修课",
+      attribute: "required",
+      credits: 2,
+      replacementCourseCodes: [],
+    },
+    {
+      courseCode: "51132062",
+      courseName: "数字化管理会计",
+      categoryCode: "B",
+      categoryName: "专业选修课",
+      attribute: "limited",
+      credits: 2,
+      replacementCourseCodes: [],
+    },
+  ]);
 });
 
 test("exam parser distinguishes an explicit empty result from an unknown page", () => {
@@ -196,6 +401,24 @@ function response(body, { status = 200, headers = {} } = {}) {
   return new Response(body, { status, headers });
 }
 
+function trainingPlanResponse(url) {
+  if (url.pathname === "/student/rollManagement/rollInfo/index") {
+    return response(planProfileHtml);
+  }
+  if (url.pathname === "/student/rollManagement/project/plan-token/P2024/1/detail") {
+    return response(JSON.stringify(planDetailPayload), {
+      headers: { "content-type": "application/json; charset=utf-8" },
+    });
+  }
+  if (url.pathname === "/plan/category/A") {
+    return response(JSON.stringify(planCategoryPayloads.get("A")));
+  }
+  if (url.pathname === "/plan/category/B") {
+    return response(JSON.stringify(planCategoryPayloads.get("B")));
+  }
+  return null;
+}
+
 test("connector performs encrypted login and imports both official pages", async () => {
   const challenge = rsaChallengeXml();
   const requests = [];
@@ -215,11 +438,21 @@ test("connector performs encrypted login and imports both official pages", async
         headers: { "set-cookie": "SVPNCOOKIE=session; Path=/" },
       });
     }
-    if (parsed.pathname.includes("thisSemesterCurriculum")) {
+    if (parsed.pathname === "/student/courseSelect/thisSemesterCurriculum/index") {
       assert.match(options.headers.Cookie, /SVPNCOOKIE=session/u);
-      return response(timetableHtml, { headers: { "content-type": "text/html; charset=utf-8" } });
+      return response(timetableShellHtml, { headers: { "content-type": "text/html; charset=utf-8" } });
+    }
+    if (parsed.pathname.includes("ajaxStudentSchedule")) {
+      assert.equal(options.method, "POST");
+      assert.equal(options.headers["X-Requested-With"], "XMLHttpRequest");
+      assert.equal(new URLSearchParams(options.body).toString(), "");
+      return response(JSON.stringify(timetablePayload), {
+        headers: { "content-type": "application/json; charset=utf-8" },
+      });
     }
     if (parsed.pathname.includes("examPlan")) return response(examHtml);
+    const plan = trainingPlanResponse(parsed);
+    if (plan) return plan;
     throw new Error(`unexpected request: ${parsed}`);
   };
   const connector = createAcademicConnector({
@@ -235,8 +468,9 @@ test("connector performs encrypted login and imports both official pages", async
   assert.equal(result.snapshot.id, "2026-2027-fall");
   assert.equal(result.snapshot.sections.length, 2);
   assert.equal(result.snapshot.exams.length, 1);
+  assert.equal(result.trainingPlan.courses.length, 2);
   assert.equal(result.snapshot.importedAt, "2026-09-28T01:02:03.000Z");
-  assert.equal(requests.length, 5);
+  assert.equal(requests.length, 10);
 });
 
 test("connector uses the official single-bound-phone SMS endpoints", async () => {
@@ -279,6 +513,8 @@ test("connector uses the official single-bound-phone SMS endpoints", async () =>
       return response(timetableHtml);
     }
     if (parsed.pathname.includes("examPlan")) return response(examHtml);
+    const plan = trainingPlanResponse(parsed);
+    if (plan) return plan;
     throw new Error(`unexpected request: ${parsed}`);
   };
   const connector = createAcademicConnector({ fetchImpl });
@@ -355,6 +591,8 @@ test("connector follows school WebVPN resource redirects after SMS login", async
       return response(timetableHtml);
     }
     if (parsed.pathname.includes("examPlan")) return response(examHtml);
+    const plan = trainingPlanResponse(parsed);
+    if (plan) return plan;
     throw new Error(`unexpected request: ${parsed}`);
   };
   const connector = createAcademicConnector({ fetchImpl });
@@ -449,6 +687,8 @@ test("connector completes the school CAS slider step before importing", async ()
       });
     }
     if (parsed.pathname.includes("examPlan")) return response(examHtml);
+    const plan = trainingPlanResponse(parsed);
+    if (plan) return plan;
     throw new Error(`unexpected request: ${parsed}`);
   };
   const connector = createAcademicConnector({ fetchImpl });
@@ -526,6 +766,8 @@ test("connector rejects external redirects and retains verified SMS sessions for
       return response(timetableHtml);
     }
     if (parsed.pathname.includes("examPlan")) return response(examHtml);
+    const plan = trainingPlanResponse(parsed);
+    if (plan) return plan;
     throw new Error(`unexpected request: ${parsed}`);
   };
   const connector = createAcademicConnector({ fetchImpl });
@@ -581,6 +823,8 @@ test("connector accepts the official redirect-range auth completion codes", asyn
       return response(timetableHtml);
     }
     if (parsed.pathname.includes("examPlan")) return response(examHtml);
+    const plan = trainingPlanResponse(parsed);
+    if (plan) return plan;
     throw new Error(`unexpected request: ${parsed}`);
   };
   const connector = createAcademicConnector({ fetchImpl });
@@ -617,6 +861,8 @@ test("connector requests a phone only when the school account has none", async (
     }
     if (parsed.pathname.includes("thisSemesterCurriculum")) return response(timetableHtml);
     if (parsed.pathname.includes("examPlan")) return response(examHtml);
+    const plan = trainingPlanResponse(parsed);
+    if (plan) return plan;
     throw new Error(`unexpected request: ${parsed}`);
   };
   const connector = createAcademicConnector({ fetchImpl });
@@ -670,6 +916,8 @@ test("connector lets users choose among multiple school phone records", async ()
     }
     if (parsed.pathname.includes("thisSemesterCurriculum")) return response(timetableHtml);
     if (parsed.pathname.includes("examPlan")) return response(examHtml);
+    const plan = trainingPlanResponse(parsed);
+    if (plan) return plan;
     throw new Error(`unexpected request: ${parsed}`);
   };
   const connector = createAcademicConnector({ fetchImpl });

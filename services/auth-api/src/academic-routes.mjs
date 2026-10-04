@@ -110,6 +110,8 @@ function mappedError(error) {
     ["ACADEMIC_TERM_NOT_FOUND", [502, "academic_format_changed"]],
     ["ACADEMIC_TIMETABLE_FORMAT_CHANGED", [502, "academic_format_changed"]],
     ["ACADEMIC_EXAM_FORMAT_CHANGED", [502, "academic_exam_format_changed"]],
+    ["ACADEMIC_PLAN_NOT_FOUND", [422, "academic_plan_not_found"]],
+    ["ACADEMIC_PLAN_FORMAT_CHANGED", [502, "academic_plan_format_changed"]],
     ["ACADEMIC_TIMETABLE_EMPTY", [422, "academic_timetable_empty"]],
     ["ACADEMIC_PROTOCOL_CHANGED", [502, "academic_protocol_changed"]],
     ["ACADEMIC_RESPONSE_TOO_LARGE", [502, "academic_response_invalid"]],
@@ -135,6 +137,8 @@ const DIAGNOSTIC_STAGES = new Set([
   "timetable_parse",
   "exam_fetch",
   "exam_parse",
+  "plan_fetch",
+  "plan_parse",
 ]);
 
 function safeDiagnosticStage(error) {
@@ -161,6 +165,21 @@ function safeDiagnosticOrigin(value) {
 const SAFE_PARSE_REASONS = new Set([
   "header_not_found",
   "meetings_not_decoded",
+  "callback_ambiguous",
+  "json_invalid",
+  "json_shape_unknown",
+  "json_course_invalid",
+  "json_meeting_invalid",
+  "json_meetings_not_decoded",
+  "plan_profile_invalid",
+  "plan_json_invalid",
+  "plan_tree_size_invalid",
+  "plan_categories_missing",
+  "plan_category_invalid",
+  "plan_course_invalid",
+  "plan_courses_missing",
+  "plan_courses_too_many",
+  "plan_metadata_invalid",
 ]);
 const SAFE_HEADER_MODES = new Set(["combined", "separated", "both"]);
 const SAFE_TIMETABLE_HEADERS = new Set([
@@ -340,6 +359,9 @@ export function createAcademicRequestHandler({
             ),
             exams: Array.isArray(result.snapshot?.exams)
               ? result.snapshot.exams.length
+              : 0,
+            planCourses: Array.isArray(result.trainingPlan?.courses)
+              ? result.trainingPlan.courses.length
               : 0,
           }),
         );

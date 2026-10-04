@@ -22,6 +22,9 @@ const SSO_CHALLENGE_HEIGHT = 155;
 const SSO_CHALLENGE_PIECE_WIDTH = 80;
 const SSO_CHALLENGE_MAX_OFFSET =
   SSO_CHALLENGE_WIDTH - SSO_CHALLENGE_PIECE_WIDTH / 2;
+const MAX_PLAN_NODES = 2_000;
+const MAX_PLAN_CATEGORIES = 100;
+const MAX_PLAN_COURSES = 500;
 
 const WEEKDAYS = new Map([
   ["一", 1],
@@ -977,6 +980,236 @@ function timetableFormatError(reason, diagnostic = {}) {
   return error;
 }
 
+function recordValue(value) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value
+    : null;
+}
+
+function textValue(record, keys) {
+  for (const key of keys) {
+    const value = record?.[key];
+    if (value === null || value === undefined) continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return "";
+}
+
+export function findTimetableCallbackPath(html) {
+  const normalized = decodeEntities(String(html ?? "")).replace(/\\\//gu, "/");
+  const paths = [...new Set(
+    [...normalized.matchAll(
+      /\/student\/courseSelect\/thisSemesterCurriculum\/(?:[A-Za-z0-9_-]+\/)?ajaxStudentSchedule\/(?:curr\/)?callback\b/gu,
+    )].map((match) => match[0]),
+  )];
+  if (paths.length === 0) return null;
+  if (paths.length !== 1) {
+    throw timetableFormatError("callback_ambiguous", {
+      callbackCount: paths.length,
+    });
+  }
+  return paths[0];
+}
+
+function selectedPlanCode(html) {
+  const select = String(html ?? "").match(
+    /<select\b[^>]*(?:id|name)\s*=\s*(?:"planCode"|'planCode')[^>]*>[\s\S]*?<\/select>/iu,
+  )?.[0];
+  if (!select) return "";
+  const options = [...select.matchAll(/<option\b([^>]*)>[\s\S]*?<\/option>/giu)];
+  const selected = options.find((option) => /\bselected(?:\s*=\s*(?:"[^"]*"|'[^']*'))?/iu.test(option[1]));
+  const attributes = selected?.[1] ?? options[0]?.[1] ?? "";
+  return htmlAttribute(attributes, "value");
+}
+
+function weeksFromJsonMeeting(meeting) {
+  const bitmap = textValue(meeting, ["classWeek", "classWeeks"]);
+  if (/^[01]{1,64}$/u.test(bitmap)) {
+    const weeks = [...bitmap]
+      .map((enabled, index) => (enabled === "1" ? index + 1 : 0))
+      .filter((week) => week >= 1 && week <= 30);
+    if (weeks.length) return weeks;
+  }
+  const description = textValue(meeting, [
+    "weekDescription",
+    "weekDesc",
+    "weekText",
+  ]);
+  return parseWeeks(description || bitmap);
+}
+
+function timetableJsonRows(payload) {
+  const data = recordValue(payload);
+  if (!data) {
+    throw timetableFormatError("json_shape_unknown");
+  }
+  const rows = [];
+  let recognized = false;
+  if (Array.isArray(data.dateList)) {
+    recognized = true;
+    for (const groupValue of data.dateList) {
+      const group = recordValue(groupValue);
+      if (!group || !Array.isArray(group.selectCourseList)) {
+        throw timetableFormatError("json_shape_unknown");
+      }
+      rows.push(...group.selectCourseList);
+    }
+  }
+  if (Array.isArray(data.xkxx)) {
+    recognized = true;
+    for (const groupValue of data.xkxx) {
+      const group = recordValue(groupValue);
+      if (!group) throw timetableFormatError("json_shape_unknown");
+      if (recordValue(group.id) && textValue(group, ["courseName", "kcm"])) {
+        rows.push(group);
+        continue;
+      }
+      rows.push(
+        ...Object.values(group).filter((value) => {
+          const course = recordValue(value);
+          return recordValue(course?.id) && textValue(course, ["courseName", "kcm"]);
+        }),
+      );
+    }
+  }
+  if (!recognized) throw timetableFormatError("json_shape_unknown");
+  return rows;
+}
+
+export function parseTimetableJson(payload, term) {
+  if (!term?.id) throw academicError("ACADEMIC_TERM_NOT_FOUND");
+  const sectionMap = new Map();
+  const rows = timetableJsonRows(payload);
+  for (const rowValue of rows) {
+    const row = recordValue(rowValue);
+    const identifier = recordValue(row?.id) ?? {};
+    if (!row) throw timetableFormatError("json_course_invalid");
+    const courseCode =
+      textValue(identifier, ["coureNumber", "courseNumber", "courseCode"]) ||
+      textValue(row, ["coureNumber", "courseNumber", "courseCode", "kch"]);
+    const sectionCode =
+      textValue(identifier, [
+        "coureSequenceNumber",
+        "courseSequenceNumber",
+        "sequenceNumber",
+      ]) ||
+      textValue(row, [
+        "coureSequenceNumber",
+        "courseSequenceNumber",
+        "sequenceNumber",
+        "kxh",
+      ]);
+    const courseName = textValue(row, ["courseName", "kcm"]);
+    if (!courseCode || !sectionCode || !courseName) {
+      throw timetableFormatError("json_course_invalid");
+    }
+    const id = digestId("academic-section", [
+      term.id,
+      courseCode,
+      sectionCode,
+    ]);
+    const rawMeetings = row.timeAndPlaceList ?? row.timePlaceList ?? [];
+    if (rawMeetings !== null && !Array.isArray(rawMeetings)) {
+      throw timetableFormatError("json_meeting_invalid");
+    }
+    const meetings = [];
+    for (const meetingValue of rawMeetings ?? []) {
+      const meeting = recordValue(meetingValue);
+      if (!meeting) throw timetableFormatError("json_meeting_invalid");
+      const weekday = parseWeekday(
+        meeting.classDay ?? meeting.weekday ?? meeting.weekNum,
+      );
+      const periods = parsePeriods(
+        meeting.classSessions ?? meeting.startSection ?? meeting.courseStartNum,
+        meeting.continuingSession ?? meeting.sectionCount ?? meeting.cxjc,
+      );
+      const weeks = weeksFromJsonMeeting(meeting);
+      if (!weekday || !periods.length || !weeks.length) {
+        throw timetableFormatError("json_meeting_invalid");
+      }
+      const weekText =
+        textValue(meeting, ["weekDescription", "weekDesc", "weekText"]) ||
+        textValue(meeting, ["classWeek", "classWeeks"]);
+      meetings.push(
+        createMeeting({
+          sectionId: id,
+          weekday,
+          periods,
+          weeks,
+          weekText,
+          location: {
+            campus: textValue(meeting, ["campusName", "campus", "kkxqm"]),
+            building: textValue(meeting, [
+              "teachingBuildingName",
+              "buildingName",
+              "building",
+              "jxlm",
+            ]),
+            room: textValue(meeting, [
+              "classroomName",
+              "classroom",
+              "room",
+              "jasm",
+            ]),
+          },
+        }),
+      );
+    }
+    const teachers = splitTeachers(
+      textValue(row, ["attendClassTeacher", "teacherName", "teachers", "skjs"]),
+    );
+    const existing = sectionMap.get(id);
+    if (existing) {
+      existing.teachers = [...new Set([...existing.teachers, ...teachers])];
+      const meetingIds = new Set(existing.meetings.map((meeting) => meeting.id));
+      existing.meetings.push(
+        ...meetings.filter((meeting) => !meetingIds.has(meeting.id)),
+      );
+      continue;
+    }
+    sectionMap.set(id, {
+      id,
+      courseCode,
+      courseName,
+      sectionCode,
+      credits: textValue(row, ["unit", "credits", "credit", "xf"]),
+      property: textValue(row, [
+        "coursePropertiesName",
+        "coursePropertyName",
+        "property",
+        "kcsxmc",
+      ]),
+      category: textValue(row, [
+        "courseCategoryName",
+        "categoryName",
+        "category",
+        "kclbmc",
+      ]),
+      assessmentType: textValue(row, [
+        "examTypeName",
+        "assessmentType",
+        "examType",
+      ]),
+      teachers,
+      studyMode: textValue(row, ["studyModeName", "studyMode"]),
+      selectionStatus: textValue(row, [
+        "selectCourseStatusName",
+        "selectionStatus",
+      ]),
+      meetings,
+    });
+  }
+  const sections = [...sectionMap.values()];
+  if (!sections.length) throw academicError("ACADEMIC_TIMETABLE_EMPTY");
+  if (!sections.some((section) => section.meetings.length)) {
+    throw timetableFormatError("json_meetings_not_decoded", {
+      sectionCount: sections.length,
+    });
+  }
+  return { term, sections };
+}
+
 export function parseTimetableHtml(html) {
   const term = parseTermMetadata(html);
   const candidates = tables(html);
@@ -1116,6 +1349,98 @@ function parseDateAndTime(value) {
   };
 }
 
+function examCardField(text, label) {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const match = String(text ?? "").match(
+    new RegExp(
+      `${escaped}\\s*[:：]\\s*([\\s\\S]*?)(?=\\n\\s*(?:考试名称|考试时间|地点|座位号|准考证号|考试提示信息|状态)\\s*[:：]|$)`,
+      "iu",
+    ),
+  );
+  return String(match?.[1] ?? "")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+function examTitle(value) {
+  const original = String(value ?? "").replace(/\s+/gu, " ").trim();
+  const status = /[（(]已结束[）)]/u.test(original) ? "已结束" : "";
+  const cleaned = original.replace(/[（(]已结束[）)]/gu, "").trim();
+  const identified = cleaned.match(
+    /^[（(]\s*([^-()（）]+?)\s*-\s*([^()（）]+?)\s*[）)]\s*(.+)$/u,
+  );
+  return identified
+    ? {
+        courseCode: identified[1].trim(),
+        sectionCode: identified[2].trim(),
+        courseName: identified[3].trim(),
+        status,
+      }
+    : { courseCode: "", sectionCode: "", courseName: cleaned, status };
+}
+
+function examLocation(value) {
+  const normalized = String(value ?? "").replace(/\s+/gu, " ").trim();
+  if (!normalized) return { campus: "", building: "", room: "" };
+  if (normalized.includes("/")) return locationParts(normalized);
+  const parts = normalized.split(" ").filter(Boolean);
+  if (parts.length >= 3) {
+    return {
+      campus: parts[0],
+      building: parts.slice(1, -1).join(" "),
+      room: parts.at(-1),
+    };
+  }
+  return { campus: "", building: parts[0] ?? "", room: parts[1] ?? "" };
+}
+
+function parseExamCards(html, term) {
+  const source = String(html ?? "");
+  const starts = [...source.matchAll(
+    /<div\b[^>]*class\s*=\s*(?:"[^"]*\bwidget-box\b[^"]*"|'[^']*\bwidget-box\b[^']*')[^>]*>/giu,
+  )];
+  if (!starts.length) return null;
+  const exams = [];
+  for (let index = 0; index < starts.length; index += 1) {
+    const start = starts[index].index ?? 0;
+    const end = starts[index + 1]?.index ?? source.length;
+    const block = source.slice(start, end);
+    const titleHtml = block.match(
+      /<h5\b[^>]*class\s*=\s*(?:"[^"]*\bwidget-title\b[^"]*"|'[^']*\bwidget-title\b[^']*')[^>]*>([\s\S]*?)<\/h5>/iu,
+    )?.[1];
+    if (!titleHtml) continue;
+    const parsedTitle = examTitle(stripHtml(titleHtml));
+    if (!parsedTitle.courseName) continue;
+    const text = stripHtml(block);
+    const examType = examCardField(text, "考试名称");
+    const timing = parseDateAndTime(examCardField(text, "考试时间"));
+    const locationText = examCardField(text, "地点");
+    const location = examLocation(locationText);
+    const seat = examCardField(text, "座位号");
+    exams.push({
+      id: digestId("academic-exam", [
+        term.id,
+        parsedTitle.courseCode,
+        parsedTitle.sectionCode,
+        timing.date,
+        timing.startTime,
+        locationText,
+      ]),
+      courseCode: parsedTitle.courseCode,
+      courseName: parsedTitle.courseName,
+      sectionCode: parsedTitle.sectionCode,
+      examType,
+      ...timing,
+      ...location,
+      location: locationText,
+      seat,
+      status: parsedTitle.status || examCardField(text, "状态"),
+    });
+  }
+  if (!exams.length) throw academicError("ACADEMIC_EXAM_FORMAT_CHANGED");
+  return exams;
+}
+
 export function parseExamHtml(html, term) {
   const candidates = tables(html);
   const table = findTableHeader(candidates, (headers) => {
@@ -1126,8 +1451,10 @@ export function parseExamHtml(html, term) {
     return hasCourse && hasExam;
   });
   if (!table) {
+    const cards = parseExamCards(html, term);
+    if (cards) return cards;
     const text = stripHtml(html);
-    if (/暂无(?:考试|数据|记录)|没有(?:考试|数据|记录)|无考试安排/u.test(text)) {
+    if (/暂无(?:考试|数据|记录)|没有(?:考试|数据|记录)|无考试安排|还没有考试/u.test(text)) {
       return [];
     }
     throw academicError("ACADEMIC_EXAM_FORMAT_CHANGED");
@@ -1192,6 +1519,258 @@ export function parseExamHtml(html, term) {
     });
   }
   return exams;
+}
+
+function trainingPlanFormatError(reason) {
+  const error = academicError("ACADEMIC_PLAN_FORMAT_CHANGED");
+  error.diagnostic = { parseReason: reason };
+  return error;
+}
+
+function profileField(html, labels) {
+  const accepted = new Set(labels);
+  for (const match of String(html ?? "").matchAll(
+    /<div\b[^>]*class\s*=\s*(?:"[^"]*\bprofile-info-name\b[^"]*"|'[^']*\bprofile-info-name\b[^']*')[^>]*>([\s\S]*?)<\/div>\s*<div\b[^>]*class\s*=\s*(?:"[^"]*\bprofile-info-value\b[^"]*"|'[^']*\bprofile-info-value\b[^']*')[^>]*>([\s\S]*?)<\/div>/giu,
+  )) {
+    const label = stripHtml(match[1]).replace(/[:：]$/u, "").trim();
+    if (accepted.has(label)) return stripHtml(match[2]);
+  }
+  return "";
+}
+
+function inputValueById(html, id) {
+  for (const match of String(html ?? "").matchAll(/<input\b([^>]*)>/giu)) {
+    if (htmlAttribute(match[1], "id") === id) {
+      return htmlAttribute(match[1], "value");
+    }
+  }
+  return "";
+}
+
+export function findTrainingPlanDetailPath(html, planNumber) {
+  const normalized = decodeEntities(String(html ?? "")).replace(/\\\//gu, "/");
+  const escapedPlan = String(planNumber ?? "").replace(
+    /[.*+?^${}()|[\]\\]/gu,
+    "\\$&",
+  );
+  if (!escapedPlan) return null;
+  const literal = normalized.match(
+    new RegExp(
+      `/student/rollManagement/project/[A-Za-z0-9_-]+/${escapedPlan}/1/detail\\b`,
+      "u",
+    ),
+  )?.[0];
+  if (literal) return literal;
+  const expression = normalized.match(
+    /(?:url\s*[:=]\s*)?(?:"([^"']*\/student\/rollManagement\/project\/[^"']*\/)"|'([^"']*\/student\/rollManagement\/project\/[^"']*\/)')\s*\+\s*(?:fajhh|zx)\s*\+\s*(?:"(\/1\/detail[^"']*)"|'(\/1\/detail[^"']*)')/iu,
+  );
+  const prefix = expression?.[1] ?? expression?.[2];
+  const suffix = expression?.[3] ?? expression?.[4];
+  return prefix && suffix ? `${prefix}${planNumber}${suffix}` : null;
+}
+
+export function parseTrainingPlanProfile(html) {
+  const planNumber = inputValueById(html, "zx");
+  if (!planNumber) throw academicError("ACADEMIC_PLAN_NOT_FOUND");
+  const majorName = profileField(html, ["专业"]);
+  const cohortText = profileField(html, ["入学年级", "年级"]);
+  const cohortYear = Number(cohortText.match(/(?:19|20)\d{2}/u)?.[0]);
+  const detailPath = findTrainingPlanDetailPath(html, planNumber);
+  if (!majorName || !Number.isInteger(cohortYear) || !detailPath) {
+    throw trainingPlanFormatError("plan_profile_invalid");
+  }
+  return { planNumber, majorName, cohortYear, detailPath };
+}
+
+function finiteNumber(value, { positive = false } = {}) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0 || (positive && number <= 0)) {
+    return null;
+  }
+  return number;
+}
+
+function trainingPlanTree(payload) {
+  const data = recordValue(payload);
+  if (!data || !recordValue(data.jhFajhb) || !Array.isArray(data.treeList)) {
+    throw trainingPlanFormatError("plan_json_invalid");
+  }
+  if (data.treeList.length === 0 || data.treeList.length > MAX_PLAN_NODES) {
+    throw trainingPlanFormatError("plan_tree_size_invalid");
+  }
+  const nodes = data.treeList.map((value) => {
+    const node = recordValue(value);
+    if (!node) throw trainingPlanFormatError("plan_json_invalid");
+    return node;
+  });
+  const roots = nodes.filter((node) => textValue(node, ["pId", "pid"]) === "0");
+  if (!roots.length || roots.length > MAX_PLAN_CATEGORIES) {
+    throw trainingPlanFormatError("plan_categories_missing");
+  }
+  return { data, metadata: data.jhFajhb, nodes, roots };
+}
+
+function planNodePath(node) {
+  return textValue(node, ["info1", "urlPath", "url"]);
+}
+
+function trainingPlanCategoryRequests(payload) {
+  const { roots } = trainingPlanTree(payload);
+  return roots.map((root) => {
+    const id = textValue(root, ["id"]);
+    const path = planNodePath(root);
+    if (!id || !path) throw trainingPlanFormatError("plan_category_invalid");
+    return { id, path };
+  });
+}
+
+function planCourseCode(node) {
+  const direct = textValue(node, ["courseNumber", "coureNumber", "courseCode", "kch"]);
+  if (direct) return direct;
+  const encoded = planNodePath(node).match(/@([^/?#"']+)/u)?.[1];
+  if (!encoded) return "";
+  try {
+    return decodeURIComponent(encoded).trim();
+  } catch {
+    throw trainingPlanFormatError("plan_course_invalid");
+  }
+}
+
+function planCourseName(node) {
+  const raw = stripHtml(textValue(node, ["name", "courseName", "kcm"]));
+  const suffix = raw.match(/^(.*?)\s*(必修|限选|任选)\s*$/u);
+  const attributeText = textValue(node, ["coursePropertiesName", "kcsxmc"]);
+  const attributeName = suffix?.[2] ?? attributeText;
+  const attributes = new Map([
+    ["必修", "required"],
+    ["限选", "limited"],
+    ["任选", "elective"],
+  ]);
+  return {
+    name: (suffix?.[1] ?? raw).trim(),
+    attribute: attributes.get(attributeName) ?? "unknown",
+  };
+}
+
+function replacementCourseCodes(node) {
+  const raw = node.tdkch ?? node.replacementCourseNumbers ?? node.replaceCourseNumbers;
+  const values = Array.isArray(raw) ? raw : String(raw ?? "").split(/[,，;；\s]+/u);
+  const codes = [...new Set(
+    values.map((value) => String(value).trim()).filter(Boolean),
+  )];
+  if (codes.length > 20 || codes.some((code) => code.length > 80)) {
+    throw trainingPlanFormatError("plan_course_invalid");
+  }
+  return codes;
+}
+
+export function parseTrainingPlanDetail(
+  payload,
+  profile,
+  categoryPayloads,
+  importedAt,
+) {
+  const { data, metadata, nodes, roots } = trainingPlanTree(payload);
+  const categoryByRoot = new Map();
+  const categoryCodes = new Set();
+  const categories = [];
+  for (const root of roots) {
+    const rootId = textValue(root, ["id"]);
+    const categoryPayload = recordValue(categoryPayloads?.get(rootId));
+    const category = recordValue(categoryPayload?.kz);
+    const categoryId = recordValue(category?.id);
+    if (!rootId || !category || !categoryId) {
+      throw trainingPlanFormatError("plan_category_invalid");
+    }
+    const code = textValue(categoryId, ["kzh"]) || rootId;
+    const name = textValue(category, ["kzm"]) || stripHtml(root.name);
+    const requiredCredits = finiteNumber(category.zsxf);
+    if (!code || !name || requiredCredits === null) {
+      throw trainingPlanFormatError("plan_category_invalid");
+    }
+    if (categoryCodes.has(code)) {
+      throw trainingPlanFormatError("plan_category_invalid");
+    }
+    categoryCodes.add(code);
+    const normalized = { code, name, requiredCredits };
+    categories.push(normalized);
+    categoryByRoot.set(rootId, normalized);
+  }
+  const nodeById = new Map(
+    nodes
+      .map((node) => [textValue(node, ["id"]), node])
+      .filter(([id]) => Boolean(id)),
+  );
+  function categoryFor(node) {
+    let parentId = textValue(node, ["pId", "pid"]);
+    const visited = new Set();
+    while (parentId && !visited.has(parentId)) {
+      if (categoryByRoot.has(parentId)) return categoryByRoot.get(parentId);
+      visited.add(parentId);
+      parentId = textValue(nodeById.get(parentId), ["pId", "pid"]);
+    }
+    return null;
+  }
+  const courses = [];
+  const seen = new Set();
+  for (const node of nodes) {
+    const category = categoryFor(node);
+    if (!category) continue;
+    const courseCode = planCourseCode(node);
+    const parsedName = planCourseName(node);
+    if (!courseCode || !parsedName.name) continue;
+    const key = `${category.code}\u0000${courseCode}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    courses.push({
+      courseCode,
+      courseName: parsedName.name,
+      categoryCode: category.code,
+      categoryName: category.name,
+      attribute: parsedName.attribute,
+      credits: finiteNumber(node.xf ?? node.credit ?? node.info2, {
+        positive: true,
+      }),
+      replacementCourseCodes: replacementCourseCodes(node),
+    });
+    if (courses.length > MAX_PLAN_COURSES) {
+      throw trainingPlanFormatError("plan_courses_too_many");
+    }
+  }
+  if (!courses.length) throw trainingPlanFormatError("plan_courses_missing");
+  const planNumber = textValue(metadata, ["fajhh"]) || profile.planNumber;
+  const planName = textValue(metadata, ["famc"]) || textValue(data, ["title"]);
+  const majorCode = textValue(metadata, ["zyh"]);
+  const majorName = textValue(metadata, ["zym"]) || profile.majorName;
+  const cohortYear = Number(
+    textValue(metadata, ["nj", "njmc"]).match(/(?:19|20)\d{2}/u)?.[0] ??
+      profile.cohortYear,
+  );
+  const requiredCredits = finiteNumber(metadata.yqzxf, { positive: true });
+  if (
+    !planNumber ||
+    !planName ||
+    !majorCode ||
+    !majorName ||
+    !Number.isInteger(cohortYear) ||
+    requiredCredits === null ||
+    planNumber !== profile.planNumber ||
+    majorName !== profile.majorName
+  ) {
+    throw trainingPlanFormatError("plan_metadata_invalid");
+  }
+  return {
+    schemaVersion: 1,
+    planNumber,
+    planName,
+    majorCode,
+    majorName,
+    cohortYear,
+    requiredCredits,
+    categories,
+    courses,
+    importedAt,
+  };
 }
 
 function validateCredentials(username, password) {
@@ -1444,9 +2023,61 @@ export function createAcademicConnector({
         timetableHtml,
       );
     }
-    const timetable = await atStage("timetable_parse", () =>
-      parseTimetableHtml(timetableHtml),
+    const callbackPath = await atStage("timetable_parse", () =>
+      findTimetableCallbackPath(timetableHtml),
     );
+    let timetable;
+    if (callbackPath) {
+      const term = await atStage("timetable_parse", () =>
+        parseTermMetadata(timetableHtml),
+      );
+      const callbackUrl = new URL(callbackPath, timetableResult.finalUrl);
+      const form = new URLSearchParams();
+      const planCode = selectedPlanCode(timetableHtml);
+      if (planCode) form.set("planCode", planCode);
+      const dataResult = await atStage("timetable_fetch", () =>
+        request(transaction.jar, callbackUrl, {
+          method: "POST",
+          headers: {
+            Accept: "application/json, text/javascript, */*; q=0.01",
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "X-Requested-With": "XMLHttpRequest",
+            Referer: timetableResult.finalUrl.href,
+          },
+          body: form,
+        }),
+      );
+      if (dataResult.finalUrl.host === vpn.host) {
+        throw stagedError("ACADEMIC_SESSION_NOT_READY", "timetable_fetch");
+      }
+      if (!dataResult.response.ok) {
+        throw stagedError("ACADEMIC_UPSTREAM_UNAVAILABLE", "timetable_fetch");
+      }
+      const dataText = await atStage("timetable_fetch", () =>
+        readLimitedText(dataResult.response),
+      );
+      if (findSsoLogin(dataText, dataResult.finalUrl)) {
+        return prepareSsoChallenge(
+          transactionId,
+          transaction,
+          dataResult.finalUrl,
+          dataText,
+        );
+      }
+      let payload;
+      try {
+        payload = JSON.parse(dataText);
+      } catch {
+        throw timetableFormatError("json_invalid");
+      }
+      timetable = await atStage("timetable_parse", () =>
+        parseTimetableJson(payload, term),
+      );
+    } else {
+      timetable = await atStage("timetable_parse", () =>
+        parseTimetableHtml(timetableHtml),
+      );
+    }
     const examResult = await atStage("exam_fetch", () =>
       request(transaction.jar, examUrl),
     );
@@ -1464,17 +2095,117 @@ export function createAcademicConnector({
         examHtml,
       );
     }
+    const exams = await atStage("exam_parse", () =>
+      parseExamHtml(examHtml, timetable.term),
+    );
+    const profileUrl = new URL(
+      "/student/rollManagement/rollInfo/index",
+      academic,
+    );
+    const profileResult = await atStage("plan_fetch", () =>
+      request(transaction.jar, profileUrl),
+    );
+    if (!profileResult.response.ok) {
+      throw stagedError("ACADEMIC_UPSTREAM_UNAVAILABLE", "plan_fetch");
+    }
+    const profileHtml = await atStage("plan_fetch", () =>
+      readLimitedText(profileResult.response),
+    );
+    if (findSsoLogin(profileHtml, profileResult.finalUrl)) {
+      return prepareSsoChallenge(
+        transactionId,
+        transaction,
+        profileResult.finalUrl,
+        profileHtml,
+      );
+    }
+    const profile = await atStage("plan_parse", () =>
+      parseTrainingPlanProfile(profileHtml),
+    );
+    const planDetailUrl = new URL(profile.detailPath, profileResult.finalUrl);
+    const planResult = await atStage("plan_fetch", () =>
+      request(transaction.jar, planDetailUrl, {
+        headers: {
+          Accept: "application/json, text/javascript, */*; q=0.01",
+          "X-Requested-With": "XMLHttpRequest",
+          Referer: profileResult.finalUrl.href,
+        },
+      }),
+    );
+    if (!planResult.response.ok) {
+      throw stagedError("ACADEMIC_UPSTREAM_UNAVAILABLE", "plan_fetch");
+    }
+    const planText = await atStage("plan_fetch", () =>
+      readLimitedText(planResult.response),
+    );
+    if (findSsoLogin(planText, planResult.finalUrl)) {
+      return prepareSsoChallenge(
+        transactionId,
+        transaction,
+        planResult.finalUrl,
+        planText,
+      );
+    }
+    let planPayload;
+    try {
+      planPayload = JSON.parse(planText);
+    } catch {
+      throw trainingPlanFormatError("plan_json_invalid");
+    }
+    const categoryRequests = await atStage("plan_parse", () =>
+      trainingPlanCategoryRequests(planPayload),
+    );
+    const categoryPayloads = new Map();
+    for (const categoryRequest of categoryRequests) {
+      const categoryUrl = new URL(categoryRequest.path, planResult.finalUrl);
+      const categoryResult = await atStage("plan_fetch", () =>
+        request(transaction.jar, categoryUrl, {
+          headers: {
+            Accept: "application/json, text/javascript, */*; q=0.01",
+            "X-Requested-With": "XMLHttpRequest",
+            Referer: planResult.finalUrl.href,
+          },
+        }),
+      );
+      if (!categoryResult.response.ok) {
+        throw stagedError("ACADEMIC_UPSTREAM_UNAVAILABLE", "plan_fetch");
+      }
+      const categoryText = await atStage("plan_fetch", () =>
+        readLimitedText(categoryResult.response),
+      );
+      if (findSsoLogin(categoryText, categoryResult.finalUrl)) {
+        return prepareSsoChallenge(
+          transactionId,
+          transaction,
+          categoryResult.finalUrl,
+          categoryText,
+        );
+      }
+      try {
+        categoryPayloads.set(categoryRequest.id, JSON.parse(categoryText));
+      } catch {
+        throw trainingPlanFormatError("plan_category_invalid");
+      }
+    }
+    const importedAt = new Date(now()).toISOString();
+    const trainingPlan = await atStage("plan_parse", () =>
+      parseTrainingPlanDetail(
+        planPayload,
+        profile,
+        categoryPayloads,
+        importedAt,
+      ),
+    );
     return {
       status: "imported",
       snapshot: {
         schemaVersion: 1,
         ...timetable.term,
-        importedAt: new Date(now()).toISOString(),
+        importedAt,
         sections: timetable.sections,
-        exams: await atStage("exam_parse", () =>
-          parseExamHtml(examHtml, timetable.term),
-        ),
+        exams,
       },
+      trainingPlan,
     };
   }
 
