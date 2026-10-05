@@ -4813,7 +4813,7 @@ kbd {
 }
 
 .onboarding > footer span {
-  color: var(--muted);
+  color: var(--dufe-muted, #655f58);
   font-size: 10px;
 }
 

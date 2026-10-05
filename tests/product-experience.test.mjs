@@ -549,6 +549,7 @@ test("retired homepage and room containers leave no dead cascade layers", () => 
 
   assert.doesNotMatch(globalStyles, /(?:^|\n)\s*footer\s*\{/);
   assert.match(globalStyles, /:where\(\.site-shell > footer\)/);
+  assert.match(globalStyles, /\.onboarding > footer span \{\s*color: var\(--dufe-muted, #655f58\);/);
 });
 
 test("course drawer filters and compares teaching sections", () => {

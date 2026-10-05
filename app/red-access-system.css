@@ -2605,8 +2605,7 @@ body {
 }
 
 .hub-footer .wordmark span,
-.hub-footer > div:not(.wordmark) > p,
-.onboarding > footer span {
+.hub-footer > div:not(.wordmark) > p {
   color: #cfc9bf;
 }
 
