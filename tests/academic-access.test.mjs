@@ -524,6 +524,16 @@ test("training plan completion parser treats zero as a real category id when pre
   assert.equal(plan.courses.length, 1);
   assert.equal(plan.courses[0].categoryCode, "0");
   assert.equal(plan.courses[0].courseName, "大学语文");
+  assert.throws(
+    () =>
+      parseTrainingPlanCompletionHtml(
+        html.replace('"pId":"0"', '"pId":"missing-category"'),
+        planDetailPayload,
+        parseTrainingPlanProfile(planProfileHtml),
+        "2026-10-05T02:15:00.000Z",
+      ),
+    { code: "ACADEMIC_PLAN_FORMAT_CHANGED" },
+  );
 });
 
 test("training plan completion parser takes major identity from school metadata", () => {

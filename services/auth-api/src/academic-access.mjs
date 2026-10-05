@@ -2071,7 +2071,7 @@ export function parseTrainingPlanCompletionHtml(
     while (parentId && !visited.has(parentId)) {
       visited.add(parentId);
       const parent = nodeById.get(parentId);
-      if (!parent) break;
+      if (!parent) throw trainingPlanFormatError("plan_category_invalid");
       ancestors.push(parent);
       if (rootIds.has(parentId)) break;
       parentId = textValue(parent, ["pId", "pid"]);
