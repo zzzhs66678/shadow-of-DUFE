@@ -1991,20 +1991,38 @@ function planCompletionAttribute(nodes) {
 function parsePlanCompletionCourse(node) {
   const raw = stripHtml(node.name);
   const match = raw.match(
-    /^\s*\[([^\]]+)\](.*?)\[([0-9]+(?:\.[0-9]+)?)学分(?:,([^\]]+))?\](?:\((.*)\))?\s*$/u,
+    /^\s*[\[【]([^\]】]+)[\]】]([\s\S]*?)[\[【]\s*([0-9]+(?:\.[0-9]+)?)\s*([^,，\]】]*?)(?:\s*[,，]\s*([^\]】]+))?[\]】]\s*(?:[\(（]([\s\S]*)[\)）])?\s*$/u,
   );
   if (!match) throw trainingPlanFormatError("plan_course_invalid");
   const credits = finiteNumber(match[3], { positive: true });
-  if (!match[1].trim() || !match[2].trim() || credits === null) {
+  const displayedCode = match[1].replace(/\s+/gu, "").trim();
+  const nodeCode = textValue(node, [
+    "flagId",
+    "courseNumber",
+    "courseCode",
+    "kch",
+  ]).replace(/\s+/gu, "");
+  const courseCode = nodeCode || displayedCode;
+  const courseName = match[2].trim();
+  if (
+    !courseCode ||
+    courseCode.length > 80 ||
+    /[\s\[\]【】()（）,，<>]/u.test(courseCode) ||
+    (nodeCode && nodeCode !== displayedCode) ||
+    !courseName ||
+    courseName.length > 300 ||
+    credits === null ||
+    credits > 100
+  ) {
     throw trainingPlanFormatError("plan_course_invalid");
   }
   return {
-    courseCode: match[1].trim(),
-    courseName: match[2].trim(),
+    courseCode,
+    courseName,
     credits,
-    completedTerm: String(match[4] ?? "").trim(),
+    completedTerm: String(match[5] ?? "").trim().replace(/\s+/gu, " "),
     completionStatus: (() => {
-      const status = String(match[5] ?? "").trim();
+      const status = String(match[6] ?? "").trim().replace(/\s+/gu, "");
       if (!status || /未修|未选/u.test(status)) return "not_taken";
       if (/不及格|未及格|重修/u.test(status)) return "failed";
       if (/正在修读|在修|修读中/u.test(status)) return "in_progress";

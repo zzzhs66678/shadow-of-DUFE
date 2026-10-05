@@ -245,6 +245,7 @@ const planCompletionHtml = `<!doctype html><html><body>
         id: "A-C1",
         pId: "A-1",
         flagType: "kch",
+        flagId: "31131862",
         name: "<i></i>&nbsp;[31131862]内部审计[2学分,2026-2027学年第一学期](已修读及格,79.0(正常))",
       },
       {
@@ -259,6 +260,7 @@ const planCompletionHtml = `<!doctype html><html><body>
         id: "B-C1",
         pId: "B",
         flagType: "kch",
+        flagId: "51132062",
         name: "[51132062]数字化管理会计[2学分]",
       },
     ])};
@@ -493,6 +495,44 @@ test("training plan completion parser reads the complete inline course tree", ()
       replacementCourseCodes: [],
     },
   ]);
+});
+
+test("training plan completion parser uses stable course ids across decorated labels", () => {
+  const profile = parseTrainingPlanProfile(planProfileHtml);
+  const decorated = planCompletionHtml
+    .replace(
+      "[31131862]内部审计[2学分,2026-2027学年第一学期](已修读及格,79.0(正常))",
+      "【31131862】内部审计【2<span>学</span><b>分</b>，2026-2027学年第一学期】（已修读及格）",
+    )
+    .replace(
+      "[51132062]数字化管理会计[2学分]",
+      "[51132062]数字化管理会计[2 学 分]",
+    );
+  const plan = parseTrainingPlanCompletionHtml(
+    decorated,
+    planDetailPayload,
+    profile,
+    "2026-10-05T03:00:00.000Z",
+  );
+  assert.equal(plan.courses.length, 2);
+  assert.equal(plan.courses[0].courseCode, "31131862");
+  assert.equal(plan.courses[0].completedTerm, "2026-2027学年第一学期");
+  assert.equal(plan.courses[0].completionStatus, "passed");
+  assert.equal(plan.courses[1].courseCode, "51132062");
+  assert.equal(plan.courses[1].completionStatus, "not_taken");
+});
+
+test("training plan completion parser rejects display codes that disagree with stable ids", () => {
+  assert.throws(
+    () =>
+      parseTrainingPlanCompletionHtml(
+        planCompletionHtml.replace("[31131862]内部审计", "[99999999]内部审计"),
+        planDetailPayload,
+        parseTrainingPlanProfile(planProfileHtml),
+        "2026-10-05T03:00:00.000Z",
+      ),
+    { code: "ACADEMIC_PLAN_FORMAT_CHANGED" },
+  );
 });
 
 test("training plan completion parser treats zero as a real category id when present", () => {
