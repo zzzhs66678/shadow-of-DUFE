@@ -546,6 +546,9 @@ test("retired homepage and room containers leave no dead cascade layers", () => 
   for (const styles of [productStyles, redAccessStyles, globalStyles]) {
     assert.doesNotMatch(styles, /\.campus-window|\.room-stack|\.academic-sync-band|\.archive-sections|\.campus-lab-entry/);
   }
+
+  assert.doesNotMatch(globalStyles, /(?:^|\n)\s*footer\s*\{/);
+  assert.match(globalStyles, /:where\(\.site-shell > footer\)/);
 });
 
 test("course drawer filters and compares teaching sections", () => {

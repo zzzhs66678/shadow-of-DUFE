@@ -2045,7 +2045,7 @@ button {
   margin-top: 40px;
 }
 
-footer {
+:where(.site-shell > footer) {
   align-items: center;
   background: var(--ink);
   color: var(--paper);
@@ -2055,16 +2055,16 @@ footer {
   padding: 52px clamp(22px, 4vw, 72px);
 }
 
-footer .wordmark svg {
+:where(.site-shell > footer) .wordmark svg {
   fill: var(--accent-deep);
 }
 
-footer > div:not(.wordmark) strong {
+:where(.site-shell > footer) > div:not(.wordmark) strong {
   font-family: var(--serif);
   font-weight: 500;
 }
 
-footer > div:not(.wordmark) p {
+:where(.site-shell > footer) > div:not(.wordmark) p {
   color: var(--muted);
   font-size: 10px;
 }
@@ -2292,7 +2292,7 @@ footer > div:not(.wordmark) p {
     grid-template-columns: 1fr;
   }
 
-  footer {
+  :where(.site-shell > footer) {
     grid-template-columns: 1fr;
   }
 }
