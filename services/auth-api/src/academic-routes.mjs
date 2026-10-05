@@ -177,6 +177,10 @@ const SAFE_PARSE_REASONS = new Set([
   "plan_categories_missing",
   "plan_category_invalid",
   "plan_course_invalid",
+  "plan_course_pattern_invalid",
+  "plan_course_code_mismatch",
+  "plan_course_credit_invalid",
+  "plan_course_fields_invalid",
   "plan_courses_missing",
   "plan_courses_too_many",
   "plan_metadata_invalid",
@@ -232,6 +236,23 @@ function safeDiagnosticDetails(error) {
     diagnostic.detailCandidateCount,
     20,
   );
+  const courseIndex = safeDiagnosticCount(diagnostic.courseIndex, 5_000);
+  const courseLabelLength = safeDiagnosticCount(
+    diagnostic.courseLabelLength,
+    5_000,
+  );
+  const stableCodeLength = safeDiagnosticCount(
+    diagnostic.stableCodeLength,
+    200,
+  );
+  const displayedCodeLength = safeDiagnosticCount(
+    diagnostic.displayedCodeLength,
+    200,
+  );
+  const bracketGroupCount = safeDiagnosticCount(
+    diagnostic.bracketGroupCount,
+    20,
+  );
   const tableShapes = safeDiagnosticList(
     diagnostic.tableShapes,
     (item) => /^\d{1,5}x\d{1,4}$/u.test(item),
@@ -259,6 +280,11 @@ function safeDiagnosticDetails(error) {
     ...(rowCount !== undefined ? { rowCount } : {}),
     ...(sectionCount !== undefined ? { sectionCount } : {}),
     ...(detailCandidateCount !== undefined ? { detailCandidateCount } : {}),
+    ...(courseIndex !== undefined ? { courseIndex } : {}),
+    ...(courseLabelLength !== undefined ? { courseLabelLength } : {}),
+    ...(stableCodeLength !== undefined ? { stableCodeLength } : {}),
+    ...(displayedCodeLength !== undefined ? { displayedCodeLength } : {}),
+    ...(bracketGroupCount !== undefined ? { bracketGroupCount } : {}),
     ...([
       "hasPlanNumber",
       "hasMajorName",
@@ -267,6 +293,15 @@ function safeDiagnosticDetails(error) {
       "hasProjectMarker",
       "hasDetailMarker",
       "hasValueGetter",
+      "hasStableCourseCode",
+      "hasAsciiBrackets",
+      "hasFullwidthBrackets",
+      "hasAsciiComma",
+      "hasChineseComma",
+      "hasAsciiStatusWrapper",
+      "hasFullwidthStatusWrapper",
+      "hasCreditNumber",
+      "hasCreditMarker",
     ].reduce(
       (details, key) =>
         typeof diagnostic[key] === "boolean"

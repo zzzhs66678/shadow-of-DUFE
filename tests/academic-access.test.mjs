@@ -523,10 +523,54 @@ test("training plan completion parser uses stable course ids across decorated la
 });
 
 test("training plan completion parser rejects display codes that disagree with stable ids", () => {
+  try {
+    parseTrainingPlanCompletionHtml(
+      planCompletionHtml.replace("[31131862]内部审计", "[99999999]内部审计"),
+      planDetailPayload,
+      parseTrainingPlanProfile(planProfileHtml),
+      "2026-10-05T03:00:00.000Z",
+    );
+    assert.fail("expected the mismatched stable course id to be rejected");
+  } catch (error) {
+    assert.equal(error.code, "ACADEMIC_PLAN_FORMAT_CHANGED");
+    assert.equal(error.diagnostic.parseReason, "plan_course_code_mismatch");
+    assert.equal(error.diagnostic.courseIndex, 0);
+    assert.equal(error.diagnostic.hasStableCourseCode, true);
+    assert.equal(error.diagnostic.displayedCodeLength, 8);
+    assert.equal("courseCode" in error.diagnostic, false);
+    assert.equal("courseName" in error.diagnostic, false);
+  }
+});
+
+test("training plan completion parser reports only anonymous row shape diagnostics", () => {
+  try {
+    parseTrainingPlanCompletionHtml(
+      planCompletionHtml.replace(
+        "[31131862]内部审计[2学分,2026-2027学年第一学期]",
+        "内部审计",
+      ),
+      planDetailPayload,
+      parseTrainingPlanProfile(planProfileHtml),
+      "2026-10-05T03:00:00.000Z",
+    );
+    assert.fail("expected the malformed course row to be rejected");
+  } catch (error) {
+    assert.equal(error.code, "ACADEMIC_PLAN_FORMAT_CHANGED");
+    assert.equal(error.diagnostic.parseReason, "plan_course_pattern_invalid");
+    assert.equal(error.diagnostic.courseIndex, 0);
+    assert.equal(error.diagnostic.bracketGroupCount, 0);
+    assert.equal(error.diagnostic.hasCreditMarker, false);
+    assert.equal("raw" in error.diagnostic, false);
+    assert.equal("courseCode" in error.diagnostic, false);
+    assert.equal("courseName" in error.diagnostic, false);
+  }
+});
+
+test("training plan completion parser rejects a non-credit unit", () => {
   assert.throws(
     () =>
       parseTrainingPlanCompletionHtml(
-        planCompletionHtml.replace("[31131862]内部审计", "[99999999]内部审计"),
+        planCompletionHtml.replace("[2学分,", "[2课时,"),
         planDetailPayload,
         parseTrainingPlanProfile(planProfileHtml),
         "2026-10-05T03:00:00.000Z",

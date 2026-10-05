@@ -644,6 +644,72 @@ test("academic import routes support anonymous device continuity without exposin
   );
 });
 
+test("academic parser diagnostics log only allowlisted anonymous structure", async () => {
+  const warnings = [];
+  const originalWarn = console.warn;
+  console.warn = (...values) => warnings.push(values.join(" "));
+  const academicConnector = {
+    async start() {
+      const error = new Error("school response did not match");
+      error.code = "ACADEMIC_PLAN_FORMAT_CHANGED";
+      error.stage = "plan_parse";
+      error.diagnostic = {
+        parseReason: "plan_course_pattern_invalid",
+        courseIndex: 12,
+        courseLabelLength: 48,
+        stableCodeLength: 8,
+        bracketGroupCount: 1,
+        hasStableCourseCode: true,
+        hasAsciiBrackets: true,
+        hasCreditMarker: false,
+        raw: "private course label",
+        courseCode: "private course code",
+        courseName: "private course name",
+      };
+      throw error;
+    },
+  };
+  try {
+    await withServer(
+      async ({ baseUrl }) => {
+        const response = await fetch(`${baseUrl}/api/auth/academic/connect`, {
+          method: "POST",
+          headers: {
+            Origin: "https://dufesh.cn",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            username: "20260001",
+            password: "school-password",
+          }),
+        });
+        assert.equal(response.status, 502);
+        assert.deepEqual(await response.json(), {
+          error: "academic_plan_format_changed",
+          stage: "plan_parse",
+        });
+      },
+      {
+        config: { academicImportEnabled: true },
+        academicConnector,
+      },
+    );
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  assert.equal(warnings.length, 1);
+  const diagnostic = JSON.parse(warnings[0]);
+  assert.equal(diagnostic.parseReason, "plan_course_pattern_invalid");
+  assert.equal(diagnostic.courseIndex, 12);
+  assert.equal(diagnostic.courseLabelLength, 48);
+  assert.equal(diagnostic.hasStableCourseCode, true);
+  assert.equal(diagnostic.hasCreditMarker, false);
+  assert.equal("raw" in diagnostic, false);
+  assert.equal("courseCode" in diagnostic, false);
+  assert.equal("courseName" in diagnostic, false);
+});
+
 test("token buckets refill, reject bursts, and keep their key set bounded", () => {
   const limiter = createTokenBucket({
     capacity: 2,

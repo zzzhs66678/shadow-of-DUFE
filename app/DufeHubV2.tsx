@@ -3151,6 +3151,14 @@ function AcademicImportDialog({
         const retryable = "error" in result && result.retryable === true;
         const errorCode =
           "error" in result ? result.error : "academic_import_failed";
+        if (
+          errorCode === "academic_transaction_expired" ||
+          errorCode === "academic_request_invalid"
+        ) {
+          restart();
+          setFeedback(academicImportErrorMessage(errorCode));
+          return;
+        }
         const importStageReached =
           "stage" in result &&
           [

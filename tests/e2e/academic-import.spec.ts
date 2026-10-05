@@ -129,6 +129,48 @@ const trainingPlan = {
   importedAt: "2026-09-28T02:03:04.000Z",
 };
 
+test("expired academic transactions return to a fresh login form", async ({
+  page,
+}) => {
+  await page.route("**/api/auth/session", (route) =>
+    route.fulfill({ json: { authenticated: false } }),
+  );
+  await page.route("**/api/auth/academic/connect", (route) =>
+    route.fulfill({
+      json: {
+        status: "sms_required",
+        transactionId: "abcdefghijklmnopqrstuvwxyzABCDEFGH",
+        maskedPhone: "138****0000",
+      },
+    }),
+  );
+  await page.route("**/api/auth/academic/sms", (route) =>
+    route.fulfill({
+      status: 410,
+      json: {
+        error: "academic_transaction_expired",
+        stage: "plan_parse",
+      },
+    }),
+  );
+
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page
+    .getByRole("button", { name: "从教务导入", exact: true })
+    .click();
+  await page.getByLabel("教务账号").fill("20260001");
+  await page.getByLabel("教务密码").fill("school-password");
+  await page.getByRole("button", { name: "登录并自动导入" }).click();
+  await page.getByRole("textbox", { name: "短信验证码" }).fill("123456");
+  await page.getByRole("button", { name: "验证并完成导入" }).click();
+
+  await expect(page.getByRole("heading", { name: "导入教务数据" })).toBeVisible();
+  await expect(page.getByRole("alert")).toContainText(
+    "本次教务登录已经超时，请重新连接。",
+  );
+  await expect(page.getByLabel("教务密码")).toHaveValue("");
+});
+
 test("official timetable and exams import through SMS and school verification", async ({
   page,
 }) => {

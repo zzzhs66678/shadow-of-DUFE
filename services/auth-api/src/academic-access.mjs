@@ -1988,12 +1988,39 @@ function planCompletionAttribute(nodes) {
   return "unknown";
 }
 
-function parsePlanCompletionCourse(node) {
+function planCompletionCourseDiagnostic(node, raw, courseIndex) {
+  const stableCode = textValue(node, [
+    "flagId",
+    "courseNumber",
+    "courseCode",
+    "kch",
+  ]).replace(/\s+/gu, "");
+  return {
+    courseIndex,
+    courseLabelLength: raw.length,
+    stableCodeLength: stableCode.length,
+    bracketGroupCount: (raw.match(/[\[【]/gu) ?? []).length,
+    hasStableCourseCode: Boolean(stableCode),
+    hasAsciiBrackets: raw.includes("[") && raw.includes("]"),
+    hasFullwidthBrackets: raw.includes("【") && raw.includes("】"),
+    hasAsciiComma: raw.includes(","),
+    hasChineseComma: raw.includes("，"),
+    hasAsciiStatusWrapper: raw.includes("(") && raw.includes(")"),
+    hasFullwidthStatusWrapper: raw.includes("（") && raw.includes("）"),
+    hasCreditNumber: /\d+(?:\.\d+)?/u.test(raw),
+    hasCreditMarker: /学\s*分/u.test(raw),
+  };
+}
+
+function parsePlanCompletionCourse(node, courseIndex) {
   const raw = stripHtml(node.name);
+  const diagnostic = planCompletionCourseDiagnostic(node, raw, courseIndex);
   const match = raw.match(
     /^\s*[\[【]([^\]】]+)[\]】]([\s\S]*?)[\[【]\s*([0-9]+(?:\.[0-9]+)?)\s*([^,，\]】]*?)(?:\s*[,，]\s*([^\]】]+))?[\]】]\s*(?:[\(（]([\s\S]*)[\)）])?\s*$/u,
   );
-  if (!match) throw trainingPlanFormatError("plan_course_invalid");
+  if (!match) {
+    throw trainingPlanFormatError("plan_course_pattern_invalid", diagnostic);
+  }
   const credits = finiteNumber(match[3], { positive: true });
   const displayedCode = match[1].replace(/\s+/gu, "").trim();
   const nodeCode = textValue(node, [
@@ -2004,17 +2031,27 @@ function parsePlanCompletionCourse(node) {
   ]).replace(/\s+/gu, "");
   const courseCode = nodeCode || displayedCode;
   const courseName = match[2].trim();
+  const creditLabel = match[4].replace(/\s+/gu, "");
+  if (nodeCode && nodeCode !== displayedCode) {
+    throw trainingPlanFormatError("plan_course_code_mismatch", {
+      ...diagnostic,
+      displayedCodeLength: displayedCode.length,
+    });
+  }
+  if (credits === null || credits > 100 || creditLabel !== "学分") {
+    throw trainingPlanFormatError("plan_course_credit_invalid", diagnostic);
+  }
   if (
     !courseCode ||
     courseCode.length > 80 ||
     /[\s\[\]【】()（）,，<>]/u.test(courseCode) ||
-    (nodeCode && nodeCode !== displayedCode) ||
     !courseName ||
-    courseName.length > 300 ||
-    credits === null ||
-    credits > 100
+    courseName.length > 300
   ) {
-    throw trainingPlanFormatError("plan_course_invalid");
+    throw trainingPlanFormatError("plan_course_fields_invalid", {
+      ...diagnostic,
+      displayedCodeLength: displayedCode.length,
+    });
   }
   return {
     courseCode,
@@ -2098,6 +2135,7 @@ export function parseTrainingPlanCompletionHtml(
   }
   const courses = [];
   const seen = new Set();
+  let courseIndex = 0;
   for (const node of nodes) {
     if (textValue(node, ["flagType"]) !== "kch") continue;
     const ancestors = ancestryFor(node);
@@ -2107,7 +2145,8 @@ export function parseTrainingPlanCompletionHtml(
     const category =
       categoryNode && categoryById.get(textValue(categoryNode, ["id"]));
     if (!category) throw trainingPlanFormatError("plan_category_invalid");
-    const course = parsePlanCompletionCourse(node);
+    const course = parsePlanCompletionCourse(node, courseIndex);
+    courseIndex += 1;
     const key = `${category.code}\u0000${course.courseCode}`;
     if (seen.has(key)) continue;
     seen.add(key);
