@@ -143,6 +143,18 @@ test("training-plan normalization keeps hierarchy, progress, and completion fiel
   );
 });
 
+test("training-plan normalization keeps grouping categories without separate credit rules", () => {
+  const source = plan();
+  source.categories[1].requiredCredits = null;
+  source.categories[1].earnedCredits = null;
+
+  const normalized = normalizeAcademicTrainingPlan(source);
+
+  assert.equal(normalized?.categories[1].requiredCredits, null);
+  assert.equal(normalized?.categories[1].earnedCredits, null);
+  assert.equal(normalized?.categories[1].parentCode, "A");
+});
+
 test("three-way merge combines changes made on different devices", () => {
   const base = state();
   const local = structuredClone(base);

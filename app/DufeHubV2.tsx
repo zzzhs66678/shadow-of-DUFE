@@ -3852,10 +3852,16 @@ function TrainingPlanWindow({
     if (!count && !showEmpty) return null;
     const hasContents = directCourses.length > 0 || children.length > 0;
     const isOpen = Boolean(planQuery.trim()) || openCategoryCodes.has(category.code);
+    const categoryEarnedCredits = category.earnedCredits ?? null;
+    const categoryRequiredCredits = category.requiredCredits ?? null;
     const creditLabel =
-      category.earnedCredits === null || category.earnedCredits === undefined
-        ? `要求 ${formatPlanCredits(category.requiredCredits)}`
-        : `已修 ${formatPlanCredits(category.earnedCredits)} / ${formatPlanCredits(category.requiredCredits)}`;
+      categoryEarnedCredits !== null && categoryRequiredCredits !== null
+        ? `已修 ${formatPlanCredits(categoryEarnedCredits)} / ${formatPlanCredits(categoryRequiredCredits)}`
+        : categoryEarnedCredits !== null
+          ? `已修 ${formatPlanCredits(categoryEarnedCredits)}`
+          : categoryRequiredCredits !== null
+            ? `要求 ${formatPlanCredits(categoryRequiredCredits)}`
+            : "学分要求未单列";
     return (
       <section
         className={academicStyles.planGroup}

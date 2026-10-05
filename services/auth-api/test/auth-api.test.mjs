@@ -971,7 +971,7 @@ test("personal sync requires a session, validates input, deduplicates, and detec
         cohortYear: 2025,
         requiredCredits: 160,
         categories: [
-          { code: "A", name: "专业必修课", requiredCredits: 80 },
+          { code: "A", name: "专业必修课", requiredCredits: null },
         ],
         courses: [
           {
@@ -1034,6 +1034,10 @@ test("personal sync requires a session, validates input, deduplicates, and detec
     assert.equal(acceptedBody.revision, 1);
     assert.equal(acceptedBody.state.plans[0].scheduleIds.length, 2);
     assert.equal(acceptedBody.state.trainingPlan.courses.length, 1);
+    assert.equal(
+      acceptedBody.state.trainingPlan.categories[0].requiredCredits,
+      null,
+    );
 
     const retry = await fetch(`${baseUrl}/api/auth/sync`, {
       method: "PUT",

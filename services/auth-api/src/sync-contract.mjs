@@ -365,12 +365,16 @@ function trainingPlan(value) {
         name: string(category.name, `${name}.categories[${index}].name`, 160, {
           empty: false,
         }),
-        requiredCredits: finiteNumber(
-          category.requiredCredits,
-          `${name}.categories[${index}].requiredCredits`,
-          0,
-          500,
-        ),
+        requiredCredits:
+          category.requiredCredits === null ||
+          category.requiredCredits === undefined
+            ? null
+            : finiteNumber(
+                category.requiredCredits,
+                `${name}.categories[${index}].requiredCredits`,
+                0,
+                500,
+              ),
         earnedCredits:
           category.earnedCredits === null ||
           category.earnedCredits === undefined

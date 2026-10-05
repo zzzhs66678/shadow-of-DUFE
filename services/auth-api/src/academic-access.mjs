@@ -2050,7 +2050,7 @@ export function parseTrainingPlanCompletionHtml(
     const parentCode = categoryNodeById.has(rawParentCode)
       ? rawParentCode
       : null;
-    if (!code || !name || requiredCredits === null || categoryById.has(code)) {
+    if (!code || !name || categoryById.has(code)) {
       throw trainingPlanFormatError("plan_category_invalid");
     }
     const category = {
@@ -2068,10 +2068,10 @@ export function parseTrainingPlanCompletionHtml(
     const ancestors = [];
     const visited = new Set();
     let parentId = textValue(node, ["pId", "pid"]);
-    while (parentId && parentId !== "0" && !visited.has(parentId)) {
+    while (parentId && !visited.has(parentId)) {
       visited.add(parentId);
       const parent = nodeById.get(parentId);
-      if (!parent) throw trainingPlanFormatError("plan_category_invalid");
+      if (!parent) break;
       ancestors.push(parent);
       if (rootIds.has(parentId)) break;
       parentId = textValue(parent, ["pId", "pid"]);

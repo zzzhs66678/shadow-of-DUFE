@@ -240,8 +240,6 @@ const planCompletionHtml = `<!doctype html><html><body>
         pId: "A",
         flagType: "002",
         name: "专业基础必修",
-        zsxf: "20",
-        yxxf: "2",
       },
       {
         id: "A-C1",
@@ -458,8 +456,8 @@ test("training plan completion parser reads the complete inline course tree", ()
     {
       code: "A-1",
       name: "专业基础必修",
-      requiredCredits: 20,
-      earnedCredits: 2,
+      requiredCredits: null,
+      earnedCredits: null,
       parentCode: "A",
     },
     {
@@ -495,6 +493,37 @@ test("training plan completion parser reads the complete inline course tree", ()
       replacementCourseCodes: [],
     },
   ]);
+});
+
+test("training plan completion parser treats zero as a real category id when present", () => {
+  const html = `<!doctype html><html><body><script>
+    var zNodes = ${JSON.stringify([
+      {
+        id: "0",
+        pId: "ROOT",
+        flagType: "001",
+        name: "通识教育必修课课组(最低修读学分:47,通过学分:47.0)",
+        zsxf: "47",
+        yxxf: "47",
+      },
+      {
+        id: "course-1",
+        pId: "0",
+        flagType: "kch",
+        name: "[10000001]大学语文[2学分,2025-2026学年第一学期](已修读及格)",
+      },
+    ])};
+  </script></body></html>`;
+  const plan = parseTrainingPlanCompletionHtml(
+    html,
+    planDetailPayload,
+    parseTrainingPlanProfile(planProfileHtml),
+    "2026-10-05T02:15:00.000Z",
+  );
+  assert.equal(plan.categories[0].code, "0");
+  assert.equal(plan.courses.length, 1);
+  assert.equal(plan.courses[0].categoryCode, "0");
+  assert.equal(plan.courses[0].courseName, "大学语文");
 });
 
 test("training plan completion parser takes major identity from school metadata", () => {

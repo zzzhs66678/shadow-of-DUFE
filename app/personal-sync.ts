@@ -90,7 +90,7 @@ export type AcademicSnapshot = {
 export type AcademicTrainingPlanCategory = {
   code: string;
   name: string;
-  requiredCredits: number;
+  requiredCredits: number | null;
   earnedCredits?: number | null;
   parentCode?: string | null;
 };
@@ -222,9 +222,11 @@ export function normalizeAcademicTrainingPlan(
       typeof category !== "object" ||
       !validString(category.code, 80) ||
       !validString(category.name, 160) ||
-      !Number.isFinite(category.requiredCredits) ||
-      category.requiredCredits < 0 ||
-      category.requiredCredits > 500 ||
+      (category.requiredCredits !== null &&
+        category.requiredCredits !== undefined &&
+        (!Number.isFinite(category.requiredCredits) ||
+          category.requiredCredits < 0 ||
+          category.requiredCredits > 500)) ||
       (category.earnedCredits !== undefined &&
         category.earnedCredits !== null &&
         (!Number.isFinite(category.earnedCredits) ||
@@ -241,7 +243,7 @@ export function normalizeAcademicTrainingPlan(
     categories.push({
       code: category.code,
       name: category.name,
-      requiredCredits: category.requiredCredits,
+      requiredCredits: category.requiredCredits ?? null,
       earnedCredits: category.earnedCredits ?? null,
       parentCode: category.parentCode ?? null,
     });
