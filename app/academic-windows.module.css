@@ -1,0 +1,614 @@
+.planWindow,
+.planWindowEmpty {
+  --academic-paper: var(--journal-paper-raised, #fbfaf5);
+  --academic-ink: var(--journal-ink, #1d1b18);
+  --academic-muted: var(--journal-muted, #655f58);
+  --academic-line: var(--journal-line, #cec6ba);
+  --academic-red: var(--journal-red, #a52325);
+  --academic-red-deep: var(--journal-red-deep, #751719);
+  background: var(--academic-paper);
+  border-bottom: 1px solid var(--academic-line);
+  border-top: 2px solid var(--academic-ink);
+  color: var(--academic-ink);
+  margin: 18px 0 28px;
+  position: relative;
+}
+
+.planWindow::before,
+.planWindowEmpty::before {
+  background: var(--academic-red);
+  content: "";
+  height: 4px;
+  left: 0;
+  position: absolute;
+  top: -2px;
+  width: 116px;
+}
+
+.planHeader {
+  align-items: start;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+  padding: 24px 26px 20px;
+}
+
+.planHeader > div > span,
+.planWindowEmpty span {
+  color: var(--academic-red-deep);
+  display: block;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .12em;
+  margin-bottom: 7px;
+}
+
+.planHeader h2 {
+  font: 600 clamp(23px, 3vw, 31px)/1.25 var(--journal-display, serif);
+  letter-spacing: -.025em;
+  margin: 0;
+}
+
+.planHeader p {
+  color: var(--academic-muted);
+  font-size: 12px;
+  margin: 8px 0 0;
+}
+
+.planHeader > button,
+.planWindowEmpty > button {
+  background: transparent;
+  border: 1px solid var(--academic-ink);
+  border-radius: 999px;
+  color: var(--academic-ink);
+  cursor: pointer;
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 12px;
+  min-height: 40px;
+  padding: 0 17px;
+}
+
+.planHeader > button:hover,
+.planWindowEmpty > button:hover {
+  background: var(--academic-ink);
+  color: var(--academic-paper);
+}
+
+.planProgress {
+  align-items: end;
+  border-top: 1px solid var(--academic-line);
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(130px, auto) minmax(220px, 1fr);
+  padding: 18px 26px;
+}
+
+.planProgress > div:first-child {
+  align-items: baseline;
+  display: flex;
+  gap: 10px;
+}
+
+.planProgress > div:first-child strong {
+  color: var(--academic-red-deep);
+  font: 600 34px/1 var(--journal-data, ui-monospace, monospace);
+  letter-spacing: -.045em;
+}
+
+.planProgress span {
+  color: var(--academic-muted);
+  font-size: 11px;
+}
+
+.planProgress > div:last-child > span {
+  display: block;
+  margin-bottom: 9px;
+  text-align: right;
+}
+
+.creditRail {
+  background: color-mix(in srgb, var(--academic-line) 72%, transparent);
+  height: 5px;
+  overflow: hidden;
+  position: relative;
+}
+
+.creditRail i {
+  background: var(--academic-red);
+  display: block;
+  height: 100%;
+  transition: width 220ms ease-out;
+}
+
+.planBody {
+  border-top: 1px solid var(--academic-line);
+  padding: 0 26px 24px;
+}
+
+.planTools {
+  align-items: center;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) minmax(210px, 300px);
+  padding: 18px 0;
+}
+
+.planTools > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.planTools button {
+  background: transparent;
+  border: 1px solid var(--academic-line);
+  border-radius: 999px;
+  color: var(--academic-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  min-height: 36px;
+  padding: 0 13px;
+}
+
+.planTools button small {
+  font: 700 10px/1 var(--journal-data, ui-monospace, monospace);
+  margin-left: 4px;
+}
+
+.planTools .activeFilter {
+  background: var(--academic-red-deep);
+  border-color: var(--academic-red-deep);
+  color: #fffaf2;
+}
+
+.planTools input {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--academic-ink);
+  border-radius: 0;
+  color: var(--academic-ink);
+  font: inherit;
+  font-size: 13px;
+  min-height: 40px;
+  padding: 0 2px;
+  width: 100%;
+}
+
+.planTools input::placeholder {
+  color: var(--academic-muted);
+}
+
+.planIndex {
+  border-top: 1px solid var(--academic-ink);
+}
+
+.planGroup {
+  margin-left: calc(var(--plan-depth, 0) * 18px);
+}
+
+.planGroupToggle {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--academic-line);
+  color: var(--academic-ink);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 18px;
+  justify-content: space-between;
+  min-height: 66px;
+  padding: 12px 4px;
+  text-align: left;
+  width: 100%;
+}
+
+.planGroupToggle:disabled {
+  cursor: default;
+  opacity: .72;
+}
+
+.planGroupToggle > span:first-child {
+  min-width: 0;
+}
+
+.planGroupToggle strong,
+.planGroupToggle small {
+  display: block;
+}
+
+.planGroupToggle strong {
+  font-size: 14px;
+}
+
+.planGroupToggle small {
+  color: var(--academic-muted);
+  font-size: 10px;
+  margin-top: 5px;
+}
+
+.planGroupToggle > span:last-child {
+  align-items: center;
+  color: var(--academic-muted);
+  display: flex;
+  flex: 0 0 auto;
+  font: 600 11px/1 var(--journal-data, ui-monospace, monospace);
+  gap: 12px;
+}
+
+.planGroupToggle b {
+  color: var(--academic-red-deep);
+  font-size: 19px;
+  font-weight: 500;
+  width: 14px;
+}
+
+.planGroupBody {
+  border-left: 1px solid var(--academic-line);
+  margin-left: 4px;
+  padding-left: 14px;
+}
+
+.planCourse {
+  align-items: center;
+  border-bottom: 1px solid color-mix(in srgb, var(--academic-line) 72%, transparent);
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 68px;
+  padding: 10px 4px 10px 12px;
+}
+
+.planCourseMain {
+  background: transparent;
+  border: 0;
+  color: var(--academic-ink);
+  display: block;
+  font: inherit;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+button.planCourseMain {
+  cursor: pointer;
+  width: fit-content;
+}
+
+.planCourseMain strong,
+.planCourseMain span,
+.planCourseMain small {
+  display: block;
+}
+
+.planCourseMain strong {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.planCourseMain span,
+.planCourseMain small {
+  color: var(--academic-muted);
+  font-size: 10px;
+  line-height: 1.55;
+  margin-top: 3px;
+}
+
+.planCourseMain small {
+  color: var(--academic-red-deep);
+}
+
+.planCourseAction {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.planCourseAction > small {
+  color: var(--academic-muted);
+  font-size: 9px;
+}
+
+.planCourseAction > small[data-status="failed"] {
+  color: var(--academic-red-deep);
+}
+
+.planCourseAction > span,
+.planCourseAction > button {
+  background: transparent;
+  border: 1px solid var(--academic-red-deep);
+  border-radius: 999px;
+  color: var(--academic-red-deep);
+  font: inherit;
+  font-size: 10px;
+  line-height: 1;
+  min-height: 29px;
+  padding: 8px 11px;
+  white-space: nowrap;
+}
+
+.planCourseAction > button {
+  background: var(--academic-red-deep);
+  color: #fffaf2;
+  cursor: pointer;
+}
+
+.planCourseAction > .mutedAction {
+  border-color: var(--academic-line);
+  color: var(--academic-muted);
+}
+
+.planEmptyResult {
+  padding: 28px 4px;
+}
+
+.planEmptyResult strong {
+  font-size: 14px;
+}
+
+.planEmptyResult p {
+  color: var(--academic-muted);
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 7px 0 0;
+}
+
+.planWindowEmpty {
+  align-items: center;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+  padding: 20px 24px;
+}
+
+.planWindowEmpty span {
+  margin-bottom: 5px;
+}
+
+.planWindowEmpty strong {
+  display: block;
+  font-size: 14px;
+}
+
+.examNotice {
+  border-bottom: 1px solid var(--journal-line, #cec6ba);
+  border-top: 2px solid var(--journal-ink, #1d1b18);
+  color: var(--journal-ink, #1d1b18);
+  margin: 18px 0 4px;
+}
+
+.examNotice > header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 2px;
+}
+
+.examNotice > header > div {
+  align-items: baseline;
+  display: flex;
+  gap: 10px;
+}
+
+.examNotice > header span {
+  color: var(--journal-red-deep, #751719);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .1em;
+}
+
+.examNotice > header strong {
+  font-size: 12px;
+}
+
+.examNotice > header button {
+  background: transparent;
+  border: 0;
+  color: var(--journal-red-deep, #751719);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  padding: 8px 0 8px 12px;
+}
+
+.examNotice > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.examNotice article {
+  align-items: center;
+  border-top: 1px solid var(--journal-line, #cec6ba);
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  min-height: 78px;
+  padding: 12px 14px 12px 2px;
+}
+
+.examNotice article + article {
+  border-left: 1px solid var(--journal-line, #cec6ba);
+  padding-left: 16px;
+}
+
+.examNotice time b,
+.examNotice time small {
+  display: block;
+  font-family: var(--journal-data, ui-monospace, monospace);
+}
+
+.examNotice time b {
+  color: var(--journal-red-deep, #751719);
+  font-size: 14px;
+}
+
+.examNotice time small,
+.examNotice article p {
+  color: var(--journal-muted, #655f58);
+  font-size: 10px;
+  margin-top: 4px;
+}
+
+.examNotice article > div > strong {
+  display: block;
+  font-size: 13px;
+}
+
+.examNotice article p {
+  line-height: 1.45;
+  margin-bottom: 0;
+}
+
+.examNotice dl,
+.examIdentifiers {
+  display: flex;
+  gap: 12px;
+  margin: 0;
+}
+
+.examNotice dl div,
+.examIdentifiers div {
+  text-align: right;
+}
+
+.examNotice dt,
+.examIdentifiers dt {
+  color: var(--journal-muted, #655f58);
+  font-size: 9px;
+}
+
+.examNotice dd,
+.examIdentifiers dd {
+  font: 650 11px/1.4 var(--journal-data, ui-monospace, monospace);
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.examIdentifiers {
+  align-items: flex-end;
+  flex-direction: column;
+}
+
+.planHeader > button:focus-visible,
+.planWindowEmpty > button:focus-visible,
+.planTools button:focus-visible,
+.planTools input:focus-visible,
+.planGroupToggle:focus-visible,
+.planCourseMain:focus-visible,
+.planCourseAction > button:focus-visible,
+.examNotice button:focus-visible {
+  outline: 2px solid var(--journal-red, #a52325);
+  outline-offset: 3px;
+}
+
+@media (max-width: 860px) {
+  .examNotice > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .examNotice article + article {
+    border-left: 0;
+    padding-left: 2px;
+  }
+}
+
+@media (max-width: 760px) {
+  .planWindow,
+  .planWindowEmpty {
+    margin: 14px 0 22px;
+  }
+
+  .planHeader {
+    padding: 20px 16px 16px;
+  }
+
+  .planHeader h2 {
+    font-size: 23px;
+  }
+
+  .planProgress {
+    gap: 14px;
+    grid-template-columns: minmax(0, 1fr);
+    padding: 16px;
+  }
+
+  .planProgress > div:last-child > span {
+    text-align: left;
+  }
+
+  .planBody {
+    padding: 0 16px 18px;
+  }
+
+  .planTools {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .planTools > div {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .planTools button {
+    padding: 0 7px;
+  }
+
+  .planGroup {
+    margin-left: calc(var(--plan-depth, 0) * 8px);
+  }
+
+  .planGroupBody {
+    padding-left: 8px;
+  }
+
+  .planCourse {
+    gap: 8px;
+    padding-left: 7px;
+  }
+
+  .planCourseAction > span,
+  .planCourseAction > button {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .planWindowEmpty {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 20px 16px 16px;
+  }
+
+  .planWindowEmpty > button {
+    width: 100%;
+  }
+
+  .examNotice article {
+    gap: 10px;
+    grid-template-columns: 62px minmax(0, 1fr);
+    padding-right: 2px;
+  }
+
+  .examNotice dl {
+    grid-column: 2;
+  }
+
+  .examIdentifiers {
+    align-items: flex-start;
+    flex-direction: row;
+    grid-column: 2;
+  }
+
+  .examIdentifiers div,
+  .examNotice dl div {
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .creditRail i {
+    transition: none;
+  }
+}

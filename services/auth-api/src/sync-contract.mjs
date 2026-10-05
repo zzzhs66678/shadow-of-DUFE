@@ -11,6 +11,13 @@ const PLAN_COURSE_ATTRIBUTES = new Set([
   "elective",
   "unknown",
 ]);
+const PLAN_COURSE_COMPLETION_STATUSES = new Set([
+  "passed",
+  "in_progress",
+  "failed",
+  "not_taken",
+  "unknown",
+]);
 
 function invalid(message) {
   const error = new Error(message);
@@ -292,6 +299,7 @@ function academicExam(value, snapshotIndex, index) {
     room: string(input.room ?? "", `${name}.room`, 160),
     location: string(input.location ?? "", `${name}.location`, 300),
     seat: string(input.seat ?? "", `${name}.seat`, 80),
+    examNumber: string(input.examNumber ?? "", `${name}.examNumber`, 120),
     status: string(input.status ?? "", `${name}.status`, 80),
   };
 }
@@ -363,16 +371,51 @@ function trainingPlan(value) {
           0,
           500,
         ),
+        earnedCredits:
+          category.earnedCredits === null ||
+          category.earnedCredits === undefined
+            ? null
+            : finiteNumber(
+                category.earnedCredits,
+                `${name}.categories[${index}].earnedCredits`,
+                0,
+                500,
+              ),
+        parentCode:
+          category.parentCode === null || category.parentCode === undefined
+            ? null
+            : string(
+                category.parentCode,
+                `${name}.categories[${index}].parentCode`,
+                80,
+                { empty: false },
+              ),
       };
     },
   );
   uniqueBy(categories, "code", `${name}.categories`);
+  const categoryCodes = new Set(categories.map((category) => category.code));
+  if (
+    categories.some(
+      (category) =>
+        category.parentCode === category.code ||
+        (category.parentCode !== null && !categoryCodes.has(category.parentCode)),
+    )
+  ) {
+    throw invalid(`${name}.categories contains an invalid parent`);
+  }
   const seenCourses = new Set();
   const courses = array(input.courses, `${name}.courses`, 1_500).map(
     (value, index) => {
       const course = object(value, `${name}.courses[${index}]`);
       if (!PLAN_COURSE_ATTRIBUTES.has(course.attribute)) {
         throw invalid(`${name}.courses[${index}].attribute is unsupported`);
+      }
+      const completionStatus = course.completionStatus ?? "unknown";
+      if (!PLAN_COURSE_COMPLETION_STATUSES.has(completionStatus)) {
+        throw invalid(
+          `${name}.courses[${index}].completionStatus is unsupported`,
+        );
       }
       const normalized = {
         courseCode: string(
@@ -400,6 +443,12 @@ function trainingPlan(value) {
           { empty: false },
         ),
         attribute: course.attribute,
+        completionStatus,
+        completedTerm: string(
+          course.completedTerm ?? "",
+          `${name}.courses[${index}].completedTerm`,
+          80,
+        ),
         credits:
           course.credits === null || course.credits === undefined
             ? null
@@ -445,6 +494,15 @@ function trainingPlan(value) {
       1,
       500,
     ),
+    earnedCredits:
+      input.earnedCredits === null || input.earnedCredits === undefined
+        ? null
+        : finiteNumber(
+            input.earnedCredits,
+            `${name}.earnedCredits`,
+            0,
+            500,
+          ),
     categories,
     courses,
     importedAt: instant(input.importedAt, `${name}.importedAt`),

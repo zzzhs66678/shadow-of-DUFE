@@ -1353,7 +1353,7 @@ function examCardField(text, label) {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
   const match = String(text ?? "").match(
     new RegExp(
-      `${escaped}\\s*[:：]\\s*([\\s\\S]*?)(?=\\n\\s*(?:考试名称|考试时间|地点|座位号|准考证号|考试提示信息|状态)\\s*[:：]|$)`,
+      `${escaped}\\s*[:：]\\s*([\\s\\S]*?)(?=\\n\\s*(?:考试名称|考试时间|地点|座位号|准考证号|考号|考试号|考试提示信息|状态)\\s*[:：]|$)`,
       "iu",
     ),
   );
@@ -1417,6 +1417,10 @@ function parseExamCards(html, term) {
     const locationText = examCardField(text, "地点");
     const location = examLocation(locationText);
     const seat = examCardField(text, "座位号");
+    const examNumber =
+      examCardField(text, "准考证号") ||
+      examCardField(text, "考号") ||
+      examCardField(text, "考试号");
     exams.push({
       id: digestId("academic-exam", [
         term.id,
@@ -1434,6 +1438,7 @@ function parseExamCards(html, term) {
       ...location,
       location: locationText,
       seat,
+      examNumber,
       status: parsedTitle.status || examCardField(text, "状态"),
     });
   }
@@ -1476,6 +1481,7 @@ export function parseExamHtml(html, term) {
     building: findHeaderIndex(headers, ["教学楼", "楼宇", "楼栋"]),
     room: findHeaderIndex(headers, ["考试教室", "考场教室", "教室"]),
     seat: findHeaderIndex(headers, ["座位号", "座号", "座位"]),
+    examNumber: findHeaderIndex(headers, ["准考证号", "考号", "考试号"]),
     status: findHeaderIndex(headers, ["考试状态", "状态"]),
   };
   const exams = [];
@@ -1515,6 +1521,7 @@ export function parseExamHtml(html, term) {
       room,
       location: locationText,
       seat: cellAt(cells, columns.seat),
+      examNumber: cellAt(cells, columns.examNumber),
       status: cellAt(cells, columns.status),
     });
   }
@@ -1995,6 +2002,15 @@ function parsePlanCompletionCourse(node) {
     courseCode: match[1].trim(),
     courseName: match[2].trim(),
     credits,
+    completedTerm: String(match[4] ?? "").trim(),
+    completionStatus: (() => {
+      const status = String(match[5] ?? "").trim();
+      if (!status || /未修|未选/u.test(status)) return "not_taken";
+      if (/不及格|未及格|重修/u.test(status)) return "failed";
+      if (/正在修读|在修|修读中/u.test(status)) return "in_progress";
+      if (/已修读及格|已及格|通过/u.test(status)) return "passed";
+      return "unknown";
+    })(),
   };
 }
 
@@ -2014,19 +2030,40 @@ export function parseTrainingPlanCompletionHtml(
   if (!roots.length || roots.length > MAX_PLAN_CATEGORIES) {
     throw trainingPlanFormatError("plan_categories_missing");
   }
-  const rootById = new Map();
+  const categoryNodes = nodes.filter((node) =>
+    ["001", "002"].includes(textValue(node, ["flagType"])),
+  );
+  if (categoryNodes.length > MAX_PLAN_CATEGORIES) {
+    throw trainingPlanFormatError("plan_categories_missing");
+  }
+  const categoryNodeById = new Map(
+    categoryNodes.map((node) => [textValue(node, ["id"]), node]),
+  );
+  const categoryById = new Map();
   const categories = [];
-  for (const root of roots) {
-    const code = textValue(root, ["id"]);
-    const name = planCompletionCategoryName(root);
-    const requiredCredits = finiteNumber(root.zsxf);
-    if (!code || !name || requiredCredits === null || rootById.has(code)) {
+  for (const node of categoryNodes) {
+    const code = textValue(node, ["id"]);
+    const name = planCompletionCategoryName(node);
+    const requiredCredits = finiteNumber(node.zsxf);
+    const earnedCredits = finiteNumber(node.yxxf);
+    const rawParentCode = textValue(node, ["pId", "pid"]);
+    const parentCode = categoryNodeById.has(rawParentCode)
+      ? rawParentCode
+      : null;
+    if (!code || !name || requiredCredits === null || categoryById.has(code)) {
       throw trainingPlanFormatError("plan_category_invalid");
     }
-    const category = { code, name, requiredCredits };
-    rootById.set(code, category);
+    const category = {
+      code,
+      name,
+      requiredCredits,
+      earnedCredits,
+      parentCode,
+    };
+    categoryById.set(code, category);
     categories.push(category);
   }
+  const rootIds = new Set(roots.map((root) => textValue(root, ["id"])));
   function ancestryFor(node) {
     const ancestors = [];
     const visited = new Set();
@@ -2036,7 +2073,7 @@ export function parseTrainingPlanCompletionHtml(
       const parent = nodeById.get(parentId);
       if (!parent) throw trainingPlanFormatError("plan_category_invalid");
       ancestors.push(parent);
-      if (rootById.has(parentId)) break;
+      if (rootIds.has(parentId)) break;
       parentId = textValue(parent, ["pId", "pid"]);
     }
     return ancestors;
@@ -2046,10 +2083,11 @@ export function parseTrainingPlanCompletionHtml(
   for (const node of nodes) {
     if (textValue(node, ["flagType"]) !== "kch") continue;
     const ancestors = ancestryFor(node);
-    const root = ancestors.find((ancestor) =>
-      rootById.has(textValue(ancestor, ["id"])),
+    const categoryNode = ancestors.find((ancestor) =>
+      categoryById.has(textValue(ancestor, ["id"])),
     );
-    const category = root && rootById.get(textValue(root, ["id"]));
+    const category =
+      categoryNode && categoryById.get(textValue(categoryNode, ["id"]));
     if (!category) throw trainingPlanFormatError("plan_category_invalid");
     const course = parsePlanCompletionCourse(node);
     const key = `${category.code}\u0000${course.courseCode}`;
@@ -2067,9 +2105,14 @@ export function parseTrainingPlanCompletionHtml(
     }
   }
   if (!courses.length) throw trainingPlanFormatError("plan_courses_missing");
+  const rootEarnedCredits = roots.map((root) => finiteNumber(root.yxxf));
+  const earnedCredits = rootEarnedCredits.every((value) => value !== null)
+    ? rootEarnedCredits.reduce((total, value) => total + value, 0)
+    : null;
   return {
     schemaVersion: 1,
     ...normalizedTrainingPlanMetadata(detailPayload, profile),
+    earnedCredits,
     categories,
     courses,
     importedAt,

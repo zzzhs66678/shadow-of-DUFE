@@ -38,17 +38,33 @@ function plan(name = "2026级审计学培养方案"): AcademicTrainingPlan {
     majorName: "审计学",
     cohortYear: 2026,
     requiredCredits: 160,
+    earnedCredits: 96,
     categories: [
-      { code: "A", name: "专业必修课", requiredCredits: 80 },
+      {
+        code: "A",
+        name: "专业必修课",
+        requiredCredits: 80,
+        earnedCredits: 52,
+        parentCode: null,
+      },
+      {
+        code: "A-1",
+        name: "专业基础必修",
+        requiredCredits: 20,
+        earnedCredits: 18,
+        parentCode: "A",
+      },
     ],
     courses: [
       {
         courseCode: "31131862",
         courseName: "内部审计",
-        categoryCode: "A",
-        categoryName: "专业必修课",
+        categoryCode: "A-1",
+        categoryName: "专业基础必修",
         attribute: "required",
         credits: 2,
+        completionStatus: "passed",
+        completedTerm: "2025-2026学年第二学期",
         replacementCourseCodes: [],
       },
     ],
@@ -112,6 +128,18 @@ test("malformed local training-plan data is discarded instead of reaching the UI
       courses: [{ ...plan().courses[0], courseCode: "" }],
     }),
     null,
+  );
+});
+
+test("training-plan normalization keeps hierarchy, progress, and completion fields", () => {
+  const normalized = normalizeAcademicTrainingPlan(plan());
+  assert.equal(normalized?.earnedCredits, 96);
+  assert.equal(normalized?.categories[1].parentCode, "A");
+  assert.equal(normalized?.categories[1].earnedCredits, 18);
+  assert.equal(normalized?.courses[0].completionStatus, "passed");
+  assert.equal(
+    normalized?.courses[0].completedTerm,
+    "2025-2026学年第二学期",
   );
 });
 

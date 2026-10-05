@@ -64,6 +64,7 @@ const snapshot = {
       room: "201",
       location: "校本部 / 梅园 / 201",
       seat: "18",
+      examNumber: "20260001",
       status: "已安排",
     },
   ],
@@ -77,18 +78,40 @@ const trainingPlan = {
   majorName: "审计学",
   cohortYear: 2026,
   requiredCredits: 160,
+  earnedCredits: 96,
   categories: [
-    { code: "A", name: "专业必修课", requiredCredits: 80 },
-    { code: "B", name: "专业选修课", requiredCredits: 20 },
+    {
+      code: "A",
+      name: "专业必修课",
+      requiredCredits: 80,
+      earnedCredits: 58,
+      parentCode: null,
+    },
+    {
+      code: "A-1",
+      name: "专业基础必修",
+      requiredCredits: 20,
+      earnedCredits: 18,
+      parentCode: "A",
+    },
+    {
+      code: "B",
+      name: "专业选修课",
+      requiredCredits: 20,
+      earnedCredits: 6,
+      parentCode: null,
+    },
   ],
   courses: [
     {
       courseCode: "31131862",
       courseName: "内部审计",
-      categoryCode: "A",
-      categoryName: "专业必修课",
+      categoryCode: "A-1",
+      categoryName: "专业基础必修",
       attribute: "required",
       credits: 2,
+      completionStatus: "passed",
+      completedTerm: "2025-2026学年第二学期",
       replacementCourseCodes: [],
     },
     {
@@ -98,6 +121,8 @@ const trainingPlan = {
       categoryName: "专业选修课",
       attribute: "limited",
       credits: 2,
+      completionStatus: "not_taken",
+      completedTerm: "",
       replacementCourseCodes: [],
     },
   ],
@@ -223,6 +248,13 @@ test("official timetable and exams import through SMS and school verification", 
   await expect(page.locator(".academic-sync-band p")).toContainText(
     "已导入 1 门课、2 个上课时段、1 项考试",
   );
+  const examNotice = page.getByRole("region", { name: "最近考试" });
+  await expect(examNotice).toContainText("内部审计");
+  await expect(examNotice).toContainText("梅园");
+  await expect(examNotice).toContainText("座位");
+  await expect(examNotice).toContainText("18");
+  await expect(examNotice).toContainText("考号");
+  await expect(examNotice).toContainText("20260001");
   await page
     .getByRole("button", { name: "我的课表", exact: true })
     .click();
@@ -230,14 +262,27 @@ test("official timetable and exams import through SMS and school verification", 
   await expect(page.locator(".academic-schedule-card")).toHaveCount(2);
   await expect(page.locator(".academic-exam-list article")).toHaveCount(1);
   await expect(page.locator(".academic-exam-list")).toContainText("内部审计");
-  await expect(page.locator(".academic-exam-list")).toContainText("座位 18");
+  await expect(page.locator(".academic-exam-list")).toContainText("座位");
+  await expect(page.locator(".academic-exam-list")).toContainText("18");
+  await expect(page.locator(".academic-exam-list")).toContainText("考号");
+  await expect(page.locator(".academic-exam-list")).toContainText("20260001");
+  await expect(page.getByRole("heading", { name: "审计学" })).toBeVisible();
+  const planWindow = page.getByTestId("training-plan-window");
+  await expect(planWindow.getByText("96", { exact: true })).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "培养方案", exact: true }),
-  ).toHaveClass(/active/);
-  await expect(page.locator(".training-plan-course")).toHaveCount(2);
-  await expect(page.locator(".training-plan-ledger")).toContainText("内部审计");
-  await expect(page.locator(".training-plan-ledger")).toContainText("已在课表");
-  await expect(page.locator(".training-plan-ledger")).toContainText("本学期未开");
+    planWindow.getByRole("button", { name: /本学期 1/ }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await planWindow.getByRole("button", { name: /专业基础必修/ }).click();
+  const currentPlanCourse = planWindow.locator("article").filter({
+    hasText: "内部审计",
+  });
+  await expect(currentPlanCourse).toContainText("本学期");
+  await planWindow.getByRole("button", { name: /待选 1/ }).click();
+  await planWindow.getByRole("button", { name: /专业选修课/ }).click();
+  const pendingPlanCourse = planWindow.locator("article").filter({
+    hasText: "审计专题",
+  });
+  await expect(pendingPlanCourse).toContainText("本学期未开");
 
   const storage = await page.evaluate(() =>
     localStorage.getItem("dufesh:student-profile:v3:anonymous"),
@@ -245,6 +290,23 @@ test("official timetable and exams import through SMS and school verification", 
   expect(storage).toContain("2026-2027-fall");
   expect(storage).toContain("2026级审计学专业培养方案");
   expect(storage).not.toContain("school-password");
+  await page.evaluate(() => {
+    const key = "dufesh:student-profile:v3:anonymous";
+    const value = localStorage.getItem(key);
+    if (!value) throw new Error("missing personal state");
+    const parsed = JSON.parse(value);
+    parsed.academicSnapshots = parsed.academicSnapshots.map(
+      (item: { exams: unknown[] }) => ({ ...item, exams: [] }),
+    );
+    parsed.skipped = true;
+    localStorage.setItem(key, JSON.stringify(parsed));
+  });
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("region", { name: "最近考试" })).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "我的课表", exact: true })
+    .click();
+  await expect(page.getByRole("heading", { name: "考试安排" })).toHaveCount(0);
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
   ).toBe(false);

@@ -82,8 +82,8 @@ const examHtml = `<!doctype html>
 <html><body>
   <div>2026-2027 第一学期</div>
   <table>
-    <tr><th>课程编号</th><th>课程名称</th><th>课序号</th><th>考试类型</th><th>考试时间</th><th>考场</th><th>座位号</th><th>状态</th></tr>
-    <tr><td>31131862</td><td>内部审计</td><td>01</td><td>期末</td><td>2027年01月08日 09:00-11:00</td><td>校本部 / 梅园 / 201</td><td>18</td><td>已安排</td></tr>
+    <tr><th>课程编号</th><th>课程名称</th><th>课序号</th><th>考试类型</th><th>考试时间</th><th>考场</th><th>座位号</th><th>考号</th><th>状态</th></tr>
+    <tr><td>31131862</td><td>内部审计</td><td>01</td><td>期末</td><td>2027年01月08日 09:00-11:00</td><td>校本部 / 梅园 / 201</td><td>18</td><td>20260001</td><td>已安排</td></tr>
   </table>
 </body></html>`;
 
@@ -173,6 +173,7 @@ const examCardsHtml = `<!doctype html><html><body>
       考试时间:&nbsp;2027-01-08 星期五 09:00-11:00<br>
       地点:&nbsp;校本部 梅园 201<br>
       座位号:&nbsp;18<br>
+      准考证号:&nbsp;20260001<br>
     </div>
   </div>
 </body></html>`;
@@ -228,10 +229,11 @@ const planCompletionHtml = `<!doctype html><html><body>
     var zNodes = ${JSON.stringify([
       {
         id: "A",
-        pId: "-1",
+        pId: "R0",
         flagType: "001",
         name: "专业必修课(最低修读学分:80,通过学分:10)",
         zsxf: "80",
+        yxxf: "10",
       },
       {
         id: "A-1",
@@ -239,6 +241,7 @@ const planCompletionHtml = `<!doctype html><html><body>
         flagType: "002",
         name: "专业基础必修",
         zsxf: "20",
+        yxxf: "2",
       },
       {
         id: "A-C1",
@@ -248,10 +251,11 @@ const planCompletionHtml = `<!doctype html><html><body>
       },
       {
         id: "B",
-        pId: "-1",
+        pId: "R0",
         flagType: "001",
         name: "专业选修课(最低修读学分:20,通过学分:0)",
         zsxf: "20",
+        yxxf: "0",
       },
       {
         id: "B-C1",
@@ -379,6 +383,7 @@ test("exam parser accepts combined date/time and location fields", () => {
   assert.equal(exams[0].endTime, "11:00");
   assert.equal(exams[0].building, "梅园");
   assert.equal(exams[0].seat, "18");
+  assert.equal(exams[0].examNumber, "20260001");
 });
 
 test("exam parser accepts the official timeline card layout", () => {
@@ -393,6 +398,7 @@ test("exam parser accepts the official timeline card layout", () => {
   assert.equal(exams[0].startTime, "09:00");
   assert.equal(exams[0].endTime, "11:00");
   assert.equal(exams[0].seat, "18");
+  assert.equal(exams[0].examNumber, "20260001");
 });
 
 test("training plan parser preserves groups, identifiers, credits, and course attributes", () => {
@@ -442,16 +448,38 @@ test("training plan completion parser reads the complete inline course tree", ()
     "2026-10-04T01:02:03.000Z",
   );
   assert.deepEqual(plan.categories, [
-    { code: "A", name: "专业必修课", requiredCredits: 80 },
-    { code: "B", name: "专业选修课", requiredCredits: 20 },
+    {
+      code: "A",
+      name: "专业必修课",
+      requiredCredits: 80,
+      earnedCredits: 10,
+      parentCode: null,
+    },
+    {
+      code: "A-1",
+      name: "专业基础必修",
+      requiredCredits: 20,
+      earnedCredits: 2,
+      parentCode: "A",
+    },
+    {
+      code: "B",
+      name: "专业选修课",
+      requiredCredits: 20,
+      earnedCredits: 0,
+      parentCode: null,
+    },
   ]);
+  assert.equal(plan.earnedCredits, 10);
   assert.deepEqual(plan.courses, [
     {
       courseCode: "31131862",
       courseName: "内部审计",
       credits: 2,
-      categoryCode: "A",
-      categoryName: "专业必修课",
+      completedTerm: "2026-2027学年第一学期",
+      completionStatus: "passed",
+      categoryCode: "A-1",
+      categoryName: "专业基础必修",
       attribute: "required",
       replacementCourseCodes: [],
     },
@@ -459,12 +487,36 @@ test("training plan completion parser reads the complete inline course tree", ()
       courseCode: "51132062",
       courseName: "数字化管理会计",
       credits: 2,
+      completedTerm: "",
+      completionStatus: "not_taken",
       categoryCode: "B",
       categoryName: "专业选修课",
       attribute: "elective",
       replacementCourseCodes: [],
     },
   ]);
+});
+
+test("training plan completion parser takes major identity from school metadata", () => {
+  const detail = structuredClone(planDetailPayload);
+  detail.jhFajhb.fajhh = "P2024-ECON";
+  detail.jhFajhb.famc = "2024级经济统计学专业培养方案";
+  detail.jhFajhb.zyh = "020102";
+  detail.jhFajhb.zym = "经济统计学";
+  detail.jhFajhb.yqzxf = 155;
+  const plan = parseTrainingPlanCompletionHtml(
+    planCompletionHtml,
+    detail,
+    parseTrainingPlanProfile(
+      planProfileWithoutVisibleFieldsHtml.replaceAll("P2024", "P2024-ECON"),
+    ),
+    "2026-10-04T01:02:03.000Z",
+  );
+  assert.equal(plan.planNumber, "P2024-ECON");
+  assert.equal(plan.majorCode, "020102");
+  assert.equal(plan.majorName, "经济统计学");
+  assert.equal(plan.requiredCredits, 155);
+  assert.equal(plan.courses.length, 2);
 });
 
 test("training plan completion parser fails closed on malformed course rows", () => {

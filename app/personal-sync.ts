@@ -72,6 +72,7 @@ export type AcademicExam = {
   room: string;
   location: string;
   seat: string;
+  examNumber?: string;
   status: string;
 };
 
@@ -90,6 +91,8 @@ export type AcademicTrainingPlanCategory = {
   code: string;
   name: string;
   requiredCredits: number;
+  earnedCredits?: number | null;
+  parentCode?: string | null;
 };
 
 export type AcademicTrainingPlanCourse = {
@@ -99,6 +102,8 @@ export type AcademicTrainingPlanCourse = {
   categoryName: string;
   attribute: "required" | "limited" | "elective" | "unknown";
   credits: number | null;
+  completionStatus?: "passed" | "in_progress" | "failed" | "not_taken" | "unknown";
+  completedTerm?: string;
   replacementCourseCodes: string[];
 };
 
@@ -110,6 +115,7 @@ export type AcademicTrainingPlan = {
   majorName: string;
   cohortYear: number;
   requiredCredits: number;
+  earnedCredits?: number | null;
   categories: AcademicTrainingPlanCategory[];
   courses: AcademicTrainingPlanCourse[];
   importedAt: string;
@@ -219,15 +225,45 @@ export function normalizeAcademicTrainingPlan(
       !Number.isFinite(category.requiredCredits) ||
       category.requiredCredits < 0 ||
       category.requiredCredits > 500 ||
+      (category.earnedCredits !== undefined &&
+        category.earnedCredits !== null &&
+        (!Number.isFinite(category.earnedCredits) ||
+          category.earnedCredits < 0 ||
+          category.earnedCredits > 500)) ||
+      (category.parentCode !== undefined &&
+        category.parentCode !== null &&
+        !validString(category.parentCode, 80)) ||
       categoryCodes.has(category.code)
     ) {
       return null;
     }
     categoryCodes.add(category.code);
-    categories.push({ ...category });
+    categories.push({
+      code: category.code,
+      name: category.name,
+      requiredCredits: category.requiredCredits,
+      earnedCredits: category.earnedCredits ?? null,
+      parentCode: category.parentCode ?? null,
+    });
+  }
+  if (
+    categories.some(
+      (category) =>
+        category.parentCode === category.code ||
+        (category.parentCode != null && !categoryCodes.has(category.parentCode)),
+    )
+  ) {
+    return null;
   }
   const seenCourses = new Set<string>();
   const attributes = new Set(["required", "limited", "elective", "unknown"]);
+  const completionStatuses = new Set([
+    "passed",
+    "in_progress",
+    "failed",
+    "not_taken",
+    "unknown",
+  ]);
   const courses: AcademicTrainingPlanCourse[] = [];
   for (const course of plan.courses) {
     if (
@@ -238,6 +274,11 @@ export function normalizeAcademicTrainingPlan(
       !validString(course.categoryCode, 80) ||
       !validString(course.categoryName, 160) ||
       !attributes.has(course.attribute) ||
+      (course.completionStatus !== undefined &&
+        !completionStatuses.has(course.completionStatus)) ||
+      (course.completedTerm !== undefined &&
+        course.completedTerm !== "" &&
+        !validString(course.completedTerm, 80)) ||
       (course.credits !== null &&
         (!Number.isFinite(course.credits) ||
           course.credits < 0 ||
@@ -255,9 +296,20 @@ export function normalizeAcademicTrainingPlan(
     seenCourses.add(key);
     courses.push({
       ...course,
+      completionStatus: course.completionStatus ?? "unknown",
+      completedTerm: course.completedTerm ?? "",
       replacementCourseCodes: unique(course.replacementCourseCodes),
     });
   }
+  const earnedCredits =
+    plan.earnedCredits === undefined || plan.earnedCredits === null
+      ? null
+      : Number.isFinite(plan.earnedCredits) &&
+          plan.earnedCredits >= 0 &&
+          plan.earnedCredits <= 500
+        ? plan.earnedCredits
+        : Number.NaN;
+  if (Number.isNaN(earnedCredits)) return null;
   return {
     schemaVersion: 1,
     planNumber: plan.planNumber!,
@@ -266,6 +318,7 @@ export function normalizeAcademicTrainingPlan(
     majorName: plan.majorName!,
     cohortYear: plan.cohortYear!,
     requiredCredits: plan.requiredCredits!,
+    earnedCredits,
     categories,
     courses,
     importedAt: plan.importedAt,

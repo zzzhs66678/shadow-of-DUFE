@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ReactNode,
 } from "react";
 import {
   DndContext,
@@ -35,6 +36,7 @@ import {
 } from "./personal-sync";
 import { FormField } from "./FormField";
 import { TeacherRecordLink } from "./TeacherRecordLink";
+import academicStyles from "./academic-windows.module.css";
 import homeStyles from "./home-workspace.module.css";
 import RoomWeekSchedule from "./RoomWeekSchedule";
 import {
@@ -2328,6 +2330,25 @@ function HomePage({
   const todayAssignments = saved.assignments.filter(
     (item) => !item.completed && item.dueDate === todayISO(),
   );
+  const todayKey = todayISO();
+  const currentClock = new Intl.DateTimeFormat("en-CA", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date());
+  const upcomingExams = [...(academicSnapshot?.exams ?? [])]
+    .filter(
+      (exam) =>
+        !exam.date ||
+        exam.date > todayKey ||
+        (exam.date === todayKey &&
+          (!exam.endTime || exam.endTime >= currentClock)),
+    )
+    .sort((left, right) =>
+      `${left.date || "9999-12-31"}T${left.startTime || "23:59"}`.localeCompare(
+        `${right.date || "9999-12-31"}T${right.startTime || "23:59"}`,
+      ),
+    );
   const freeByBuilding = data.buildings
     .map((name) => {
       const all = data.schedules.filter(
@@ -2553,6 +2574,65 @@ function HomePage({
           {academicSnapshot ? "刷新本学期数据" : "连接教务并导入"}
         </button>
       </section>
+
+      {upcomingExams.length > 0 && (
+        <section className={academicStyles.examNotice} aria-label="最近考试">
+          <header>
+            <div>
+              <span>最近考试</span>
+              <strong>{upcomingExams.length} 场已安排</strong>
+            </div>
+            <button onClick={() => onGo("schedule")}>全部安排 →</button>
+          </header>
+          <div>
+            {upcomingExams.slice(0, 2).map((exam) => (
+              <article key={exam.id}>
+                <time dateTime={exam.date || undefined}>
+                  <b>
+                    {exam.date
+                      ? new Intl.DateTimeFormat("zh-CN", {
+                          month: "numeric",
+                          day: "numeric",
+                        }).format(new Date(`${exam.date}T00:00:00+08:00`))
+                      : "待定"}
+                  </b>
+                  <small>
+                    {[exam.startTime, exam.endTime]
+                      .filter(Boolean)
+                      .join("–") || "时间待定"}
+                  </small>
+                </time>
+                <div>
+                  <strong>{exam.courseName || exam.courseCode}</strong>
+                  <p>
+                    {exam.location ||
+                      [exam.campus, exam.building, exam.room]
+                        .filter(Boolean)
+                        .join(" · ") ||
+                      "考场待定"}
+                  </p>
+                </div>
+                {(exam.seat || exam.examNumber) && (
+                  <dl>
+                    {exam.seat && (
+                      <div>
+                        <dt>座位</dt>
+                        <dd>{exam.seat}</dd>
+                      </div>
+                    )}
+                    {exam.examNumber && (
+                      <div>
+                        <dt>考号</dt>
+                        <dd>{exam.examNumber}</dd>
+                      </div>
+                    )}
+                  </dl>
+                )}
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="today-command-deck" aria-label="今日关键信息" data-has-agenda={nextThree.length > 0}>
         <article className="now-card">
@@ -3519,6 +3599,385 @@ function ScheduleTrash({ active }: { active: boolean }) {
   );
 }
 
+type TrainingPlanFilter = "current" | "pending" | "completed" | "all";
+
+function TrainingPlanWindow({
+  trainingPlan,
+  academicSnapshot,
+  coursesByCode,
+  offeringsByCourse,
+  activeAcademicCourseCodes,
+  onCourse,
+  onAdd,
+}: {
+  trainingPlan: AcademicTrainingPlan;
+  academicSnapshot?: AcademicSnapshot;
+  coursesByCode: Map<string, Course>;
+  offeringsByCourse: Map<string, Schedule[]>;
+  activeAcademicCourseCodes: Set<string>;
+  onCourse: (course: Course) => void;
+  onAdd: (id: string) => void;
+}) {
+  const rootCategoryCodes = trainingPlan.categories
+    .filter((category) => !category.parentCode)
+    .map((category) => category.code);
+  const [expanded, setExpanded] = useState(true);
+  const [filter, setFilter] = useState<TrainingPlanFilter>(() =>
+    activeAcademicCourseCodes.size ? "current" : "pending",
+  );
+  const [planQuery, setPlanQuery] = useState("");
+  const [openCategoryCodes, setOpenCategoryCodes] = useState<Set<string>>(
+    () => new Set(rootCategoryCodes.slice(0, 1)),
+  );
+  const filterCounts = useMemo(() => {
+    const counts = {
+      current: 0,
+      pending: 0,
+      completed: 0,
+      all: trainingPlan.courses.length,
+    };
+    for (const course of trainingPlan.courses) {
+      const current = activeAcademicCourseCodes.has(
+        normalizeCourseCode(course.courseCode),
+      );
+      const completed = course.completionStatus === "passed";
+      if (current) counts.current += 1;
+      if (completed) counts.completed += 1;
+      if (!current && !completed) counts.pending += 1;
+    }
+    return counts;
+  }, [activeAcademicCourseCodes, trainingPlan.courses]);
+  const filteredCourses = useMemo(() => {
+    const needle = normalize(planQuery);
+    return trainingPlan.courses.filter((course) => {
+      const current = activeAcademicCourseCodes.has(
+        normalizeCourseCode(course.courseCode),
+      );
+      const completed = course.completionStatus === "passed";
+      const matchesFilter =
+        filter === "all" ||
+        (filter === "current" && current) ||
+        (filter === "completed" && completed) ||
+        (filter === "pending" && !current && !completed);
+      return (
+        matchesFilter &&
+        (!needle ||
+          normalize(
+            [course.courseCode, course.courseName, course.categoryName].join(
+              " ",
+            ),
+          ).includes(needle))
+      );
+    });
+  }, [activeAcademicCourseCodes, filter, planQuery, trainingPlan.courses]);
+  const categoryTree = useMemo(() => {
+    const categoryByCode = new Map(
+      trainingPlan.categories.map((category) => [category.code, category]),
+    );
+    const childrenByParent = new Map<
+      string | null,
+      AcademicTrainingPlan["categories"]
+    >();
+    for (const category of trainingPlan.categories) {
+      const parentCode =
+        category.parentCode && categoryByCode.has(category.parentCode)
+          ? category.parentCode
+          : null;
+      const siblings = childrenByParent.get(parentCode);
+      if (siblings) siblings.push(category);
+      else childrenByParent.set(parentCode, [category]);
+    }
+    const coursesByCategory = new Map<
+      string,
+      AcademicTrainingPlan["courses"]
+    >();
+    for (const course of filteredCourses) {
+      const grouped = coursesByCategory.get(course.categoryCode);
+      if (grouped) grouped.push(course);
+      else coursesByCategory.set(course.categoryCode, [course]);
+    }
+    const countByCode = new Map<string, number>();
+    function countCourses(code: string, visiting = new Set<string>()): number {
+      if (countByCode.has(code)) return countByCode.get(code) ?? 0;
+      if (visiting.has(code)) return 0;
+      const nextVisiting = new Set(visiting).add(code);
+      const count =
+        (coursesByCategory.get(code)?.length ?? 0) +
+        (childrenByParent.get(code) ?? []).reduce(
+          (total, child) => total + countCourses(child.code, nextVisiting),
+          0,
+        );
+      countByCode.set(code, count);
+      return count;
+    }
+    for (const category of trainingPlan.categories) countCourses(category.code);
+    return {
+      childrenByParent,
+      coursesByCategory,
+      countByCode,
+      roots: childrenByParent.get(null) ?? [],
+    };
+  }, [filteredCourses, trainingPlan.categories]);
+  const earnedCredits = trainingPlan.earnedCredits ?? null;
+  const progress =
+    earnedCredits === null
+      ? 0
+      : Math.min(
+          100,
+          Math.max(0, (earnedCredits / trainingPlan.requiredCredits) * 100),
+        );
+  const planTerm = academicSnapshot
+    ? `${academicSnapshot.academicYear} ${academicSnapshot.termLabel}`
+    : "当前学期未同步";
+  const filterLabels: Array<{
+    id: TrainingPlanFilter;
+    label: string;
+  }> = [
+    { id: "current", label: "本学期" },
+    { id: "pending", label: "待选" },
+    { id: "completed", label: "已修" },
+    { id: "all", label: "全部" },
+  ];
+
+  function toggleCategory(code: string) {
+    setOpenCategoryCodes((current) => {
+      const next = new Set(current);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      return next;
+    });
+  }
+
+  function renderPlanCourse(
+    planCourse: AcademicTrainingPlan["courses"][number],
+  ) {
+    const normalizedCode = normalizeCourseCode(planCourse.courseCode);
+    const catalogCourse = coursesByCode.get(normalizedCode);
+    const offerings = catalogCourse
+      ? offeringsByCourse.get(catalogCourse.id) ?? []
+      : [];
+    const sectionIds = [
+      ...new Set(offerings.map((item) => item.sectionId ?? item.id)),
+    ];
+    const isCurrent = activeAcademicCourseCodes.has(normalizedCode);
+    const status = planCourse.completionStatus ?? "unknown";
+    const statusLabel = {
+      passed: "已修",
+      in_progress: "在修",
+      failed: "未通过",
+      not_taken: "未修",
+      unknown: "待确认",
+    }[status];
+    const attributeLabel = {
+      required: "必修",
+      limited: "限选",
+      elective: "选修",
+      unknown: "性质待确认",
+    }[planCourse.attribute];
+    return (
+      <article
+        className={academicStyles.planCourse}
+        key={`${planCourse.categoryCode}\u0000${planCourse.courseCode}`}
+      >
+        {catalogCourse ? (
+          <button
+            className={academicStyles.planCourseMain}
+            onClick={() => onCourse(catalogCourse)}
+          >
+            <strong>{planCourse.courseName}</strong>
+            <span>
+              {planCourse.courseCode} · {formatPlanCredits(planCourse.credits)} ·{" "}
+              {attributeLabel}
+            </span>
+            {planCourse.completedTerm && (
+              <small>修读于 {planCourse.completedTerm}</small>
+            )}
+          </button>
+        ) : (
+          <div className={academicStyles.planCourseMain}>
+            <strong>{planCourse.courseName}</strong>
+            <span>
+              {planCourse.courseCode} · {formatPlanCredits(planCourse.credits)} ·{" "}
+              {attributeLabel}
+            </span>
+            {planCourse.completedTerm && (
+              <small>修读于 {planCourse.completedTerm}</small>
+            )}
+          </div>
+        )}
+        <div className={academicStyles.planCourseAction}>
+          <small data-status={status}>{statusLabel}</small>
+          {isCurrent ? (
+            <span>本学期</span>
+          ) : status === "passed" ? (
+            <span>已完成</span>
+          ) : offerings.length && catalogCourse ? (
+            <button
+              onClick={() => {
+                if (sectionIds.length > 1) {
+                  onCourse(catalogCourse);
+                  return;
+                }
+                offerings.forEach((item) => onAdd(item.id));
+              }}
+              aria-label={
+                sectionIds.length > 1
+                  ? `选择${planCourse.courseName}的教学班`
+                  : `将${planCourse.courseName}加入课表`
+              }
+            >
+              {sectionIds.length > 1 ? `${sectionIds.length} 个班` : "加入课表"}
+            </button>
+          ) : (
+            <span className={academicStyles.mutedAction}>本学期未开</span>
+          )}
+        </div>
+      </article>
+    );
+  }
+
+  function renderCategory(
+    category: AcademicTrainingPlan["categories"][number],
+    depth = 0,
+  ): ReactNode {
+    const count = categoryTree.countByCode.get(category.code) ?? 0;
+    const children = (categoryTree.childrenByParent.get(category.code) ?? []).filter(
+      (child) =>
+        (categoryTree.countByCode.get(child.code) ?? 0) > 0 ||
+        (filter === "all" && !planQuery.trim()),
+    );
+    const directCourses =
+      categoryTree.coursesByCategory.get(category.code) ?? [];
+    const showEmpty = filter === "all" && !planQuery.trim();
+    if (!count && !showEmpty) return null;
+    const hasContents = directCourses.length > 0 || children.length > 0;
+    const isOpen = Boolean(planQuery.trim()) || openCategoryCodes.has(category.code);
+    const creditLabel =
+      category.earnedCredits === null || category.earnedCredits === undefined
+        ? `要求 ${formatPlanCredits(category.requiredCredits)}`
+        : `已修 ${formatPlanCredits(category.earnedCredits)} / ${formatPlanCredits(category.requiredCredits)}`;
+    return (
+      <section
+        className={academicStyles.planGroup}
+        key={category.code}
+        style={{ "--plan-depth": depth } as CSSProperties}
+      >
+        <button
+          className={academicStyles.planGroupToggle}
+          onClick={() => hasContents && toggleCategory(category.code)}
+          aria-expanded={hasContents ? isOpen : undefined}
+          disabled={!hasContents}
+        >
+          <span>
+            <strong>{category.name}</strong>
+            <small>{creditLabel}</small>
+          </span>
+          <span>
+            {count} 门 <b aria-hidden="true">{isOpen ? "−" : "+"}</b>
+          </span>
+        </button>
+        {hasContents && isOpen && (
+          <div className={academicStyles.planGroupBody}>
+            {directCourses.map(renderPlanCourse)}
+            {children.map((child) => renderCategory(child, depth + 1))}
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  return (
+    <section
+      className={academicStyles.planWindow}
+      aria-labelledby="plan-window-title"
+      data-testid="training-plan-window"
+    >
+      <header className={academicStyles.planHeader}>
+        <div>
+          <span>培养方案 · {planTerm}</span>
+          <h2 id="plan-window-title">
+            {trainingPlan.majorName || trainingPlan.planName}
+          </h2>
+          <p>
+            {trainingPlan.cohortYear} 级 · {trainingPlan.courses.length} 门课程
+          </p>
+        </div>
+        <button onClick={() => setExpanded((current) => !current)}>
+          {expanded ? "收起" : "查看课程"}
+        </button>
+      </header>
+      <div className={academicStyles.planProgress}>
+        <div>
+          <strong>{earnedCredits === null ? "—" : earnedCredits}</strong>
+          <span>
+            {earnedCredits === null ? "已修学分待学校返回" : "已修学分"}
+          </span>
+        </div>
+        <div>
+          <span>
+            要求 {formatPlanCredits(trainingPlan.requiredCredits)}
+          </span>
+          <div
+            className={academicStyles.creditRail}
+            role={earnedCredits === null ? undefined : "progressbar"}
+            aria-label={earnedCredits === null ? undefined : "培养方案学分进度"}
+            aria-valuemin={earnedCredits === null ? undefined : 0}
+            aria-valuemax={
+              earnedCredits === null ? undefined : trainingPlan.requiredCredits
+            }
+            aria-valuenow={earnedCredits === null ? undefined : earnedCredits}
+          >
+            <i style={{ width: `${progress}%` }} />
+          </div>
+        </div>
+      </div>
+      {expanded && (
+        <div className={academicStyles.planBody}>
+          <div className={academicStyles.planTools}>
+            <div role="group" aria-label="筛选培养方案课程">
+              {filterLabels.map((item) => (
+                <button
+                  key={item.id}
+                  className={filter === item.id ? academicStyles.activeFilter : ""}
+                  onClick={() => setFilter(item.id)}
+                  aria-pressed={filter === item.id}
+                >
+                  {item.label} <small>{filterCounts[item.id]}</small>
+                </button>
+              ))}
+            </div>
+            <input
+              type="search"
+              value={planQuery}
+              onChange={(event) => setPlanQuery(event.target.value)}
+              aria-label="搜索培养方案课程"
+              placeholder="课程名称或课程号"
+            />
+          </div>
+          <div className={academicStyles.planIndex}>
+            {categoryTree.roots.some(
+              (category) =>
+                (categoryTree.countByCode.get(category.code) ?? 0) > 0 ||
+                (filter === "all" && !planQuery.trim()),
+            ) ? (
+              categoryTree.roots.map((category) => renderCategory(category))
+            ) : (
+              <div className={academicStyles.planEmptyResult}>
+                <strong>这里暂时没有课程</strong>
+                <p>
+                  {filter === "current"
+                    ? "本学期课表中的课程没有匹配到培养方案；可以查看待选或全部课程。"
+                    : "换一个筛选条件或课程关键词。"}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function SchedulePage({
   data,
   term,
@@ -3556,9 +4015,9 @@ function SchedulePage({
   onAcademicImport: () => void;
   onEditCalendar: (request: CalendarEditorRequest) => void;
 }) {
-  const [finderMode, setFinderMode] = useState<
-    "plan" | "search" | "major" | "time"
-  >(() => (trainingPlan ? "plan" : "search"));
+  const [finderMode, setFinderMode] = useState<"search" | "major" | "time">(
+    "search",
+  );
   const [finderCollege, setFinderCollege] = useState(
     saved.profile?.college ?? data.colleges[0]?.name ?? "",
   );
@@ -3630,8 +4089,6 @@ function SchedulePage({
     finderWeekday,
     finderYear,
     query,
-    trainingPlan?.planNumber ?? "",
-    trainingPlan?.importedAt ?? "",
   ]);
   const visibleLimit =
     visibleWindow.key === finderKey ? visibleWindow.limit : 40;
@@ -3639,44 +4096,15 @@ function SchedulePage({
     setVisibleWindow({ key: "", limit: 40 });
   }
   const needle = normalize(query);
-  const activeAcademicCourseCodes = new Set(
-    (academicSnapshot?.sections ?? []).map((section) =>
-      normalizeCourseCode(section.courseCode),
-    ),
+  const activeAcademicCourseCodes = useMemo(
+    () =>
+      new Set(
+        (academicSnapshot?.sections ?? []).map((section) =>
+          normalizeCourseCode(section.courseCode),
+        ),
+      ),
+    [academicSnapshot],
   );
-  const filteredPlanCourses = (trainingPlan?.courses ?? []).filter(
-    (course) =>
-      !needle ||
-      normalize(
-        [course.courseCode, course.courseName, course.categoryName].join(" "),
-      ).includes(needle),
-  );
-  const planCoursesByCategory = new Map<
-    string,
-    AcademicTrainingPlan["courses"]
-  >();
-  for (const course of filteredPlanCourses) {
-    const grouped = planCoursesByCategory.get(course.categoryCode);
-    if (grouped) grouped.push(course);
-    else planCoursesByCategory.set(course.categoryCode, [course]);
-  }
-  const trainingPlanGroups = [
-    ...(trainingPlan?.categories ?? []).map((category) => ({
-      ...category,
-      courses: planCoursesByCategory.get(category.code) ?? [],
-    })),
-    ...[...planCoursesByCategory]
-      .filter(
-        ([code]) =>
-          !trainingPlan?.categories.some((category) => category.code === code),
-      )
-      .map(([code, grouped]) => ({
-        code,
-        name: grouped[0]?.categoryName || "其他课程",
-        requiredCredits: 0,
-        courses: grouped,
-      })),
-  ].filter((group) => !needle || group.courses.length > 0);
   const searchPool = data.courses.filter(
     (course) =>
       course.terms.includes(term) &&
@@ -3711,9 +4139,7 @@ function SchedulePage({
       .map((item) => item.courseId),
   );
   const poolAll = (
-    finderMode === "plan"
-      ? []
-      : finderMode === "search"
+    finderMode === "search"
       ? searchPool
       : finderMode === "major"
         ? data.courses.filter((course) => majorCourseIds.has(course.id))
@@ -3883,6 +4309,26 @@ function SchedulePage({
         ))}
         <button onClick={newPlan}>＋ 新建方案</button>
       </div>
+      {trainingPlan ? (
+        <TrainingPlanWindow
+          key={trainingPlan.planNumber}
+          trainingPlan={trainingPlan}
+          academicSnapshot={academicSnapshot}
+          coursesByCode={coursesByCode}
+          offeringsByCourse={offeringsByCourse}
+          activeAcademicCourseCodes={activeAcademicCourseCodes}
+          onCourse={onCourse}
+          onAdd={onAdd}
+        />
+      ) : (
+        <section className={academicStyles.planWindowEmpty}>
+          <div>
+            <span>培养方案</span>
+            <strong>导入后可按本学期、待选和已修课程筛选</strong>
+          </div>
+          <button onClick={onAcademicImport}>连接教务</button>
+        </section>
+      )}
       {finderOpen && (
         <button
           className="finder-backdrop"
@@ -3906,15 +4352,6 @@ function SchedulePage({
               </button>
             </div>
             <div className="finder-tabs">
-              <button
-                className={finderMode === "plan" ? "active" : ""}
-                onClick={() => {
-                  resetFinderWindow();
-                  setFinderMode("plan");
-                }}
-              >
-                培养方案
-              </button>
               <button
                 className={finderMode === "search" ? "active" : ""}
                 onClick={() => {
@@ -3943,11 +4380,9 @@ function SchedulePage({
                 时间
               </button>
             </div>
-            {(finderMode === "plan" || finderMode === "search") && (
+            {finderMode === "search" && (
               <input
-                aria-label={
-                  finderMode === "plan" ? "搜索培养方案课程" : "搜索全校课程"
-                }
+                aria-label="搜索全校课程"
                 name="course-search"
                 autoComplete="off"
                 value={query}
@@ -3955,11 +4390,7 @@ function SchedulePage({
                   resetFinderWindow();
                   setQuery(event.target.value);
                 }}
-                placeholder={
-                  finderMode === "plan"
-                    ? "课程名称或课程号"
-                    : "课程、简称或教师…"
-                }
+                placeholder="课程、简称或教师…"
               />
             )}
             {finderMode === "major" && (
@@ -4046,153 +4477,15 @@ function SchedulePage({
               </div>
             )}
             <p>
-              {finderMode === "plan"
-                ? trainingPlan
-                  ? `培养方案 · ${filteredPlanCourses.length} 门`
-                  : "培养方案 · 未导入"
-                : finderMode === "search"
-                  ? `全校课程 · ${poolAll.length} 个结果`
-                  : finderMode === "major"
-                    ? `大${"一二三四"[finderYear - 1]}课程 · ${poolAll.length} 个结果`
-                    : `周${weekdayShort[finderWeekday - 1]} · ${data.periods[finderBlock - 1]?.short} · ${poolAll.length} 个结果`}
+              {finderMode === "search"
+                ? `全校课程 · ${poolAll.length} 个结果`
+                : finderMode === "major"
+                  ? `大${"一二三四"[finderYear - 1]}课程 · ${poolAll.length} 个结果`
+                  : `周${weekdayShort[finderWeekday - 1]} · ${data.periods[finderBlock - 1]?.short} · ${poolAll.length} 个结果`}
             </p>
           </header>
-          <div className={finderMode === "plan" ? "training-plan-ledger" : ""}>
-            {finderMode === "plan" ? (
-              trainingPlan ? (
-                <>
-                  <section
-                    className="training-plan-summary"
-                    aria-label="培养方案概况"
-                  >
-                    <strong>
-                      {trainingPlan.majorName || trainingPlan.planName}
-                    </strong>
-                    <span>
-                      {trainingPlan.cohortYear} 级 · 最低 {formatPlanCredits(trainingPlan.requiredCredits)} · {trainingPlan.courses.length} 门
-                    </span>
-                  </section>
-                  {trainingPlanGroups.length ? (
-                    <div className="training-plan-groups">
-                      {trainingPlanGroups.map((group) => (
-                        <section className="training-plan-group" key={group.code}>
-                          <header>
-                            <strong>{group.name}</strong>
-                            <small>
-                              {group.requiredCredits > 0
-                                ? `最低 ${formatPlanCredits(group.requiredCredits)} · `
-                                : ""}
-                              {group.courses.length} 门
-                            </small>
-                          </header>
-                          <div>
-                            {group.courses.map((planCourse) => {
-                              const normalizedCode = normalizeCourseCode(
-                                planCourse.courseCode,
-                              );
-                              const catalogCourse =
-                                coursesByCode.get(normalizedCode);
-                              const offerings = catalogCourse
-                                ? offeringsByCourse.get(catalogCourse.id) ?? []
-                                : [];
-                              const sectionIds = [
-                                ...new Set(
-                                  offerings.map(
-                                    (item) => item.sectionId ?? item.id,
-                                  ),
-                                ),
-                              ];
-                              const isActive =
-                                activeAcademicCourseCodes.has(normalizedCode);
-                              const attribute = {
-                                required: ["必", "必修"],
-                                limited: ["限", "限选"],
-                                elective: ["任", "任选"],
-                                unknown: ["—", "性质未标注"],
-                              }[planCourse.attribute];
-                              const key = `${planCourse.categoryCode}\u0000${planCourse.courseCode}`;
-                              const details = (
-                                <>
-                                  <span
-                                    className={`plan-course-attribute ${planCourse.attribute}`}
-                                    aria-label={attribute[1]}
-                                    title={attribute[1]}
-                                  >
-                                    {attribute[0]}
-                                  </span>
-                                  <span className="plan-course-copy">
-                                    <strong>{planCourse.courseName}</strong>
-                                    <small>
-                                      {planCourse.courseCode} · {formatPlanCredits(planCourse.credits)}
-                                    </small>
-                                  </span>
-                                </>
-                              );
-                              return (
-                                <article
-                                  key={key}
-                                  className="training-plan-course"
-                                >
-                                  {catalogCourse ? (
-                                    <button
-                                      className="plan-course-main"
-                                      onClick={() => onCourse(catalogCourse)}
-                                    >
-                                      {details}
-                                    </button>
-                                  ) : (
-                                    <div className="plan-course-main">
-                                      {details}
-                                    </div>
-                                  )}
-                                  {isActive ? (
-                                    <span className="plan-course-state active">
-                                      已在课表
-                                    </span>
-                                  ) : offerings.length && catalogCourse ? (
-                                    <button
-                                      className="quick-add"
-                                      onClick={() => {
-                                        if (sectionIds.length > 1) {
-                                          onCourse(catalogCourse);
-                                          return;
-                                        }
-                                        offerings.forEach((item) =>
-                                          onAdd(item.id),
-                                        );
-                                      }}
-                                      aria-label={
-                                        sectionIds.length > 1
-                                          ? `选择${planCourse.courseName}的教师和教学班`
-                                          : `添加${planCourse.courseName}`
-                                      }
-                                    >
-                                      {sectionIds.length > 1 ? "选" : "＋"}
-                                    </button>
-                                  ) : (
-                                    <span className="plan-course-state">
-                                      本学期未开
-                                    </span>
-                                  )}
-                                </article>
-                              );
-                            })}
-                          </div>
-                        </section>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="pool-empty">没有匹配的培养方案课程。</p>
-                  )}
-                </>
-              ) : (
-                <div className="training-plan-empty">
-                  <strong>还没有培养方案</strong>
-                  <p>连接教务后即可查看。</p>
-                  <button onClick={onAcademicImport}>连接教务</button>
-                </div>
-              )
-            ) : pool.length ? (
+          <div>
+            {pool.length ? (
               pool.map((course) => {
                 const courseOfferings = offeringsByCourse.get(course.id) ?? [];
                 const offerings =
@@ -4254,7 +4547,7 @@ function SchedulePage({
             ) : (
               <p className="pool-empty">没找到课程，换个关键词或条件试试。</p>
             )}
-            {finderMode !== "plan" && pool.length < poolAll.length && (
+            {pool.length < poolAll.length && (
               <button
                 className="load-more-courses"
                 onClick={() =>
@@ -4452,22 +4745,15 @@ function SchedulePage({
               <p>连接教务自动导入，或点“添加课程”手动选课。</p>
             </div>
           )}
-          <section className="academic-exam-panel" data-export-ignore="true">
-            <header>
-              <div>
-                <span>正式教务</span>
-                <h3>考试安排</h3>
-              </div>
-              <button onClick={onAcademicImport}>
-                {academicSnapshot ? "刷新" : "连接教务"}
-              </button>
-            </header>
-            {!academicSnapshot ? (
-              <div className="academic-exam-empty">
-                <b>还没有导入考试安排</b>
-                <p>连接教务后，课表和考试会在同一次同步中完成。</p>
-              </div>
-            ) : sortedExams.length ? (
+          {sortedExams.length > 0 && (
+            <section className="academic-exam-panel" data-export-ignore="true">
+              <header>
+                <div>
+                  <span>正式教务</span>
+                  <h3>考试安排</h3>
+                </div>
+                <button onClick={onAcademicImport}>刷新</button>
+              </header>
               <div className="academic-exam-list">
                 {sortedExams.map((exam) => (
                   <article key={exam.id}>
@@ -4495,19 +4781,31 @@ function SchedulePage({
                           "考场待定"}
                       </p>
                     </div>
-                    <span>
-                      {exam.seat ? `座位 ${exam.seat}` : exam.status || "已同步"}
-                    </span>
+                    <dl className={academicStyles.examIdentifiers}>
+                      {exam.seat && (
+                        <div>
+                          <dt>座位</dt>
+                          <dd>{exam.seat}</dd>
+                        </div>
+                      )}
+                      {exam.examNumber && (
+                        <div>
+                          <dt>考号</dt>
+                          <dd>{exam.examNumber}</dd>
+                        </div>
+                      )}
+                      {!exam.seat && !exam.examNumber && (
+                        <div>
+                          <dt>状态</dt>
+                          <dd>{exam.status || "已同步"}</dd>
+                        </div>
+                      )}
+                    </dl>
                   </article>
                 ))}
               </div>
-            ) : (
-              <div className="academic-exam-empty ready">
-                <b>教务系统当前没有考试安排</b>
-                <p>已完成同步；学校发布后点“刷新”即可更新。</p>
-              </div>
-            )}
-          </section>
+            </section>
+          )}
           <section className="personal-planner">
             <header>
               <div>
