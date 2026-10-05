@@ -228,7 +228,7 @@ const planCompletionHtml = `<!doctype html><html><body>
     var zNodes = ${JSON.stringify([
       {
         id: "A",
-        pId: "0",
+        pId: "-1",
         flagType: "001",
         name: "专业必修课(最低修读学分:80,通过学分:10)",
         zsxf: "80",
@@ -248,7 +248,7 @@ const planCompletionHtml = `<!doctype html><html><body>
       },
       {
         id: "B",
-        pId: "0",
+        pId: "-1",
         flagType: "001",
         name: "专业选修课(最低修读学分:20,通过学分:0)",
         zsxf: "20",

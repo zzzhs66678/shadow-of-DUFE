@@ -2009,7 +2009,7 @@ export function parseTrainingPlanCompletionHtml(
   const roots = nodes.filter(
     (node) =>
       ["001", "002"].includes(textValue(node, ["flagType"])) &&
-      textValue(node, ["pId", "pid"]) === "0",
+      !nodeById.has(textValue(node, ["pId", "pid"])),
   );
   if (!roots.length || roots.length > MAX_PLAN_CATEGORIES) {
     throw trainingPlanFormatError("plan_categories_missing");
@@ -2036,6 +2036,7 @@ export function parseTrainingPlanCompletionHtml(
       const parent = nodeById.get(parentId);
       if (!parent) throw trainingPlanFormatError("plan_category_invalid");
       ancestors.push(parent);
+      if (rootById.has(parentId)) break;
       parentId = textValue(parent, ["pId", "pid"]);
     }
     return ancestors;
