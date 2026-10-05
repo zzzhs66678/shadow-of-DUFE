@@ -32,6 +32,7 @@ async function register(page, label) {
   const username = `browser-${label}-${Date.now().toString(36)}`;
   await page.goto("/?view=me");
   await dismissOnboarding(page);
+  await page.getByRole("button", { name: "登录", exact: true }).click();
   await expect(page.getByText("现在的数据只保存在这台设备")).toBeVisible();
   await page.getByRole("button", { name: "创建账号", exact: true }).click();
   const form = page.locator(".credential-gateway form");
@@ -46,6 +47,7 @@ async function register(page, label) {
 async function login(page, username) {
   await page.goto("/?view=me");
   await dismissOnboarding(page);
+  await page.getByRole("button", { name: "登录", exact: true }).click();
   await expect(page.getByText("现在的数据只保存在这台设备")).toBeVisible();
   const form = page.locator(".credential-gateway form");
   await form.getByLabel("用户名或邮箱").fill(username);

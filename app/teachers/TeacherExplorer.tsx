@@ -2,6 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  loadPersonalCourseContext,
+  type PersonalCourseContext,
+} from "../personal-course-context";
 import { PublicMasthead } from "../PublicMasthead";
 import styles from "./teachers.module.css";
 
@@ -25,9 +29,20 @@ export function TeacherExplorer({ initialQuery = "" }: { initialQuery?: string }
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [revision, setRevision] = useState(0);
+  const [personalContext, setPersonalContext] = useState<PersonalCourseContext | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const requestQuery = useMemo(() => query.normalize("NFKC").trim(), [query]);
+
+  useEffect(() => {
+    let live = true;
+    void loadPersonalCourseContext().then((context) => {
+      if (live) setPersonalContext(context);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -96,7 +111,7 @@ export function TeacherExplorer({ initialQuery = "" }: { initialQuery?: string }
         <div className={styles.heroCopy}>
           <span>东财教师档案</span>
           <h1 id="teachers-title">这门课，听听上过的人。</h1>
-          <p>查找东财教师，阅读课堂体验。同名教师请按学院区分。</p>
+          <p>按姓名查教师；同名教师请核对学院。</p>
         </div>
         <label className={styles.searchField}>
           <span>查找教师</span>
@@ -118,15 +133,31 @@ export function TeacherExplorer({ initialQuery = "" }: { initialQuery?: string }
         </label>
       </section>
 
+      {Boolean(personalContext?.teacherNames.length) && (
+        <section className={styles.personalContext} aria-label="本学期教师">
+          <div>
+            <span>本学期教师</span>
+            <p>来自已导入课表；遇到同名教师，请按学院确认。</p>
+          </div>
+          <div>
+            {personalContext?.teacherNames.map((teacherName) => (
+              <button key={teacherName} onClick={() => setQuery(teacherName)}>
+                {teacherName}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className={styles.results} aria-live="polite" aria-busy={status === "loading"}>
         <header>
           <div><span>检索结果</span><b>{status === "ready" ? `${items.length} 位` : "读取中"}</b></div>
-          <p>进入教师页面即可阅读评价，也可以查看课程与教材。</p>
+          <p>查看评价、课程与教材。</p>
         </header>
         {status === "error" && (
           <div className={styles.state} role="alert">
             <b>教师档案暂时没有连上。</b>
-            <p>课表和课程库仍可使用；稍后重试不会丢失搜索词。</p>
+            <p>检查网络后重试。搜索词会保留。</p>
             <button onClick={() => setRevision((value) => value + 1)}>重新读取</button>
           </div>
         )}
@@ -135,14 +166,14 @@ export function TeacherExplorer({ initialQuery = "" }: { initialQuery?: string }
             {query ? (
               <>
                 <b>没有找到对应教师。</b>
-                <p>可能是姓名输入不完整，也可能是该教师档案尚未整理入库。本站不会按同名记录猜测评价归属。</p>
+                <p>姓名可能不完整，或档案尚未收录。同名记录不会自动合并。</p>
                 <button onClick={() => setQuery("")}>查看全部教师</button>
               </>
             ) : (
               <>
                 <b>教师档案尚未整理入库。</b>
-                <p>课程与资料仍可使用；在稳定教师身份导入前，暂时不能查看或发布教师评价。</p>
-                <Link href="/?view=catalog">返回学习档案</Link>
+                <p>教师身份尚未入库，评价功能暂不可用。</p>
+                <Link href="/?view=catalog">返回课程</Link>
               </>
             )}
           </div>

@@ -1,0 +1,186 @@
+.overview {
+  --my-paper: var(--journal-paper-raised, #fffdf8);
+  --my-ink: var(--journal-ink, #171717);
+  --my-muted: var(--journal-muted, #656158);
+  --my-line: var(--journal-line, #d7d0c4);
+  --my-red: var(--journal-red, #b42a24);
+  align-items: center;
+  background: var(--my-paper);
+  border-bottom: 1px solid var(--my-ink);
+  border-top: 2px solid var(--my-ink);
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 58px minmax(0, 1fr) auto auto;
+  margin: 20px 0;
+  padding: 20px 22px;
+}
+
+.overview > i {
+  align-items: center;
+  background: var(--my-red);
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  font-style: normal;
+  font-weight: 800;
+  height: 54px;
+  justify-content: center;
+  width: 54px;
+}
+
+.identity {
+  min-width: 0;
+}
+
+.identity > span {
+  color: var(--my-red);
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .1em;
+}
+
+.identity h2 {
+  font-size: 21px;
+  letter-spacing: -.025em;
+  margin: 6px 0 0;
+}
+
+.identity p {
+  color: var(--my-muted);
+  font-size: 11px;
+  margin: 5px 0 0;
+}
+
+.overview dl {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+}
+
+.overview dl > div {
+  border-left: 1px solid var(--my-line);
+  min-width: 86px;
+  padding-left: 14px;
+}
+
+.overview dt {
+  color: var(--my-muted);
+  font-size: 9px;
+}
+
+.overview dd {
+  font-size: 14px;
+  font-weight: 750;
+  margin: 5px 0 0;
+}
+
+.overview > button,
+.accountToggle {
+  background: transparent;
+  border: 1px solid var(--my-ink);
+  border-radius: 999px;
+  color: var(--my-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  min-height: 40px;
+  padding: 0 16px;
+}
+
+.overview > button:hover,
+.overview > button:focus-visible,
+.accountToggle:hover,
+.accountToggle:focus-visible {
+  background: var(--my-ink);
+  color: #fff;
+}
+
+.accountToggle {
+  --my-ink: var(--journal-ink, #171717);
+  flex: 0 0 auto;
+}
+
+.campusDetails {
+  color: #fff;
+  overflow: hidden;
+}
+
+.campusDetails > summary {
+  align-items: center;
+  cursor: pointer;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  list-style: none;
+  min-height: 76px;
+  padding: 0 4px;
+}
+
+.campusDetails > summary::-webkit-details-marker {
+  display: none;
+}
+
+.campusDetails > summary span,
+.campusDetails > summary small,
+.campusDetails > summary b {
+  display: block;
+}
+
+.campusDetails > summary small {
+  color: #e8736e;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .11em;
+}
+
+.campusDetails > summary b {
+  font-size: 18px;
+  margin-top: 6px;
+}
+
+.campusDetails > summary em {
+  color: rgba(255, 255, 255, .7);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.campusDetails[open] > summary {
+  border-bottom: 1px solid rgba(255, 255, 255, .24);
+  margin-bottom: 18px;
+}
+
+@media (max-width: 680px) {
+  .overview {
+    gap: 12px 14px;
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    padding: 16px 14px;
+  }
+
+  .overview > i {
+    height: 46px;
+    width: 46px;
+  }
+
+  .overview dl {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .overview dl > div {
+    flex: 1;
+  }
+
+  .overview > button {
+    grid-column: 3;
+    grid-row: 1;
+    padding: 0 12px;
+  }
+
+  .campusDetails > summary {
+    align-items: start;
+    grid-template-columns: 1fr;
+    gap: 5px;
+    padding: 12px 2px;
+  }
+}

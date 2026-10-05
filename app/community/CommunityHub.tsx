@@ -241,7 +241,7 @@ export function CommunityHub() {
             <form className={styles.composer} onSubmit={publish}>
               <header><span>发布主题</span><small>纯文本 · 支持 @用户名</small></header>
               <FormField label="标题" counter={`${title.length} / 120`} variant="display"><input value={title} onChange={(event) => setTitle(event.target.value)} minLength={4} maxLength={120} placeholder="用一句话说清楚要讨论什么" /></FormField>
-              <FormField label="正文" counter={`${body.length} / 5000`}><textarea value={body} onChange={(event) => setBody(event.target.value)} minLength={1} maxLength={5000} rows={8} placeholder="补充背景、已尝试的方法，或你真正想问的问题。" /></FormField>
+              <FormField label="正文" counter={`${body.length} / 5000`}><textarea value={body} onChange={(event) => setBody(event.target.value)} minLength={1} maxLength={5000} rows={8} placeholder="补充背景、已经尝试的方法或具体问题。" /></FormField>
               <div className={styles.composerFooter}>
                 <FormField label="可见范围" className={styles.visibility}><select value={visibility} onChange={(event) => setVisibility(event.target.value as typeof visibility)}><option value="public">公开出现在回廊</option><option value="unlisted">仅通过链接访问</option></select></FormField>
                 <button disabled={busy === "publish" || title.trim().length < 4 || !body.trim()}>{busy === "publish" ? "正在发布" : "发布主题"}</button>

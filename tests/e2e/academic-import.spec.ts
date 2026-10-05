@@ -156,7 +156,10 @@ test("expired academic transactions return to a fresh login form", async ({
 
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await page
-    .getByRole("button", { name: "从教务导入", exact: true })
+    .getByRole("button", { name: "打开课程中心", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "导入教务数据", exact: true })
     .click();
   await page.getByLabel("教务账号").fill("20260001");
   await page.getByLabel("教务密码").fill("school-password");
@@ -196,7 +199,10 @@ test("verified timetable and exams remain visible when the training plan alone f
 
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await page
-    .getByRole("button", { name: "从教务导入", exact: true })
+    .getByRole("button", { name: "打开课程中心", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "导入教务数据", exact: true })
     .click();
   await page.getByLabel("教务账号").fill("20260001");
   await page.getByLabel("教务密码").fill("school-password");
@@ -206,9 +212,13 @@ test("verified timetable and exams remain visible when the training plan alone f
   await expect(page.getByRole("status")).toContainText(
     "已导入 1 门课、1 项考试；培养方案本次未更新",
   );
-  await expect(page.locator(".academic-sync-band p")).toContainText(
-    "已导入 1 门课、2 个上课时段、1 项考试",
+  await expect(page.getByRole("region", { name: "教务数据状态" })).toContainText(
+    "1 门课 · 1 项考试",
   );
+  await expect(page.getByRole("region", { name: "下一场考试" })).toContainText(
+    "内部审计",
+  );
+  await page.getByRole("button", { name: "今天", exact: true }).click();
   await expect(page.getByRole("region", { name: "最近考试" })).toContainText(
     "内部审计",
   );
@@ -218,7 +228,7 @@ test("verified timetable and exams remain visible when the training plan alone f
     .click();
   await expect(page.locator(".academic-schedule-card")).toHaveCount(2);
   await expect(page.locator(".academic-exam-list article")).toHaveCount(1);
-  await expect(page.getByText("导入后可按本学期、待选和已修课程筛选")).toBeVisible();
+  await expect(page.getByText("在课程中心导入后，可按本学期、待选和已修筛选")).toBeVisible();
   await expect(page.getByTestId("training-plan-window")).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });
@@ -306,7 +316,10 @@ test("official timetable and exams import through SMS and school verification", 
   });
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await page
-    .getByRole("button", { name: "从教务导入", exact: true })
+    .getByRole("button", { name: "打开课程中心", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "导入教务数据", exact: true })
     .click();
   const dialogA11y = await new AxeBuilder({ page })
     .include(".academic-import-dialog")
@@ -339,9 +352,13 @@ test("official timetable and exams import through SMS and school verification", 
   );
   await page.getByRole("button", { name: "直接重试读取" }).click();
 
-  await expect(page.locator(".academic-sync-band p")).toContainText(
-    "已导入 1 门课、2 个上课时段、1 项考试",
+  await expect(page.getByRole("region", { name: "教务数据状态" })).toContainText(
+    "1 门课 · 1 项考试",
   );
+  await expect(page.getByRole("region", { name: "下一场考试" })).toContainText(
+    "内部审计",
+  );
+  await page.getByRole("button", { name: "今天", exact: true }).click();
   const examNotice = page.getByRole("region", { name: "最近考试" });
   await expect(examNotice).toContainText("内部审计");
   await expect(examNotice).toContainText("梅园");
@@ -349,6 +366,10 @@ test("official timetable and exams import through SMS and school verification", 
   await expect(examNotice).toContainText("18");
   await expect(examNotice).toContainText("考号");
   await expect(examNotice).toContainText("20260001");
+  await page.getByRole("button", { name: "我的", exact: true }).click();
+  await expect(page.getByRole("region", { name: "我的考试" })).toContainText(
+    "内部审计",
+  );
   await page
     .getByRole("button", { name: "我的课表", exact: true })
     .click();
@@ -397,6 +418,9 @@ test("official timetable and exams import through SMS and school verification", 
   });
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("region", { name: "最近考试" })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "下一场考试" })).toHaveCount(0);
+  await page.getByRole("button", { name: "我的", exact: true }).click();
+  await expect(page.getByRole("region", { name: "我的考试" })).toHaveCount(0);
   await page
     .getByRole("button", { name: "我的课表", exact: true })
     .click();

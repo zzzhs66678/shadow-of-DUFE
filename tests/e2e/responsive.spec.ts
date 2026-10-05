@@ -55,3 +55,81 @@ for (const view of views) {
     ).toBeLessThanOrEqual(layout.viewportWidth + 1);
   });
 }
+
+test("personal course context reorders discovery without hiding schoolwide results", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-390", "covered once at the primary mobile width");
+
+  const material = (id: string, courseTitle: string, courseId: string) => ({
+    id,
+    courseTitle,
+    courseIds: [courseId],
+    teachers: [courseTitle === "当前课程" ? "测试教师" : "其他教师"],
+    colleges: ["测试学院"],
+    terms: ["fall"],
+    years: [1],
+    tags: ["课件"],
+    category: "课件",
+    name: `${courseTitle}.pdf`,
+    kind: "PDF",
+    extension: ".pdf",
+    sizeBytes: 1024,
+    catalogedAt: "2026-10-05T00:00:00.000Z",
+    description: `${courseTitle}资料`,
+    previewable: false,
+    previewUrl: "",
+    downloadUrl: `/resources/${id}.pdf`,
+  });
+  const currentMaterial = material("current", "当前课程", "COURSE-1");
+  const schoolwideMaterial = material("schoolwide", "全站课程", "COURSE-2");
+
+  await page.route("**/api/auth/session", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ authenticated: false }) }),
+  );
+  await page.route("**/api/materials?*", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [schoolwideMaterial],
+        total: 2,
+        offset: 0,
+        limit: 24,
+        hasMore: true,
+        filters: { courses: [], teachers: [], types: [], tags: [], terms: [], years: [] },
+        catalog: { total: 2, generatedAt: "2026-10-05T00:00:00.000Z" },
+      }),
+    }),
+  );
+  await page.route("**/data/resource-manifest.json", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ materials: [schoolwideMaterial, currentMaterial] }),
+    }),
+  );
+  await page.route("**/api/teachers?*", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [], nextCursor: null }) }),
+  );
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "dufesh:student-profile:v3:anonymous",
+      JSON.stringify({
+        academicSnapshots: [{
+          academicYear: "2026-2027",
+          importedAt: "2026-10-05T00:00:00.000Z",
+          sections: [{ courseCode: "COURSE-1", courseName: "当前课程", teachers: ["测试教师"] }],
+        }],
+        trainingPlan: { courses: [] },
+      }),
+    );
+  });
+
+  await page.goto("/materials", { waitUntil: "domcontentloaded" });
+  await expect(page.locator('[role="listitem"]').first()).toContainText("当前课程");
+  await expect(page.locator('[role="listitem"]').first()).toContainText("本学期");
+  await page.getByRole("button", { name: "全站排序" }).click();
+  await expect(page.locator('[role="listitem"]').first()).toContainText("全站课程");
+
+  await page.goto("/teachers", { waitUntil: "domcontentloaded" });
+  await expect(page.getByLabel("本学期教师").getByRole("button", { name: "测试教师" })).toBeVisible();
+});

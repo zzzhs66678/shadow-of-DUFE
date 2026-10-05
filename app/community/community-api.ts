@@ -135,7 +135,7 @@ export function communityErrorMessage(error: unknown) {
       return "当前账号暂时不能完成这项互动。";
     case "community_content_unavailable":
     case "community_topic_unavailable":
-      return "这条内容已不可用，列表已为你刷新。";
+      return "这条内容已不可用，列表已刷新。";
     case "community_version_conflict":
       return "内容刚刚在别处更新。请刷新后再编辑，避免覆盖新版本。";
     case "community_write_rate_limited":

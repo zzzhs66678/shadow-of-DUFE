@@ -37,7 +37,9 @@ import {
 import { FormField } from "./FormField";
 import { TeacherRecordLink } from "./TeacherRecordLink";
 import academicStyles from "./academic-windows.module.css";
+import courseStyles from "./course-center.module.css";
 import homeStyles from "./home-workspace.module.css";
+import meStyles from "./my-page.module.css";
 import RoomWeekSchedule from "./RoomWeekSchedule";
 import {
   anonymousPersonalScope,
@@ -310,7 +312,6 @@ const campusLinks = {
     "https://sso.dufe.edu.cn/app.php/open_apps/person_card/index?sessionid=",
   ginkgo: "https://ginkgostu.dufe.edu.cn/notice/system",
 } as const;
-const xiaoyingServiceUrl = process.env.NEXT_PUBLIC_XIAOYING_URL?.trim() ?? "";
 const weekdayLabels = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 const weekdayShort = ["一", "二", "三", "四", "五", "六", "日"];
 const courseAliases: Record<string, string[]> = {
@@ -482,6 +483,44 @@ function academicMeetingCount(snapshot: AcademicSnapshot) {
     (count, section) => count + section.meetings.length,
     0,
   );
+}
+
+function shanghaiClock(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  return {
+    date: `${value("year")}-${value("month")}-${value("day")}`,
+    time: `${value("hour")}:${value("minute")}`,
+  };
+}
+
+function upcomingAcademicExams(
+  snapshot: AcademicSnapshot | undefined,
+  now = new Date(),
+) {
+  const current = shanghaiClock(now);
+  return [...(snapshot?.exams ?? [])]
+    .filter(
+      (exam) =>
+        !exam.date ||
+        exam.date > current.date ||
+        (exam.date === current.date &&
+          (!exam.endTime || exam.endTime >= current.time)),
+    )
+    .sort((left, right) =>
+      `${left.date || "9999-12-31"}T${left.startTime || "23:59"}`.localeCompare(
+        `${right.date || "9999-12-31"}T${right.startTime || "23:59"}`,
+      ),
+    );
 }
 
 function latestAcademicSnapshot(
@@ -1060,9 +1099,9 @@ function HubApp({ data: initialData }: { data: SiteData }) {
   const [query, setQuery] = useState("");
   const [searchKind, setSearchKind] = useState<SearchKind>("all");
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  const [college, setCollege] = useState(data.colleges[0]?.name ?? "");
-  const [majorId, setMajorId] = useState(data.colleges[0]?.majorIds[0] ?? "");
-  const [year, setYear] = useState(1);
+  const [college, setCollege] = useState("");
+  const [majorId, setMajorId] = useState("");
+  const [year, setYear] = useState(0);
   const [building, setBuilding] = useState(data.buildings[0]);
   const [date, setDate] = useState(todayISO);
   const [block, setBlock] = useState(currentBlock);
@@ -1203,6 +1242,10 @@ function HubApp({ data: initialData }: { data: SiteData }) {
       ),
     ];
   }, [academicSnapshot, manualSchedules]);
+  const upcomingExams = useMemo(
+    () => upcomingAcademicExams(academicSnapshot),
+    [academicSnapshot],
+  );
 
   function applyAcademicImport(result: {
     snapshot: AcademicSnapshot;
@@ -1688,8 +1731,8 @@ function HubApp({ data: initialData }: { data: SiteData }) {
   const nav: Array<{ id: View; label: string; icon: UiIconName }> = [
     { id: "schedule", label: "我的课表", icon: "schedule" },
     { id: "rooms", label: "空教室", icon: "rooms" },
-    { id: "home", label: "今日学习台", icon: "home" },
-    { id: "catalog", label: "学习档案", icon: "catalog" },
+    { id: "home", label: "今天", icon: "home" },
+    { id: "catalog", label: "课程", icon: "catalog" },
     { id: "me", label: "我的", icon: "user" },
   ];
   const fullDataRequired =
@@ -1765,6 +1808,10 @@ function HubApp({ data: initialData }: { data: SiteData }) {
         </div>
       </header>
 
+      {view !== "home" && view !== "me" && (
+        <ExamRail exams={upcomingExams} onOpen={() => go("schedule")} />
+      )}
+
       {view === "home" && (
         <HomePage
           data={data}
@@ -1774,10 +1821,9 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           week={currentWeek}
           term={term}
           academicSnapshot={academicSnapshot}
+          upcomingExams={upcomingExams}
           onGo={go}
           onSearch={openSearch}
-          onSetup={openOnboarding}
-          onAcademicImport={() => setAcademicImportOpen(true)}
           onEditCalendar={setCalendarEditor}
           onToggleAssignment={(id) =>
             setSaved((state) => ({
@@ -1814,8 +1860,8 @@ function HubApp({ data: initialData }: { data: SiteData }) {
             </b>
             <p>
               {fullDataStatus === "error"
-                ? "检查网络后重试，今日学习台仍可继续使用。"
-                : "今日学习台已经可用，课程、课表和空教室数据正在按需加载。"}
+                ? "检查网络后重试，今天页面仍可继续使用。"
+                : "今天页面已经可用，课程、课表和空教室数据正在加载。"}
             </p>
             {fullDataStatus === "error" && (
               <div>
@@ -1837,8 +1883,11 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           year={year}
           setYear={setYear}
           courses={courses}
+          activeSchedules={activeSchedules}
+          academicSnapshot={academicSnapshot}
+          trainingPlan={saved.trainingPlan}
           onCourse={setSelectedCourse}
-          onSearch={() => window.location.assign("/materials")}
+          onAcademicImport={() => setAcademicImportOpen(true)}
         />
       )}
       {view === "schedule" && fullDataStatus === "ready" && (
@@ -1861,7 +1910,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
             updateActivePlan((ids) => ids.filter((item) => item !== id))
           }
           onSetup={openOnboarding}
-          onAcademicImport={() => setAcademicImportOpen(true)}
+          onOpenCourses={() => go("catalog")}
           onEditCalendar={setCalendarEditor}
         />
       )}
@@ -1888,6 +1937,11 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           saved={saved}
           setSaved={setSaved}
           onSetup={openOnboarding}
+          academicSnapshot={academicSnapshot}
+          trainingPlan={saved.trainingPlan}
+          upcomingExams={upcomingExams}
+          onOpenExams={() => go("schedule")}
+          onOpenCourses={() => go("catalog")}
           account={account}
           devices={accountDevices}
           syncStatus={cloudSyncStatus}
@@ -2095,7 +2149,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           >
             <b><UiIcon name={item.icon} /></b>
             <span>
-              {item.label.replace("与资料", "").replace("今日学习台", "今日")}
+              {item.label}
             </span>
           </button>
         ))}
@@ -2215,7 +2269,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
               <span>
                 {fullDataStatus === "error"
                   ? "检查网络后重试，也可以先跳过，稍后从“我的”继续设置。"
-                  : "今日学习台已经可用，这部分数据只在设置课表时按需加载。"}
+                  : "今天页面已经可用，课程数据正在加载。"}
               </span>
             </div>
             <button
@@ -2223,10 +2277,10 @@ function HubApp({ data: initialData }: { data: SiteData }) {
               className="finish-button onboarding-academic-import"
               onClick={() => {
                 setOnboarding(false);
-                setAcademicImportOpen(true);
+                go("catalog");
               }}
             >
-              从教务导入
+              打开课程中心
             </button>
             {fullDataStatus === "error" && (
               <button onClick={() => void loadFullData()}>重新加载课程数据</button>
@@ -2239,9 +2293,9 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           data={data}
           term={term}
           initial={saved.profile}
-          onAcademicImport={() => {
+          onOpenCourses={() => {
             setOnboarding(false);
-            setAcademicImportOpen(true);
+            go("catalog");
           }}
           onSkip={() => {
             setSaved((state) => ({ ...state, skipped: true }));
@@ -2279,6 +2333,40 @@ function HubApp({ data: initialData }: { data: SiteData }) {
   );
 }
 
+function ExamRail({
+  exams,
+  onOpen,
+}: {
+  exams: ReturnType<typeof upcomingAcademicExams>;
+  onOpen: () => void;
+}) {
+  const next = exams[0];
+  if (!next) return null;
+  const date = next.date
+    ? new Intl.DateTimeFormat("zh-CN", {
+        month: "numeric",
+        day: "numeric",
+        weekday: "short",
+        timeZone: "Asia/Shanghai",
+      }).format(new Date(`${next.date}T00:00:00+08:00`))
+    : "日期待定";
+  const time = [next.startTime, next.endTime].filter(Boolean).join("–");
+  return (
+    <section className={academicStyles.examRail} aria-label="下一场考试">
+      <span>考试</span>
+      <strong>{next.courseName || next.courseCode}</strong>
+      <p>
+        {date}
+        {time ? ` · ${time}` : " · 时间待定"}
+        {next.location ? ` · ${next.location}` : ""}
+      </p>
+      <button onClick={onOpen}>
+        {exams.length > 1 ? `查看 ${exams.length} 场安排` : "查看安排"}
+      </button>
+    </section>
+  );
+}
+
 function HomePage({
   data,
   saved,
@@ -2287,10 +2375,9 @@ function HomePage({
   week,
   term,
   academicSnapshot,
+  upcomingExams,
   onGo,
   onSearch,
-  onSetup,
-  onAcademicImport,
   onEditCalendar,
   onToggleAssignment,
   onDeleteCalendar,
@@ -2302,10 +2389,9 @@ function HomePage({
   week: ReturnType<typeof schoolWeek>;
   term: Term;
   academicSnapshot?: AcademicSnapshot;
+  upcomingExams: ReturnType<typeof upcomingAcademicExams>;
   onGo: (view: View) => void;
   onSearch: (kind?: SearchKind) => void;
-  onSetup: () => void;
-  onAcademicImport: () => void;
   onEditCalendar: (request: CalendarEditorRequest) => void;
   onToggleAssignment: (id: string) => void;
   onDeleteCalendar: (
@@ -2333,25 +2419,6 @@ function HomePage({
   const todayAssignments = saved.assignments.filter(
     (item) => !item.completed && item.dueDate === todayISO(),
   );
-  const todayKey = todayISO();
-  const currentClock = new Intl.DateTimeFormat("en-CA", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).format(new Date());
-  const upcomingExams = [...(academicSnapshot?.exams ?? [])]
-    .filter(
-      (exam) =>
-        !exam.date ||
-        exam.date > todayKey ||
-        (exam.date === todayKey &&
-          (!exam.endTime || exam.endTime >= currentClock)),
-    )
-    .sort((left, right) =>
-      `${left.date || "9999-12-31"}T${left.startTime || "23:59"}`.localeCompare(
-        `${right.date || "9999-12-31"}T${right.startTime || "23:59"}`,
-      ),
-    );
   const freeByBuilding = data.buildings
     .map((name) => {
       const all = data.schedules.filter(
@@ -2516,7 +2583,7 @@ function HomePage({
       <header className="focus-head focus-head-v5">
         <div>
           <span>东财日月志 · {dateText}</span>
-          <h1>今日学习台</h1>
+          <h1>今天</h1>
         </div>
         <button onClick={() => onSearch()} aria-label="全站搜索">
           <UiIcon name="search" />
@@ -2555,28 +2622,6 @@ function HomePage({
           <em>↗</em>
         </a>
       </nav>
-
-      <section
-        className={`academic-sync-band ${academicSnapshot ? "ready" : "empty"}`}
-        aria-label="正式教务数据"
-      >
-        <div>
-          <span>正式教务</span>
-          <strong>
-            {academicSnapshot
-              ? `${academicSnapshot.academicYear} ${academicSnapshot.termLabel}`
-              : "一键导入课表与考试安排"}
-          </strong>
-          <p>
-            {academicSnapshot
-              ? `已导入 ${academicSnapshot.sections.length} 门课、${academicMeetingCount(academicSnapshot)} 个上课时段、${academicSnapshot.exams.length} 项考试 · ${new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(academicSnapshot.importedAt))} 更新`
-              : "输入教务账号后自动完成，不需要下载、复制或上传文件。"}
-          </p>
-        </div>
-        <button onClick={onAcademicImport}>
-          {academicSnapshot ? "刷新本学期数据" : "连接教务并导入"}
-        </button>
-      </section>
 
       {upcomingExams.length > 0 && (
         <section className={academicStyles.examNotice} aria-label="最近考试">
@@ -2654,13 +2699,13 @@ function HomePage({
                 {primaryClass
                   ? primaryClass.title
                   : hasTimetable
-                    ? "把今天留给自己的安排"
+                    ? "今天没有后续课程"
                     : "先选专业和班级"}
               </h2>
               <p>
                 {primaryClass
                   ? `${data.periods[primaryClass.block - 1]?.time} · ${primaryClass.building}${primaryClass.room}`
-                  : hasTimetable ? "可以安排自习、记录作业，或看看哪里适合坐一会儿。" : "选择专业和班级，带入本学期课程。也可以手动添加。"}
+                  : hasTimetable ? "添加日程、记录作业，或找空教室。" : "选择专业和班级，或手动添加课程。"}
               </p>
               {primaryClass && (
                 <small>
@@ -2671,7 +2716,7 @@ function HomePage({
             </span>
           </div>
           <footer>
-            <button onClick={() => !hasTimetable ? onAcademicImport() : onGo("schedule")}>{!hasTimetable ? "导入教务数据" : "打开课表"}</button>
+            <button onClick={() => onGo(hasTimetable ? "schedule" : "catalog")}>{hasTimetable ? "打开课表" : "设置本学期课程"}</button>
             <button onClick={() => onGo("rooms")}>找空教室</button>
           </footer>
         </article>
@@ -2735,8 +2780,8 @@ function HomePage({
               ))
             ) : (
               <div className="agenda-glance-empty">
-                <b>眼下没有要紧的事</b>
-                <small>要不要找间空教室坐会儿？</small>
+                <b>暂无安排</b>
+                <small>可以找间空教室自习。</small>
               </div>
             )}
           </div>
@@ -2895,8 +2940,11 @@ function CatalogPage({
   year,
   setYear,
   courses,
+  activeSchedules,
+  academicSnapshot,
+  trainingPlan,
   onCourse,
-  onSearch,
+  onAcademicImport,
 }: {
   data: SiteData;
   term: Term;
@@ -2907,125 +2955,478 @@ function CatalogPage({
   year: number;
   setYear: (v: number) => void;
   courses: Map<string, Course>;
+  activeSchedules: Schedule[];
+  academicSnapshot?: AcademicSnapshot;
+  trainingPlan: AcademicTrainingPlan | null;
   onCourse: (c: Course) => void;
-  onSearch: (kind?: SearchKind) => void;
+  onAcademicImport: () => void;
 }) {
-  const collegeMajors = data.majors.filter((item) => item.college === college);
-  const selected = data.majors.find((item) => item.id === majorId);
-  const items = data.majorCourses
-    .filter(
-      (item) =>
-        item.majorId === majorId && item.term === term && item.year === year,
-    )
-    .map((item) => courses.get(item.courseId))
-    .filter((item): item is Course => Boolean(item))
-    .filter(
-      (item, index, all) =>
-        all.findIndex((other) => other.id === item.id) === index,
-    )
-    .sort((a, b) => a.title.localeCompare(b.title, "zh-CN"));
+  const [mode, setMode] = useState<"mine" | "catalog">(
+    academicSnapshot || activeSchedules.length ? "mine" : "catalog",
+  );
+  const [query, setQuery] = useState("");
+  const [ranking, setRanking] = useState<"personal" | "all">("personal");
+  const [planOpen, setPlanOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  const normalizedQuery = normalize(query);
+  const collegeMajors = data.majors.filter(
+    (item) => !college || item.college === college,
+  );
+  const selectedMajorIds = new Set(
+    majorId
+      ? [majorId]
+      : collegeMajors.map((item) => item.id),
+  );
+  const relatedCourseIds = new Set(
+    data.majorCourses
+      .filter(
+        (item) =>
+          item.term === term &&
+          (!year || item.year === year) &&
+          (!college && !majorId ? true : selectedMajorIds.has(item.majorId)),
+      )
+      .map((item) => item.courseId),
+  );
+  const termCourseIds = new Set(
+    data.majorCourses
+      .filter((item) => item.term === term)
+      .map((item) => item.courseId),
+  );
+  const academicCourseCodes = new Set(
+    (academicSnapshot?.sections ?? []).map((section) =>
+      normalizeCourseCode(section.courseCode),
+    ),
+  );
+  const planCourseCodes = new Set(
+    (trainingPlan?.courses ?? []).map((course) =>
+      normalizeCourseCode(course.courseCode),
+    ),
+  );
+  const catalogMatchesByCode = new Map<string, Course[]>();
+  for (const course of data.courses) {
+    const code = normalizeCourseCode(course.id);
+    catalogMatchesByCode.set(code, [
+      ...(catalogMatchesByCode.get(code) ?? []),
+      course,
+    ]);
+  }
+  const uniqueCatalogCourse = (courseCode: string) => {
+    const matches = catalogMatchesByCode.get(normalizeCourseCode(courseCode));
+    return matches?.length === 1 ? matches[0] : undefined;
+  };
+  const courseSearchScore = (course: Course) => {
+    if (!normalizedQuery) return 0;
+    const title = normalize(course.title);
+    const id = normalize(course.id);
+    const aliases = (courseAliases[course.title] ?? []).map(normalize);
+    if (title === normalizedQuery || id === normalizedQuery) return 400;
+    if (title.startsWith(normalizedQuery) || id.startsWith(normalizedQuery)) {
+      return 300;
+    }
+    if (
+      title.includes(normalizedQuery) ||
+      id.includes(normalizedQuery) ||
+      aliases.some((alias) => alias.includes(normalizedQuery))
+    ) {
+      return 200;
+    }
+    return -1;
+  };
+  const catalogItems = data.courses
+    .filter((course) => {
+      const belongsToCurrentTerm =
+        termCourseIds.has(course.id) || course.terms.includes(term);
+      if (!belongsToCurrentTerm) return false;
+      if ((college || majorId || year) && !relatedCourseIds.has(course.id)) {
+        return false;
+      }
+      return courseSearchScore(course) >= 0;
+    })
+    .sort((left, right) => {
+      const relevance = courseSearchScore(right) - courseSearchScore(left);
+      if (relevance) return relevance;
+      if (ranking === "personal") {
+        const personalScore = (course: Course) => {
+          const code = normalizeCourseCode(course.id);
+          if (academicCourseCodes.has(code)) return 2;
+          if (planCourseCodes.has(code)) return 1;
+          return 0;
+        };
+        const personalized = personalScore(right) - personalScore(left);
+        if (personalized) return personalized;
+      }
+      return left.title.localeCompare(right.title, "zh-CN");
+    });
+  const visibleCatalogItems = showAll
+    ? catalogItems
+    : catalogItems.slice(0, 24);
+  const manualCourseGroups = new Map<string, Schedule[]>();
+  for (const schedule of activeSchedules.filter(
+    (item) => item.origin !== "academic",
+  )) {
+    manualCourseGroups.set(schedule.courseId, [
+      ...(manualCourseGroups.get(schedule.courseId) ?? []),
+      schedule,
+    ]);
+  }
+  const planCourses = (trainingPlan?.courses ?? []).filter((course) => {
+    if (!normalizedQuery) return true;
+    return (
+      normalize(course.courseName).includes(normalizedQuery) ||
+      normalize(course.courseCode).includes(normalizedQuery)
+    );
+  });
+  const currentPlanCourseCount = (trainingPlan?.courses ?? []).filter((course) =>
+    academicCourseCodes.has(normalizeCourseCode(course.courseCode)),
+  ).length;
+  const importedAt = academicSnapshot
+    ? new Intl.DateTimeFormat("zh-CN", {
+        month: "numeric",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(academicSnapshot.importedAt))
+    : "";
   return (
-    <div className="page-wrap catalog-page-v2">
-      <header className="workspace-heading catalog-heading">
-        <div>
-          <h1>学习档案</h1>
-          <p>课程、教师和资料各自建档；评价收在对应教师档案中。</p>
+    <div className={`page-wrap catalog-page-v2 ${courseStyles.page}`}>
+      <header className={courseStyles.hero}>
+        <div className={courseStyles.heroCopy}>
+          <span>课程中心 · {academicSnapshot?.termLabel || (term === "fall" ? "上学期" : "下学期")}</span>
+          <h1>课程</h1>
+          <p>查本学期与全校课程；教师和资料也在这里。</p>
         </div>
-        <button onClick={() => onSearch("material")}>
-          <UiIcon name="search" />
-          搜索资料
-        </button>
+        <section className={courseStyles.importStatus} aria-label="教务数据状态">
+          <span>{academicSnapshot ? "教务数据已导入" : "尚未导入教务数据"}</span>
+          <strong>
+            {academicSnapshot
+              ? `${academicSnapshot.academicYear} ${academicSnapshot.termLabel}`
+              : "本学期课表与考试"}
+          </strong>
+          <small>
+            {academicSnapshot
+              ? `${academicSnapshot.sections.length} 门课 · ${academicSnapshot.exams.length} 项考试 · ${importedAt}`
+              : "每学期导入一次，之后可在这里更新。"}
+          </small>
+          <button onClick={onAcademicImport}>
+            {academicSnapshot ? "更新教务数据" : "导入教务数据"}
+          </button>
+        </section>
       </header>
-      <nav className="archive-sections" aria-label="学习档案分类">
-        <Link href="/?view=catalog" aria-current="page">
-          <span>课程</span>
-          <small>按专业和学年浏览</small>
-        </Link>
+
+      <nav className={courseStyles.objectNav} aria-label="课程、教师与资料">
+        <button
+          className={mode === "mine" && !planOpen ? courseStyles.activeNav : ""}
+          aria-pressed={mode === "mine" && !planOpen}
+          onClick={() => {
+            setPlanOpen(false);
+            setMode("mine");
+          }}
+        >
+          <span>我的课程</span>
+          <small>{academicSnapshot?.sections.length ?? manualCourseGroups.size} 门</small>
+        </button>
+        <button
+          className={mode === "catalog" && !planOpen ? courseStyles.activeNav : ""}
+          aria-pressed={mode === "catalog" && !planOpen}
+          onClick={() => {
+            setPlanOpen(false);
+            setMode("catalog");
+          }}
+        >
+          <span>课程库</span>
+          <small>全校课程</small>
+        </button>
         <Link href="/teachers">
-          <span>教师</span>
-          <small>教学班、教材与评价</small>
+          <span>教师评价</span>
+          <small>搜教师</small>
         </Link>
         <Link href="/materials">
-          <span>资料</span>
-          <small>检索、预览与下载</small>
+          <span>学习资料</span>
+          <small>搜资料</small>
         </Link>
       </nav>
-      <div className="catalog-workspace">
-        <aside>
-          <label>选择学院</label>
-          {data.colleges.map((item, index) => (
-            <button
-              key={item.name}
-              className={college === item.name ? "active" : ""}
-              onClick={() => {
-                setCollege(item.name);
-                setMajorId(item.majorIds[0] ?? "");
-              }}
-            >
-              <i>{String(index + 1).padStart(2, "0")}</i>
-              <span>{item.name}</span>
-            </button>
-          ))}
-        </aside>
-        <section>
-          <div className="catalog-selector">
-            <label>
-              <span>专业</span>
-              <select
-                name="catalog-major"
-                value={majorId}
-                onChange={(event) => setMajorId(event.target.value)}
-              >
-                {collegeMajors.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+
+      {trainingPlan && (
+        <section className={courseStyles.planStrip} aria-label="培养方案概况">
+          <div>
+            <span>培养方案</span>
+            <strong>{trainingPlan.majorName || trainingPlan.planName}</strong>
+            <p>
+              已修 {formatPlanCredits(trainingPlan.earnedCredits ?? null)} / 要求 {formatPlanCredits(trainingPlan.requiredCredits)}
+              {currentPlanCourseCount > 0 ? ` · 本学期 ${currentPlanCourseCount} 门` : ""}
+            </p>
+          </div>
+          <button
+            aria-expanded={planOpen}
+            onClick={() => setPlanOpen((current) => !current)}
+          >
+            {planOpen ? "收起培养方案" : "查看培养方案课程"}
+          </button>
+        </section>
+      )}
+
+      <label className={courseStyles.searchField}>
+        <span>{planOpen ? "搜索培养方案" : mode === "mine" ? "搜索我的课程" : "搜索全校课程"}</span>
+        <UiIcon name="search" />
+        <input
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setShowAll(false);
+          }}
+          placeholder="课程名或课程号"
+        />
+      </label>
+
+      {planOpen ? (
+        <section className={courseStyles.results} aria-labelledby="plan-course-title">
+          <header className={courseStyles.resultsHeader}>
             <div>
-              {[1, 2, 3, 4].map((item) => (
-                <button
-                  key={item}
-                  className={year === item ? "active" : ""}
-                  onClick={() => setYear(item)}
-                >
-                  大{"一二三四"[item - 1]}
-                </button>
-              ))}
+              <span>培养方案</span>
+              <h2 id="plan-course-title">{trainingPlan?.planName}</h2>
             </div>
+            <strong>{planCourses.length} 门</strong>
+          </header>
+          <div className={courseStyles.courseRows}>
+            {planCourses.map((planCourse) => {
+              const catalogCourse = uniqueCatalogCourse(planCourse.courseCode);
+              const isCurrent = academicCourseCodes.has(
+                normalizeCourseCode(planCourse.courseCode),
+              );
+              const status = isCurrent
+                ? "本学期"
+                : planCourse.completionStatus === "passed"
+                  ? "已修"
+                  : planCourse.completionStatus === "in_progress"
+                    ? "修读中"
+                    : planCourse.completionStatus === "failed"
+                      ? "未通过"
+                      : "待修";
+              return (
+                <article key={`${planCourse.categoryCode}-${planCourse.courseCode}`}>
+                  <i aria-hidden="true">{courseMark(planCourse.courseName)}</i>
+                  <div>
+                    <span>{planCourse.categoryName || "培养方案课程"}</span>
+                    <strong>{planCourse.courseName}</strong>
+                    <p>
+                      {planCourse.courseCode} · {formatPlanCredits(planCourse.credits)}
+                      {planCourse.completedTerm ? ` · ${planCourse.completedTerm}` : ""}
+                    </p>
+                  </div>
+                  <b data-current={isCurrent || undefined}>{status}</b>
+                  {catalogCourse ? (
+                    <button onClick={() => onCourse(catalogCourse)}>课程详情</button>
+                  ) : (
+                    <small>课程库暂未收录</small>
+                  )}
+                </article>
+              );
+            })}
           </div>
-          <div className="major-summary">
-            <p>{college}</p>
-            <h2>{selected?.name}</h2>
-            <span>
-              {term === "fall" ? "上学期" : "下学期"} · 大{"一二三四"[year - 1]}{" "}
-              · {items.length} 门课程
-            </span>
+          {!planCourses.length && (
+            <p className={courseStyles.empty}>没有找到对应的培养方案课程。</p>
+          )}
+        </section>
+      ) : mode === "mine" ? (
+        <section className={courseStyles.results} aria-labelledby="my-course-title">
+          <header className={courseStyles.resultsHeader}>
+            <div>
+              <span>{academicSnapshot ? "正式教务" : "本机课表"}</span>
+              <h2 id="my-course-title">我的课程</h2>
+            </div>
+            <strong>
+              {(academicSnapshot?.sections.length ?? 0) + manualCourseGroups.size} 门
+            </strong>
+          </header>
+          <div className={courseStyles.myCourseRows}>
+            {(academicSnapshot?.sections ?? [])
+              .filter(
+                (section) =>
+                  !normalizedQuery ||
+                  normalize(section.courseName).includes(normalizedQuery) ||
+                  normalize(section.courseCode).includes(normalizedQuery),
+              )
+              .map((section) => {
+                const catalogCourse = uniqueCatalogCourse(section.courseCode);
+                return (
+                  <article key={section.id}>
+                    <span>正式教务 · {section.sectionCode || "教学班未标注"}</span>
+                    <h3>{section.courseName}</h3>
+                    <p>
+                      {section.courseCode}
+                      {section.teachers.length ? ` · ${section.teachers.join(" / ")}` : ""}
+                    </p>
+                    <div>
+                      {section.meetings.length
+                        ? section.meetings.map((meeting) => (
+                            <small key={meeting.id}>
+                              {weekdayLabels[meeting.weekday % 7]} {meeting.timeText} · {[meeting.building, meeting.room].filter(Boolean).join(" ") || "地点待定"} · {meeting.weekText || "周次待定"}
+                            </small>
+                          ))
+                        : <small>上课时间待定</small>}
+                    </div>
+                    {catalogCourse && (
+                      <button onClick={() => onCourse(catalogCourse)}>课程详情</button>
+                    )}
+                  </article>
+                );
+              })}
+            {[...manualCourseGroups.entries()]
+              .filter(([, meetings]) => {
+                const course = courses.get(meetings[0]?.courseId);
+                return (
+                  !normalizedQuery ||
+                  normalize(course?.title ?? meetings[0]?.title ?? "").includes(
+                    normalizedQuery,
+                  ) ||
+                  normalize(meetings[0]?.courseId ?? "").includes(normalizedQuery)
+                );
+              })
+              .map(([courseId, meetings]) => {
+                const course = courses.get(courseId);
+                return (
+                  <article key={`manual-${courseId}`}>
+                    <span>手动加入课表</span>
+                    <h3>{course?.title || meetings[0]?.title || courseId}</h3>
+                    <p>{courseId}</p>
+                    <div>
+                      {meetings.map((meeting) => (
+                        <small key={meeting.id}>
+                          {weekdayLabels[meeting.weekday % 7]} {meeting.timeText} · {meeting.building}{meeting.room}
+                        </small>
+                      ))}
+                    </div>
+                    {course && <button onClick={() => onCourse(course)}>课程详情</button>}
+                  </article>
+                );
+              })}
           </div>
-          <div className="course-card-grid">
-            {items.map((course, index) => (
-              <button key={course.id} onClick={() => onCourse(course)}>
-                <i>{courseMark(course.title)}</i>
-                <span>
-                  <small>{course.property || course.category || "课程"}</small>
-                  <strong>{course.title}</strong>
-                  <p>
-                    {course.teachers.slice(0, 2).join(" / ") || "查看课程信息"}
-                  </p>
-                </span>
-                <b>{String(index + 1).padStart(2, "0")}</b>
-              </button>
-            ))}
-          </div>
-          {!items.length && (
-            <div className="quiet-empty">
-              <b>这里暂时没有课程</b>
-              <p>换个年级或学期看看。</p>
+          {!academicSnapshot?.sections.length && !manualCourseGroups.size && (
+            <div className={courseStyles.emptyState}>
+              <strong>还没有本学期课程</strong>
+              <p>可以导入教务课表，也可以去课程库手动选课。</p>
+              <div>
+                <button onClick={onAcademicImport}>导入教务数据</button>
+                <button onClick={() => setMode("catalog")}>浏览课程库</button>
+              </div>
             </div>
           )}
         </section>
-      </div>
+      ) : (
+        <section className={courseStyles.catalogArea} aria-labelledby="catalog-title">
+          <form className={courseStyles.filters} onSubmit={(event) => event.preventDefault()}>
+            <label>
+              <span>学院</span>
+              <select
+                value={college}
+                onChange={(event) => {
+                  setCollege(event.target.value);
+                  setMajorId("");
+                  setShowAll(false);
+                }}
+              >
+                <option value="">全部学院</option>
+                {data.colleges.map((item) => (
+                  <option key={item.name} value={item.name}>{item.name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>专业</span>
+              <select
+                value={majorId}
+                onChange={(event) => {
+                  setMajorId(event.target.value);
+                  setShowAll(false);
+                }}
+              >
+                <option value="">全部专业</option>
+                {collegeMajors.map((item) => (
+                  <option key={item.id} value={item.id}>{item.name}</option>
+                ))}
+              </select>
+            </label>
+            <fieldset>
+              <legend>年级</legend>
+              {[0, 1, 2, 3, 4].map((item) => (
+                <button
+                  type="button"
+                  key={item}
+                  aria-pressed={year === item}
+                  onClick={() => {
+                    setYear(item);
+                    setShowAll(false);
+                  }}
+                >
+                  {item === 0 ? "全部" : `大${"一二三四"[item - 1]}`}
+                </button>
+              ))}
+            </fieldset>
+          </form>
+          <header className={courseStyles.resultsHeader}>
+            <div>
+              <span>课程库</span>
+              <h2 id="catalog-title">
+                {majorId
+                  ? data.majors.find((item) => item.id === majorId)?.name
+                  : college || "全校课程"}
+              </h2>
+            </div>
+            <div className={courseStyles.rankSwitch} aria-label="课程排序">
+              <button
+                aria-pressed={ranking === "personal"}
+                onClick={() => setRanking("personal")}
+              >
+                与我相关
+              </button>
+              <button
+                aria-pressed={ranking === "all"}
+                onClick={() => setRanking("all")}
+              >
+                全校相关
+              </button>
+            </div>
+          </header>
+          <p className={courseStyles.resultCount} aria-live="polite">
+            {catalogItems.length} 门课程 · 个性化只调整顺序，不隐藏全校结果
+          </p>
+          <div className={courseStyles.courseRows}>
+            {visibleCatalogItems.map((course) => {
+              const code = normalizeCourseCode(course.id);
+              const isCurrent = academicCourseCodes.has(code);
+              const isPlan = planCourseCodes.has(code);
+              return (
+                <article key={course.id}>
+                  <i aria-hidden="true">{courseMark(course.title)}</i>
+                  <div>
+                    <span>{course.property || course.category || "课程"}</span>
+                    <strong>{course.title}</strong>
+                    <p>
+                      {course.id}
+                      {course.teachers.length ? ` · ${course.teachers.slice(0, 2).join(" / ")}` : ""}
+                    </p>
+                  </div>
+                  <b data-current={isCurrent || undefined}>
+                    {isCurrent ? "本学期" : isPlan ? "培养方案" : ""}
+                  </b>
+                  <button onClick={() => onCourse(course)}>查看课程</button>
+                </article>
+              );
+            })}
+          </div>
+          {!catalogItems.length && (
+            <p className={courseStyles.empty}>没有找到课程，试试清空筛选或换个关键词。</p>
+          )}
+          {!showAll && catalogItems.length > visibleCatalogItems.length && (
+            <button
+              className={courseStyles.moreButton}
+              onClick={() => setShowAll(true)}
+            >
+              显示其余 {catalogItems.length - visibleCatalogItems.length} 门
+            </button>
+          )}
+        </section>
+      )}
     </div>
   );
 }
@@ -4026,7 +4427,7 @@ function SchedulePage({
   onAdd,
   onRemove,
   onSetup,
-  onAcademicImport,
+  onOpenCourses,
   onEditCalendar,
 }: {
   data: SiteData;
@@ -4044,7 +4445,7 @@ function SchedulePage({
   onAdd: (id: string) => void;
   onRemove: (id: string) => void;
   onSetup: () => void;
-  onAcademicImport: () => void;
+  onOpenCourses: () => void;
   onEditCalendar: (request: CalendarEditorRequest) => void;
 }) {
   const [finderMode, setFinderMode] = useState<"search" | "major" | "time">(
@@ -4312,9 +4713,7 @@ function SchedulePage({
           </p>
         </div>
         <div className="schedule-heading-actions">
-          <button className="academic-import-action" onClick={onAcademicImport}>
-            {academicSnapshot ? "刷新教务数据" : "导入教务数据"}
-          </button>
+          <button onClick={onOpenCourses}>课程中心</button>
           <button onClick={() => onEditCalendar({ kind: "activity" })}>
             ＋ 添加日程
           </button>
@@ -4356,9 +4755,9 @@ function SchedulePage({
         <section className={academicStyles.planWindowEmpty}>
           <div>
             <span>培养方案</span>
-            <strong>导入后可按本学期、待选和已修课程筛选</strong>
+            <strong>在课程中心导入后，可按本学期、待选和已修筛选</strong>
           </div>
-          <button onClick={onAcademicImport}>连接教务</button>
+          <button onClick={onOpenCourses}>打开课程中心</button>
         </section>
       )}
       {finderOpen && (
@@ -4774,7 +5173,8 @@ function SchedulePage({
           {!activeSchedules.length && (
             <div className="timetable-empty">
               <b>这张课表还是空的</b>
-              <p>连接教务自动导入，或点“添加课程”手动选课。</p>
+              <p>从“课程”导入教务课表，或点“添加课程”手动选课。</p>
+              <button onClick={onOpenCourses}>打开课程中心</button>
             </div>
           )}
           {sortedExams.length > 0 && (
@@ -4784,7 +5184,6 @@ function SchedulePage({
                   <span>正式教务</span>
                   <h3>考试安排</h3>
                 </div>
-                <button onClick={onAcademicImport}>刷新</button>
               </header>
               <div className="academic-exam-list">
                 {sortedExams.map((exam) => (
@@ -5302,6 +5701,7 @@ function RoomsPage({
   const [duration, setDuration] = useState<RoomDuration>("one");
   const [floorChoice, setFloorChoice] = useState("");
   const [selectedRoom, setSelectedRoom] = useState("");
+  const roomListScrollRef = useRef(0);
   const selectedDate = new Date(`${date}T12:00:00`);
   const weekday = selectedDate.getDay() || 7;
   const selectedWeek = schoolWeek(selectedDate, term);
@@ -5522,6 +5922,7 @@ function RoomsPage({
 
   function selectRoom(buildingName: string, room: string) {
     const key = roomKey(buildingName, room);
+    roomListScrollRef.current = window.scrollY;
     setSelectedRoom(key);
     setBuilding(buildingName);
     setFloorChoice(room.match(/\d/)?.[0] ?? "");
@@ -5532,6 +5933,14 @@ function RoomsPage({
         8,
       ),
     }));
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }
+
+  function closeRoomSchedule() {
+    setSelectedRoom("");
+    window.requestAnimationFrame(() =>
+      window.scrollTo({ top: roomListScrollRef.current, behavior: "auto" }),
+    );
   }
 
   function toggleFavorite(key: string) {
@@ -5562,6 +5971,30 @@ function RoomsPage({
     }
   }
 
+  if (selectedRoomInfo) {
+    return (
+      <div className="page-wrap rooms-page living-spaces rooms-v5 room-week-focus">
+        <RoomWeekSchedule
+          building={selectedRoomInfo.building}
+          room={selectedRoomInfo.room}
+          date={date}
+          week={selectedWeek.state === "active" ? selectedWeek.week : null}
+          selectedWeekday={weekday}
+          periods={data.periods}
+          favorite={saved.favoriteRooms.includes(selectedRoomInfo.key)}
+          onBack={closeRoomSchedule}
+          onToggleFavorite={() => toggleFavorite(selectedRoomInfo.key)}
+          lessons={(schedulesByRoom.get(selectedRoomInfo.key) ?? [])
+            .filter(activeThisWeek)
+            .map((item) => ({
+              ...item,
+              periodLabel: data.periods[item.block - 1]?.short ?? "",
+            }))}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="page-wrap rooms-page living-spaces rooms-v5">
       <header className="map-heading">
@@ -5571,7 +6004,7 @@ function RoomsPage({
           <p>
             {nextClass
               ? `下一节在 ${nextClass.building}${nextClass.room}，先找个顺路的位置。`
-              : "看看哪间教室正好适合你。"}
+              : "选择时间，查看可用教室。"}
           </p>
         </div>
         <div className="room-current-context" aria-label="当前查询时间">
@@ -5665,7 +6098,7 @@ function RoomsPage({
                   return (
                     <button
                       key={room}
-                      className={`${available ? "free" : "busy"} ${selectedRoom === key ? "selected" : ""} ${saved.favoriteRooms.includes(key) ? "favorite" : ""}`}
+                      className={`${available ? "free" : "busy"} ${saved.favoriteRooms.includes(key) ? "favorite" : ""}`}
                       style={{ "--room-order": index } as CSSProperties}
                       onClick={() => selectRoom(building, room)}
                     >
@@ -5704,40 +6137,9 @@ function RoomsPage({
                 : "空闲教室已按所选时段筛好。"}
             </p>
           </div>
-          {selectedRoomInfo && (
-            <div className="selected-room-card">
-              <span>刚刚查看</span>
-              <b>{selectedRoomInfo.building}{selectedRoomInfo.room}</b>
-              <small>
-                {availableUntil(
-                  selectedRoomInfo.building,
-                  selectedRoomInfo.room,
-                )}
-              </small>
-              <button onClick={() => toggleFavorite(selectedRoomInfo.key)}>
-                {saved.favoriteRooms.includes(selectedRoomInfo.key)
-                  ? "★ 已收藏"
-                  : "☆ 设为常用"}
-              </button>
-              <a href="#room-week-schedule">查看这一周的课表 ↓</a>
-            </div>
-          )}
           <p>{data.disclaimer}</p>
         </aside>
       </section>
-
-      {selectedRoomInfo && (
-        <RoomWeekSchedule
-          building={selectedRoomInfo.building}
-          room={selectedRoomInfo.room}
-          date={date}
-          week={selectedWeek.state === "active" ? selectedWeek.week : null}
-          selectedWeekday={weekday}
-          lessons={(schedulesByRoom.get(selectedRoomInfo.key) ?? [])
-            .filter(activeThisWeek)
-            .map((item) => ({ ...item, periodLabel: data.periods[item.block - 1]?.short ?? "" }))}
-        />
-      )}
       {(saved.favoriteRooms.length > 0 || saved.recentRooms.length > 0) && (
         <nav className="room-memory" aria-label="常用和最近查看的教室">
           <span>{saved.favoriteRooms.length ? "常用" : "最近看过"}</span>
@@ -5852,7 +6254,7 @@ function RoomsPage({
             <header>
               <div>
                 <span>可选建议</span>
-                <h2>{recommendations.length ? "优先看看这三间" : "这段时间没有合适的教室"}</h2>
+                <h2>{recommendations.length ? "推荐教室" : "这段时间没有合适的教室"}</h2>
               </div>
               <small>{weekdayLabels[weekday % 7]} · {querySummary}</small>
             </header>
@@ -5923,6 +6325,11 @@ function MePage({
   saved,
   setSaved,
   onSetup,
+  academicSnapshot,
+  trainingPlan,
+  upcomingExams,
+  onOpenExams,
+  onOpenCourses,
   account,
   devices,
   syncStatus,
@@ -5941,6 +6348,11 @@ function MePage({
   saved: SavedState;
   setSaved: React.Dispatch<React.SetStateAction<SavedState>>;
   onSetup: () => void;
+  academicSnapshot?: AcademicSnapshot;
+  trainingPlan: AcademicTrainingPlan | null;
+  upcomingExams: ReturnType<typeof upcomingAcademicExams>;
+  onOpenExams: () => void;
+  onOpenCourses: () => void;
   account: AccountState;
   devices: AccountDevice[];
   syncStatus: CloudSyncStatus;
@@ -5956,6 +6368,15 @@ function MePage({
   onResolveSyncConflict: (choice: "local" | "cloud") => void;
 }) {
   const major = data.majors.find((item) => item.id === saved.profile?.majorId);
+  const currentAcademicCodes = new Set(
+    (academicSnapshot?.sections ?? []).map((section) =>
+      normalizeCourseCode(section.courseCode),
+    ),
+  );
+  const currentPlanCourses = (trainingPlan?.courses ?? []).filter((course) =>
+    currentAcademicCodes.has(normalizeCourseCode(course.courseCode)),
+  );
+  const [accountOpen, setAccountOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletePhrase, setDeletePhrase] = useState("");
   const [accountBusy, setAccountBusy] = useState("");
@@ -6287,42 +6708,62 @@ function MePage({
           <h1>我的</h1>
           <p>
             {account.status === "authenticated"
-              ? "课表、日程和作业跟着账号走。"
-              : "现在可以直接用；注册账号后，课表也能跟你去另一台设备。"}
+              ? "课表、日程和作业已与账号同步。"
+              : "课表先存在本机；登录后可跨设备同步。"}
           </p>
         </div>
-        <button onClick={onSetup}>
-          {saved.profile ? "修改专业班级" : "设置专业班级"}
-        </button>
       </header>
-      <div className="me-grid">
-        <article className="identity-card">
+      {upcomingExams.length > 0 && (
+        <section className={academicStyles.meExamSummary} aria-label="我的考试">
+          <div>
+            <span>考试</span>
+            <strong>{upcomingExams[0].courseName || upcomingExams[0].courseCode}</strong>
+            <p>
+              {upcomingExams[0].date || "日期待定"} · {[upcomingExams[0].startTime, upcomingExams[0].endTime].filter(Boolean).join("–") || "时间待定"} · {upcomingExams[0].location || "考场待定"}
+            </p>
+          </div>
+          <button onClick={onOpenExams}>
+            {upcomingExams.length > 1 ? `查看 ${upcomingExams.length} 场考试` : "查看考试"}
+          </button>
+        </section>
+      )}
+      {trainingPlan && (
+        <section className={courseStyles.profileStudySummary} aria-label="本学期培养方案课程">
+          <div>
+            <span>本学期培养方案</span>
+            <strong>{currentPlanCourses.length} 门培养方案课程在修</strong>
+            <p>
+              {currentPlanCourses.length
+                ? currentPlanCourses.map((course) => course.courseName).join("、")
+                : `已修 ${formatPlanCredits(trainingPlan.earnedCredits ?? null)}，本学期暂未匹配到培养方案课程。`}
+            </p>
+          </div>
+          <button onClick={onOpenCourses}>查看课程</button>
+        </section>
+      )}
+      <section className={meStyles.overview} aria-label="个人概况">
+        <i>{saved.profile ? courseMark(major?.name ?? "我") : "我"}</i>
+        <div className={meStyles.identity}>
           <span>个人档案</span>
-          <i>{saved.profile ? courseMark(major?.name ?? "我") : "我"}</i>
           <h2>{major?.name ?? "尚未设置专业"}</h2>
           <p>
             {saved.profile
               ? `${saved.profile.entranceYear} 级 · ${saved.profile.className || "未选择班级"}`
-              : "选好班级，就能看到自己的课表。"}
+              : "设置专业和班级后，可按你的课程排序。"}
           </p>
-          <button onClick={onSetup}>编辑</button>
-        </article>
-        <article>
-          <span>课表方案</span>
-          <strong>{saved.plans.length}</strong>
-          <p>默认、旁听和备选课表分别保存。</p>
-        </article>
-        <article>
-          <span>保存状态</span>
-          <strong>{syncCopy[0]}</strong>
-          <p>{syncCopy[1]}。</p>
-        </article>
-        <article>
-          <span>隐私</span>
-          <strong>只留必要数据</strong>
-          <p>不会读取 GPS；只保存你主动填写或使用功能时产生的数据。</p>
-        </article>
-      </div>
+        </div>
+        <dl>
+          <div>
+            <dt>课表方案</dt>
+            <dd>{saved.plans.length}</dd>
+          </div>
+          <div>
+            <dt>保存</dt>
+            <dd>{syncCopy[0]}</dd>
+          </div>
+        </dl>
+        <button onClick={onSetup}>编辑档案</button>
+      </section>
       <section
         className={`account-center account-${account.status}`}
         aria-labelledby="account-center-title"
@@ -6335,39 +6776,36 @@ function MePage({
                 ? account.user?.displayName || account.user?.username || "同学"
                 : account.status === "loading"
                   ? "正在查看登录状态"
-                  : "在别的设备继续用"}
+                  : "登录或创建账号"}
             </h2>
             <p>
               {account.status === "authenticated"
-                ? "这里管理同步、登录设备和账号。"
-                : "登录后由你决定是否导入本机内容，云端课表不会被直接覆盖。"}
+                ? `${syncCopy[0]} · 管理资料与登录设备`
+                : "登录后可在其他设备继续使用。"}
             </p>
           </div>
-          {account.status === "authenticated" ? (
-            account.user?.avatarUrl ? (
-              <span
-                className="account-avatar"
-                aria-hidden="true"
-                style={{
-                  backgroundImage: `url("${account.user.avatarUrl.replaceAll('"', "%22")}")`,
-                }}
-              />
-            ) : (
-              <i>{courseMark(account.user?.displayName || "我")}</i>
-            )
-          ) : (
-            <i>云</i>
-          )}
+          <button
+            type="button"
+            className={meStyles.accountToggle}
+            aria-expanded={accountOpen}
+            onClick={() => setAccountOpen((current) => !current)}
+          >
+            {accountOpen
+              ? "收起"
+              : account.status === "authenticated"
+                ? "管理账号"
+                : "登录"}
+          </button>
         </header>
 
-        {account.status === "loading" && (
+        {accountOpen && account.status === "loading" && (
           <div className="account-loading" aria-live="polite">
             <span />
             <p>正在确认这台设备的登录状态…</p>
           </div>
         )}
 
-        {account.status === "anonymous" && (
+        {accountOpen && account.status === "anonymous" && (
           <div className="account-login account-login-v2">
             <div className="account-local-note">
               <b>现在的数据只保存在这台设备</b>
@@ -6574,7 +7012,7 @@ function MePage({
           </div>
         )}
 
-        {account.status === "authenticated" && (
+        {accountOpen && account.status === "authenticated" && (
           <>
             <section className="account-profile" aria-labelledby="account-profile-title">
               <header>
@@ -6881,12 +7319,14 @@ function MePage({
           管理我的社区收藏与屏蔽 <span aria-hidden="true">→</span>
         </a>
       )}
-      <section className="campus-gateway" aria-labelledby="campus-gateway-title">
-        <header>
-          <span>东财常用</span>
-          <h2 id="campus-gateway-title">学校服务直达</h2>
-          <p>在当前手机打开学校服务，不经过本站中转。</p>
-        </header>
+      <details className={`campus-gateway ${meStyles.campusDetails}`}>
+        <summary>
+          <span>
+            <small>东财常用</small>
+            <b>学校服务</b>
+          </span>
+          <em>图书馆 · 校园码 · 白果云</em>
+        </summary>
         <nav aria-label="东财常用服务">
           <a href={campusLinks.library} target="_blank" rel="noreferrer">
             <i>座</i>
@@ -6913,12 +7353,7 @@ function MePage({
             <em>↗</em>
           </a>
         </nav>
-        {xiaoyingServiceUrl && (
-          <a className="campus-lab-entry" href={xiaoyingServiceUrl}>
-            小影内测 · <span>需邀请码</span> →
-          </a>
-        )}
-      </section>
+      </details>
       <CampusAlmanac />
       <KnowledgeTribute />
       <section className="trust-panel">
@@ -7585,14 +8020,14 @@ function Onboarding({
   data,
   term,
   initial,
-  onAcademicImport,
+  onOpenCourses,
   onSkip,
   onSave,
 }: {
   data: SiteData;
   term: Term;
   initial: Profile | null;
-  onAcademicImport: () => void;
+  onOpenCourses: () => void;
   onSkip: () => void;
   onSave: (profile: Profile, scheduleIds: string[]) => void;
 }) {
@@ -7665,15 +8100,15 @@ function Onboarding({
         </div>
         <div className="onboarding-copy">
           <p>课表设置</p>
-          <h2>导入你的课表</h2>
-          <span>连接教务最快；也可按班级手动设置。</span>
+          <h2>设置本学期课程</h2>
+          <span>去课程中心导入教务课表，或按班级手动设置。</span>
         </div>
         <button
           type="button"
           className="finish-button onboarding-academic-import"
-          onClick={onAcademicImport}
+          onClick={onOpenCourses}
         >
-          从教务导入
+          打开课程中心
         </button>
         {step === 1 && (
           <div className="choice-grid years">

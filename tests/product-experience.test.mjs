@@ -18,6 +18,18 @@ const globalStyles = await readFile(
   new URL("../app/globals.css", import.meta.url),
   "utf8",
 );
+const courseCenterStyles = await readFile(
+  new URL("../app/course-center.module.css", import.meta.url),
+  "utf8",
+);
+const roomWeekSource = await readFile(
+  new URL("../app/RoomWeekSchedule.tsx", import.meta.url),
+  "utf8",
+);
+const roomWeekStyles = await readFile(
+  new URL("../app/room-week-schedule.module.css", import.meta.url),
+  "utf8",
+);
 const materialsSource = await readFile(
   new URL("../app/materials/MaterialsExplorer.tsx", import.meta.url),
   "utf8",
@@ -114,9 +126,13 @@ const teacherRecordLinkSource = await readFile(
   new URL("../app/TeacherRecordLink.tsx", import.meta.url),
   "utf8",
 );
+const personalCourseContextSource = await readFile(
+  new URL("../app/personal-course-context.ts", import.meta.url),
+  "utf8",
+);
 
 test("teacher directory disambiguates identities without taking over the daily workspace", () => {
-  assert.match(teacherExplorerSource, /同名教师请按学院区分/);
+  assert.match(teacherExplorerSource, /同名教师请核对学院/);
   assert.match(teacherExplorerSource, /\/api\/teachers/);
   assert.match(teacherDetailSource, /历史整理内容不参与均分/);
   assert.match(teacherDetailSource, /同一课程的不同教学班可能使用不同教材/);
@@ -151,6 +167,25 @@ test("teacher directory disambiguates identities without taking over the daily w
   assert.match(teacherStyles, /\.ratingEditor label span[\s\S]*min-height:\s*44px/);
   assert.match(teacherStyles, /\.reviewIndex input[\s\S]*min-height:\s*44px/);
   assert.match(teacherStyles, /\.reviewSort button\[aria-pressed="true"\]/);
+});
+
+test("teacher and material discovery use scoped course context without hiding schoolwide results", () => {
+  assert.match(teacherExplorerSource, /loadPersonalCourseContext/);
+  assert.match(teacherExplorerSource, /aria-label="本学期教师"/);
+  assert.match(teacherExplorerSource, /同名教师，请按学院确认/);
+  assert.match(materialsSource, /ranking === "personal"/);
+  assert.match(materialsSource, /与我相关/);
+  assert.match(materialsSource, /全站排序/);
+  assert.match(materialsSource, /rankedItems\.map/);
+  assert.match(materialsSource, /\/data\/resource-manifest\.json/);
+  assert.match(materialsSource, /materialRelation\(material\) !== "other"/);
+  assert.match(materialsSource, /\.slice\(0, items\.length\)/);
+  assert.match(materialsSource, /params\.set\("offset"/);
+  assert.match(materialsStyles, /\.rankSwitch button\[aria-pressed="true"\]/);
+  assert.match(materialsStyles, /\.loadMore/);
+  assert.match(personalCourseContextSource, /userPersonalScope\(session\.user\.id\)/);
+  assert.match(personalCourseContextSource, /anonymousPersonalScope/);
+  assert.doesNotMatch(personalCourseContextSource, /localStorage\.setItem/);
 });
 
 test("material pages label catalog time without presenting it as source publication time", () => {
@@ -372,7 +407,7 @@ test("campus services keep a compact today dock and a full personal-page gateway
   assert.match(homeSource, /campus-pins/);
   assert.doesNotMatch(homeSource, /campus-gateway/);
   assert.match(meSource, /campus-gateway/);
-  assert.match(meSource, /campus-lab-entry/);
+  assert.doesNotMatch(meSource, /campus-lab-entry|小影内测/);
   assert.match(component, /web\.traceint\.com\/web\/index\.html/);
   assert.match(component, /person_card\/index\?sessionid=/);
   assert.match(component, /ginkgostu\.dufe\.edu\.cn\/notice\/system/);
@@ -506,10 +541,10 @@ test("personal page explains local data, cloud sync, devices, and account contro
 });
 
 test("retired homepage and room containers leave no dead cascade layers", () => {
-  assert.doesNotMatch(component, /campus-window|room-stack/);
+  assert.doesNotMatch(component, /campus-window|room-stack|academic-sync-band|archive-sections|campus-lab-entry/);
 
   for (const styles of [productStyles, redAccessStyles, globalStyles]) {
-    assert.doesNotMatch(styles, /\.campus-window|\.room-stack/);
+    assert.doesNotMatch(styles, /\.campus-window|\.room-stack|\.academic-sync-band|\.archive-sections|\.campus-lab-entry/);
   }
 });
 
@@ -552,7 +587,23 @@ test("room finder opens on the building map and keeps recommendations optional",
   assert.match(productStyles, /\.room-tools/);
 });
 
+test("a room opens directly into one complete weekly timetable", () => {
+  assert.match(component, /if \(selectedRoomInfo\)[\s\S]*?<RoomWeekSchedule/);
+  assert.doesNotMatch(component, /查看这一周的课表/);
+  assert.match(roomWeekSource, /role="table"/);
+  assert.match(roomWeekSource, /periods\.map/);
+  assert.doesNotMatch(roomWeekSource, /showWholeWeek|activeDay/);
+  assert.match(roomWeekStyles, /overflow-x: auto/);
+});
+
 test("customer-facing copy does not expose planning notes", () => {
+  const publicCopy = [
+    component,
+    materialsSource,
+    teacherExplorerSource,
+    communityHubSource,
+    communityTopicSource,
+  ].join("\n");
   assert.doesNotMatch(component, /需要操作的内容，放在信息之后/);
   assert.doesNotMatch(component, /这个搜索词会作为后续补充别名的依据/);
   assert.doesNotMatch(component, /常用入口留在学习流的下方/);
@@ -560,14 +611,20 @@ test("customer-facing copy does not expose planning notes", () => {
   assert.doesNotMatch(component, /生产邮件服务尚未配置|本地开发模式|资质审核中|2024—∞|会一直有人管/);
   assert.doesNotMatch(materialsSource, /就在这里结束搜索|不再绕进选课流程/);
   assert.doesNotMatch(materialsSource, /autoFocus/);
+  assert.doesNotMatch(
+    publicCopy,
+    /把今天留给自己的安排|眼下没有要紧的事|正好适合你|优先看看这三间|正在翻检档案|真正想问的问题/,
+  );
 });
 
-test("learning records separate courses teachers and materials by object level", () => {
-  assert.match(component, /id: "catalog", label: "学习档案"/);
-  assert.match(component, /aria-label="学习档案分类"/);
-  assert.match(component, /<span>课程<\/span>[\s\S]*?<span>教师<\/span>[\s\S]*?<span>资料<\/span>/);
-  assert.match(component, /评价收在对应教师档案中/);
-  assert.match(redAccessStyles, /\.archive-sections/);
+test("course center keeps personal courses, school catalog, teachers, and materials distinct", () => {
+  assert.match(component, /id: "catalog", label: "课程"/);
+  assert.match(component, /aria-label="课程、教师与资料"/);
+  assert.match(component, /<span>我的课程<\/span>[\s\S]*?<span>课程库<\/span>[\s\S]*?<span>教师评价<\/span>[\s\S]*?<span>学习资料<\/span>/);
+  assert.match(component, /个性化只调整顺序，不隐藏全校结果/);
+  assert.match(component, /aria-label="教务数据状态"/);
+  assert.match(courseCenterStyles, /\.objectNav/);
+  assert.match(courseCenterStyles, /\.courseRows/);
 });
 
 test("global teacher search opens the disambiguating teacher directory", () => {
@@ -578,8 +635,8 @@ test("global teacher search opens the disambiguating teacher directory", () => {
 
 test("an empty teacher catalog does not pretend reviews are usable", () => {
   assert.match(teacherExplorerSource, /教师档案尚未整理入库/);
-  assert.match(teacherExplorerSource, /暂时不能查看或发布教师评价/);
-  assert.match(teacherExplorerSource, /不会按同名记录猜测评价归属/);
+  assert.match(teacherExplorerSource, /评价功能暂不可用/);
+  assert.match(teacherExplorerSource, /同名记录不会自动合并/);
 });
 
 test("public compliance pages expose filing, privacy, terms, and deletion paths", async () => {

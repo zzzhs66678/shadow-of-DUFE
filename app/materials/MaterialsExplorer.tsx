@@ -1,8 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FormField } from "../FormField";
+import {
+  loadPersonalCourseContext,
+  type PersonalCourseContext,
+} from "../personal-course-context";
 import { PublicMasthead } from "../PublicMasthead";
 import styles from "./materials.module.css";
 
@@ -75,6 +79,13 @@ function termLabel(term: string) {
   return term === "fall" ? "上学期" : term === "spring" ? "下学期" : term;
 }
 
+function normalizeMatch(value: string) {
+  return value
+    .normalize("NFKC")
+    .toLocaleLowerCase("zh-CN")
+    .replace(/[\s·._()（）【】\[\]《》<>/\\-]+/g, "");
+}
+
 type MaterialSearchState = {
   q?: string;
   course?: string;
@@ -95,8 +106,13 @@ export function MaterialsExplorer({ initialSearch = {} }: { initialSearch?: Mate
   const [year, setYear] = useState(initialSearch.year ?? "");
   const [result, setResult] = useState<SearchResponse | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState(false);
   const [revision, setRevision] = useState(0);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [ranking, setRanking] = useState<"personal" | "all">("personal");
+  const [personalContext, setPersonalContext] = useState<PersonalCourseContext | null>(null);
+  const [personalCatalog, setPersonalCatalog] = useState<Material[] | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultRefs = useRef<Array<HTMLAnchorElement | null>>([]);
 
@@ -109,14 +125,50 @@ export function MaterialsExplorer({ initialSearch = {} }: { initialSearch?: Mate
     if (tag) params.set("tag", tag);
     if (term) params.set("term", term);
     if (year) params.set("year", year);
-    params.set("limit", "36");
+    params.set("limit", "24");
     return params;
   }, [course, query, tag, teacher, term, type, year]);
+
+  useEffect(() => {
+    let live = true;
+    void loadPersonalCourseContext().then((context) => {
+      if (live) setPersonalContext(context);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const hasCourseContext = Boolean(
+      personalContext &&
+        (personalContext.currentCourseCodes.length ||
+          personalContext.currentCourseNames.length ||
+          personalContext.planCourseCodes.length ||
+          personalContext.planCourseNames.length),
+    );
+    if (!hasCourseContext) return;
+    const controller = new AbortController();
+    void fetch("/data/resource-manifest.json", {
+      cache: "force-cache",
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error("material_manifest_unavailable");
+        return response.json() as Promise<{ materials?: Material[] }>;
+      })
+      .then((payload) => setPersonalCatalog(payload.materials ?? []))
+      .catch((error) => {
+        if ((error as Error).name !== "AbortError") setPersonalCatalog(null);
+      });
+    return () => controller.abort();
+  }, [personalContext]);
 
   useEffect(() => {
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setStatus("loading");
+      setLoadMoreError(false);
       try {
         const response = await fetch(`/api/materials?${requestParams}`, {
           signal: controller.signal,
@@ -144,6 +196,98 @@ export function MaterialsExplorer({ initialSearch = {} }: { initialSearch?: Mate
     };
   }, [requestParams, revision]);
 
+  const personalCourseCodes = useMemo(
+    () => new Set((personalContext?.currentCourseCodes ?? []).map(normalizeMatch)),
+    [personalContext],
+  );
+  const personalCourseNames = useMemo(
+    () => new Set((personalContext?.currentCourseNames ?? []).map(normalizeMatch)),
+    [personalContext],
+  );
+  const planCourseCodes = useMemo(
+    () => new Set((personalContext?.planCourseCodes ?? []).map(normalizeMatch)),
+    [personalContext],
+  );
+  const planCourseNames = useMemo(
+    () => new Set((personalContext?.planCourseNames ?? []).map(normalizeMatch)),
+    [personalContext],
+  );
+  const materialRelation = useCallback((material: Material) => {
+    const codes = material.courseIds.map(normalizeMatch);
+    const title = normalizeMatch(material.courseTitle);
+    if (
+      codes.some((code) => personalCourseCodes.has(code)) ||
+      personalCourseNames.has(title)
+    ) {
+      return "current" as const;
+    }
+    if (
+      codes.some((code) => planCourseCodes.has(code)) ||
+      planCourseNames.has(title)
+    ) {
+      return "plan" as const;
+    }
+    return "other" as const;
+  }, [personalCourseCodes, personalCourseNames, planCourseCodes, planCourseNames]);
+  const rankedItems = useMemo(() => {
+    const items = result?.items ?? [];
+    if (ranking === "all") return items;
+    const needle = normalizeMatch(query);
+    const matchesFilters = (material: Material) => {
+      const searchText = normalizeMatch([
+        material.name,
+        material.courseTitle,
+        ...material.courseIds,
+        ...material.teachers,
+        ...material.tags,
+        material.category,
+        material.kind,
+        material.extension,
+      ].join(" "));
+      const equals = (left: string, right: string) =>
+        normalizeMatch(left) === normalizeMatch(right);
+      return (
+        (!needle || searchText.includes(needle)) &&
+        (!course || equals(material.courseTitle, course) || material.courseIds.some((id) => equals(id, course))) &&
+        (!teacher || material.teachers.some((name) => equals(name, teacher))) &&
+        (!type || equals(material.kind, type)) &&
+        (!tag || material.tags.some((item) => equals(item, tag))) &&
+        (!term || material.terms.some((item) => equals(item, term))) &&
+        (!year || material.years.includes(Number(year)))
+      );
+    };
+    const personalItems = (personalCatalog ?? []).filter(
+      (material) => materialRelation(material) !== "other" && matchesFilters(material),
+    );
+    const sourceItems = [...personalItems, ...items].filter(
+      (material, index, all) => all.findIndex((item) => item.id === material.id) === index,
+    );
+    const relevance = (material: Material) => {
+      if (!needle) return 0;
+      const name = normalizeMatch(material.name);
+      const courseTitle = normalizeMatch(material.courseTitle);
+      if (name === needle || courseTitle === needle) return 4;
+      if (name.startsWith(needle) || courseTitle.startsWith(needle)) return 3;
+      if (name.includes(needle) || courseTitle.includes(needle)) return 2;
+      return 1;
+    };
+    return sourceItems
+      .map((material, index) => ({ material, index }))
+      .sort((left, right) => {
+        const textOrder = relevance(right.material) - relevance(left.material);
+        if (textOrder) return textOrder;
+        const relationScore = (material: Material) => {
+          const relation = materialRelation(material);
+          return relation === "current" ? 2 : relation === "plan" ? 1 : 0;
+        };
+        const personalOrder =
+          relationScore(right.material) - relationScore(left.material);
+        return personalOrder || left.index - right.index;
+      })
+      .map(({ material }) => material)
+      .slice(0, items.length);
+  }, [course, materialRelation, personalCatalog, query, ranking, result, tag, teacher, term, type, year]);
+
   function clearFilters() {
     setQuery("");
     setCourse("");
@@ -155,11 +299,40 @@ export function MaterialsExplorer({ initialSearch = {} }: { initialSearch?: Mate
     inputRef.current?.focus();
   }
 
+  async function loadMore() {
+    if (!result?.hasMore || loadingMore) return;
+    setLoadingMore(true);
+    setLoadMoreError(false);
+    try {
+      const params = new URLSearchParams(requestParams);
+      params.set("offset", String(result.items.length));
+      const response = await fetch(`/api/materials?${params}`, {
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) throw new Error("materials_unavailable");
+      const payload = (await response.json()) as SearchResponse;
+      setResult((current) => current
+        ? { ...payload, items: [...current.items, ...payload.items] }
+        : payload);
+    } catch {
+      setLoadMoreError(true);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
   const hasFilters = Boolean(query || course || teacher || type || tag || term || year);
+  const hasPersonalRanking = Boolean(
+    personalContext &&
+      (personalContext.currentCourseCodes.length ||
+        personalContext.currentCourseNames.length ||
+        personalContext.planCourseCodes.length ||
+        personalContext.planCourseNames.length),
+  );
   const filters = result?.filters ?? emptyFilters;
 
   function handleSearchKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    const count = result?.items.length ?? 0;
+    const count = rankedItems.length;
     if (event.key === "ArrowDown" && count) {
       event.preventDefault();
       const next = activeIndex >= 0 ? activeIndex : 0;
@@ -183,7 +356,7 @@ export function MaterialsExplorer({ initialSearch = {} }: { initialSearch?: Mate
     index: number,
     event: React.KeyboardEvent<HTMLAnchorElement>,
   ) {
-    const count = result?.items.length ?? 0;
+    const count = rankedItems.length;
     if (!count) return;
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
@@ -218,8 +391,8 @@ export function MaterialsExplorer({ initialSearch = {} }: { initialSearch?: Mate
         </div>
         <div className={styles.heroCopy}>
           <span>东财课程资料档案</span>
-          <h1 id="materials-title">按课程、教师或文件名找资料。</h1>
-          <p>搜索结果可以直接查看详情、预览或下载。</p>
+          <h1 id="materials-title">按课程、教师或文件名找资料</h1>
+          <p>支持预览与下载。</p>
         </div>
         <label className={styles.searchField}>
           <span>搜索档案</span>
@@ -275,7 +448,7 @@ export function MaterialsExplorer({ initialSearch = {} }: { initialSearch?: Mate
               </select>
             </FormField>
           </div>
-          <p>方向键浏览结果，Enter 打开，Escape 清空。手机上可直接触摸操作。</p>
+          <p>↑↓ 浏览，Enter 打开，Esc 清空。</p>
         </aside>
 
         <div className={styles.resultsPanel}>
@@ -286,20 +459,37 @@ export function MaterialsExplorer({ initialSearch = {} }: { initialSearch?: Mate
                 {status === "loading" ? "正在检索…" : `${result?.total ?? 0} 份结果`}
               </strong>
             </div>
-            <i aria-hidden="true">{hasFilters ? "SEARCH / ACTIVE" : "OPEN / SHELF"}</i>
+            {hasPersonalRanking ? (
+              <div className={styles.rankSwitch} aria-label="资料排序">
+                <button
+                  aria-pressed={ranking === "personal"}
+                  onClick={() => setRanking("personal")}
+                >
+                  与我相关
+                </button>
+                <button
+                  aria-pressed={ranking === "all"}
+                  onClick={() => setRanking("all")}
+                >
+                  全站排序
+                </button>
+              </div>
+            ) : (
+              <i aria-hidden="true">{hasFilters ? "SEARCH / ACTIVE" : "OPEN / SHELF"}</i>
+            )}
           </header>
 
           {status === "loading" && (
             <div className={styles.loading} role="status" aria-live="polite">
               {[0, 1, 2, 3].map((item) => <i key={item} />)}
-              <span>正在翻检档案</span>
+              <span>正在搜索</span>
             </div>
           )}
 
           {status === "error" && (
             <div className={styles.stateCard} role="alert">
-              <b>资料索引暂时没有回应</b>
-              <p>文件本身没有被改动。检查网络后，可以从这里重新连接。</p>
+              <b>资料暂时无法加载</b>
+              <p>检查网络后重试。</p>
               <button onClick={() => setRevision((value) => value + 1)}>重新加载</button>
             </div>
           )}
@@ -307,55 +497,72 @@ export function MaterialsExplorer({ initialSearch = {} }: { initialSearch?: Mate
           {status === "ready" && result?.items.length === 0 && (
             <div className={styles.stateCard}>
               <b>这一组条件下没有资料</b>
-              <p>可以去掉一个筛选，或改用课程简称、教师姓名和文件类型。</p>
+              <p>清空筛选或换个关键词。</p>
               <button onClick={clearFilters}>回到全部资料</button>
             </div>
           )}
 
           {status === "ready" && Boolean(result?.items.length) && (
             <div className={styles.results} id="material-results" role="list" aria-label="资料搜索结果">
-              {result?.items.map((material, index) => (
-                <article
-                  key={material.id}
-                  className={activeIndex === index ? styles.active : ""}
-                  role="listitem"
-                >
-                  <div className={styles.fileMark} aria-hidden="true">
-                    <span>{String(index + 1).padStart(2, "0")}</span>
-                    <b>{material.extension.replace(".", "").slice(0, 4).toUpperCase()}</b>
-                  </div>
-                  <div className={styles.resultCopy}>
-                    <p>
-                      <span>{material.courseTitle}</span>
-                      <i>{material.kind}</i>
-                      <i>{formatFileSize(material.sizeBytes)}</i>
-                    </p>
-                    <Link
-                      ref={(node) => { resultRefs.current[index] = node; }}
-                      id={`material-result-${index}`}
-                      href={`/materials/${encodeURIComponent(material.id)}`}
-                      onFocus={() => setActiveIndex(index)}
-                      onKeyDown={(event) => handleResultKeyDown(index, event)}
-                    >
-                      {material.name}
-                    </Link>
-                    <small>
-                      {material.teachers.length ? material.teachers.join(" / ") : "教师未标注"}
-                      {material.description ? ` · ${material.description}` : ""}
-                      {` · ${formatCatalogDate(material.catalogedAt)}`}
-                    </small>
-                  </div>
-                  <div className={styles.quickActions}>
-                    {material.previewable && <a href={material.previewUrl} target="_blank" rel="noreferrer">预览</a>}
-                    <a href={material.downloadUrl} download>下载</a>
-                  </div>
-                </article>
-              ))}
+              {rankedItems.map((material, index) => {
+                const relation = materialRelation(material);
+                return (
+                  <article
+                    key={material.id}
+                    className={activeIndex === index ? styles.active : ""}
+                    role="listitem"
+                  >
+                    <div className={styles.fileMark} aria-hidden="true">
+                      <span>{String(index + 1).padStart(2, "0")}</span>
+                      <b>{material.extension.replace(".", "").slice(0, 4).toUpperCase()}</b>
+                    </div>
+                    <div className={styles.resultCopy}>
+                      <p>
+                        <span>{material.courseTitle}</span>
+                        {relation !== "other" && (
+                          <i className={styles.personalTag}>
+                            {relation === "current" ? "本学期" : "培养方案"}
+                          </i>
+                        )}
+                        <i>{material.kind}</i>
+                        <i>{formatFileSize(material.sizeBytes)}</i>
+                      </p>
+                      <Link
+                        ref={(node) => { resultRefs.current[index] = node; }}
+                        id={`material-result-${index}`}
+                        href={`/materials/${encodeURIComponent(material.id)}`}
+                        onFocus={() => setActiveIndex(index)}
+                        onKeyDown={(event) => handleResultKeyDown(index, event)}
+                      >
+                        {material.name}
+                      </Link>
+                      <small>
+                        {material.teachers.length ? material.teachers.join(" / ") : "教师未标注"}
+                        {material.description ? ` · ${material.description}` : ""}
+                        {` · ${formatCatalogDate(material.catalogedAt)}`}
+                      </small>
+                    </div>
+                    <div className={styles.quickActions}>
+                      {material.previewable && <a href={material.previewUrl} target="_blank" rel="noreferrer">预览</a>}
+                      <a href={material.downloadUrl} download>下载</a>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           )}
 
           {status === "ready" && result?.hasMore && (
-            <p className={styles.moreNote}>先展示最相关的 36 份资料，继续补充关键词可以更快找到目标。</p>
+            <div className={styles.loadMoreArea}>
+              {loadMoreError && <p role="alert">暂时无法继续加载。</p>}
+              <button
+                className={styles.loadMore}
+                disabled={loadingMore}
+                onClick={() => void loadMore()}
+              >
+                {loadingMore ? "正在继续读取" : loadMoreError ? "重试" : "继续查看"}
+              </button>
+            </div>
           )}
         </div>
       </section>

@@ -18,7 +18,7 @@ try {
       activePlanId: 'default', activities: [], assignments: [], academicSnapshots: [], favoriteRooms: [], recentRooms: [],
     })));
     await page.goto(base);
-    const setup = page.getByRole('button', { name: '设置我的课表', exact: true });
+    const setup = page.getByRole('button', { name: '设置本学期课程', exact: true });
     await setup.waitFor();
     assert.equal(await setup.count(), 1);
     assert.ok((await setup.boundingBox()).y < 750, 'primary action should not be below the first screen');
@@ -27,24 +27,19 @@ try {
     assert.equal(await page.locator('.agenda-glance').count(), 0, 'do not repeat an empty daily agenda');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     await setup.click();
-    await page.getByRole('button', { name: '暂时跳过', exact: true }).waitFor();
-    await page.getByRole('button', { name: '暂时跳过', exact: true }).click();
+    await page.locator('.catalog-page-v2').waitFor();
     await page.goto(`${base}/?view=rooms`);
     await page.locator('.floor-rooms-v5 button').first().click();
-    await page.getByRole('link', { name: '查看这一周的课表 ↓' }).click();
     const schedule = page.locator('#room-week-schedule');
-    await schedule.getByRole('group', { name: '按星期查看课程' }).waitFor();
-    assert.equal(await schedule.locator('h4').count(), 1, 'start with one day, not a seven-day wall');
-    const [building, room] = (await schedule.locator('h3').innerText()).split(' ');
+    await schedule.getByRole('region', { name: /全部课程/ }).waitFor();
+    const [building, room] = (await schedule.locator('h2').innerText()).split(' ');
     const expected = catalogue.schedules.filter(item => item.term === 'fall' && item.building === building && item.room === room && item.weeks.includes(3));
-    await schedule.getByRole('button', { name: /^周一，/ }).click();
-    assert.equal(await schedule.locator('li').count(), expected.filter(item => item.weekday === 1).length);
-    await schedule.getByRole('button', { name: '显示整周', exact: true }).click();
-    assert.equal(await schedule.locator('h4').count(), 7);
-    assert.equal(await schedule.locator('li').count(), expected.length);
+    assert.equal(await schedule.getByRole('columnheader').count(), 8);
+    assert.equal(await schedule.locator('article').count(), expected.length);
+    assert.equal(await page.getByRole('link', { name: '查看这一周的课表 ↓' }).count(), 0);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     assert.deepEqual(errors, []);
-    console.log(JSON.stringify({ width, primaryAction: true, dayAndWeekSwitch: true, lessons: expected.length, noOverflow: true }));
+    console.log(JSON.stringify({ width, primaryAction: true, directWeekView: true, lessons: expected.length, noOverflow: true }));
     await page.close();
   }
 } finally { await browser.close(); }

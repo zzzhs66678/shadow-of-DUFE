@@ -31,7 +31,7 @@ export default function Home() {
         <nav aria-label="快捷入口">
           <Link href="/?view=schedule">我的课表</Link>
           <Link href="/?view=rooms">空教室</Link>
-          <Link href="/?view=catalog">学习档案</Link>
+          <Link href="/?view=catalog">课程</Link>
           <Link href="/teachers">教师档案</Link>
           <Link href="/materials">课程资料</Link>
         </nav>

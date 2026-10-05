@@ -329,7 +329,7 @@ export function CommunityTopicView({ topicId }: { topicId: string }) {
       )}
 
       <section className={styles.discussion} id="discussion" aria-labelledby="discussion-title">
-        <header><span>讨论线</span><h2 id="discussion-title">回复与补充</h2><p>回复只展开一层。继续回复时，系统会保留你真正回应的人。</p></header>
+        <header><span>讨论线</span><h2 id="discussion-title">回复与补充</h2><p>回复只展开一层，并标明正在回复的人。</p></header>
         <Feedback message={feedback} />
 
         {session?.authenticated ? (

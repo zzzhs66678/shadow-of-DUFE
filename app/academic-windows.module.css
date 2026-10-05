@@ -14,6 +14,122 @@
   position: relative;
 }
 
+.examRail {
+  align-items: center;
+  background: var(--journal-red-deep, #8f1f1b);
+  color: #fff;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto minmax(120px, auto) minmax(0, 1fr) auto;
+  margin: 0 auto;
+  max-width: 1240px;
+  min-height: 50px;
+  padding: 8px 18px;
+  width: calc(100% - 32px);
+}
+
+.examRail > span {
+  border: 1px solid rgba(255, 255, 255, .6);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  padding: 5px 8px;
+}
+
+.examRail strong {
+  font-size: 14px;
+}
+
+.examRail p {
+  font-size: 11px;
+  margin: 0;
+  opacity: .86;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.examRail button,
+.meExamSummary button {
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  min-height: 36px;
+  padding: 0 14px;
+}
+
+.examRail button:hover,
+.examRail button:focus-visible {
+  background: #fff;
+  color: var(--journal-red-deep, #8f1f1b);
+}
+
+.meExamSummary {
+  align-items: center;
+  background: var(--journal-red-deep, #8f1f1b);
+  color: #fff;
+  display: grid;
+  gap: 22px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin: 20px 0;
+  padding: 20px 22px;
+}
+
+.meExamSummary span {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+
+.meExamSummary strong {
+  display: block;
+  font-size: 19px;
+  margin-top: 6px;
+}
+
+.meExamSummary p {
+  font-size: 12px;
+  margin: 6px 0 0;
+  opacity: .85;
+}
+
+.meExamSummary button:hover,
+.meExamSummary button:focus-visible {
+  background: #fff;
+  color: var(--journal-red-deep, #8f1f1b);
+}
+
+@media (max-width: 680px) {
+  .examRail {
+    gap: 5px 10px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    width: 100%;
+  }
+
+  .examRail p {
+    grid-column: 2 / -1;
+    white-space: normal;
+  }
+
+  .examRail button {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .meExamSummary {
+    align-items: start;
+    grid-template-columns: 1fr;
+  }
+
+  .meExamSummary button {
+    justify-self: start;
+  }
+}
+
 .planWindow::before,
 .planWindowEmpty::before {
   background: var(--academic-red);
