@@ -171,6 +171,58 @@ test("expired academic transactions return to a fresh login form", async ({
   await expect(page.getByLabel("教务密码")).toHaveValue("");
 });
 
+test("verified timetable and exams remain visible when the training plan alone fails", async ({
+  page,
+}) => {
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await page.route("**/api/auth/session", (route) =>
+    route.fulfill({ json: { authenticated: false } }),
+  );
+  await page.route("**/api/auth/academic/connect", async (route) => {
+    expect(route.request().postDataJSON()).toEqual({
+      username: "20260001",
+      password: "school-password",
+    });
+    await route.fulfill({
+      json: {
+        status: "partial_imported",
+        snapshot,
+        trainingPlan: null,
+        warning: "academic_plan_format_changed",
+      },
+    });
+  });
+
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page
+    .getByRole("button", { name: "从教务导入", exact: true })
+    .click();
+  await page.getByLabel("教务账号").fill("20260001");
+  await page.getByLabel("教务密码").fill("school-password");
+  await page.getByRole("button", { name: "登录并自动导入" }).click();
+
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("status")).toContainText(
+    "已导入 1 门课、1 项考试；培养方案本次未更新",
+  );
+  await expect(page.locator(".academic-sync-band p")).toContainText(
+    "已导入 1 门课、2 个上课时段、1 项考试",
+  );
+  await expect(page.getByRole("region", { name: "最近考试" })).toContainText(
+    "内部审计",
+  );
+
+  await page
+    .getByRole("button", { name: "我的课表", exact: true })
+    .click();
+  await expect(page.locator(".academic-schedule-card")).toHaveCount(2);
+  await expect(page.locator(".academic-exam-list article")).toHaveCount(1);
+  await expect(page.getByText("导入后可按本学期、待选和已修课程筛选")).toBeVisible();
+  await expect(page.getByTestId("training-plan-window")).toHaveCount(0);
+  expect(pageErrors).toEqual([]);
+});
+
 test("official timetable and exams import through SMS and school verification", async ({
   page,
 }) => {

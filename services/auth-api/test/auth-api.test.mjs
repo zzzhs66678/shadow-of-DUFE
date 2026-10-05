@@ -710,6 +710,81 @@ test("academic parser diagnostics log only allowlisted anonymous structure", asy
   assert.equal("courseName" in diagnostic, false);
 });
 
+test("academic routes return verified timetable data when only the plan import fails", async () => {
+  const warnings = [];
+  const originalWarn = console.warn;
+  console.warn = (...values) => warnings.push(values.join(" "));
+  const partialSnapshot = {
+    schemaVersion: 1,
+    id: "2026-2027-fall",
+    academicYear: "2026-2027",
+    term: "fall",
+    termLabel: "第一学期",
+    importedAt: "2026-10-05T03:00:00.000Z",
+    sections: [{ id: "academic-section:test", meetings: [] }],
+    exams: [{ id: "academic-exam:test" }],
+  };
+  const academicConnector = {
+    async start() {
+      const planError = new Error("private upstream response");
+      planError.code = "ACADEMIC_PLAN_FORMAT_CHANGED";
+      planError.stage = "plan_parse";
+      planError.diagnostic = {
+        parseReason: "plan_course_credit_value_invalid",
+        courseIndex: 379,
+        raw: "private course label",
+      };
+      return {
+        status: "partial_imported",
+        snapshot: partialSnapshot,
+        trainingPlan: null,
+        warning: "academic_plan_format_changed",
+        planError,
+      };
+    },
+  };
+
+  try {
+    await withServer(
+      async ({ baseUrl }) => {
+        const response = await fetch(`${baseUrl}/api/auth/academic/connect`, {
+          method: "POST",
+          headers: {
+            Origin: "https://dufesh.cn",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            username: "20260001",
+            password: "school-password",
+          }),
+        });
+        assert.equal(response.status, 200);
+        assert.deepEqual(await response.json(), {
+          status: "partial_imported",
+          snapshot: partialSnapshot,
+          trainingPlan: null,
+          warning: "academic_plan_format_changed",
+        });
+      },
+      {
+        config: { academicImportEnabled: true },
+        academicConnector,
+      },
+    );
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  assert.equal(warnings.length, 1);
+  const diagnostic = JSON.parse(warnings[0]);
+  assert.equal(diagnostic.event, "academic_import_partial");
+  assert.equal(diagnostic.parseReason, "plan_course_credit_value_invalid");
+  assert.equal(diagnostic.courseIndex, 379);
+  assert.equal(diagnostic.sections, 1);
+  assert.equal(diagnostic.exams, 1);
+  assert.equal("raw" in diagnostic, false);
+});
+
 test("token buckets refill, reject bursts, and keep their key set bounded", () => {
   const limiter = createTokenBucket({
     capacity: 2,

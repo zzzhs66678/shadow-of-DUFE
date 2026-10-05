@@ -2021,7 +2021,7 @@ function parsePlanCompletionCourse(node, courseIndex) {
   if (!match) {
     throw trainingPlanFormatError("plan_course_pattern_invalid", diagnostic);
   }
-  const credits = finiteNumber(match[3], { positive: true });
+  const credits = finiteNumber(match[3]);
   const displayedCode = match[1].replace(/\s+/gu, "").trim();
   const nodeCode = textValue(node, [
     "flagId",
@@ -2038,8 +2038,11 @@ function parsePlanCompletionCourse(node, courseIndex) {
       displayedCodeLength: displayedCode.length,
     });
   }
-  if (credits === null || credits > 100 || creditLabel !== "学分") {
-    throw trainingPlanFormatError("plan_course_credit_invalid", diagnostic);
+  if (credits === null || credits > 50) {
+    throw trainingPlanFormatError("plan_course_credit_value_invalid", diagnostic);
+  }
+  if (creditLabel !== "学分") {
+    throw trainingPlanFormatError("plan_course_credit_unit_invalid", diagnostic);
   }
   if (
     !courseCode ||
@@ -2342,6 +2345,7 @@ export function createAcademicConnector({
     if (transaction) {
       transaction.password = "";
       transaction.sso = null;
+      transaction.partialSnapshot = null;
     }
     transactions.delete(id);
   }
@@ -2363,6 +2367,7 @@ export function createAcademicConnector({
       fingerprint: randomBytes(16).toString("hex"),
       authenticated: false,
       sso: null,
+      partialSnapshot: null,
       expiresAt: now() + transactionTtlMs,
       ...details,
     };
@@ -2584,6 +2589,15 @@ export function createAcademicConnector({
     const exams = await atStage("exam_parse", () =>
       parseExamHtml(examHtml, timetable.term),
     );
+    const importedAt = new Date(now()).toISOString();
+    const snapshot = {
+      schemaVersion: 1,
+      ...timetable.term,
+      importedAt,
+      sections: timetable.sections,
+      exams,
+    };
+    transaction.partialSnapshot = snapshot;
     const profileUrl = new URL(
       "/student/rollManagement/rollInfo/index",
       academic,
@@ -2661,7 +2675,6 @@ export function createAcademicConnector({
         completionHtml,
       );
     }
-    const importedAt = new Date(now()).toISOString();
     const trainingPlan = await atStage("plan_parse", () =>
       parseTrainingPlanCompletionHtml(
         completionHtml,
@@ -2672,13 +2685,7 @@ export function createAcademicConnector({
     );
     return {
       status: "imported",
-      snapshot: {
-        schemaVersion: 1,
-        ...timetable.term,
-        importedAt,
-        sections: timetable.sections,
-        exams,
-      },
+      snapshot,
       trainingPlan,
     };
   }
@@ -2689,6 +2696,25 @@ export function createAcademicConnector({
       if (result.status === "imported") destroyTransaction(transactionId);
       return result;
     } catch (error) {
+      if (
+        transaction.partialSnapshot &&
+        ["ACADEMIC_PLAN_FORMAT_CHANGED", "ACADEMIC_PLAN_NOT_FOUND"].includes(
+          error?.code,
+        )
+      ) {
+        const result = {
+          status: "partial_imported",
+          snapshot: transaction.partialSnapshot,
+          trainingPlan: null,
+          warning:
+            error.code === "ACADEMIC_PLAN_NOT_FOUND"
+              ? "academic_plan_not_found"
+              : "academic_plan_format_changed",
+          planError: error,
+        };
+        destroyTransaction(transactionId);
+        return result;
+      }
       if (error && typeof error === "object") error.retryable = true;
       throw error;
     }

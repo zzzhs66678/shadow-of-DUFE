@@ -579,6 +579,16 @@ test("training plan completion parser rejects a non-credit unit", () => {
   );
 });
 
+test("training plan completion parser preserves real zero-credit courses", () => {
+  const plan = parseTrainingPlanCompletionHtml(
+    planCompletionHtml.replace("[2学分,", "[0学分,"),
+    planDetailPayload,
+    parseTrainingPlanProfile(planProfileHtml),
+    "2026-10-05T03:00:00.000Z",
+  );
+  assert.equal(plan.courses[0].credits, 0);
+});
+
 test("training plan completion parser treats zero as a real category id when present", () => {
   const html = `<!doctype html><html><body><script>
     var zNodes = ${JSON.stringify([
@@ -773,7 +783,7 @@ function response(body, { status = 200, headers = {} } = {}) {
   return new Response(body, { status, headers });
 }
 
-function trainingPlanResponse(url) {
+function trainingPlanResponse(url, completionHtml = planCompletionHtml) {
   if (url.pathname === "/student/rollManagement/rollInfo/index") {
     return response(planProfileHtml);
   }
@@ -783,7 +793,7 @@ function trainingPlanResponse(url) {
     });
   }
   if (url.pathname === "/student/integratedQuery/planCompletion/index") {
-    return response(planCompletionHtml);
+    return response(completionHtml);
   }
   if (url.pathname === "/plan/category/A") {
     return response(JSON.stringify(planCategoryPayloads.get("A")));
@@ -846,6 +856,53 @@ test("connector performs encrypted login and imports both official pages", async
   assert.equal(result.trainingPlan.courses.length, 2);
   assert.equal(result.snapshot.importedAt, "2026-09-28T01:02:03.000Z");
   assert.equal(requests.length, 9);
+});
+
+test("connector keeps verified timetable and exams when only the plan is invalid", async () => {
+  const challenge = rsaChallengeXml();
+  const fetchImpl = async (url) => {
+    const parsed = new URL(url);
+    if (parsed.pathname === "/por/login_auth.csp") {
+      return response(challenge, { headers: { "set-cookie": "TWFID=abc; Path=/" } });
+    }
+    if (parsed.pathname === "/public/psw_config") return response(challenge);
+    if (parsed.pathname === "/por/login_psw.csp") {
+      return response("<Auth><ErrorCode>1</ErrorCode></Auth>", {
+        headers: { "set-cookie": "SVPNCOOKIE=session; Path=/" },
+      });
+    }
+    if (parsed.pathname === "/student/courseSelect/thisSemesterCurriculum/index") {
+      return response(timetableShellHtml);
+    }
+    if (parsed.pathname.includes("ajaxStudentSchedule")) {
+      return response(JSON.stringify(timetablePayload), {
+        headers: { "content-type": "application/json; charset=utf-8" },
+      });
+    }
+    if (parsed.pathname.includes("examPlan")) return response(examHtml);
+    const plan = trainingPlanResponse(
+      parsed,
+      planCompletionHtml.replace("[31131862]内部审计[2学分,", "内部审计[2学分,"),
+    );
+    if (plan) return plan;
+    throw new Error(`unexpected request: ${parsed}`);
+  };
+  const connector = createAcademicConnector({
+    fetchImpl,
+    now: () => Date.parse("2026-09-28T01:02:03.000Z"),
+  });
+  const result = await connector.start({
+    username: "20260001",
+    password: "test-password",
+    principalKey: "device:test",
+  });
+  assert.equal(result.status, "partial_imported");
+  assert.equal(result.snapshot.sections.length, 2);
+  assert.equal(result.snapshot.exams.length, 1);
+  assert.equal(result.trainingPlan, null);
+  assert.equal(result.warning, "academic_plan_format_changed");
+  assert.equal(result.planError.diagnostic.parseReason, "plan_course_pattern_invalid");
+  assert.equal(connector.pendingCount(), 0);
 });
 
 test("connector uses the official single-bound-phone SMS endpoints", async () => {

@@ -1206,9 +1206,10 @@ function HubApp({ data: initialData }: { data: SiteData }) {
 
   function applyAcademicImport(result: {
     snapshot: AcademicSnapshot;
-    trainingPlan: AcademicTrainingPlan;
+    trainingPlan: AcademicTrainingPlan | null;
+    warning?: "academic_plan_not_found" | "academic_plan_format_changed";
   }) {
-    const { snapshot, trainingPlan } = result;
+    const { snapshot, trainingPlan, warning } = result;
     setSaved((state) => ({
       ...state,
       academicSnapshots: [
@@ -1219,12 +1220,14 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           left.academicYear.localeCompare(right.academicYear),
         )
         .slice(-12),
-      trainingPlan,
+      trainingPlan: trainingPlan ?? state.trainingPlan,
     }));
     setTerm(snapshot.term);
     setAcademicImportOpen(false);
     setAddFeedback(
-      `${snapshot.academicYear} ${snapshot.termLabel}：${snapshot.sections.length} 门课、${snapshot.exams.length} 项考试、培养方案 ${trainingPlan.courses.length} 门课程`,
+      trainingPlan
+        ? `${snapshot.academicYear} ${snapshot.termLabel}：${snapshot.sections.length} 门课、${snapshot.exams.length} 项考试、培养方案 ${trainingPlan.courses.length} 门课程`
+        : `${snapshot.academicYear} ${snapshot.termLabel}：已导入 ${snapshot.sections.length} 门课、${snapshot.exams.length} 项考试；${warning === "academic_plan_not_found" ? "当前账号没有可读取的培养方案" : "培养方案本次未更新"}`,
     );
     window.setTimeout(() => setAddFeedback(""), 4_500);
   }
@@ -3085,7 +3088,8 @@ function AcademicImportDialog({
   onClose: () => void;
   onImported: (result: {
     snapshot: AcademicSnapshot;
-    trainingPlan: AcademicTrainingPlan;
+    trainingPlan: AcademicTrainingPlan | null;
+    warning?: "academic_plan_not_found" | "academic_plan_format_changed";
   }) => void;
 }) {
   const [username, setUsername] = useState("");
@@ -3145,6 +3149,12 @@ function AcademicImportDialog({
             status: "imported";
             snapshot: AcademicSnapshot;
             trainingPlan: AcademicTrainingPlan;
+          }
+        | {
+            status: "partial_imported";
+            snapshot: AcademicSnapshot;
+            trainingPlan: null;
+            warning: "academic_plan_not_found" | "academic_plan_format_changed";
           }
         | { error: string; retryable?: boolean; stage?: string };
       if (!response.ok || "error" in result) {
@@ -3216,6 +3226,14 @@ function AcademicImportDialog({
         setFeedback(
           result.verificationFailed ? "位置没有对齐，请再试一次。" : "",
         );
+        return;
+      }
+      if (result.status === "partial_imported") {
+        onImported({
+          snapshot: result.snapshot,
+          trainingPlan: null,
+          warning: result.warning,
+        });
         return;
       }
       onImported({

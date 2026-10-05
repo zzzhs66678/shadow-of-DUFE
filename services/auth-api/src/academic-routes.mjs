@@ -180,6 +180,8 @@ const SAFE_PARSE_REASONS = new Set([
   "plan_course_pattern_invalid",
   "plan_course_code_mismatch",
   "plan_course_credit_invalid",
+  "plan_course_credit_value_invalid",
+  "plan_course_credit_unit_invalid",
   "plan_course_fields_invalid",
   "plan_courses_missing",
   "plan_courses_too_many",
@@ -397,6 +399,36 @@ export function createAcademicRequestHandler({
         });
       } else {
         sendJson(response, 404, { error: "not_found" });
+        return true;
+      }
+      if (result?.status === "partial_imported") {
+        const planError = result.planError;
+        console.warn(
+          JSON.stringify({
+            event: "academic_import_partial",
+            action: url.pathname.split("/").at(-1) || "unknown",
+            code: planError?.code,
+            stage: safeDiagnosticStage(planError),
+            ...safeDiagnosticDetails(planError),
+            sections: Array.isArray(result.snapshot?.sections)
+              ? result.snapshot.sections.length
+              : 0,
+            exams: Array.isArray(result.snapshot?.exams)
+              ? result.snapshot.exams.length
+              : 0,
+          }),
+        );
+        sendJson(
+          response,
+          200,
+          {
+            status: "partial_imported",
+            snapshot: result.snapshot,
+            trainingPlan: null,
+            warning: result.warning,
+          },
+          principal.setCookies,
+        );
         return true;
       }
       if (result?.status === "imported") {
