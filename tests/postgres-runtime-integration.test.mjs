@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
+import { readdir } from "node:fs/promises";
 import test from "node:test";
 
 import pg from "pg";
@@ -237,10 +238,18 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
     const version = await owner.query("SHOW server_version_num");
     assert.equal(Number(version.rows[0].server_version_num) >= 170000, true);
 
+    const expectedMigrations = (
+      await readdir(new URL("../ops/postgres/migrations/", import.meta.url))
+    )
+      .filter((name) => /^\d{4}_.+\.sql$/.test(name))
+      .sort();
     const migrations = await owner.query(
-      "SELECT count(*)::integer AS count FROM schema_migrations",
+      "SELECT version FROM schema_migrations ORDER BY version",
     );
-    assert.equal(migrations.rows[0].count, 21);
+    assert.deepEqual(
+      migrations.rows.map(({ version: migrationVersion }) => migrationVersion),
+      expectedMigrations,
+    );
 
     await denied(migrator, "SELECT * FROM app_users LIMIT 1");
     const migrationRole = await migrator.query(
