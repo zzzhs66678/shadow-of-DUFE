@@ -334,6 +334,13 @@ function academicSnapshot(value, index) {
     "id",
     `${name}.exams`,
   );
+  const examStatus =
+    input.examStatus === undefined
+      ? undefined
+      : string(input.examStatus, `${name}.examStatus`, 20, { empty: false });
+  if (examStatus !== undefined && !["unavailable", "stale"].includes(examStatus)) {
+    throw invalid(`${name}.examStatus is unsupported`);
+  }
   return {
     schemaVersion: 1,
     id: string(input.id, `${name}.id`, 64, { empty: false, id: true }),
@@ -345,6 +352,7 @@ function academicSnapshot(value, index) {
     importedAt: instant(input.importedAt, `${name}.importedAt`),
     sections,
     exams,
+    ...(examStatus ? { examStatus } : {}),
   };
 }
 

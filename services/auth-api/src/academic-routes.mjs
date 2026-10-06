@@ -171,6 +171,9 @@ const SAFE_PARSE_REASONS = new Set([
   "json_course_invalid",
   "json_meeting_invalid",
   "json_meetings_not_decoded",
+  "exam_cards_unreadable",
+  "exam_rows_unreadable",
+  "exam_structure_unknown",
   "plan_profile_invalid",
   "plan_json_invalid",
   "plan_tree_size_invalid",
@@ -189,13 +192,18 @@ const SAFE_PARSE_REASONS = new Set([
 ]);
 const SAFE_HEADER_MODES = new Set(["combined", "separated", "both"]);
 const SAFE_TIMETABLE_HEADERS = new Set([
-  "课程号", "课程代码", "课程编号", "课程名", "课程名称", "课序号",
-  "教学班号", "学分", "课程属性", "课程性质", "课程类别", "考试类型",
-  "考核方式", "教师", "任课教师", "修读方式", "选课状态", "时间",
+  "课程号", "课程代码", "课程编号", "课程编码", "课程", "考试课程",
+  "科目", "考试科目", "科目代码", "课程名", "课程名称", "课序号",
+  "教学班号", "教学班", "班号", "学分", "课程属性", "课程性质", "课程类别", "考试类型",
+  "考试类别", "考核方式", "考核类型", "教师", "任课教师", "修读方式", "选课状态", "时间",
   "上课时间", "地点", "上课地点", "周次", "上课周次", "起止周",
   "星期", "上课星期", "节次", "上课节次", "开始节次", "节数",
   "连上节数", "持续节数", "校区", "校区名称", "教学楼", "楼宇",
   "楼栋", "教室", "上课教室",
+  "考试日期", "日期", "考试日", "考试时间", "考试日期时间", "日期时间",
+  "考试场次", "考试地点", "考场", "考点", "考试教室", "考场教室",
+  "座位号", "座号", "座位", "座次", "准考证号", "考号", "考试号",
+  "考生号", "考试状态", "状态",
 ]);
 
 function safeDiagnosticCount(value, maximum = 10_000) {
@@ -255,6 +263,12 @@ function safeDiagnosticDetails(error) {
     diagnostic.bracketGroupCount,
     20,
   );
+  const widgetCount = safeDiagnosticCount(diagnostic.widgetCount, 1_000);
+  const widgetTitleCount = safeDiagnosticCount(
+    diagnostic.widgetTitleCount,
+    1_000,
+  );
+  const textLength = safeDiagnosticCount(diagnostic.textLength, 1_000_000);
   const tableShapes = safeDiagnosticList(
     diagnostic.tableShapes,
     (item) => /^\d{1,5}x\d{1,4}$/u.test(item),
@@ -287,6 +301,9 @@ function safeDiagnosticDetails(error) {
     ...(stableCodeLength !== undefined ? { stableCodeLength } : {}),
     ...(displayedCodeLength !== undefined ? { displayedCodeLength } : {}),
     ...(bracketGroupCount !== undefined ? { bracketGroupCount } : {}),
+    ...(widgetCount !== undefined ? { widgetCount } : {}),
+    ...(widgetTitleCount !== undefined ? { widgetTitleCount } : {}),
+    ...(textLength !== undefined ? { textLength } : {}),
     ...([
       "hasPlanNumber",
       "hasMajorName",
@@ -304,6 +321,8 @@ function safeDiagnosticDetails(error) {
       "hasFullwidthStatusWrapper",
       "hasCreditNumber",
       "hasCreditMarker",
+      "hasExamMarker",
+      "hasEmptyMarker",
     ].reduce(
       (details, key) =>
         typeof diagnostic[key] === "boolean"
@@ -402,30 +421,54 @@ export function createAcademicRequestHandler({
         return true;
       }
       if (result?.status === "partial_imported") {
-        const planError = result.planError;
-        console.warn(
-          JSON.stringify({
-            event: "academic_import_partial",
-            action: url.pathname.split("/").at(-1) || "unknown",
-            code: planError?.code,
-            stage: safeDiagnosticStage(planError),
-            ...safeDiagnosticDetails(planError),
-            sections: Array.isArray(result.snapshot?.sections)
-              ? result.snapshot.sections.length
-              : 0,
-            exams: Array.isArray(result.snapshot?.exams)
-              ? result.snapshot.exams.length
-              : 0,
-          }),
-        );
+        const warnings = [...new Set([
+          ...(Array.isArray(result.warnings) ? result.warnings : []),
+          result.warning,
+        ].filter((warning) => [
+          "academic_exam_format_changed",
+          "academic_exam_unavailable",
+          "academic_plan_not_found",
+          "academic_plan_format_changed",
+          "academic_plan_unavailable",
+        ].includes(warning)))];
+        const warning = warnings[0] ?? "academic_plan_format_changed";
+        for (const issue of warnings.length ? warnings : [warning]) {
+          const partialError = issue.startsWith("academic_exam_")
+            ? result.examError
+            : result.planError;
+          console.warn(
+            JSON.stringify({
+              event: "academic_import_partial",
+              action: url.pathname.split("/").at(-1) || "unknown",
+              warning: issue,
+              code: partialError?.code,
+              stage: safeDiagnosticStage(partialError),
+              ...safeDiagnosticDetails(partialError),
+              sections: Array.isArray(result.snapshot?.sections)
+                ? result.snapshot.sections.length
+                : 0,
+              exams: Array.isArray(result.snapshot?.exams)
+                ? result.snapshot.exams.length
+                : 0,
+              examStatus:
+                result.snapshot?.examStatus === "unavailable"
+                  ? "unavailable"
+                  : "complete",
+              planCourses: Array.isArray(result.trainingPlan?.courses)
+                ? result.trainingPlan.courses.length
+                : 0,
+            }),
+          );
+        }
         sendJson(
           response,
           200,
           {
             status: "partial_imported",
             snapshot: result.snapshot,
-            trainingPlan: null,
-            warning: result.warning,
+            trainingPlan: result.trainingPlan ?? null,
+            warning,
+            ...(warnings.length > 1 ? { warnings } : {}),
           },
           principal.setCookies,
         );

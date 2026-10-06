@@ -763,9 +763,74 @@ test("exam parser distinguishes an explicit empty result from an unknown page", 
     parseExamHtml("<html><body>暂无考试安排</body></html>", term),
     [],
   );
+  assert.deepEqual(
+    parseExamHtml(
+      "<html><head><title>校统排考试</title></head><body>本学期暂无校统排考试信息</body></html>",
+      term,
+    ),
+    [],
+  );
+  assert.deepEqual(
+    parseExamHtml(
+      '<html><body><h1>考试安排</h1><div class="dataTables_empty">无符合条件的记录</div></body></html>',
+      term,
+    ),
+    [],
+  );
+  assert.deepEqual(
+    parseExamHtml(
+      '<html><body><table><tr><td class="dataTables_empty">表中数据为空</td></tr></table></body></html>',
+      term,
+    ),
+    [],
+  );
   assert.throws(
     () => parseExamHtml("<html><body>登录状态失效</body></html>", term),
-    { code: "ACADEMIC_EXAM_FORMAT_CHANGED" },
+    (error) => {
+      assert.equal(error.code, "ACADEMIC_EXAM_FORMAT_CHANGED");
+      assert.equal(error.diagnostic.parseReason, "exam_structure_unknown");
+      assert.equal(error.diagnostic.hasExamMarker, false);
+      assert.equal(error.diagnostic.hasEmptyMarker, false);
+      return true;
+    },
+  );
+});
+
+test("exam parser accepts alternate course, date, place, seat, and number headers", () => {
+  const term = parseTimetableHtml(timetableHtml).term;
+  const exams = parseExamHtml(
+    `<!doctype html><html><body><table>
+      <tr><th>考试课程</th><th>考试日</th><th>考试场次</th><th>考点</th><th>座次</th><th>考生号</th></tr>
+      <tr><td>内部审计</td><td>2027/01/08</td><td>09:00-11:00</td><td>校本部 / 梅园 / 201</td><td>18</td><td>20260001</td></tr>
+    </table></body></html>`,
+    term,
+  );
+  assert.equal(exams.length, 1);
+  assert.equal(exams[0].courseName, "内部审计");
+  assert.equal(exams[0].date, "2027-01-08");
+  assert.equal(exams[0].startTime, "09:00");
+  assert.equal(exams[0].endTime, "11:00");
+  assert.equal(exams[0].room, "201");
+  assert.equal(exams[0].seat, "18");
+  assert.equal(exams[0].examNumber, "20260001");
+});
+
+test("exam parser does not turn an unreadable populated table into zero exams", () => {
+  const term = parseTimetableHtml(timetableHtml).term;
+  assert.throws(
+    () =>
+      parseExamHtml(
+        `<!doctype html><html><body><table>
+          <tr><th>考试课程</th><th>考试日</th><th>考点</th></tr>
+          <tr><td></td><td>2027-01-08</td><td>梅园 201</td></tr>
+        </table></body></html>`,
+        term,
+      ),
+    (error) => {
+      assert.equal(error.code, "ACADEMIC_EXAM_FORMAT_CHANGED");
+      assert.equal(error.diagnostic.parseReason, "exam_rows_unreadable");
+      return true;
+    },
   );
 });
 
@@ -902,6 +967,146 @@ test("connector keeps verified timetable and exams when only the plan is invalid
   assert.equal(result.trainingPlan, null);
   assert.equal(result.warning, "academic_plan_format_changed");
   assert.equal(result.planError.diagnostic.parseReason, "plan_course_pattern_invalid");
+  assert.equal(connector.pendingCount(), 0);
+});
+
+test("connector keeps timetable and training plan when the exam page is unknown", async () => {
+  const challenge = rsaChallengeXml();
+  const fetchImpl = async (url) => {
+    const parsed = new URL(url);
+    if (parsed.pathname === "/por/login_auth.csp") {
+      return response(challenge, { headers: { "set-cookie": "TWFID=abc; Path=/" } });
+    }
+    if (parsed.pathname === "/public/psw_config") return response(challenge);
+    if (parsed.pathname === "/por/login_psw.csp") {
+      return response("<Auth><ErrorCode>1</ErrorCode></Auth>", {
+        headers: { "set-cookie": "SVPNCOOKIE=session; Path=/" },
+      });
+    }
+    if (parsed.pathname === "/student/courseSelect/thisSemesterCurriculum/index") {
+      return response(timetableShellHtml);
+    }
+    if (parsed.pathname.includes("ajaxStudentSchedule")) {
+      return response(JSON.stringify(timetablePayload), {
+        headers: { "content-type": "application/json; charset=utf-8" },
+      });
+    }
+    if (parsed.pathname.includes("examPlan")) {
+      return response("<html><body><h1>校统排考试</h1><div>页面组件加载失败</div></body></html>");
+    }
+    const plan = trainingPlanResponse(parsed);
+    if (plan) return plan;
+    throw new Error(`unexpected request: ${parsed}`);
+  };
+  const connector = createAcademicConnector({
+    fetchImpl,
+    now: () => Date.parse("2026-09-28T01:02:03.000Z"),
+  });
+  const result = await connector.start({
+    username: "20260001",
+    password: "test-password",
+    principalKey: "device:test",
+  });
+  assert.equal(result.status, "partial_imported");
+  assert.equal(result.snapshot.sections.length, 2);
+  assert.equal(result.snapshot.exams.length, 0);
+  assert.equal(result.snapshot.examStatus, "unavailable");
+  assert.equal(result.trainingPlan.courses.length, 2);
+  assert.equal(result.warning, "academic_exam_format_changed");
+  assert.equal(result.examError.diagnostic.parseReason, "exam_structure_unknown");
+  assert.equal(connector.pendingCount(), 0);
+});
+
+test("connector keeps timetable when optional school services are unavailable", async () => {
+  const challenge = rsaChallengeXml();
+  const fetchImpl = async (url) => {
+    const parsed = new URL(url);
+    if (parsed.pathname === "/por/login_auth.csp") {
+      return response(challenge, { headers: { "set-cookie": "TWFID=abc; Path=/" } });
+    }
+    if (parsed.pathname === "/public/psw_config") return response(challenge);
+    if (parsed.pathname === "/por/login_psw.csp") {
+      return response("<Auth><ErrorCode>1</ErrorCode></Auth>", {
+        headers: { "set-cookie": "SVPNCOOKIE=session; Path=/" },
+      });
+    }
+    if (parsed.pathname === "/student/courseSelect/thisSemesterCurriculum/index") {
+      return response(timetableShellHtml);
+    }
+    if (parsed.pathname.includes("ajaxStudentSchedule")) {
+      return response(JSON.stringify(timetablePayload), {
+        headers: { "content-type": "application/json; charset=utf-8" },
+      });
+    }
+    if (parsed.pathname.includes("examPlan")) {
+      return response("service unavailable", { status: 503 });
+    }
+    if (parsed.pathname === "/student/rollManagement/rollInfo/index") {
+      return response("service unavailable", { status: 503 });
+    }
+    throw new Error(`unexpected request: ${parsed}`);
+  };
+  const connector = createAcademicConnector({
+    fetchImpl,
+    now: () => Date.parse("2026-09-28T01:02:03.000Z"),
+  });
+  const result = await connector.start({
+    username: "20260001",
+    password: "test-password",
+    principalKey: "device:test",
+  });
+  assert.equal(result.status, "partial_imported");
+  assert.equal(result.snapshot.sections.length, 2);
+  assert.equal(result.snapshot.exams.length, 0);
+  assert.equal(result.snapshot.examStatus, "unavailable");
+  assert.equal(result.trainingPlan, null);
+  assert.equal(result.warning, "academic_exam_unavailable");
+  assert.deepEqual(result.warnings, [
+    "academic_exam_unavailable",
+    "academic_plan_unavailable",
+  ]);
+  assert.equal(result.examError.code, "ACADEMIC_UPSTREAM_UNAVAILABLE");
+  assert.equal(result.examError.stage, "exam_fetch");
+  assert.equal(result.planError.code, "ACADEMIC_UPSTREAM_UNAVAILABLE");
+  assert.equal(result.planError.stage, "plan_fetch");
+  assert.equal(connector.pendingCount(), 0);
+});
+
+test("connector keeps verified exams when only the plan service is unavailable", async () => {
+  const challenge = rsaChallengeXml();
+  const fetchImpl = async (url) => {
+    const parsed = new URL(url);
+    if (parsed.pathname === "/por/login_auth.csp") {
+      return response(challenge, { headers: { "set-cookie": "TWFID=abc; Path=/" } });
+    }
+    if (parsed.pathname === "/public/psw_config") return response(challenge);
+    if (parsed.pathname === "/por/login_psw.csp") {
+      return response("<Auth><ErrorCode>1</ErrorCode></Auth>", {
+        headers: { "set-cookie": "SVPNCOOKIE=session; Path=/" },
+      });
+    }
+    if (parsed.pathname === "/student/courseSelect/thisSemesterCurriculum/index") {
+      return response(timetableHtml);
+    }
+    if (parsed.pathname.includes("examPlan")) return response(examHtml);
+    if (parsed.pathname === "/student/rollManagement/rollInfo/index") {
+      return response("service unavailable", { status: 503 });
+    }
+    throw new Error(`unexpected request: ${parsed}`);
+  };
+  const connector = createAcademicConnector({ fetchImpl });
+  const result = await connector.start({
+    username: "20260001",
+    password: "test-password",
+    principalKey: "device:test",
+  });
+  assert.equal(result.status, "partial_imported");
+  assert.equal(result.snapshot.sections.length, 2);
+  assert.equal(result.snapshot.exams.length, 1);
+  assert.equal(result.snapshot.examStatus, undefined);
+  assert.equal(result.trainingPlan, null);
+  assert.equal(result.warning, "academic_plan_unavailable");
+  assert.equal(result.planError.code, "ACADEMIC_UPSTREAM_UNAVAILABLE");
   assert.equal(connector.pendingCount(), 0);
 });
 

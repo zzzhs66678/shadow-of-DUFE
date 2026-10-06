@@ -785,6 +785,185 @@ test("academic routes return verified timetable data when only the plan import f
   assert.equal("raw" in diagnostic, false);
 });
 
+test("academic routes return timetable and plan when only the exam page is unknown", async () => {
+  const warnings = [];
+  const originalWarn = console.warn;
+  console.warn = (...values) => warnings.push(values.join(" "));
+  const partialSnapshot = {
+    schemaVersion: 1,
+    id: "2026-2027-fall",
+    academicYear: "2026-2027",
+    term: "fall",
+    termLabel: "第一学期",
+    importedAt: "2026-10-06T05:40:52.000Z",
+    sections: [{ id: "academic-section:test", meetings: [{ id: "meeting:test" }] }],
+    exams: [],
+    examStatus: "unavailable",
+  };
+  const trainingPlan = { courses: [{ courseCode: "test-course" }] };
+  const academicConnector = {
+    async start() {
+      const examError = new Error("private upstream response");
+      examError.code = "ACADEMIC_EXAM_FORMAT_CHANGED";
+      examError.stage = "exam_parse";
+      examError.diagnostic = {
+        parseReason: "exam_structure_unknown",
+        tableCount: 2,
+        tableShapes: ["3x4", "1x1"],
+        knownHeaders: ["考试时间", "考场"],
+        widgetCount: 1,
+        widgetTitleCount: 0,
+        textLength: 245,
+        hasExamMarker: true,
+        hasEmptyMarker: false,
+        raw: "private exam page",
+      };
+      return {
+        status: "partial_imported",
+        snapshot: partialSnapshot,
+        trainingPlan,
+        warning: "academic_exam_format_changed",
+        examError,
+      };
+    },
+  };
+
+  try {
+    await withServer(
+      async ({ baseUrl }) => {
+        const response = await fetch(`${baseUrl}/api/auth/academic/connect`, {
+          method: "POST",
+          headers: {
+            Origin: "https://dufesh.cn",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            username: "20260001",
+            password: "school-password",
+          }),
+        });
+        assert.equal(response.status, 200);
+        assert.deepEqual(await response.json(), {
+          status: "partial_imported",
+          snapshot: partialSnapshot,
+          trainingPlan,
+          warning: "academic_exam_format_changed",
+        });
+      },
+      {
+        config: { academicImportEnabled: true },
+        academicConnector,
+      },
+    );
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  assert.equal(warnings.length, 1);
+  const diagnostic = JSON.parse(warnings[0]);
+  assert.equal(diagnostic.event, "academic_import_partial");
+  assert.equal(diagnostic.code, "ACADEMIC_EXAM_FORMAT_CHANGED");
+  assert.equal(diagnostic.stage, "exam_parse");
+  assert.equal(diagnostic.parseReason, "exam_structure_unknown");
+  assert.equal(diagnostic.widgetCount, 1);
+  assert.equal(diagnostic.widgetTitleCount, 0);
+  assert.equal(diagnostic.hasExamMarker, true);
+  assert.equal(diagnostic.hasEmptyMarker, false);
+  assert.equal(diagnostic.sections, 1);
+  assert.equal(diagnostic.exams, 0);
+  assert.equal(diagnostic.examStatus, "unavailable");
+  assert.equal(diagnostic.planCourses, 1);
+  assert.equal("raw" in diagnostic, false);
+});
+
+test("academic routes preserve all optional-service warnings", async () => {
+  const warningLogs = [];
+  const originalWarn = console.warn;
+  console.warn = (...values) => warningLogs.push(values.join(" "));
+  const snapshot = {
+    schemaVersion: 1,
+    id: "2026-2027-fall",
+    academicYear: "2026-2027",
+    term: "fall",
+    termLabel: "第一学期",
+    importedAt: "2026-10-06T11:17:10.000Z",
+    sections: [{ id: "academic-section:test", meetings: [{ id: "meeting:test" }] }],
+    exams: [],
+    examStatus: "unavailable",
+  };
+  const examError = Object.assign(new Error("private upstream response"), {
+    code: "ACADEMIC_UPSTREAM_UNAVAILABLE",
+    stage: "exam_fetch",
+  });
+  const planError = Object.assign(new Error("private upstream response"), {
+    code: "ACADEMIC_UPSTREAM_UNAVAILABLE",
+    stage: "plan_fetch",
+  });
+  const academicConnector = {
+    async start() {
+      return {
+        status: "partial_imported",
+        snapshot,
+        trainingPlan: null,
+        warning: "academic_exam_unavailable",
+        warnings: [
+          "academic_exam_unavailable",
+          "academic_plan_unavailable",
+        ],
+        examError,
+        planError,
+      };
+    },
+  };
+
+  try {
+    await withServer(
+      async ({ baseUrl }) => {
+        const response = await fetch(`${baseUrl}/api/auth/academic/connect`, {
+          method: "POST",
+          headers: {
+            Origin: "https://dufesh.cn",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            username: "20260001",
+            password: "school-password",
+          }),
+        });
+        assert.equal(response.status, 200);
+        assert.deepEqual(await response.json(), {
+          status: "partial_imported",
+          snapshot,
+          trainingPlan: null,
+          warning: "academic_exam_unavailable",
+          warnings: [
+            "academic_exam_unavailable",
+            "academic_plan_unavailable",
+          ],
+        });
+      },
+      {
+        config: { academicImportEnabled: true },
+        academicConnector,
+      },
+    );
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  assert.equal(warningLogs.length, 2);
+  const diagnostics = warningLogs.map((value) => JSON.parse(value));
+  assert.deepEqual(
+    diagnostics.map((item) => item.warning),
+    ["academic_exam_unavailable", "academic_plan_unavailable"],
+  );
+  assert.deepEqual(
+    diagnostics.map((item) => item.stage),
+    ["exam_fetch", "plan_fetch"],
+  );
+  assert.equal(diagnostics.every((item) => item.sections === 1), true);
+});
+
 test("token buckets refill, reject bursts, and keep their key set bounded", () => {
   const limiter = createTokenBucket({
     capacity: 2,
@@ -1102,7 +1281,19 @@ test("personal sync requires a session, validates input, deduplicates, and detec
           completed: false,
         },
       ],
-      academicSnapshots: [],
+      academicSnapshots: [
+        {
+          schemaVersion: 1,
+          id: "2026-2027-fall",
+          academicYear: "2026-2027",
+          term: "fall",
+          termLabel: "第一学期",
+          importedAt: "2026-10-06T05:40:52.000Z",
+          sections: [],
+          exams: [],
+          examStatus: "unavailable",
+        },
+      ],
       trainingPlan: {
         schemaVersion: 1,
         planNumber: "P2025",
@@ -1161,6 +1352,26 @@ test("personal sync requires a session, validates input, deduplicates, and detec
     });
     assert.equal(invalid.status, 400);
 
+    const invalidExamStatus = await fetch(`${baseUrl}/api/auth/sync`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "https://dufesh.cn",
+        Cookie: cookie,
+      },
+      body: JSON.stringify({
+        ...write,
+        state: {
+          ...state,
+          academicSnapshots: state.academicSnapshots.map((snapshot) => ({
+            ...snapshot,
+            examStatus: "unknown",
+          })),
+        },
+      }),
+    });
+    assert.equal(invalidExamStatus.status, 400);
+
     const accepted = await fetch(`${baseUrl}/api/auth/sync`, {
       method: "PUT",
       headers: {
@@ -1174,6 +1385,10 @@ test("personal sync requires a session, validates input, deduplicates, and detec
     assert.equal(accepted.status, 200);
     assert.equal(acceptedBody.revision, 1);
     assert.equal(acceptedBody.state.plans[0].scheduleIds.length, 2);
+    assert.equal(
+      acceptedBody.state.academicSnapshots[0].examStatus,
+      "unavailable",
+    );
     assert.equal(acceptedBody.state.trainingPlan.courses.length, 1);
     assert.equal(
       acceptedBody.state.trainingPlan.categories[0].requiredCredits,

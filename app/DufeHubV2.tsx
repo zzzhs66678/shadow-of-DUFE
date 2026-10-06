@@ -507,6 +507,7 @@ function upcomingAcademicExams(
   snapshot: AcademicSnapshot | undefined,
   now = new Date(),
 ) {
+  if (snapshot?.examStatus) return [];
   const current = shanghaiClock(now);
   return [...(snapshot?.exams ?? [])]
     .filter(
@@ -1250,14 +1251,32 @@ function HubApp({ data: initialData }: { data: SiteData }) {
   function applyAcademicImport(result: {
     snapshot: AcademicSnapshot;
     trainingPlan: AcademicTrainingPlan | null;
-    warning?: "academic_plan_not_found" | "academic_plan_format_changed";
+    warning?: AcademicImportWarning;
+    warnings?: AcademicImportWarning[];
   }) {
     const { snapshot, trainingPlan, warning } = result;
+    const importWarnings = [...new Set([
+      ...(result.warnings ?? []),
+      ...(warning ? [warning] : []),
+    ])];
+    const previousSnapshot = saved.academicSnapshots.find(
+      (item) => item.id === snapshot.id,
+    );
+    const effectiveSnapshot =
+      snapshot.examStatus === "unavailable" &&
+      previousSnapshot &&
+      previousSnapshot.exams.length > 0
+        ? {
+            ...snapshot,
+            exams: previousSnapshot.exams,
+            examStatus: "stale" as const,
+          }
+        : snapshot;
     setSaved((state) => ({
       ...state,
       academicSnapshots: [
-        ...state.academicSnapshots.filter((item) => item.id !== snapshot.id),
-        snapshot,
+        ...state.academicSnapshots.filter((item) => item.id !== effectiveSnapshot.id),
+        effectiveSnapshot,
       ]
         .sort((left, right) =>
           left.academicYear.localeCompare(right.academicYear),
@@ -1265,12 +1284,26 @@ function HubApp({ data: initialData }: { data: SiteData }) {
         .slice(-12),
       trainingPlan: trainingPlan ?? state.trainingPlan,
     }));
-    setTerm(snapshot.term);
+    setTerm(effectiveSnapshot.term);
     setAcademicImportOpen(false);
+    const details = [`${effectiveSnapshot.sections.length} 门课`];
+    details.push(
+      importWarnings.some((item) => item.startsWith("academic_exam_"))
+        ? effectiveSnapshot.examStatus === "stale"
+          ? "考试沿用上次数据"
+          : "考试安排未同步"
+        : `${effectiveSnapshot.exams.length} 项考试`,
+    );
+    if (trainingPlan) details.push(`培养方案 ${trainingPlan.courses.length} 门课程`);
+    if (importWarnings.includes("academic_plan_not_found")) {
+      details.push("当前账号没有可读取的培养方案");
+    } else if (importWarnings.includes("academic_plan_format_changed")) {
+      details.push("培养方案本次未更新");
+    } else if (importWarnings.includes("academic_plan_unavailable")) {
+      details.push("培养方案暂时未同步");
+    }
     setAddFeedback(
-      trainingPlan
-        ? `${snapshot.academicYear} ${snapshot.termLabel}：${snapshot.sections.length} 门课、${snapshot.exams.length} 项考试、培养方案 ${trainingPlan.courses.length} 门课程`
-        : `${snapshot.academicYear} ${snapshot.termLabel}：已导入 ${snapshot.sections.length} 门课、${snapshot.exams.length} 项考试；${warning === "academic_plan_not_found" ? "当前账号没有可读取的培养方案" : "培养方案本次未更新"}`,
+      `${effectiveSnapshot.academicYear} ${effectiveSnapshot.termLabel}：${details.join("、")}`,
     );
     window.setTimeout(() => setAddFeedback(""), 4_500);
   }
@@ -2623,6 +2656,19 @@ function HomePage({
         </a>
       </nav>
 
+      {academicSnapshot?.examStatus && (
+        <section className={academicStyles.meExamSummary} aria-label="考试安排未同步">
+          <div>
+            <span>考试安排</span>
+            <strong>
+              {academicSnapshot.examStatus === "stale" ? "本次未更新" : "尚未同步"}
+            </strong>
+            <p>课表已保存；考试页未能确认，请在“课程”中重新更新。</p>
+          </div>
+          <button onClick={() => onGo("catalog")}>去更新</button>
+        </section>
+      )}
+
       {upcomingExams.length > 0 && (
         <section className={academicStyles.examNotice} aria-label="最近考试">
           <header>
@@ -3104,7 +3150,7 @@ function CatalogPage({
           </strong>
           <small>
             {academicSnapshot
-              ? `${academicSnapshot.sections.length} 门课 · ${academicSnapshot.exams.length} 项考试 · ${importedAt}`
+              ? `${academicSnapshot.sections.length} 门课 · ${academicSnapshot.examStatus ? (academicSnapshot.examStatus === "stale" ? "考试未更新" : "考试未同步") : `${academicSnapshot.exams.length} 项考试`} · ${importedAt}`
               : "每学期导入一次，之后可在这里更新。"}
           </small>
           <button onClick={onAcademicImport}>
@@ -3451,10 +3497,14 @@ function academicImportErrorMessage(code: string) {
     academic_format_changed:
       "学校调整了课表页面，暂时无法安全识别，已停止导入。",
     academic_exam_format_changed:
-      "学校调整了考试安排页面，暂时无法安全识别，课表也没有被部分导入。",
+      "学校考试安排页面暂时无法安全识别，课表会继续导入并标明考试未同步。",
+    academic_exam_unavailable:
+      "学校考试安排服务暂时不可用，课表会继续导入并标明考试未同步。",
     academic_plan_not_found: "当前学生账号没有可读取的培养方案。",
     academic_plan_format_changed:
       "学校调整了培养方案页面，暂时无法安全识别，本次数据没有导入。",
+    academic_plan_unavailable:
+      "学校培养方案服务暂时不可用，课表和考试会继续导入。",
     academic_protocol_changed:
       "学校登录流程刚刚发生变化，暂时无法连接。",
     academic_timetable_empty: "教务系统返回的本学期课表为空。",
@@ -3480,6 +3530,13 @@ type AcademicSsoChallenge = {
   maxOffset: number;
 };
 
+type AcademicImportWarning =
+  | "academic_exam_format_changed"
+  | "academic_exam_unavailable"
+  | "academic_plan_not_found"
+  | "academic_plan_format_changed"
+  | "academic_plan_unavailable";
+
 function AcademicImportDialog({
   existing,
   onClose,
@@ -3490,7 +3547,8 @@ function AcademicImportDialog({
   onImported: (result: {
     snapshot: AcademicSnapshot;
     trainingPlan: AcademicTrainingPlan | null;
-    warning?: "academic_plan_not_found" | "academic_plan_format_changed";
+    warning?: AcademicImportWarning;
+    warnings?: AcademicImportWarning[];
   }) => void;
 }) {
   const [username, setUsername] = useState("");
@@ -3554,8 +3612,9 @@ function AcademicImportDialog({
         | {
             status: "partial_imported";
             snapshot: AcademicSnapshot;
-            trainingPlan: null;
-            warning: "academic_plan_not_found" | "academic_plan_format_changed";
+            trainingPlan: AcademicTrainingPlan | null;
+            warning: AcademicImportWarning;
+            warnings?: AcademicImportWarning[];
           }
         | { error: string; retryable?: boolean; stage?: string };
       if (!response.ok || "error" in result) {
@@ -3632,8 +3691,9 @@ function AcademicImportDialog({
       if (result.status === "partial_imported") {
         onImported({
           snapshot: result.snapshot,
-          trainingPlan: null,
+          trainingPlan: result.trainingPlan,
           warning: result.warning,
+          warnings: result.warnings,
         });
         return;
       }
@@ -3709,7 +3769,7 @@ function AcademicImportDialog({
             {existing && (
               <p className="academic-import-current">
                 当前：{existing.academicYear} {existing.termLabel} ·{" "}
-                {existing.sections.length} 门课 · {academicMeetingCount(existing)} 个时段 · {existing.exams.length} 项考试
+                {existing.sections.length} 门课 · {academicMeetingCount(existing)} 个时段 · {existing.examStatus ? (existing.examStatus === "stale" ? "考试未更新" : "考试未同步") : `${existing.exams.length} 项考试`}
               </p>
             )}
             <FormField label="教务账号" hint="通常是学号；不是东财之影账号。">
@@ -4477,12 +4537,14 @@ function SchedulePage({
   const [lastRemovedId, setLastRemovedId] = useState("");
   const sortedExams = useMemo(
     () =>
-      [...(academicSnapshot?.exams ?? [])].sort(
+      academicSnapshot?.examStatus
+        ? []
+        : [...(academicSnapshot?.exams ?? [])].sort(
         (left, right) =>
           `${left.date}T${left.startTime || "00:00"}`.localeCompare(
             `${right.date}T${right.startTime || "00:00"}`,
           ),
-      ),
+        ),
     [academicSnapshot],
   );
   const timetableRef = useRef<HTMLElement>(null);
@@ -5176,6 +5238,18 @@ function SchedulePage({
               <p>从“课程”导入教务课表，或点“添加课程”手动选课。</p>
               <button onClick={onOpenCourses}>打开课程中心</button>
             </div>
+          )}
+          {academicSnapshot?.examStatus && (
+            <section className={academicStyles.meExamSummary} aria-label="考试安排未同步">
+              <div>
+                <span>考试安排</span>
+                <strong>
+                  {academicSnapshot.examStatus === "stale" ? "本次未更新" : "尚未同步"}
+                </strong>
+                <p>课表已导入；考试页未能确认，不能当作没有考试。</p>
+              </div>
+              <button onClick={onOpenCourses}>去课程更新</button>
+            </section>
           )}
           {sortedExams.length > 0 && (
             <section className="academic-exam-panel" data-export-ignore="true">
@@ -6713,7 +6787,18 @@ function MePage({
           </p>
         </div>
       </header>
-      {upcomingExams.length > 0 && (
+      {academicSnapshot?.examStatus ? (
+        <section className={academicStyles.meExamSummary} aria-label="考试安排未同步">
+          <div>
+            <span>考试安排</span>
+            <strong>
+              {academicSnapshot.examStatus === "stale" ? "本次未更新" : "尚未同步"}
+            </strong>
+            <p>课表已保存；请从“课程”重新更新考试安排。</p>
+          </div>
+          <button onClick={onOpenCourses}>去更新</button>
+        </section>
+      ) : upcomingExams.length > 0 && (
         <section className={academicStyles.meExamSummary} aria-label="我的考试">
           <div>
             <span>考试</span>

@@ -210,7 +210,7 @@ test("verified timetable and exams remain visible when the training plan alone f
 
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("status")).toContainText(
-    "已导入 1 门课、1 项考试；培养方案本次未更新",
+    "2026-2027 第一学期：1 门课、1 项考试、培养方案本次未更新",
   );
   await expect(page.getByRole("region", { name: "教务数据状态" })).toContainText(
     "1 门课 · 1 项考试",
@@ -231,6 +231,73 @@ test("verified timetable and exams remain visible when the training plan alone f
   await expect(page.getByText("在课程中心导入后，可按本学期、待选和已修筛选")).toBeVisible();
   await expect(page.getByTestId("training-plan-window")).toHaveCount(0);
   expect(pageErrors).toEqual([]);
+});
+
+test("an exam refresh failure keeps the previous exams but labels them stale", async ({
+  page,
+}) => {
+  let importCount = 0;
+  await page.route("**/api/auth/session", (route) =>
+    route.fulfill({ json: { authenticated: false } }),
+  );
+  await page.route("**/api/auth/academic/connect", async (route) => {
+    importCount += 1;
+    await route.fulfill({
+      json:
+        importCount === 1
+          ? { status: "imported", snapshot, trainingPlan }
+          : {
+              status: "partial_imported",
+              snapshot: {
+                ...snapshot,
+                importedAt: "2026-10-06T11:17:10.000Z",
+                exams: [],
+                examStatus: "unavailable",
+              },
+              trainingPlan,
+              warning: "academic_exam_format_changed",
+            },
+    });
+  });
+
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "打开课程中心", exact: true }).click();
+  await page.getByRole("button", { name: "导入教务数据", exact: true }).click();
+  await page.getByLabel("教务账号").fill("20260001");
+  await page.getByLabel("教务密码").fill("school-password");
+  await page.getByRole("button", { name: "登录并自动导入" }).click();
+  await expect(page.getByRole("region", { name: "下一场考试" })).toContainText(
+    "内部审计",
+  );
+
+  await page
+    .getByRole("region", { name: "教务数据状态" })
+    .getByRole("button", { name: "更新教务数据", exact: true })
+    .click();
+  await page.getByLabel("教务账号").fill("20260001");
+  await page.getByLabel("教务密码").fill("school-password");
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "更新教务数据", exact: true })
+    .click();
+
+  await expect(page.getByRole("status")).toContainText("考试沿用上次数据");
+  await expect(page.getByRole("region", { name: "教务数据状态" })).toContainText(
+    "考试未更新",
+  );
+  await expect(page.getByRole("region", { name: "下一场考试" })).toHaveCount(0);
+  await page.getByRole("button", { name: "今天", exact: true }).click();
+  await expect(
+    page.getByRole("region", { name: "考试安排未同步" }),
+  ).toContainText("本次未更新");
+  await expect(page.getByRole("region", { name: "最近考试" })).toHaveCount(0);
+
+  const stored = await page.evaluate(() => {
+    const value = localStorage.getItem("dufesh:student-profile:v3:anonymous");
+    return value ? JSON.parse(value).academicSnapshots[0] : null;
+  });
+  expect(stored.examStatus).toBe("stale");
+  expect(stored.exams).toHaveLength(1);
 });
 
 test("official timetable and exams import through SMS and school verification", async ({

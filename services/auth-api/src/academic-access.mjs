@@ -60,6 +60,42 @@ function stagedError(code, stage) {
   return error;
 }
 
+const OPTIONAL_FETCH_ERROR_CODES = new Set([
+  "ACADEMIC_UPSTREAM_TIMEOUT",
+  "ACADEMIC_UPSTREAM_UNAVAILABLE",
+  "ACADEMIC_RESPONSE_TOO_LARGE",
+  "ACADEMIC_SESSION_NOT_READY",
+]);
+
+function examImportWarning(error) {
+  if (error?.code === "ACADEMIC_EXAM_FORMAT_CHANGED") {
+    return "academic_exam_format_changed";
+  }
+  if (
+    error?.stage === "exam_fetch" &&
+    OPTIONAL_FETCH_ERROR_CODES.has(error?.code)
+  ) {
+    return "academic_exam_unavailable";
+  }
+  return null;
+}
+
+function planImportWarning(error) {
+  if (error?.code === "ACADEMIC_PLAN_NOT_FOUND") {
+    return "academic_plan_not_found";
+  }
+  if (error?.code === "ACADEMIC_PLAN_FORMAT_CHANGED") {
+    return "academic_plan_format_changed";
+  }
+  if (
+    error?.stage === "plan_fetch" &&
+    OPTIONAL_FETCH_ERROR_CODES.has(error?.code)
+  ) {
+    return "academic_plan_unavailable";
+  }
+  return null;
+}
+
 async function atStage(stage, action) {
   try {
     return await action();
@@ -903,16 +939,26 @@ const KNOWN_TIMETABLE_HEADERS = new Set([
   "课程号",
   "课程代码",
   "课程编号",
+  "课程编码",
+  "课程",
+  "考试课程",
+  "科目",
+  "考试科目",
+  "科目代码",
   "课程名",
   "课程名称",
   "课序号",
   "教学班号",
+  "教学班",
+  "班号",
   "学分",
   "课程属性",
   "课程性质",
   "课程类别",
   "考试类型",
+  "考试类别",
   "考核方式",
+  "考核类型",
   "教师",
   "任课教师",
   "修读方式",
@@ -939,6 +985,28 @@ const KNOWN_TIMETABLE_HEADERS = new Set([
   "楼栋",
   "教室",
   "上课教室",
+  "考试日期",
+  "日期",
+  "考试日",
+  "考试时间",
+  "考试日期时间",
+  "日期时间",
+  "考试场次",
+  "考试地点",
+  "考场",
+  "考点",
+  "考试教室",
+  "考场教室",
+  "座位号",
+  "座号",
+  "座位",
+  "座次",
+  "准考证号",
+  "考号",
+  "考试号",
+  "考生号",
+  "考试状态",
+  "状态",
 ]);
 
 function recognizedTimetableHeaders(candidates) {
@@ -1353,7 +1421,7 @@ function examCardField(text, label) {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
   const match = String(text ?? "").match(
     new RegExp(
-      `${escaped}\\s*[:：]\\s*([\\s\\S]*?)(?=\\n\\s*(?:考试名称|考试时间|地点|座位号|准考证号|考号|考试号|考试提示信息|状态)\\s*[:：]|$)`,
+      `${escaped}\\s*[:：]\\s*([\\s\\S]*?)(?=\\n\\s*(?:考试名称|考试类型|考试时间|考试地点|考场|地点|座位号|座号|座次|准考证号|考号|考试号|考生号|考试提示信息|状态)\\s*[:：]|$)`,
       "iu",
     ),
   );
@@ -1394,7 +1462,45 @@ function examLocation(value) {
   return { campus: "", building: parts[0] ?? "", room: parts[1] ?? "" };
 }
 
-function parseExamCards(html, term) {
+function explicitExamEmpty(value) {
+  const source = String(value ?? "");
+  const normalized = stripHtml(source).replace(/\s+/gu, " ").trim();
+  const nearbyEmpty = [
+    /(?:暂无|没有|尚无|未安排|尚未安排|未查询到|未查到|未找到)[^。；;\n]{0,24}(?:考试|考场)(?:安排|信息|数据|记录|结果)?/u,
+    /(?:考试|考场)[^。；;\n]{0,24}(?:暂无|没有|尚无|未安排|尚未安排|未查询到|未查到|未找到)(?:安排|信息|数据|记录|结果)?/u,
+  ].some((pattern) => pattern.test(normalized));
+  if (nearbyEmpty) return true;
+  const identifiedExamPage = /校统排考试|考试安排|考试计划/u.test(normalized);
+  const explicitEmptyMessage =
+    /(?:暂无|没有|尚无|未查询到|未查到|未找到|无)(?:符合条件的|可显示的|相关的)?(?:数据|记录|结果|安排|内容)|(?:表中|列表中)?数据为空|查询无结果|无数据可显示/u.test(
+      normalized,
+    );
+  const structuralEmptyMarker =
+    /\b(?:dataTables_empty|empty-data|empty-row|no-data|no-records|nodata)\b/iu.test(
+      source,
+    );
+  return explicitEmptyMessage && (identifiedExamPage || structuralEmptyMarker);
+}
+
+function examFormatError(reason, html, candidates = tables(html)) {
+  const source = String(html ?? "");
+  const text = stripHtml(source);
+  const error = academicError("ACADEMIC_EXAM_FORMAT_CHANGED");
+  error.diagnostic = {
+    parseReason: reason,
+    tableCount: candidates.length,
+    tableShapes: tableShapes(candidates),
+    knownHeaders: recognizedTimetableHeaders(candidates),
+    widgetCount: [...source.matchAll(/\bwidget-box\b/giu)].length,
+    widgetTitleCount: [...source.matchAll(/\bwidget-title\b/giu)].length,
+    textLength: text.length,
+    hasExamMarker: /考试|考场|座位|准考证|考号/u.test(text),
+    hasEmptyMarker: explicitExamEmpty(source),
+  };
+  return error;
+}
+
+function parseExamCards(html, term, candidates) {
   const source = String(html ?? "");
   const starts = [...source.matchAll(
     /<div\b[^>]*class\s*=\s*(?:"[^"]*\bwidget-box\b[^"]*"|'[^']*\bwidget-box\b[^']*')[^>]*>/giu,
@@ -1406,25 +1512,34 @@ function parseExamCards(html, term) {
     const end = starts[index + 1]?.index ?? source.length;
     const block = source.slice(start, end);
     const titleHtml = block.match(
-      /<h5\b[^>]*class\s*=\s*(?:"[^"]*\bwidget-title\b[^"]*"|'[^']*\bwidget-title\b[^']*')[^>]*>([\s\S]*?)<\/h5>/iu,
-    )?.[1];
+      /<([a-z][a-z0-9:-]*)\b[^>]*class\s*=\s*(?:"[^"]*\bwidget-title\b[^"]*"|'[^']*\bwidget-title\b[^']*')[^>]*>([\s\S]*?)<\/\1>/iu,
+    )?.[2];
     if (!titleHtml) continue;
     const parsedTitle = examTitle(stripHtml(titleHtml));
     if (!parsedTitle.courseName) continue;
     const text = stripHtml(block);
-    const examType = examCardField(text, "考试名称");
+    const examType =
+      examCardField(text, "考试名称") || examCardField(text, "考试类型");
     const timing = parseDateAndTime(examCardField(text, "考试时间"));
-    const locationText = examCardField(text, "地点");
+    const locationText =
+      examCardField(text, "考试地点") ||
+      examCardField(text, "考场") ||
+      examCardField(text, "地点");
     const location = examLocation(locationText);
-    const seat = examCardField(text, "座位号");
+    const seat =
+      examCardField(text, "座位号") ||
+      examCardField(text, "座号") ||
+      examCardField(text, "座次");
     const examNumber =
       examCardField(text, "准考证号") ||
       examCardField(text, "考号") ||
-      examCardField(text, "考试号");
+      examCardField(text, "考试号") ||
+      examCardField(text, "考生号");
     exams.push({
       id: digestId("academic-exam", [
         term.id,
         parsedTitle.courseCode,
+        parsedTitle.courseName,
         parsedTitle.sectionCode,
         timing.date,
         timing.startTime,
@@ -1442,7 +1557,10 @@ function parseExamCards(html, term) {
       status: parsedTitle.status || examCardField(text, "状态"),
     });
   }
-  if (!exams.length) throw academicError("ACADEMIC_EXAM_FORMAT_CHANGED");
+  if (!exams.length && explicitExamEmpty(source)) return [];
+  if (!exams.length) {
+    throw examFormatError("exam_cards_unreadable", source, candidates);
+  }
   return exams;
 }
 
@@ -1450,38 +1568,90 @@ export function parseExamHtml(html, term) {
   const candidates = tables(html);
   const table = findTableHeader(candidates, (headers) => {
     const hasCourse =
-      findHeaderIndex(headers, ["课程名", "课程名称"]) >= 0 ||
-      findHeaderIndex(headers, ["课程号", "课程代码", "课程编号"]) >= 0;
-    const hasExam = headers.some((header) => /考试|考场|座位/u.test(header));
-    return hasCourse && hasExam;
+      findHeaderIndex(headers, [
+        "课程名",
+        "课程名称",
+        "课程",
+        "考试课程",
+        "科目",
+        "考试科目",
+      ]) >= 0 ||
+      findHeaderIndex(headers, [
+        "课程号",
+        "课程代码",
+        "课程编号",
+        "课程编码",
+        "科目代码",
+      ]) >= 0;
+    const hasExplicitExamHeader = headers.some((header) =>
+      /考试|考场|座位|座次|准考证|考号|考生号/u.test(header),
+    );
+    const hasDate = findHeaderIndex(headers, ["考试日期", "日期", "考试日"]) >= 0;
+    const hasLocation =
+      findHeaderIndex(headers, ["考试地点", "考场", "地点", "考点"]) >= 0;
+    return hasCourse && (hasExplicitExamHeader || (hasDate && hasLocation));
   });
   if (!table) {
-    const cards = parseExamCards(html, term);
+    const cards = parseExamCards(html, term, candidates);
     if (cards) return cards;
-    const text = stripHtml(html);
-    if (/暂无(?:考试|数据|记录)|没有(?:考试|数据|记录)|无考试安排|还没有考试/u.test(text)) {
+    if (explicitExamEmpty(html)) {
       return [];
     }
-    throw academicError("ACADEMIC_EXAM_FORMAT_CHANGED");
+    throw examFormatError("exam_structure_unknown", html, candidates);
   }
   const { rows, headerIndex, headers } = table;
   const columns = {
-    courseCode: findHeaderIndex(headers, ["课程号", "课程代码", "课程编号"]),
-    courseName: findHeaderIndex(headers, ["课程名", "课程名称"]),
-    sectionCode: findHeaderIndex(headers, ["课序号", "教学班号"]),
-    examType: findHeaderIndex(headers, ["考试类型", "考核方式"]),
-    date: findHeaderIndex(headers, ["考试日期", "日期"]),
-    time: findHeaderIndex(headers, ["考试时间", "时间", "考试日期时间"]),
+    courseCode: findHeaderIndex(headers, [
+      "课程号",
+      "课程代码",
+      "课程编号",
+      "课程编码",
+      "科目代码",
+    ]),
+    courseName: findHeaderIndex(headers, [
+      "课程名",
+      "课程名称",
+      "课程",
+      "考试课程",
+      "科目",
+      "考试科目",
+    ]),
+    sectionCode: findHeaderIndex(headers, [
+      "课序号",
+      "教学班号",
+      "教学班",
+      "班号",
+    ]),
+    examType: findHeaderIndex(headers, [
+      "考试类型",
+      "考试类别",
+      "考核方式",
+      "考核类型",
+    ]),
+    date: findHeaderIndex(headers, ["考试日期", "日期", "考试日"]),
+    time: findHeaderIndex(headers, [
+      "考试时间",
+      "时间",
+      "考试日期时间",
+      "日期时间",
+      "考试场次",
+    ]),
     location: findHeaderIndex(headers, [
       "考试地点",
       "考场",
       "地点",
+      "考点",
     ]),
     campus: findHeaderIndex(headers, ["校区", "校区名称"]),
     building: findHeaderIndex(headers, ["教学楼", "楼宇", "楼栋"]),
     room: findHeaderIndex(headers, ["考试教室", "考场教室", "教室"]),
-    seat: findHeaderIndex(headers, ["座位号", "座号", "座位"]),
-    examNumber: findHeaderIndex(headers, ["准考证号", "考号", "考试号"]),
+    seat: findHeaderIndex(headers, ["座位号", "座号", "座位", "座次"]),
+    examNumber: findHeaderIndex(headers, [
+      "准考证号",
+      "考号",
+      "考试号",
+      "考生号",
+    ]),
     status: findHeaderIndex(headers, ["考试状态", "状态"]),
   };
   const exams = [];
@@ -1506,6 +1676,7 @@ export function parseExamHtml(html, term) {
       id: digestId("academic-exam", [
         term.id,
         courseCode,
+        courseName,
         sectionCode,
         timing.date,
         timing.startTime,
@@ -1524,6 +1695,14 @@ export function parseExamHtml(html, term) {
       examNumber: cellAt(cells, columns.examNumber),
       status: cellAt(cells, columns.status),
     });
+  }
+  if (!exams.length) {
+    const bodyRows = rows.slice(headerIndex + 1);
+    const hasNonEmptyBody = bodyRows.some((cells) =>
+      cells.some((cell) => String(cell?.text ?? "").trim()),
+    );
+    if (!hasNonEmptyBody || explicitExamEmpty(html)) return [];
+    throw examFormatError("exam_rows_unreadable", html, candidates);
   }
   return exams;
 }
@@ -2569,26 +2748,44 @@ export function createAcademicConnector({
         parseTimetableHtml(timetableHtml),
       );
     }
-    const examResult = await atStage("exam_fetch", () =>
-      request(transaction.jar, examUrl),
-    );
-    if (!examResult.response.ok) {
-      throw stagedError("ACADEMIC_UPSTREAM_UNAVAILABLE", "exam_fetch");
-    }
-    const examHtml = await atStage("exam_fetch", () =>
-      readLimitedText(examResult.response),
-    );
-    if (findSsoLogin(examHtml, examResult.finalUrl)) {
-      return prepareSsoChallenge(
-        transactionId,
-        transaction,
-        examResult.finalUrl,
-        examHtml,
+    transaction.examError = null;
+    transaction.examWarning = null;
+    let exams = [];
+    let examError = null;
+    try {
+      const examResult = await atStage("exam_fetch", () =>
+        request(transaction.jar, examUrl),
       );
+      if (examResult.finalUrl.host === vpn.host) {
+        throw stagedError("ACADEMIC_SESSION_NOT_READY", "exam_fetch");
+      }
+      if (!examResult.response.ok) {
+        throw stagedError("ACADEMIC_UPSTREAM_UNAVAILABLE", "exam_fetch");
+      }
+      const examHtml = await atStage("exam_fetch", () =>
+        readLimitedText(examResult.response),
+      );
+      const examLogin = await atStage("exam_fetch", () =>
+        findSsoLogin(examHtml, examResult.finalUrl),
+      );
+      if (examLogin) {
+        return prepareSsoChallenge(
+          transactionId,
+          transaction,
+          examResult.finalUrl,
+          examHtml,
+        );
+      }
+      exams = await atStage("exam_parse", () =>
+        parseExamHtml(examHtml, timetable.term),
+      );
+    } catch (error) {
+      const warning = examImportWarning(error);
+      if (!warning) throw error;
+      examError = error;
+      transaction.examError = error;
+      transaction.examWarning = warning;
     }
-    const exams = await atStage("exam_parse", () =>
-      parseExamHtml(examHtml, timetable.term),
-    );
     const importedAt = new Date(now()).toISOString();
     const snapshot = {
       schemaVersion: 1,
@@ -2596,6 +2793,7 @@ export function createAcademicConnector({
       importedAt,
       sections: timetable.sections,
       exams,
+      ...(examError ? { examStatus: "unavailable" } : {}),
     };
     transaction.partialSnapshot = snapshot;
     const profileUrl = new URL(
@@ -2605,6 +2803,9 @@ export function createAcademicConnector({
     const profileResult = await atStage("plan_fetch", () =>
       request(transaction.jar, profileUrl),
     );
+    if (profileResult.finalUrl.host === vpn.host) {
+      throw stagedError("ACADEMIC_SESSION_NOT_READY", "plan_fetch");
+    }
     if (!profileResult.response.ok) {
       throw stagedError("ACADEMIC_UPSTREAM_UNAVAILABLE", "plan_fetch");
     }
@@ -2632,6 +2833,9 @@ export function createAcademicConnector({
         },
       }),
     );
+    if (planResult.finalUrl.host === vpn.host) {
+      throw stagedError("ACADEMIC_SESSION_NOT_READY", "plan_fetch");
+    }
     if (!planResult.response.ok) {
       throw stagedError("ACADEMIC_UPSTREAM_UNAVAILABLE", "plan_fetch");
     }
@@ -2661,6 +2865,9 @@ export function createAcademicConnector({
         headers: { Referer: planResult.finalUrl.href },
       }),
     );
+    if (completionResult.finalUrl.host === vpn.host) {
+      throw stagedError("ACADEMIC_SESSION_NOT_READY", "plan_fetch");
+    }
     if (!completionResult.response.ok) {
       throw stagedError("ACADEMIC_UPSTREAM_UNAVAILABLE", "plan_fetch");
     }
@@ -2683,33 +2890,42 @@ export function createAcademicConnector({
         importedAt,
       ),
     );
-    return {
-      status: "imported",
-      snapshot,
-      trainingPlan,
-    };
+    return examError
+      ? {
+          status: "partial_imported",
+          snapshot,
+          trainingPlan,
+          warning: transaction.examWarning,
+          examError,
+        }
+      : {
+          status: "imported",
+          snapshot,
+          trainingPlan,
+        };
   }
 
   async function continueImport(transactionId, transaction) {
     try {
       const result = await importSnapshot(transactionId, transaction);
-      if (result.status === "imported") destroyTransaction(transactionId);
+      if (["imported", "partial_imported"].includes(result.status)) {
+        destroyTransaction(transactionId);
+      }
       return result;
     } catch (error) {
-      if (
-        transaction.partialSnapshot &&
-        ["ACADEMIC_PLAN_FORMAT_CHANGED", "ACADEMIC_PLAN_NOT_FOUND"].includes(
-          error?.code,
-        )
-      ) {
+      const planWarning = planImportWarning(error);
+      if (transaction.partialSnapshot && planWarning) {
+        const examWarning = transaction.examError
+          ? transaction.examWarning
+          : null;
+        const warnings = [examWarning, planWarning].filter(Boolean);
         const result = {
           status: "partial_imported",
           snapshot: transaction.partialSnapshot,
           trainingPlan: null,
-          warning:
-            error.code === "ACADEMIC_PLAN_NOT_FOUND"
-              ? "academic_plan_not_found"
-              : "academic_plan_format_changed",
+          warning: warnings[0],
+          ...(warnings.length > 1 ? { warnings } : {}),
+          ...(transaction.examError ? { examError: transaction.examError } : {}),
           planError: error,
         };
         destroyTransaction(transactionId);

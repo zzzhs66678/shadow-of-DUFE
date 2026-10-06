@@ -85,6 +85,7 @@ export type AcademicSnapshot = {
   importedAt: string;
   sections: AcademicSection[];
   exams: AcademicExam[];
+  examStatus?: "unavailable" | "stale";
 };
 
 export type AcademicTrainingPlanCategory = {
