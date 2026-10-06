@@ -137,12 +137,35 @@ jobs:
           docker image inspect --format '{{.RepoTags}} {{.Id}} {{.Architecture}} {{.Config.User}}' \
             "dufesh-app:$GITHUB_SHA" "dufesh-auth-api:$GITHUB_SHA" >> release-images/manifest.txt
           (cd release-images && sha256sum images.tar.gz manifest.txt > SHA256SUMS)
+          mkdir release-runtime
+          runtime_container="$(docker create "dufesh-app:$GITHUB_SHA")"
+          docker cp "$runtime_container:/app/dist" release-runtime/dist
+          docker rm "$runtime_container"
+          tar -czf release-runtime/dist.tar.gz -C release-runtime dist
+          printf 'commit=%s\n' "$GITHUB_SHA" > release-runtime/manifest.txt
+          sha256sum package.json package-lock.json Dockerfile server.mjs scripts/prune-vinext-runtime.mjs \
+            services/auth-api/package.json services/auth-api/package-lock.json services/auth-api/Dockerfile \
+            > release-runtime/dependencies.sha256
+          (cd release-runtime && sha256sum dist.tar.gz manifest.txt dependencies.sha256 > SHA256SUMS)
       - name: Retain verified image bundle
         if: github.event_name == 'push'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: application-images-${{ github.sha }}
           path: release-images/
+          retention-days: 7
+          compression-level: 0
+          if-no-files-found: error
+      - name: Retain verified compiled runtime
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: application-runtime-${{ github.sha }}
+          path: |
+            release-runtime/dist.tar.gz
+            release-runtime/manifest.txt
+            release-runtime/dependencies.sha256
+            release-runtime/SHA256SUMS
           retention-days: 7
           compression-level: 0
           if-no-files-found: error
