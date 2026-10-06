@@ -336,16 +336,13 @@ export function TeacherDetail({
         ]}
       />
       <header className={styles.profileHeader}>
-        <div>
-          <p><Link href={`/teachers?college=${encodeURIComponent(teacher.collegeName)}`}>{teacher.collegeName}</Link></p>
-          <h1>{teacher.displayName}</h1>
-        </div>
-        <a className={styles.writeReviewLink} href="#teacher-contribution">{ownReview ? "我的评价" : "写评价"}</a>
+        <h1>{teacher.displayName}</h1>
+        <Link href={`/teachers?college=${encodeURIComponent(teacher.collegeName)}`}>{teacher.collegeName}</Link>
       </header>
 
       <div className={styles.profileContent}>
       <section className={styles.reviews} aria-labelledby="teacher-reviews-title">
-        <header><h2 id="teacher-reviews-title">学生评价 <span>{teacher.reviewCount}</span></h2></header>
+        <h2 id="teacher-reviews-title" className={styles.visuallyHidden}>学生评价</h2>
         <div>
           {(reviewQuery || reviewSort !== "latest") && <p className={styles.reviewFilterNotice}>
             {reviewQuery ? `筛选：“${reviewQuery}”` : "按旧链接排序"}
@@ -356,9 +353,14 @@ export function TeacherDetail({
           {reviewListStatus === "error" && <p className={styles.inlineEmpty} role="alert">评价加载失败。 <button type="button" onClick={() => setRevision((value) => value + 1)}>重新读取</button></p>}
           {reviewListStatus === "ready" && reviews.length ? reviews.map((review) => (
             <article className={styles.reviewEntry} key={review.id}>
-              <div className={styles.reviewEntryMeta}><b>{review.sourceType === "legacy_approved" ? "学长学姐 · 历史评价" : review.authorLabel}</b><span>{review.sourceType === "legacy_approved" ? "站内公开于 " : ""}<time dateTime={review.publishedAt}>{new Date(review.publishedAt).toLocaleDateString("zh-CN")}</time>{review.discussionCount > 0 ? ` · ${review.discussionCount} 条回复` : ""}</span></div>
+              <div className={styles.reviewEntryMeta}>
+                {review.sourceType === "legacy_approved" ? <small>历史评价</small> : <>
+                  <b>{review.authorLabel}</b>
+                  <time dateTime={review.publishedAt}>{new Date(review.publishedAt).toLocaleDateString("zh-CN")}</time>
+                </>}
+              </div>
               <p className={styles.reviewEntryBody}>{review.body}</p>
-              <TeacherReviewDiscussion teacherId={teacherId} reviewId={review.id} reviewLabel={`${review.authorLabel}的评价`} canWrite={Boolean(currentUserId)} currentUserId={currentUserId} />
+              <TeacherReviewDiscussion teacherId={teacherId} reviewId={review.id} reviewLabel={review.sourceType === "legacy_approved" ? "历史评价" : `${review.authorLabel}的评价`} canWrite={Boolean(currentUserId)} currentUserId={currentUserId} />
             </article>
           )) : reviewListStatus === "ready" && <p className={styles.inlineEmpty}>{reviewQuery ? `没有找到包含“${reviewQuery}”的公开评价。` : "还没有公开评价。"}</p>}
         </div>
@@ -371,7 +373,7 @@ export function TeacherDetail({
           </div>
         )}
           <section className={styles.reviewContribution} id="teacher-contribution" aria-labelledby="teacher-contribution-title">
-            <h2 id="teacher-contribution-title">{ownReview ? "我的评价" : "写评价"}</h2>
+            <h2 id="teacher-contribution-title" className={styles.visuallyHidden}>{ownReview ? "我的评价" : "写评价"}</h2>
             {accountStatus === "loading" && <p>正在确认登录状态…</p>}
             {accountStatus === "guest" && (
               <div><Link href="/?view=me">登录后写评价</Link></div>
@@ -390,11 +392,11 @@ export function TeacherDetail({
             )}
             {accountStatus === "ready" && ownReview?.status !== "hidden" && (!ownReview || composerOpen) && (
               <form onSubmit={(event) => void saveReview(event)}>
-                <FormField label="评价正文" counter={`${draftBody.normalize("NFKC").trim().length} / 3000`}>
-                  <textarea disabled={reviewAction !== "idle"} required value={draftBody} onChange={(event) => setDraftBody(event.target.value)} minLength={1} maxLength={3000} rows={3} placeholder="写下你的课堂体验…" />
+                <FormField className={styles.compactField} label={<span className={styles.visuallyHidden}>评价正文</span>}>
+                  <textarea disabled={reviewAction !== "idle"} required value={draftBody} onChange={(event) => setDraftBody(event.target.value)} minLength={1} maxLength={3000} rows={3} placeholder="写评价…" />
                 </FormField>
                 <div className={styles.reviewActions}>
-                  <button type="submit" disabled={reviewAction !== "idle"}>{reviewAction === "saving" ? "正在保存" : ownReview ? "保存修改" : "发布评价"}</button>
+                  <button type="submit" disabled={reviewAction !== "idle"}>{reviewAction === "saving" ? "正在保存" : ownReview ? "保存修改" : "发布"}</button>
                   {ownReview && <button type="button" onClick={() => setComposerOpen(false)} disabled={reviewAction !== "idle"}>取消修改</button>}
                   {ownReview && !confirmDelete && <button type="button" onClick={() => setConfirmDelete(true)} disabled={reviewAction !== "idle"}>删除我的评价</button>}
                   {ownReview && confirmDelete && <><span>确定删除这条评价？</span><button type="button" onClick={() => void deleteReview()} disabled={reviewAction !== "idle"}>{reviewAction === "deleting" ? "正在删除" : "确认删除"}</button><button type="button" onClick={() => setConfirmDelete(false)} disabled={reviewAction !== "idle"}>取消</button></>}

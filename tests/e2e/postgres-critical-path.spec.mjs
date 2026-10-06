@@ -247,7 +247,7 @@ test("users and an administrator complete the release browser path", async ({
     await expect(
       secondOwner.getByRole("heading", { name: teacher.displayName }),
     ).toBeVisible();
-    await expect(secondOwner.getByRole("heading", { name: "写评价", exact: true })).toBeVisible();
+    await expect(secondOwner.getByLabel("评价正文", { exact: true })).toBeVisible();
     await expect(secondOwner.getByRole("radio")).toHaveCount(0);
     const createReviewRequest = secondOwner.waitForRequest((request) =>
       request.method() === "PUT" && new URL(request.url()).pathname === `/api/teachers/${teacher.id}/my-review`
@@ -256,7 +256,7 @@ test("users and an administrator complete the release browser path", async ({
       response.request().method() === "PUT" && new URL(response.url()).pathname === `/api/teachers/${teacher.id}/my-review`
     );
     await secondOwner.getByLabel(/评价正文/u).fill("好");
-    await secondOwner.getByRole("button", { name: "发布评价", exact: true }).click();
+    await secondOwner.getByRole("button", { name: "发布", exact: true }).click();
     expect((await createReviewRequest).postDataJSON()).toEqual({ body: "好" });
     const createdReview = await (await createReviewResponse).json();
     await expect(secondOwner.getByText("评价已发布。", { exact: true })).toBeVisible();
@@ -294,9 +294,9 @@ test("users and an administrator complete the release browser path", async ({
 
     await replier.goto(`/teachers/${teacher.id}`);
     const reviewArticle = replier.locator("article").filter({ hasText: publishedReviewBody });
-    await reviewArticle.getByRole("button", { name: "展开讨论" }).click();
+    await reviewArticle.getByRole("button", { name: "回复", exact: true }).click();
     const teacherReplyBody = "这条回复由另一名真实注册用户补充具体课堂体验。";
-    await reviewArticle.getByLabel("只讨论具体教学体验").fill(teacherReplyBody);
+    await reviewArticle.getByLabel("回复正文", { exact: true }).fill(teacherReplyBody);
     await reviewArticle.getByRole("button", { name: "发布回复" }).click();
     await expect(reviewArticle.getByText("回复已发布。", { exact: true })).toBeVisible();
     await expect(
@@ -368,7 +368,7 @@ test("users and an administrator complete the release browser path", async ({
 
     await secondOwner.goto(`/teachers/${teacher.id}`);
     const reportedReviewArticle = secondOwner.locator("article").filter({ hasText: publishedReviewBody });
-    await reportedReviewArticle.getByRole("button", { name: "展开讨论" }).click();
+    await reportedReviewArticle.getByRole("button", { name: "回复", exact: true }).click();
     await reportedReviewArticle.getByRole("button", { name: "举报", exact: true }).click();
     const teacherReport = secondOwner.getByRole("dialog", { name: "举报“教师评价回复”" });
     await teacherReport.getByLabel(/补充说明/u).fill("用于验证教师评价回复的真实举报与审核闭环。");
@@ -475,7 +475,9 @@ test("users and an administrator complete the release browser path", async ({
 
     await secondOwner.goto(`/teachers/${teacher.id}`);
     await expect(secondOwner.getByText(teacher.candidateBody)).toBeVisible();
-    await expect(secondOwner.getByText("学长学姐 · 历史评价", { exact: true })).toBeVisible();
+    const legacyReviewArticle = secondOwner.locator("article").filter({ hasText: teacher.candidateBody });
+    await expect(legacyReviewArticle.getByText("历史评价", { exact: true })).toBeVisible();
+    await expect(legacyReviewArticle.locator("time, img")).toHaveCount(0);
 
     const moderationDesk = administrator.locator("section").filter({
       has: administrator.getByRole("heading", { name: "举报案卷" }),
@@ -510,7 +512,7 @@ test("users and an administrator complete the release browser path", async ({
 
     await secondOwner.goto(`/teachers/${teacher.id}`);
     const restoredReviewArticle = secondOwner.locator("article").filter({ hasText: publishedReviewBody });
-    await restoredReviewArticle.getByRole("button", { name: "展开讨论" }).click();
+    await restoredReviewArticle.getByRole("button", { name: "回复", exact: true }).click();
     await expect(restoredReviewArticle.getByText(teacherReplyBody)).toBeVisible();
     await restoredReviewArticle.getByRole("button", { name: "举报", exact: true }).click();
     const finalTeacherReport = secondOwner.getByRole("dialog", { name: "举报“教师评价回复”" });
@@ -541,7 +543,7 @@ test("users and an administrator complete the release browser path", async ({
 
     await secondOwner.reload();
     const deletedReviewArticle = secondOwner.locator("article").filter({ hasText: publishedReviewBody });
-    await deletedReviewArticle.getByRole("button", { name: "展开讨论" }).click();
+    await deletedReviewArticle.getByRole("button", { name: "回复", exact: true }).click();
     await expect(deletedReviewArticle.getByText("这条回复已不可见，讨论位置仍被保留。")).toBeVisible();
     await expect(deletedReviewArticle.getByText(teacherReplyBody)).toBeHidden();
 

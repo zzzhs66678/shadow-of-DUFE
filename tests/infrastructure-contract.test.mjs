@@ -217,7 +217,7 @@ test("CI drives the authenticated browser critical path through PostgreSQL", asy
   assert.match(suite, /\/teachers\?q=/);
   assert.match(suite, /getByRole\("radio"\)\)\.toHaveCount\(0\)/);
   assert.match(suite, /getByLabel\(\/评价正文\/u\)\.fill\("好"\)/);
-  assert.match(suite, /name: "发布评价", exact: true/);
+  assert.match(suite, /name: "发布", exact: true/);
   assert.match(suite, /createReviewRequest\)\.postDataJSON\(\)\)\.toEqual\(\{ body: "好" \}\)/);
   assert.match(suite, /name: "保存修改", exact: true/);
   assert.match(suite, /updateReviewRequest\)\.postDataJSON\(\)\)\.toEqual\(\{ body: reviewBody, expectedVersion: createdReview\.review\.version \}\)/);

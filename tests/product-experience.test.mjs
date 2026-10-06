@@ -134,8 +134,11 @@ const personalCourseContextSource = await readFile(
 test("teacher directory disambiguates identities without taking over the daily workspace", () => {
   assert.match(teacherExplorerSource, /同名教师请核对学院/);
   assert.match(teacherExplorerSource, /\/api\/teachers/);
-  assert.match(teacherDetailSource, /sourceType === "legacy_approved" \? "学长学姐 · 历史评价"/);
-  assert.match(teacherDetailSource, /站内公开于/);
+  assert.match(teacherDetailSource, /sourceType === "legacy_approved" \? <small>历史评价<\/small> : <>\s*<b>\{review\.authorLabel\}<\/b>\s*<time dateTime=\{review\.publishedAt\}/);
+  assert.doesNotMatch(teacherDetailSource, /学长学姐|站内公开于|writeReviewLink|<img\b/);
+  assert.match(teacherDetailSource, /id="teacher-reviews-title" className=\{styles\.visuallyHidden\}/);
+  assert.match(teacherDetailSource, /id="teacher-contribution-title" className=\{styles\.visuallyHidden\}/);
+  assert.match(teacherDetailSource, /<h1>\{teacher\.displayName\}<\/h1>[\s\S]*teacher\.collegeName/);
   assert.match(teacherDetailSource, /<p className=\{styles\.reviewEntryBody\}>\{review\.body\}<\/p>/);
   assert.doesNotMatch(teacherDetailSource, /hidden=\{panel|setPanel\(/);
   assert.match(teacherDetailSource, /<details className=\{styles\.teachingDetails\}/);
@@ -143,14 +146,14 @@ test("teacher directory disambiguates identities without taking over the daily w
   assert.match(teacherDetailSource, /termLabel\(book\.termKey\)[\s\S]*book\.sectionNo[\s\S]*book\.edition/);
   assert.match(teacherDetailSource, /textbookTarget\.current\?\.scrollIntoView/);
   assert.match(teacherDetailSource, /\/my-review/);
-  assert.match(teacherDetailSource, /<FormField label="评价正文"/);
+  assert.match(teacherDetailSource, /<FormField className=\{styles\.compactField\} label=\{<span className=\{styles\.visuallyHidden\}>评价正文<\/span>\}/);
   assert.match(teacherDetailSource, /minLength=\{1\} maxLength=\{3000\}/);
   assert.match(teacherDetailSource, /if \(!draftBody\.normalize\("NFKC"\)\.trim\(\)\)/);
   assert.match(teacherDetailSource, /const payload: \{ body: string; expectedVersion\?: number \} = \{\s*body: draftBody,\s*\};/);
   assert.match(teacherDetailSource, /if \(ownReview\) payload\.expectedVersion = ownReview\.version/);
   assert.match(teacherDetailSource, /body: JSON\.stringify\(payload\)/);
   assert.doesNotMatch(teacherDetailSource, /\bratings\b|draftRatings|ratingLabels|<fieldset|type="radio"/);
-  assert.match(teacherDetailSource, /"保存修改" : "发布评价"/);
+  assert.match(teacherDetailSource, /"保存修改" : "发布"/);
   assert.match(teacherDetailSource, /accountStatus === "guest"[\s\S]*登录后写评价/);
   assert.match(teacherDetailSource, /accountStatus === "ready" && ownReview\?\.status !== "hidden" && \(!ownReview \|\| composerOpen\)/);
   assert.match(teacherDetailSource, /评价已隐藏，审核期间不可修改，仍可删除/);
@@ -175,6 +178,15 @@ test("teacher directory disambiguates identities without taking over the daily w
   assert.match(teacherDetailSource, /后续评价暂时没有加载成功，已读内容仍保留/);
   assert.match(teacherDetailSource, /重新读取更多评价/);
   assert.match(teacherDiscussionSource, /aria-expanded={open}/);
+  assert.match(teacherDiscussionSource, /aria-controls=\{open \? `teacher-review-thread-\$\{reviewId\}` : undefined\}/);
+  assert.match(teacherDiscussionSource, /open \? "收起" : "回复"/);
+  assert.doesNotMatch(teacherDiscussionSource, /展开讨论|收起讨论|参与讨论|可以从具体课堂体验继续讨论/);
+  assert.match(teacherDiscussionSource, /className=\{styles\.visuallyHidden\}>回复正文<\/span>/);
+  assert.match(teacherDiscussionSource, /aria-label="举报评价"/);
+  assert.match(teacherDiscussionSource, /<ReportDialog target=\{reportTarget\}/);
+  assert.match(teacherDiscussionSource, /comment\.status !== "published" \|\| !comment\.body/);
+  assert.match(teacherDiscussionSource, /这条回复已不可见，讨论位置仍被保留/);
+  assert.match(teacherDiscussionSource, /nextCursor &&[\s\S]*load\(nextCursor, true\)/);
   assert.match(teacherDiscussionSource, /if \(status === "idle"\) void loadInitial\(\)/);
   assert.doesNotMatch(teacherDiscussionSource, /controller\.abort\(\)/);
   assert.match(
@@ -193,6 +205,7 @@ test("teacher directory disambiguates identities without taking over the daily w
   assert.match(teacherStyles, /\.reviewFilterNotice button\s*\{[^}]*min-height:\s*44px/);
   assert.match(teacherStyles, /\.teachingDetails > summary\s*\{[^}]*min-height:\s*44px/);
   assert.match(teacherStyles, /\.reviewEntryBody\s*\{[^}]*white-space:\s*pre-wrap/);
+  assert.match(teacherStyles, /\.visuallyHidden\s*\{[^}]*clip-path:\s*inset\(50%\)/);
   assert.doesNotMatch(teacherStyles, /\.ratingEditor\b|\.ratings\b|\.reviewIndex\b|\.reviewSort\b/);
 });
 

@@ -149,19 +149,18 @@ export function TeacherReviewDiscussion({
   }
 
   return (
-    <section className={styles.reviewDiscussion} aria-label={`关于${reviewLabel}的讨论`}>
+    <section className={styles.reviewDiscussion} aria-label={`${reviewLabel}的回复`}>
       <div className={styles.reviewDiscussionBar}>
-        <button type="button" aria-expanded={open} onClick={toggleDiscussion}>
-          {open ? "收起讨论" : "展开讨论"}
+        <button type="button" aria-expanded={open} aria-controls={open ? `teacher-review-thread-${reviewId}` : undefined} onClick={toggleDiscussion}>
+          {open ? "收起" : "回复"}
         </button>
-        {canWrite && <button type="button" onClick={() => setReportTarget({ type: "teacher_review", id: reviewId, label: reviewLabel })}>举报评价</button>}
+        {canWrite && <button type="button" aria-label="举报评价" onClick={() => setReportTarget({ type: "teacher_review", id: reviewId, label: reviewLabel })}>举报</button>}
       </div>
 
       {open && (
-        <div className={styles.reviewThread}>
-          {status === "loading" && <p role="status">正在读取讨论…</p>}
-          {status === "error" && <p role="alert">讨论暂时没有加载成功。<button onClick={() => { setFeedback(""); void loadInitial(); }}>重试</button></p>}
-          {status === "ready" && items.length === 0 && <p>还没有回复。可以从具体课堂体验继续讨论。</p>}
+        <div className={styles.reviewThread} id={`teacher-review-thread-${reviewId}`}>
+          {status === "loading" && <p role="status">正在读取回复…</p>}
+          {status === "error" && <p role="alert">回复加载失败。<button onClick={() => { setFeedback(""); void loadInitial(); }}>重试</button></p>}
           {status === "ready" && items.length > 0 && (
             <ol>
               {items.map((comment) => {
@@ -190,12 +189,12 @@ export function TeacherReviewDiscussion({
 
           {canWrite ? (
             <form className={styles.reviewReplyForm} onSubmit={(event) => void submit(event)}>
-              <header>
-                <b>{editing ? "修改回复" : replyTo ? `回复 ${authorName(replyTo.author)}` : "参与讨论"}</b>
-                {(editing || replyTo) && <button type="button" onClick={() => { setEditing(null); setReplyTo(null); setDraft(""); }}>取消</button>}
-              </header>
-              <FormField label="只讨论具体教学体验" counter={`${draft.length} / 3000`}>
-                <textarea name="teacher-review-reply" autoComplete="off" value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={3000} rows={3} />
+              {(editing || replyTo) && <header>
+                <b>{editing ? "修改回复" : `回复 ${authorName(replyTo?.author ?? null)}`}</b>
+                <button type="button" onClick={() => { setEditing(null); setReplyTo(null); setDraft(""); }}>取消</button>
+              </header>}
+              <FormField className={styles.compactField} label={<span className={styles.visuallyHidden}>回复正文</span>}>
+                <textarea name="teacher-review-reply" autoComplete="off" value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={3000} rows={2} placeholder="写回复…" />
               </FormField>
               <button disabled={busy === "save" || draft.trim().length < 1}>{busy === "save" ? "正在发布" : editing ? "保存修改" : "发布回复"}</button>
             </form>

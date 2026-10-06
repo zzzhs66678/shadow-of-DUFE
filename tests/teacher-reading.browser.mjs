@@ -31,6 +31,7 @@ const discussedReview = review('44444444-4444-4444-8444-444444444444', '热议�
 const staleReview = review('66666666-6666-4666-8666-666666666666', '不应出现的旧分页：清除旧链接筛选后必须忽略这条迟到评价。');
 const historicalRatings = { courseOrganization: 5, contentClarity: 4, assessmentExplanation: 3, classroomInteraction: 2, materialCompleteness: 1 };
 const previousOwnReview = { ...review('88888888-8888-4888-8888-888888888888', '以前发布的真实课堂体验，旧评分保存在服务端。'), sourceType: 'user', authorLabel: '已注册用户', ratings: historicalRatings, version: 7, status: 'published', updatedAt: '2026-10-01T00:00:00Z' };
+const currentReview = { ...review('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '课堂的例子很具体，笔记整理起来也清楚。'), sourceType: 'user', authorLabel: '陈同学', publishedAt: '2026-10-01T04:00:00.000Z' };
 const indexItems = [
   { ...teacher, updatedAt: '2026-09-20T04:00:00.000Z' },
   { id: '77777777-7777-4777-8777-777777777777', displayName: '周明远', collegeName: '国际经济贸易学院', courseCount: 3, reviewCount: 12, updatedAt: '2026-09-20T04:00:00.000Z' },
@@ -52,11 +53,18 @@ async function noOverflow(page) {
   assert.ok(dimensions.root <= dimensions.width && dimensions.body <= dimensions.width, `Page overflows: ${JSON.stringify(dimensions)}`);
 }
 
+async function expectVisuallyHidden(locator) {
+  await expect(locator).toHaveCount(1);
+  assert.equal(await locator.evaluate((element) => getComputedStyle(element).clipPath), 'inset(50%)');
+  const box = await locator.boundingBox();
+  assert.ok(box && box.width <= 1 && box.height <= 1, 'Accessible label takes no visible layout space');
+}
+
 
 async function withPage(width, scenario, run) {
   const context = await browser.newContext({ ...contextOptions, viewport: { width, height: 844 }, timezoneId: 'Asia/Shanghai', serviceWorkers: 'block' });
   const signedIn = ['composer', 'old-review', 'hidden-review', 'conflict', 'expired-session'].includes(scenario);
-  const state = { scenario, calls: [], teacherCalls: [], writes: [], ownReview: ['old-review', 'hidden-review', 'conflict'].includes(scenario) ? { ...previousOwnReview, status: scenario === 'hidden-review' ? 'hidden' : 'published' } : null, unexpected: [], errors: [], oldRelease: deferred(), freshRelease: deferred() };
+  const state = { scenario, calls: [], teacherCalls: [], writes: [], replyWrites: [], commentCalls: 0, comments: [], ownReview: ['old-review', 'hidden-review', 'conflict'].includes(scenario) ? { ...previousOwnReview, status: scenario === 'hidden-review' ? 'hidden' : 'published' } : null, unexpected: [], errors: [], oldRelease: deferred(), freshRelease: deferred() };
   try {
     if (scenario === 'race' || scenario === 'directory-race') {
       // Emulate a transport that ignores cancellation so generation checks, not only AbortController, are exercised.
@@ -110,6 +118,19 @@ async function withPage(width, scenario, run) {
         }
         return;
       }
+      if (scenario === 'composer' && request.method() !== 'GET' && (url.pathname === `${reviewPath}/${firstReview.id}/comments` || url.pathname === '/api/teachers/review-comments/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')) {
+        const input = request.postDataJSON();
+        state.replyWrites.push({ method: request.method(), input });
+        const comment = request.method() === 'POST' ? {
+          id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', reviewId: firstReview.id, parentCommentId: null, rootCommentId: null, replyToUserId: null,
+          body: input.body, status: 'published', version: 1,
+          author: { id: '99999999-9999-4999-8999-999999999999', username: 'reply-user', displayName: '回复用户', avatarUrl: null },
+          createdAt: '2026-10-01T04:00:00.000Z', updatedAt: '2026-10-01T04:00:00.000Z', editedAt: null,
+        } : { ...state.comments[0], body: request.method() === 'DELETE' ? null : input.body, status: request.method() === 'DELETE' ? 'deleted' : 'published', version: input.version + 1 };
+        state.comments = [comment];
+        await route.fulfill({ json: { comment } });
+        return;
+      }
       if (request.method() !== 'GET') {
         state.unexpected.push(`Unexpected write blocked: ${request.method()} ${url.pathname}`);
         await route.fulfill({ status: 405, json: { error: 'fixture_read_only' } });
@@ -155,12 +176,13 @@ async function withPage(width, scenario, run) {
           await route.fulfill({ json: { items: [old ? staleReview : secondReview], nextCursor: old ? 'stale-cursor' : null } });
         } else {
           await route.fulfill({ json: {
-            items: [...(state.ownReview?.status === 'published' ? [{ ...state.ownReview, discussionCount: 0 }] : []), sort === 'discussed' ? discussedReview : firstReview],
+            items: [...(state.ownReview?.status === 'published' ? [{ ...state.ownReview, discussionCount: 0 }] : []), sort === 'discussed' ? discussedReview : firstReview, ...(scenario === 'directory-and-reading' ? [currentReview] : [])],
             nextCursor: scenario === 'retry' || scenario === 'race' ? `${sort}-page-2` : null,
           } });
         }
       } else if (url.pathname.startsWith(`${reviewPath}/`) && url.pathname.endsWith('/comments')) {
-        await route.fulfill({ json: { items: [], nextCursor: null } });
+        state.commentCalls += 1;
+        await route.fulfill({ json: { items: state.comments, nextCursor: null } });
       } else {
         state.unexpected.push(`Unmocked API blocked: ${url.pathname}`);
         await route.fulfill({ status: 501, json: { error: 'missing_fixture' } });
@@ -210,8 +232,11 @@ async function withPage(width, scenario, run) {
       await page.goto(`${base.origin}${teacherPath}`);
       const body = page.getByText(firstReview.body, { exact: true });
       await expect(body).toBeVisible();
-      await expect(page.locator('#teacher-reviews-title')).toHaveCount(1);
-      await expect(page.getByRole('heading', { name: '写评价', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: teacher.displayName, exact: true })).toBeVisible();
+      await expect(page.getByRole('link', { name: teacher.collegeName, exact: true })).toBeVisible();
+      await expectVisuallyHidden(page.getByRole('heading', { name: '学生评价', exact: true }));
+      await expectVisuallyHidden(page.getByRole('heading', { name: '写评价', exact: true }));
+      await expect(page.locator('a[href="#teacher-contribution"]')).toHaveCount(0);
       const contribution = page.locator('#teacher-contribution');
       assert.equal(await contribution.evaluate((element) => Boolean(document.querySelector('[aria-labelledby="teacher-reviews-title"] article')?.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING)), true, 'Composer follows historical review entries');
       const firstBox = await body.boundingBox();
@@ -224,7 +249,18 @@ async function withPage(width, scenario, run) {
       await expect(page.getByRole('group', { name: '评价排序方式' })).toHaveCount(0);
       await expect(page.getByRole('link', { name: '登录后写评价', exact: true })).toBeVisible();
       const entry = page.locator('article').filter({ hasText: firstReview.body });
-      assert.ok(await entry.locator('time').evaluate((element) => parseFloat(getComputedStyle(element).fontSize) >= 12));
+      await expect(entry.getByText('历史评价', { exact: true })).toBeVisible();
+      assert.equal(await entry.getByText('历史评价', { exact: true }).evaluate((element) => element.tagName), 'SMALL');
+      await expect(entry.locator('time, b, img')).toHaveCount(0);
+      await expect(page.getByText(/学长学姐|站内公开于|展开讨论|参与讨论/u)).toHaveCount(0);
+      await expect(entry.getByRole('button', { name: '回复', exact: true })).toBeVisible();
+      assert.equal(state.commentCalls, 0, 'Replies are still fetched only on demand');
+      const currentEntry = page.locator('article').filter({ hasText: currentReview.body });
+      await expect(currentEntry.getByText(currentReview.authorLabel, { exact: true })).toBeVisible();
+      await expect(currentEntry.locator('time')).toHaveAttribute('datetime', currentReview.publishedAt);
+      await expect(currentEntry.locator('time')).toHaveText('2026/10/1');
+      assert.ok(await entry.locator('small').evaluate((element) => parseFloat(getComputedStyle(element).fontSize) >= 12));
+      assert.ok(await currentEntry.locator('time').evaluate((element) => parseFloat(getComputedStyle(element).fontSize) >= 12));
       assert.equal(await body.evaluate((element) => getComputedStyle(element).fontSize), '16px');
       await noOverflow(page);
       await page.screenshot({ path: path.join(screenshots, `reading-${width}.png`), fullPage: true });
@@ -303,18 +339,19 @@ async function withPage(width, scenario, run) {
     const contribution = page.locator('#teacher-contribution');
     const input = contribution.getByLabel(/评价正文/u);
     await expect(input).toBeVisible();
+    await expectVisuallyHidden(contribution.getByText('评价正文', { exact: true }));
     assert.ok(await contribution.evaluate((element) => Boolean(document.querySelector('[aria-labelledby="teacher-reviews-title"] article')?.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING)), 'New-review form follows historical content without expanding anything');
     assert.deepEqual((await new AxeBuilder({ page }).analyze()).violations, [], 'Text-only composer passes axe');
     await expect(contribution.getByRole('textbox')).toHaveCount(1);
     await expect(contribution.getByRole('radio')).toHaveCount(0);
     await expect(input).toHaveAttribute('minlength', '1');
     await input.fill('　 ');
-    await contribution.getByRole('button', { name: '发布评价', exact: true }).click();
+    await contribution.getByRole('button', { name: '发布', exact: true }).click();
     await expect(contribution.getByText('请写下评价内容。')).toBeVisible();
     assert.equal(state.writes.length, 0, 'Whitespace-only review never reaches the API');
     const reviewBody = '好';
     await input.fill(reviewBody);
-    await contribution.getByRole('button', { name: '发布评价', exact: true }).click();
+    await contribution.getByRole('button', { name: '发布', exact: true }).click();
     await expect(page.getByText(reviewBody, { exact: true })).toBeVisible();
     await expect(contribution.getByRole('button', { name: '修改我的评价', exact: true })).toBeVisible();
     assert.deepEqual(state.writes[0].input, { body: reviewBody }, 'Create sends only the body, without invented ratings');
@@ -328,17 +365,49 @@ async function withPage(width, scenario, run) {
     await contribution.getByRole('button', { name: '删除我的评价', exact: true }).click();
     await expect(contribution.getByRole('button', { name: '确认删除', exact: true })).toBeVisible();
     await contribution.getByRole('button', { name: '确认删除', exact: true }).click();
-    await expect(contribution.getByRole('heading', { name: '写评价', exact: true })).toBeVisible();
+    await expectVisuallyHidden(contribution.getByRole('heading', { name: '写评价', exact: true }));
     await expect(input).toHaveValue('');
     assert.equal(state.writes[2].input.version, 2);
     assert.deepEqual(state.writes.map((write) => write.method), ['PUT', 'PUT', 'DELETE']);
     const history = page.locator('article').filter({ hasText: firstReview.body });
-    await history.getByRole('button', { name: '展开讨论', exact: true }).click();
-    await expect(history.getByLabel(/只讨论具体教学体验/u)).toBeVisible();
+    const replyToggle = history.getByRole('button', { name: '回复', exact: true });
+    await replyToggle.focus();
+    await page.keyboard.press('Enter');
+    // A wrapping label's text can include React's textarea defaultValue after editing.
+    // Match the accessible textbox name, which remains independent of its current value.
+    const replyInput = history.getByRole('textbox', { name: '回复正文', exact: true });
+    await expect(replyInput).toBeVisible();
+    await expect(history.getByRole('button', { name: '收起', exact: true })).toHaveAttribute('aria-expanded', 'true');
+    await expectVisuallyHidden(history.getByText('回复正文', { exact: true }));
+    await replyInput.fill('补充一条课堂体验');
+    await history.getByRole('button', { name: '发布回复', exact: true }).click();
+    const reply = history.locator('ol > li');
+    await expect(reply.getByText('补充一条课堂体验', { exact: true })).toBeVisible();
+    await expect(reply.getByText('回复用户', { exact: true })).toBeVisible();
+    await expect(reply.locator('time')).toHaveAttribute('datetime', '2026-10-01T04:00:00.000Z');
+    await reply.getByRole('button', { name: '编辑', exact: true }).click();
+    await expect(replyInput).toHaveValue('补充一条课堂体验');
+    await replyInput.fill('修改后的课堂体验');
+    await history.getByRole('button', { name: '保存修改', exact: true }).click();
+    await expect(reply.getByText('修改后的课堂体验', { exact: true })).toBeVisible();
+    await history.getByRole('button', { name: '收起', exact: true }).click();
+    await expect(replyInput).toHaveCount(0);
+    await replyToggle.click();
+    await expect(reply.getByText('修改后的课堂体验', { exact: true })).toBeVisible();
+    assert.equal(state.commentCalls, 1, 'Folding preserves the loaded replies');
+    page.once('dialog', (dialog) => void dialog.accept());
+    await reply.getByRole('button', { name: '删除', exact: true }).click();
+    await expect(reply.getByText('这条回复已不可见，讨论位置仍被保留。', { exact: true })).toBeVisible();
+    assert.deepEqual(state.replyWrites, [
+      { method: 'POST', input: { body: '补充一条课堂体验', replyToCommentId: null } },
+      { method: 'PATCH', input: { body: '修改后的课堂体验', version: 1 } },
+      { method: 'DELETE', input: { version: 2 } },
+    ]);
     await history.getByRole('button', { name: '举报评价', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toHaveCount(0);
+    assert.deepEqual((await new AxeBuilder({ page }).analyze()).violations, [], 'Expanded reply composer and tombstones pass axe');
     await noOverflow(page);
     await page.screenshot({ path: path.join(screenshots, 'composer-390.png'), fullPage: true });
   });
@@ -392,7 +461,7 @@ async function withPage(width, scenario, run) {
   await withPage(390, 'expired-session', async (page, state) => {
     await page.goto(`${base.origin}${teacherPath}`);
     await page.getByLabel(/评价正文/u).fill('课堂体验');
-    await page.getByRole('button', { name: '发布评价', exact: true }).click();
+    await page.getByRole('button', { name: '发布', exact: true }).click();
     await expect(page.getByText('登录状态已失效，请重新登录后再提交。', { exact: true })).toBeVisible();
     await expect(page.getByRole('link', { name: '登录后写评价', exact: true })).toBeVisible();
     await expect(page.getByText(firstReview.body, { exact: true })).toBeVisible();

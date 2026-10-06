@@ -13,13 +13,6 @@
   padding: 24px clamp(20px, 5vw, 78px);
 }
 
-.profileHeader p {
-  color: var(--dufe-red-deep);
-  font: 700 12px/1.4 var(--journal-data, ui-monospace, monospace);
-  letter-spacing: .14em;
-  text-transform: uppercase;
-}
-
 .heroCopy h1 {
   font: 500 clamp(28px, 3vw, 36px)/1.2 var(--journal-display, "Noto Serif SC", SimSun, serif);
   letter-spacing: -.05em;
@@ -29,7 +22,6 @@
 
 .heroCopy p,
 .results > header p,
-.profileHeader small,
 .textbooks > header p {
   color: var(--dufe-muted);
   font-size: 13px;
@@ -141,17 +133,15 @@
 .loadMore:hover, .loadMore:focus-visible { background: var(--dufe-ink); color: var(--dufe-paper); }
 
 .profileHeader {
-  align-items: center;
-  display: grid;
-  gap: 16px;
-  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
   margin: 0 auto;
   max-width: 800px;
-  padding: 12px 20px 16px;
+  padding: 16px 20px 12px;
 }
-.profileHeader p { margin: 0; }
-.profileHeader p a { align-items: center; color: inherit; display: inline-flex; min-height: 44px; text-decoration: none; }
-.writeReviewLink { align-items: center; border-bottom: 1px solid var(--dufe-red); color: var(--dufe-red-deep); display: inline-flex; font-size: 14px; min-height: 44px; text-decoration: none; }
+.profileHeader > a { align-items: center; color: var(--dufe-muted); display: inline-flex; font-size: 13px; min-height: 44px; text-decoration: none; }
 .profileHeader h1 { font: 500 30px/1.25 var(--journal-display, serif); overflow-wrap: anywhere; margin: 0; }
 
 .profileContent { margin: 0 auto; max-width: 800px; padding: 0 20px 60px; }
@@ -171,26 +161,26 @@
 .textbooks article h3 { font: 500 18px/1.45 var(--journal-display, serif); margin: 8px 0; overflow-wrap: anywhere; }
 .textbooks article p, .textbooks article code { color: var(--dufe-muted); font-size: 12px; line-height: 1.6; }
 .textbooks article code { display: block; margin-top: 8px; }
-.reviewEntry { border-top: 1px solid var(--dufe-line); padding: 16px 0 8px; }
+.reviewEntry { border-top: 1px solid var(--dufe-line); padding: 12px 0 4px; }
 .reviewEntryMeta { align-items: baseline; display: flex; flex-wrap: wrap; gap: 4px 12px; }
 .reviewEntryMeta > b { font-size: 14px; overflow-wrap: anywhere; }
-.reviewEntryMeta > span, .reviewEntryMeta time { color: var(--dufe-muted); font-size: 12px; }
-.reviewEntryBody { font: 16px/1.75 var(--journal-body, sans-serif); margin: 8px 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
-.reviewDiscussion { margin-top: 8px; }
-.reviewDiscussionBar { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; }
-.reviewDiscussionBar button, .reviewThread button, .reviewThread a { background: transparent; border: 0; border-bottom: 1px solid var(--dufe-red); color: var(--dufe-red-deep); min-height: 44px; padding: 0 2px; text-decoration: none; }
+.reviewEntryMeta > small, .reviewEntryMeta time { color: var(--dufe-muted); font-size: 12px; }
+.reviewEntryBody { font: 16px/1.75 var(--journal-body, sans-serif); margin: 6px 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.reviewDiscussion { margin-top: 2px; }
+.reviewDiscussionBar { display: flex; flex-wrap: wrap; gap: 16px; }
+.reviewDiscussionBar button, .reviewThread button, .reviewThread a { background: transparent; border: 0; color: var(--dufe-red-deep); font-size: 13px; min-height: 44px; min-width: 44px; padding: 0; text-align: left; text-decoration: none; }
 .reviewDiscussionBar button, .reviewThread button, .reviewThread a { touch-action: manipulation; }
 .reviewDiscussionBar button:focus-visible, .reviewThread button:focus-visible, .reviewThread a:focus-visible { outline: 2px solid var(--dufe-red); outline-offset: 3px; }
-.reviewThread { margin-top: 12px; }
+.reviewThread { margin: 4px 0 12px; }
 .reviewThread > p { color: var(--dufe-muted); font-size: 12px; }
 .reviewThread time { color: var(--dufe-muted); font-size: 12px; }
 .reviewThread > ol { list-style: none; margin: 0; padding: 0; }
-.reviewThread > ol > li { border-top: 1px solid var(--dufe-line); margin: 0; padding: 18px 0; }
+.reviewThread > ol > li { border-top: 1px solid var(--dufe-line); margin: 0; padding: 12px 0 4px; }
 .reviewThread > ol > li[data-reply="true"] { margin-left: clamp(18px, 5vw, 48px); }
-.reviewThread > ol > li > div { align-items: baseline; display: flex; gap: 12px; justify-content: space-between; }
+.reviewThread > ol > li > div { align-items: baseline; display: flex; flex-wrap: wrap; gap: 4px 12px; overflow-wrap: anywhere; }
 .reviewThread > ol > li > p { overflow-wrap: anywhere; font: 14px/1.8 var(--journal-body, sans-serif); margin: 9px 0 0; white-space: pre-wrap; }
-.reviewThread menu { display: flex; flex-wrap: wrap; gap: 12px; list-style: none; margin: 8px 0 0; padding: 0; }
-.reviewReplyForm { border-left: 2px solid var(--dufe-red); margin-top: 20px; padding-left: clamp(14px, 3vw, 24px); }
+.reviewThread menu { display: flex; flex-wrap: wrap; gap: 12px; list-style: none; margin: 2px 0 0; padding: 0; }
+.reviewReplyForm { border-left: 1px solid var(--dufe-line); margin-top: 8px; padding-left: 12px; }
 .reviewReplyForm > header { align-items: center; display: flex; justify-content: space-between; }
 .reviewReplyForm textarea { resize: vertical; width: 100%; }
 .inlineEmpty { color: var(--dufe-muted); padding: 28px 0; }
@@ -199,12 +189,11 @@
 .reviewFilterNotice { align-items: center; color: var(--dufe-muted); display: flex; flex-wrap: wrap; font-size: 13px; gap: 4px 12px; margin: 0 0 8px; overflow-wrap: anywhere; }
 .reviewFilterNotice button { background: transparent; border: 0; color: var(--dufe-red-deep); min-height: 44px; padding: 0; text-decoration: underline; text-underline-offset: 4px; }
 
-.reviewContribution { border-top: 1px solid var(--dufe-line); margin-top: 16px; padding-top: 16px; scroll-margin-top: 20px; }
-.reviewContribution h2 { font: 500 20px/1.4 var(--journal-display, serif); margin: 0 0 8px; }
+.reviewContribution { border-top: 1px solid var(--dufe-line); margin-top: 8px; padding-top: 12px; position: relative; scroll-margin-top: 20px; }
+.visuallyHidden { clip-path: inset(50%); height: 1px; margin: 0; overflow: hidden; position: absolute; white-space: nowrap; width: 1px; }
+.reviewContribution .compactField, .reviewReplyForm .compactField { gap: 0; margin-top: 0; }
 .reviewContribution textarea { font: 16px/1.75 var(--journal-body, sans-serif); resize: vertical; }
-.reviews { border-top: 1px solid var(--dufe-ink); min-width: 0; }
-.reviews > header h2 { align-items: baseline; display: flex; font: 500 18px/1.4 var(--journal-display, serif); gap: 8px; margin: 14px 0; }
-.reviews > header h2 > span { color: var(--dufe-muted); font: 12px/1.4 var(--journal-data, monospace); }
+.reviews { min-width: 0; position: relative; }
 .reviewPagination > p { color: var(--dufe-muted); font-size: 13px; line-height: 1.7; margin: 0; text-align: center; }
 .reviewPagination .loadMore { margin-top: 18px; }
 .reviewPagination .loadMore:disabled { cursor: progress; opacity: .65; }
@@ -224,7 +213,7 @@
   padding: 0;
   text-decoration: none;
 }
-.reviewActions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 12px; }
+.reviewActions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 4px; }
 .reviewActions button { background: transparent; border: 0; border-bottom: 1px solid var(--dufe-ink); color: var(--dufe-ink); min-height: 44px; padding: 0; }
 .reviewActions button:first-child { border-bottom-color: var(--dufe-red); color: var(--dufe-red-deep); font-weight: 700; }
 .reviewActions button:disabled { cursor: progress; opacity: .55; }
@@ -247,7 +236,6 @@
   .teacherList > a { gap: 12px; grid-template-columns: minmax(0, 1fr) auto; }
   .openLabel { display: none; }
   .profileHeader h1 { font-size: 28px; }
-  .profileHeader { gap: 12px; }
   .courseLedger > div:not(.inlineEmpty) { grid-template-columns: minmax(0, 1fr); }
   .courseLedger > div > small { grid-column: 1; grid-row: auto; text-align: left; }
 }
