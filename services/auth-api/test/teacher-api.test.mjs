@@ -115,7 +115,7 @@ function createStore() {
         sourceType: "user",
         authorLabel: "已注册用户",
         body: input.body,
-        ratings: input.ratings,
+        ratings: input.ratings ?? ownReview?.ratings ?? null,
         status: "published",
         version: input.expectedVersion === null ? 1 : input.expectedVersion + 1,
         publishedAt: "2026-08-09T00:00:00.000Z",
@@ -381,6 +381,74 @@ test("teacher review input rejects mass assignment and unauthenticated writes", 
   });
 });
 
+test("text-only teacher review HTTP writes accept omitted/null ratings and preserve old-client scores", async () => {
+  await withServer(async (baseUrl, store) => {
+    const endpoint = `${baseUrl}/api/teachers/${teacherId}/my-review`;
+    const headers = {
+      "Content-Type": "application/json",
+      Cookie: `${config.sessionCookie}=${store.sessionToken}`,
+      Origin: "https://dufesh.cn",
+    };
+    const write = (body) => fetch(endpoint, { method: "PUT", headers, body: JSON.stringify(body) });
+    const created = await write({ body: "好" });
+    assert.equal(created.status, 201);
+    assert.match(created.headers.get("cache-control"), /no-store/u);
+    assert.equal((await created.json()).review.ratings, null);
+    const edited = await write({ body: "字".repeat(3000), ratings: null, expectedVersion: 1 });
+    assert.equal(edited.status, 200);
+    const editedReview = (await edited.json()).review;
+    assert.equal(editedReview.body.length, 3000);
+    assert.equal(editedReview.version, 2);
+    assert.equal(editedReview.ratings, null);
+    const ratings = {
+      courseOrganization: 5, contentClarity: 4, assessmentExplanation: 3,
+      classroomInteraction: 2, materialCompleteness: 1,
+    };
+    const rated = await write({ body: "旧客户端评分", ratings, expectedVersion: 2 });
+    assert.equal(rated.status, 200);
+    assert.deepEqual((await rated.json()).review.ratings, ratings);
+    for (const [index, optionalRatings] of [{}, { ratings: null }].entries()) {
+      const updated = await write({ body: "只改正文", ...optionalRatings, expectedVersion: index + 3 });
+      assert.equal(updated.status, 200);
+      assert.deepEqual((await updated.json()).review.ratings, ratings);
+    }
+    const mine = await fetch(endpoint, { headers });
+    assert.deepEqual((await mine.json()).review.ratings, ratings);
+    const removed = await fetch(endpoint, { method: "DELETE", headers, body: JSON.stringify({ version: 5 }) });
+    assert.equal(removed.status, 200);
+  });
+});
+
+test("text-only HTTP writes retain authentication, origin, version, and strict input boundaries", async () => {
+  await withServer(async (baseUrl, store) => {
+    const endpoint = `${baseUrl}/api/teachers/${teacherId}/my-review`;
+    const headers = {
+      "Content-Type": "application/json",
+      Cookie: `${config.sessionCookie}=${store.sessionToken}`,
+      Origin: "https://dufesh.cn",
+    };
+    for (const [extra, status] of [[{ Cookie: "" }, 401], [{ Origin: "https://attacker.example" }, 403]]) {
+      const response = await fetch(endpoint, {
+        method: "PUT", headers: { ...headers, ...extra }, body: JSON.stringify({ body: "好" }),
+      });
+      assert.equal(response.status, status);
+    }
+    for (const input of [
+      { body: " " }, { body: "字".repeat(3001) }, { body: "好", ratings: {} },
+      { body: "好", ratings: { courseOrganization: 3 } },
+      { body: "好", ratings: { courseOrganization: 0, contentClarity: 4, assessmentExplanation: 3,
+        classroomInteraction: 2, materialCompleteness: 1 } },
+      { body: "好", expectedVersion: 0 }, { body: "好", authorUserId: userId },
+    ]) {
+      const before = store.calls;
+      const response = await fetch(endpoint, { method: "PUT", headers, body: JSON.stringify(input) });
+      assert.equal(response.status, 400);
+      assert.deepEqual(await response.json(), { error: "invalid_teacher_review" });
+      assert.equal(store.calls, before + 1, "only session lookup runs; invalid input never reaches save");
+    }
+  }, { rateLimiters: { read: { consume: () => true }, write: { consume: () => true } } });
+});
+
 test("teacher review writes keep account and shared-network quotas independent", async () => {
   let accountCalls = 0;
   let networkCalls = 0;
@@ -404,13 +472,6 @@ test("teacher review writes keep account and shared-network quotas independent",
     };
     const body = JSON.stringify({
       body: "课程结构清楚，课堂示例能帮助理解概念之间的关系。",
-      ratings: {
-        courseOrganization: 5,
-        contentClarity: 4,
-        assessmentExplanation: 4,
-        classroomInteraction: 3,
-        materialCompleteness: 5,
-      },
     });
     const statuses = [];
     for (let attempt = 0; attempt < 7; attempt += 1) {

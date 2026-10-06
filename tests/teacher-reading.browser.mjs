@@ -8,7 +8,7 @@ import { pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-export async function runTeacherReadingChecks({ browser, baseURL, screenshots, widths = [390, 844, 1280], contextOptions = {} }) {
+export async function runTeacherReadingChecks({ browser, baseURL, screenshots, widths = [320, 390, 844, 1280], contextOptions = {} }) {
 const base = new URL(baseURL);
 await mkdir(screenshots, { recursive: true });
 assert.ok(['http:', 'https:'].includes(base.protocol), 'Use a local HTTP(S) server');
@@ -28,8 +28,9 @@ const review = (id, body) => ({ id, body, sourceType: 'legacy_approved', authorL
 const firstReview = review('22222222-2222-4222-8222-222222222222', '历史评价首屏：讲课条理清楚，课堂举例贴近实际。考核要求请以当学期说明为准。');
 const secondReview = review('33333333-3333-4333-8333-333333333333', '第二页评价：平时可以整理课堂笔记，复习时再结合教材查漏补缺。');
 const discussedReview = review('44444444-4444-4444-8444-444444444444', '热议排序首条：课堂讨论有帮助，以下是另一组排序结果。');
-const discussedMore = review('55555555-5555-4555-8555-555555555555', '热议排序第二页：这条评价只属于热议排序的后续页面。');
-const staleReview = review('66666666-6666-4666-8666-666666666666', '不应出现的旧分页：排序切换后必须忽略这条迟到评价。');
+const staleReview = review('66666666-6666-4666-8666-666666666666', '不应出现的旧分页：清除旧链接筛选后必须忽略这条迟到评价。');
+const historicalRatings = { courseOrganization: 5, contentClarity: 4, assessmentExplanation: 3, classroomInteraction: 2, materialCompleteness: 1 };
+const previousOwnReview = { ...review('88888888-8888-4888-8888-888888888888', '以前发布的真实课堂体验，旧评分保存在服务端。'), sourceType: 'user', authorLabel: '已注册用户', ratings: historicalRatings, version: 7, status: 'published', updatedAt: '2026-10-01T00:00:00Z' };
 const indexItems = [
   { ...teacher, updatedAt: '2026-09-20T04:00:00.000Z' },
   { id: '77777777-7777-4777-8777-777777777777', displayName: '周明远', collegeName: '国际经济贸易学院', courseCount: 3, reviewCount: 12, updatedAt: '2026-09-20T04:00:00.000Z' },
@@ -54,7 +55,8 @@ async function noOverflow(page) {
 
 async function withPage(width, scenario, run) {
   const context = await browser.newContext({ ...contextOptions, viewport: { width, height: 844 }, timezoneId: 'Asia/Shanghai', serviceWorkers: 'block' });
-  const state = { scenario, calls: [], teacherCalls: [], writes: [], ownReview: null, unexpected: [], errors: [], oldRelease: deferred(), freshRelease: deferred() };
+  const signedIn = ['composer', 'old-review', 'hidden-review', 'conflict', 'expired-session'].includes(scenario);
+  const state = { scenario, calls: [], teacherCalls: [], writes: [], ownReview: ['old-review', 'hidden-review', 'conflict'].includes(scenario) ? { ...previousOwnReview, status: scenario === 'hidden-review' ? 'hidden' : 'published' } : null, unexpected: [], errors: [], oldRelease: deferred(), freshRelease: deferred() };
   try {
     if (scenario === 'race' || scenario === 'directory-race') {
       // Emulate a transport that ignores cancellation so generation checks, not only AbortController, are exercised.
@@ -91,14 +93,19 @@ async function withPage(width, scenario, run) {
         await route.continue();
         return;
       }
-      if (request.method() !== 'GET' && scenario === 'composer' && url.pathname === `/api${teacherPath}/my-review` && ['PUT', 'DELETE'].includes(request.method())) {
+      if (request.method() !== 'GET' && signedIn && url.pathname === `/api${teacherPath}/my-review` && ['PUT', 'DELETE'].includes(request.method())) {
         const input = request.postDataJSON();
         state.writes.push({ method: request.method(), input });
         if (request.method() === 'DELETE') {
           state.ownReview = null;
           await route.fulfill({ json: { review: { id: '88888888-8888-4888-8888-888888888888', status: 'deleted' } } });
+        } else if (scenario === 'expired-session') {
+          await route.fulfill({ status: 401, json: { error: 'authentication_required' } });
+        } else if (scenario === 'conflict' && state.writes.length === 1) {
+          state.ownReview = { ...state.ownReview, body: '另一处已更新的评价正文。', version: 8 };
+          await route.fulfill({ status: 409, json: { error: 'review_version_conflict' } });
         } else {
-          state.ownReview = { ...review('88888888-8888-4888-8888-888888888888', input.body), sourceType: 'user', authorLabel: '已注册用户', ratings: input.ratings, version: (input.expectedVersion ?? 0) + 1, status: 'published', updatedAt: '2026-10-01T00:00:00Z' };
+          state.ownReview = { ...review('88888888-8888-4888-8888-888888888888', input.body), sourceType: 'user', authorLabel: '已注册用户', ratings: state.ownReview?.ratings ?? null, version: (input.expectedVersion ?? 0) + 1, status: 'published', updatedAt: '2026-10-01T00:00:00Z' };
           await route.fulfill({ status: input.expectedVersion ? 200 : 201, json: { review: state.ownReview } });
         }
         return;
@@ -109,7 +116,7 @@ async function withPage(width, scenario, run) {
         return;
       }
       if (url.pathname === '/api/auth/session') {
-        await route.fulfill({ json: scenario === 'composer' ? { authenticated: true, user: { id: '99999999-9999-4999-8999-999999999999' } } : { authenticated: false } });
+        await route.fulfill({ json: signedIn ? { authenticated: true, user: { id: '99999999-9999-4999-8999-999999999999' } } : { authenticated: false } });
       } else if (url.pathname === '/api/teachers') {
         const college = url.searchParams.get('college');
         const query = url.searchParams.get('q');
@@ -130,23 +137,25 @@ async function withPage(width, scenario, run) {
       } else if (url.pathname === `/api${teacherPath}`) {
         await route.fulfill({ json: { teacher } });
       } else if (url.pathname === `/api${teacherPath}/my-review`) {
-        await route.fulfill(scenario === 'composer' ? { json: { review: state.ownReview } } : { status: 401, json: { error: 'authentication_required' } });
+        await route.fulfill(signedIn ? { json: { review: state.ownReview } } : { status: 401, json: { error: 'authentication_required' } });
       } else if (url.pathname === reviewPath) {
         const sort = url.searchParams.get('sort');
         const after = url.searchParams.get('after');
         state.calls.push({ sort, after, query: url.searchParams.get('q') });
-        if (after && scenario === 'retry') {
+        if (url.searchParams.get('q') === '无匹配') {
+          await route.fulfill({ json: { items: [], nextCursor: null } });
+        } else if (after && scenario === 'retry') {
           const attempts = state.calls.filter((call) => call.after === after).length;
           await route.fulfill(attempts === 1
             ? { status: 503, json: { error: 'fixture_unavailable' } }
             : { json: { items: [firstReview, secondReview], nextCursor: null } });
         } else if (after && scenario === 'race') {
-          const old = sort !== 'discussed';
+          const old = sort === 'discussed';
           await (old ? state.oldRelease : state.freshRelease).promise;
-          await route.fulfill({ json: { items: [old ? staleReview : discussedMore], nextCursor: old ? 'stale-cursor' : null } });
+          await route.fulfill({ json: { items: [old ? staleReview : secondReview], nextCursor: old ? 'stale-cursor' : null } });
         } else {
           await route.fulfill({ json: {
-            items: [...(state.ownReview ? [{ ...state.ownReview, discussionCount: 0 }] : []), sort === 'discussed' ? discussedReview : firstReview],
+            items: [...(state.ownReview?.status === 'published' ? [{ ...state.ownReview, discussionCount: 0 }] : []), sort === 'discussed' ? discussedReview : firstReview],
             nextCursor: scenario === 'retry' || scenario === 'race' ? `${sort}-page-2` : null,
           } });
         }
@@ -209,7 +218,11 @@ async function withPage(width, scenario, run) {
       assert.ok(firstBox && firstBox.y >= 0 && firstBox.y + Math.min(firstBox.height, 32) < 844, 'Historical review body starts on the first screen');
       const textbooks = page.getByRole('heading', { name: '教材', exact: true, includeHidden: true });
       await expect(textbooks).toBeHidden();
-      await expect(page.locator('main > div[hidden]')).toHaveCount(1);
+      await expect(page.getByRole('searchbox')).toHaveCount(0);
+      await expect(page.getByRole('radio')).toHaveCount(0);
+      await expect(page.getByText(/五项教学维度|五项评分|五维/u)).toHaveCount(0);
+      await expect(page.getByRole('group', { name: '评价排序方式' })).toHaveCount(0);
+      await expect(page.getByRole('link', { name: '登录后写评价', exact: true })).toBeVisible();
       const entry = page.locator('article').filter({ hasText: firstReview.body });
       assert.ok(await entry.locator('time').evaluate((element) => parseFloat(getComputedStyle(element).fontSize) >= 12));
       assert.equal(await body.evaluate((element) => getComputedStyle(element).fontSize), '16px');
@@ -217,22 +230,33 @@ async function withPage(width, scenario, run) {
       await page.screenshot({ path: path.join(screenshots, `reading-${width}.png`), fullPage: true });
       assert.deepEqual((await new AxeBuilder({ page }).analyze()).violations, [], 'Review stream passes axe');
 
-      await page.getByRole('button', { name: '课程与教材', exact: true }).click();
+      const teachingToggle = page.locator('summary').filter({ hasText: '课程与教材' });
+      await teachingToggle.focus();
+      await page.keyboard.press('Enter');
       await expect(textbooks).toBeVisible();
-      await expect(body).toBeHidden();
+      await expect(body).toBeVisible();
       await expect(page.getByText('第 3 版', { exact: true })).toBeVisible();
       await noOverflow(page);
-      await page.getByRole('button', { name: /^学生评价/u }).click();
+      assert.deepEqual((await new AxeBuilder({ page }).analyze()).violations, [], 'Expanded secondary teaching information passes axe');
+      await teachingToggle.click();
       await expect(body).toBeVisible();
       await expect(textbooks).toBeHidden();
 
-      await page.goto(`${base.origin}${teacherPath}?reviewQuery=${encodeURIComponent('考核')}&reviewSort=relevant`);
+      await page.goto(`${base.origin}${teacherPath}?panel=teaching`);
       await expect(page.getByText(firstReview.body, { exact: true })).toBeVisible();
-      const query = page.getByLabel('在评价里查找', { exact: true });
-      await expect(query).toBeVisible();
-      await expect(query).toHaveValue('考核');
-      await expect(page.getByRole('button', { name: '相关', exact: true })).toHaveAttribute('aria-pressed', 'true');
-      assert.ok(parseFloat(await query.evaluate((element) => getComputedStyle(element).fontSize)) >= 16);
+      const legacyPanelBox = await body.boundingBox();
+      assert.ok(legacyPanelBox && legacyPanelBox.y >= 0 && legacyPanelBox.y < 600, 'Old panel=teaching does not hide or push the review stream out of view');
+
+      await page.goto(`${base.origin}${teacherPath}?reviewQuery=${encodeURIComponent('无匹配')}&reviewSort=relevant`);
+      await expect(page.getByText('没有找到包含“无匹配”的公开评价。', { exact: true })).toBeVisible();
+      await expect(page.getByText('还没有公开评价。', { exact: true })).toHaveCount(0);
+      assert.equal(state.calls.at(-1).query, '无匹配');
+      await page.getByRole('button', { name: '查看全部评价', exact: true }).click();
+      await expect(page.getByText(firstReview.body, { exact: true })).toBeVisible();
+      assert.equal(state.calls.at(-1).query, null);
+      assert.equal(state.calls.at(-1).sort, 'latest');
+      assert.equal(new URL(page.url()).search, '');
+      await expect(page.getByRole('button', { name: '查看全部评价', exact: true })).toHaveCount(0);
       await noOverflow(page);
     });
   }
@@ -277,26 +301,29 @@ async function withPage(width, scenario, run) {
     const body = page.getByText(firstReview.body, { exact: true });
     await expect(body).toBeVisible();
     const contribution = page.locator('#teacher-contribution');
-    const input = contribution.getByLabel(/具体说说课堂组织/u);
+    const input = contribution.getByLabel(/评价正文/u);
     await expect(input).toBeVisible();
     assert.ok(await contribution.evaluate((element) => Boolean(document.querySelector('[aria-labelledby="teacher-reviews-title"] article')?.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING)), 'New-review form follows historical content without expanding anything');
-    assert.deepEqual((await new AxeBuilder({ page }).analyze()).violations, [], 'Open rating composer passes axe');
-    const reviewBody = '课程组织清晰，案例讲解具体，考核说明完整，作业反馈能够帮助理解课堂内容。';
+    assert.deepEqual((await new AxeBuilder({ page }).analyze()).violations, [], 'Text-only composer passes axe');
+    await expect(contribution.getByRole('textbox')).toHaveCount(1);
+    await expect(contribution.getByRole('radio')).toHaveCount(0);
+    await expect(input).toHaveAttribute('minlength', '1');
+    await input.fill('　 ');
+    await contribution.getByRole('button', { name: '发布评价', exact: true }).click();
+    await expect(contribution.getByText('请写下评价内容。')).toBeVisible();
+    assert.equal(state.writes.length, 0, 'Whitespace-only review never reaches the API');
+    const reviewBody = '好';
     await input.fill(reviewBody);
-    await contribution.getByRole('button', { name: '保存并公开', exact: true }).click();
-    await expect(contribution.getByText('请完成五个教学维度的评分。')).toBeVisible();
-    for (const dimension of ['课程组织', '讲解清晰', '考核说明', '课堂互动', '资料完整']) {
-      await contribution.getByRole('group', { name: dimension }).getByRole('radio', { name: '5', exact: true }).check();
-    }
-    await contribution.getByRole('button', { name: '保存并公开', exact: true }).click();
+    await contribution.getByRole('button', { name: '发布评价', exact: true }).click();
     await expect(page.getByText(reviewBody, { exact: true })).toBeVisible();
     await expect(contribution.getByRole('button', { name: '修改我的评价', exact: true })).toBeVisible();
-    assert.equal(Object.values(state.writes[0].input.ratings).every((value) => value === 5), true);
+    assert.deepEqual(state.writes[0].input, { body: reviewBody }, 'Create sends only the body, without invented ratings');
+    assert.equal(state.ownReview.ratings, null);
     await contribution.getByRole('button', { name: '修改我的评价', exact: true }).click();
     await input.fill(`${reviewBody}补充：资料与进度一致。`);
-    await contribution.getByRole('button', { name: '保存并公开', exact: true }).click();
+    await contribution.getByRole('button', { name: '保存修改', exact: true }).click();
     await expect(page.getByText(`${reviewBody}补充：资料与进度一致。`, { exact: true })).toBeVisible();
-    assert.equal(state.writes[1].input.expectedVersion, 1);
+    assert.deepEqual(state.writes[1].input, { body: `${reviewBody}补充：资料与进度一致。`, expectedVersion: 1 });
     await contribution.getByRole('button', { name: '修改我的评价', exact: true }).click();
     await contribution.getByRole('button', { name: '删除我的评价', exact: true }).click();
     await expect(contribution.getByRole('button', { name: '确认删除', exact: true })).toBeVisible();
@@ -316,6 +343,62 @@ async function withPage(width, scenario, run) {
     await page.screenshot({ path: path.join(screenshots, 'composer-390.png'), fullPage: true });
   });
 
+  await withPage(390, 'old-review', async (page, state) => {
+    await page.goto(`${base.origin}${teacherPath}`);
+    await expect(page.getByText(previousOwnReview.body, { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: '修改我的评价', exact: true }).click();
+    const input = page.getByLabel(/评价正文/u);
+    await expect(input).toHaveValue(previousOwnReview.body);
+    await expect(page.getByRole('radio')).toHaveCount(0);
+    await input.fill('补充一句。');
+    await page.getByRole('button', { name: '保存修改', exact: true }).click();
+    await expect(page.getByText('补充一句。', { exact: true })).toBeVisible();
+    assert.deepEqual(state.writes[0].input, { body: '补充一句。', expectedVersion: 7 });
+    assert.deepEqual(state.ownReview.ratings, historicalRatings, 'Editing old rated reviews neither invents nor replaces historical ratings');
+  });
+
+  await withPage(390, 'hidden-review', async (page, state) => {
+    await page.goto(`${base.origin}${teacherPath}`);
+    const contribution = page.locator('#teacher-contribution');
+    await expect(contribution.getByText('评价已隐藏，审核期间不可修改，仍可删除。', { exact: true })).toBeVisible();
+    await expect(contribution.getByRole('textbox')).toHaveCount(0);
+    await expect(contribution.getByRole('button', { name: '修改我的评价', exact: true })).toHaveCount(0);
+    await expect(page.getByText(previousOwnReview.body, { exact: true })).toHaveCount(0);
+    await expect(page.getByText(firstReview.body, { exact: true })).toBeVisible();
+    await contribution.getByRole('button', { name: '删除我的评价', exact: true }).click();
+    await contribution.getByRole('button', { name: '取消', exact: true }).click();
+    assert.equal(state.writes.length, 0, 'Delete confirmation can be cancelled');
+    await contribution.getByRole('button', { name: '删除我的评价', exact: true }).click();
+    await contribution.getByRole('button', { name: '确认删除', exact: true }).click();
+    await expect(contribution.getByLabel(/评价正文/u)).toHaveValue('');
+    assert.deepEqual(state.writes, [{ method: 'DELETE', input: { version: 7 } }]);
+  });
+
+  await withPage(390, 'conflict', async (page, state) => {
+    await page.goto(`${base.origin}${teacherPath}`);
+    await page.getByRole('button', { name: '修改我的评价', exact: true }).click();
+    const input = page.getByLabel(/评价正文/u);
+    await input.fill('本地修改');
+    await page.getByRole('button', { name: '保存修改', exact: true }).click();
+    await expect(page.getByText('这份评价已经在另一处更新。页面将读取最新版本，请核对后再保存。', { exact: true })).toBeVisible();
+    await expect(input).toHaveValue('另一处已更新的评价正文。');
+    assert.equal(state.writes.length, 1, 'Conflict never automatically resubmits or overwrites the newer version');
+    await input.fill('核对后修改');
+    await page.getByRole('button', { name: '保存修改', exact: true }).click();
+    await expect(page.getByText('核对后修改', { exact: true })).toBeVisible();
+    assert.deepEqual(state.writes[1].input, { body: '核对后修改', expectedVersion: 8 });
+  });
+
+  await withPage(390, 'expired-session', async (page, state) => {
+    await page.goto(`${base.origin}${teacherPath}`);
+    await page.getByLabel(/评价正文/u).fill('课堂体验');
+    await page.getByRole('button', { name: '发布评价', exact: true }).click();
+    await expect(page.getByText('登录状态已失效，请重新登录后再提交。', { exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: '登录后写评价', exact: true })).toBeVisible();
+    await expect(page.getByText(firstReview.body, { exact: true })).toBeVisible();
+    assert.equal(state.writes.length, 1);
+  });
+
   await withPage(390, 'retry', async (page, state) => {
     await page.goto(`${base.origin}${teacherPath}`);
     await expect(page.getByText(firstReview.body, { exact: true })).toBeVisible();
@@ -331,45 +414,49 @@ async function withPage(width, scenario, run) {
   });
 
   await withPage(390, 'race', async (page, state) => {
-    await page.goto(`${base.origin}${teacherPath}`);
+    await page.goto(`${base.origin}${teacherPath}?reviewSort=discussed`);
     const more = page.getByRole('button', { name: '继续查看评价', exact: true });
     await expect(more).toBeVisible();
     await more.evaluate((button) => { button.click(); button.click(); });
-    await expect.poll(() => state.calls.filter((call) => call.after && call.sort === 'latest').length).toBe(1);
+    await expect.poll(() => state.calls.filter((call) => call.after && call.sort === 'discussed').length).toBe(1);
     await expect(page.getByRole('button', { name: '正在读取…', exact: true })).toBeDisabled();
     assert.equal(state.calls.filter((call) => call.after).length, 1, 'Concurrent clicks do not request the same page twice');
-    await page.getByRole('button', { name: '热议', exact: true }).click();
-    await expect(page.getByText(discussedReview.body, { exact: true })).toBeVisible();
-    await expect(page.getByText(firstReview.body, { exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: '查看全部评价', exact: true }).click();
+    await expect(page.getByText(firstReview.body, { exact: true })).toBeVisible();
+    await expect(page.getByText(discussedReview.body, { exact: true })).toHaveCount(0);
 
     await page.getByRole('button', { name: '继续查看评价', exact: true }).click();
-    await expect.poll(() => state.calls.filter((call) => call.after && call.sort === 'discussed').length).toBe(1);
+    await expect.poll(() => state.calls.filter((call) => call.after && call.sort === 'latest').length).toBe(1);
     const staleResponse = page.waitForResponse((response) => {
       const url = new URL(response.url());
-      return url.pathname === reviewPath && url.searchParams.get('after') === 'latest-page-2';
+      return url.pathname === reviewPath && url.searchParams.get('after') === 'discussed-page-2';
     });
     state.oldRelease.resolve();
     await (await staleResponse).finished();
     await afterPaint(page);
     await expect(page.getByText(staleReview.body, { exact: true })).toHaveCount(0);
-    await expect(page.getByText(discussedReview.body, { exact: true })).toBeVisible();
+    await expect(page.getByText(firstReview.body, { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: '正在读取…', exact: true })).toBeDisabled();
     state.freshRelease.resolve();
-    await expect(page.getByText(discussedMore.body, { exact: true })).toBeVisible();
+    await expect(page.getByText(secondReview.body, { exact: true })).toBeVisible();
     await expect(page.getByText(staleReview.body, { exact: true })).toHaveCount(0);
     assert.equal(state.calls.filter((call) => call.after).length, 2, 'Only one page request per sort is sent');
     await expect(page.getByRole('button', { name: '继续查看评价', exact: true })).toHaveCount(0);
     await noOverflow(page);
   });
-  await withPage(390, 'race', async (page) => {
+  await withPage(390, 'textbook-links', async (page) => {
     await page.goto(`${base.origin}${teacherPath}?panel=teaching&course=LOCAL001`);
     await expect(page.getByRole('heading', { name: '本地验收教材', exact: true })).toBeVisible();
     await expect(page.getByText('第 3 版', { exact: true })).toBeVisible();
+    await expect(page.getByText(firstReview.body, { exact: true })).toBeVisible();
+    const textbookBox = await page.getByRole('heading', { name: '本地验收教材', exact: true }).boundingBox();
+    assert.ok(textbookBox && textbookBox.y >= 0 && textbookBox.y < 844, 'Legacy course link locates its textbook in the expanded secondary information');
     await page.goto(`${base.origin}${teacherPath}?panel=teaching&course=OTHER`);
-    await expect(page.getByText('这位教师名下暂未记录该课程的教材，请以任课教师通知为准。')).toBeVisible();
+    await expect(page.getByText('该课程暂未记录教材。')).toBeVisible();
     await expect(page.getByRole('heading', { name: '本地验收教材', exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: '查看这位教师的全部教材' }).click();
+    await page.getByRole('button', { name: '查看全部教材' }).click();
     await expect(page.getByRole('heading', { name: '本地验收教材', exact: true })).toBeVisible();
+    assert.equal(new URL(page.url()).searchParams.has('course'), false);
     await noOverflow(page);
   });
 }

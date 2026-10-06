@@ -134,21 +134,46 @@ const personalCourseContextSource = await readFile(
 test("teacher directory disambiguates identities without taking over the daily workspace", () => {
   assert.match(teacherExplorerSource, /同名教师请核对学院/);
   assert.match(teacherExplorerSource, /\/api\/teachers/);
-  assert.match(teacherDetailSource, /历史整理内容不参与均分/);
-  assert.match(teacherDetailSource, /同一课程的不同教学班可能使用不同教材/);
-  assert.match(teacherDetailSource, /历史评价供参考/);
+  assert.match(teacherDetailSource, /sourceType === "legacy_approved" \? "学长学姐 · 历史评价"/);
+  assert.match(teacherDetailSource, /站内公开于/);
+  assert.match(teacherDetailSource, /<p className=\{styles\.reviewEntryBody\}>\{review\.body\}<\/p>/);
+  assert.doesNotMatch(teacherDetailSource, /hidden=\{panel|setPanel\(/);
+  assert.match(teacherDetailSource, /<details className=\{styles\.teachingDetails\}/);
+  assert.match(teacherDetailSource, /book\.courseId === courseFilter/);
+  assert.match(teacherDetailSource, /termLabel\(book\.termKey\)[\s\S]*book\.sectionNo[\s\S]*book\.edition/);
+  assert.match(teacherDetailSource, /textbookTarget\.current\?\.scrollIntoView/);
   assert.match(teacherDetailSource, /\/my-review/);
-  assert.match(teacherDetailSource, /每位登录用户对同一位教师保留一份评价/);
-  assert.match(teacherDetailSource, /<fieldset/);
-  assert.match(teacherDetailSource, /expectedVersion/);
-  assert.match(teacherDetailSource, /删除后公开页将不再显示/);
-  assert.match(teacherDetailSource, /审核期间不能修改正文/);
+  assert.match(teacherDetailSource, /<FormField label="评价正文"/);
+  assert.match(teacherDetailSource, /minLength=\{1\} maxLength=\{3000\}/);
+  assert.match(teacherDetailSource, /if \(!draftBody\.normalize\("NFKC"\)\.trim\(\)\)/);
+  assert.match(teacherDetailSource, /const payload: \{ body: string; expectedVersion\?: number \} = \{\s*body: draftBody,\s*\};/);
+  assert.match(teacherDetailSource, /if \(ownReview\) payload\.expectedVersion = ownReview\.version/);
+  assert.match(teacherDetailSource, /body: JSON\.stringify\(payload\)/);
+  assert.doesNotMatch(teacherDetailSource, /\bratings\b|draftRatings|ratingLabels|<fieldset|type="radio"/);
+  assert.match(teacherDetailSource, /"保存修改" : "发布评价"/);
+  assert.match(teacherDetailSource, /accountStatus === "guest"[\s\S]*登录后写评价/);
+  assert.match(teacherDetailSource, /accountStatus === "ready" && ownReview\?\.status !== "hidden" && \(!ownReview \|\| composerOpen\)/);
+  assert.match(teacherDetailSource, /评价已隐藏，审核期间不可修改，仍可删除/);
+  assert.match(teacherDetailSource, /confirmDelete &&[\s\S]*确认删除[\s\S]*setConfirmDelete\(false\)/);
+  assert.match(teacherDetailSource, /method: "DELETE"[\s\S]*JSON\.stringify\(\{ version: ownReview\.version \}\)/);
+  assert.equal((teacherDetailSource.match(/response\.status === 409/g) ?? []).length, 2, "Save and delete both handle stale versions");
   assert.match(teacherDetailSource, /<TeacherReviewDiscussion/);
-  assert.match(teacherDetailSource, /role="search"/);
-  assert.match(teacherDetailSource, /reviewSort === "discussed"/);
-  assert.match(teacherDetailSource, /reviewSort === "relevant"/);
+  assert.doesNotMatch(teacherDetailSource, /role="search"|评价排序方式|styles\.reviewSort/);
+  assert.match(teacherDetailSource, /\(reviewQuery \|\| reviewSort !== "latest"\) &&/);
+  assert.match(teacherDetailSource, /onClick=\{clearReviewSearch\}>查看全部评价/);
+  for (const key of ["reviewQuery", "reviewSort", "q", "sort"]) {
+    assert.ok(teacherDetailSource.includes(`url.searchParams.delete("${key}")`));
+  }
+  assert.match(teacherDetailSource, /reviewQuery \? `没有找到包含/);
   assert.match(teacherDetailSource, /reviewQuery.*reviewSort/s);
   assert.match(teacherDetailSource, /discussionCount/);
+  assert.match(teacherDetailSource, /if \(cursor\) query\.set\("after", cursor\)/);
+  assert.match(teacherDetailSource, /!nextCursor \|\| reviewListStatus !== "ready" \|\| reviewMoreRequest\.current/);
+  assert.match(teacherDetailSource, /controller\.signal\.aborted \|\| generation !== reviewGeneration\.current/);
+  assert.match(teacherDetailSource, /payload\.items\.filter\(\(review\) => !knownIds\.has\(review\.id\)\)/);
+  assert.match(teacherDetailSource, /reviewMoreRequest\.current\?\.abort\(\)/);
+  assert.match(teacherDetailSource, /后续评价暂时没有加载成功，已读内容仍保留/);
+  assert.match(teacherDetailSource, /重新读取更多评价/);
   assert.match(teacherDiscussionSource, /aria-expanded={open}/);
   assert.match(teacherDiscussionSource, /if \(status === "idle"\) void loadInitial\(\)/);
   assert.doesNotMatch(teacherDiscussionSource, /controller\.abort\(\)/);
@@ -164,9 +189,11 @@ test("teacher directory disambiguates identities without taking over the daily w
   assert.doesNotMatch(teacherRecordLinkSource, /useEffect/);
   assert.match(teacherStyles, /min-height:\s*44px/);
   assert.match(teacherStyles, /@media \(max-width:\s*900px\)/);
-  assert.match(teacherStyles, /\.ratingEditor label span[\s\S]*min-height:\s*44px/);
-  assert.match(teacherStyles, /\.reviewIndex input[\s\S]*min-height:\s*44px/);
-  assert.match(teacherStyles, /\.reviewSort button\[aria-pressed="true"\]/);
+  assert.match(teacherStyles, /\.reviewActions button\s*\{[^}]*min-height:\s*44px/);
+  assert.match(teacherStyles, /\.reviewFilterNotice button\s*\{[^}]*min-height:\s*44px/);
+  assert.match(teacherStyles, /\.teachingDetails > summary\s*\{[^}]*min-height:\s*44px/);
+  assert.match(teacherStyles, /\.reviewEntryBody\s*\{[^}]*white-space:\s*pre-wrap/);
+  assert.doesNotMatch(teacherStyles, /\.ratingEditor\b|\.ratings\b|\.reviewIndex\b|\.reviewSort\b/);
 });
 
 test("teacher and material discovery use scoped course context without hiding schoolwide results", () => {

@@ -13,11 +13,7 @@
   padding: 24px clamp(20px, 5vw, 78px);
 }
 
-.profileHeader p,
-.ratings header span,
-.courseLedger header span,
-.textbooks > header span,
-.reviews > header span {
+.profileHeader p {
   color: var(--dufe-red-deep);
   font: 700 12px/1.4 var(--journal-data, ui-monospace, monospace);
   letter-spacing: .14em;
@@ -34,9 +30,7 @@
 .heroCopy p,
 .results > header p,
 .profileHeader small,
-.ratings header p,
-.textbooks > header p,
-.reviews > header p {
+.textbooks > header p {
   color: var(--dufe-muted);
   font-size: 13px;
   line-height: 1.8;
@@ -114,7 +108,7 @@
 .directoryFilter label, .directoryFilter p { color: var(--dufe-muted); font-size: 13px; margin: 0; }
 .directoryFilter select { background: var(--dufe-paper-raised); border: 1px solid var(--dufe-line); border-radius: 0; color: var(--dufe-ink); font: 16px/1.5 var(--journal-body, sans-serif); max-width: 100%; min-height: 44px; min-width: 0; padding: 8px; }
 .directoryFilter p { margin-left: auto; }
-.page :is(button, select, a):focus-visible { outline: 2px solid var(--dufe-red); outline-offset: 3px; }
+.page :is(button, select, a, summary):focus-visible { outline: 2px solid var(--dufe-red); outline-offset: 3px; }
 .page button { cursor: pointer; touch-action: manipulation; }
 .page button:disabled { cursor: not-allowed; }
 
@@ -148,78 +142,40 @@
 
 .profileHeader {
   align-items: center;
-  border-bottom: 1px solid var(--dufe-ink);
   display: grid;
-  gap: 20px;
+  gap: 16px;
   grid-template-columns: minmax(0, 1fr) auto;
-  padding: 18px clamp(20px, 6vw, 92px);
+  margin: 0 auto;
+  max-width: 800px;
+  padding: 12px 20px 16px;
 }
 .profileHeader p { margin: 0; }
 .profileHeader p a { align-items: center; color: inherit; display: inline-flex; min-height: 44px; text-decoration: none; }
 .writeReviewLink { align-items: center; border-bottom: 1px solid var(--dufe-red); color: var(--dufe-red-deep); display: inline-flex; font-size: 14px; min-height: 44px; text-decoration: none; }
-.profileHeader h1 { font: 500 clamp(28px, 3vw, 40px)/1.25 var(--journal-display, serif); overflow-wrap: anywhere; margin: 6px 0; }
+.profileHeader h1 { font: 500 30px/1.25 var(--journal-display, serif); overflow-wrap: anywhere; margin: 0; }
 
-.profileNavigation {
-  align-items: stretch;
-  background: var(--dufe-paper-raised);
-  border-bottom: 1px solid var(--dufe-line);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 24px;
-  padding: 0 clamp(20px, 6vw, 92px);
-}
-.profileNavigation button, .profileNavigation a {
-  align-items: center;
-  background: transparent;
-  border: 0;
-  border-bottom: 3px solid transparent;
-  color: var(--dufe-muted);
-  display: inline-flex;
-  font: 600 14px/1.4 var(--journal-body, sans-serif);
-  gap: 8px;
-  min-height: 52px;
-  padding: 8px 0;
-  text-decoration: none;
-  touch-action: manipulation;
-}
-.profileNavigation button[aria-pressed="true"] {
-  border-bottom-color: var(--dufe-red);
-  color: var(--dufe-red-deep);
-}
-.profileNavigation span { font: 12px var(--journal-data, monospace); }
-.profileNavigation a { font-weight: 400; margin-left: auto; }
-.profileNavigation :is(button, a):focus-visible { outline: 2px solid var(--dufe-red); outline-offset: 3px; }
-.profileNavigation :is(button, a):hover { color: var(--dufe-red-deep); }
-
-.profileGrid { display: grid; grid-template-columns: minmax(320px, .8fr) minmax(420px, 1.2fr); }
-.ratings, .courseLedger { padding: clamp(32px, 5vw, 70px) clamp(20px, 6vw, 92px); }
-.ratings { border-right: 1px solid var(--dufe-ink); }
-.ratings header p { margin-top: 12px; max-width: 420px; }
-.ratings > div { margin-top: 32px; }
-.ratings > div > div { display: grid; gap: 10px; grid-template-columns: 1fr auto; margin-top: 18px; }
-.ratings > div span { font-size: 12px; }
-.ratings > div b { font: 600 14px/1 var(--journal-data, monospace); }
-.ratings i { background: color-mix(in srgb, var(--dufe-ink) 12%, transparent); grid-column: 1 / -1; height: 3px; position: relative; }
-.ratings i::after { background: var(--dufe-red); content: ""; height: 100%; left: 0; position: absolute; top: 0; width: var(--rating); }
-.courseLedger header { align-items: end; border-bottom: 1px solid var(--dufe-ink); display: flex; justify-content: space-between; padding-bottom: 16px; }
-.courseLedger header b { font: 500 28px/1 var(--journal-display, serif); }
-.courseLedger > div:not(.inlineEmpty) { border-bottom: 1px solid var(--dufe-line); display: grid; gap: 12px; grid-template-columns: 86px 1fr auto; padding: 20px 0; }
+.profileContent { margin: 0 auto; max-width: 800px; padding: 0 20px 60px; }
+.teachingDetails { border-top: 1px solid var(--dufe-line); margin-top: 24px; }
+.teachingDetails > summary { color: var(--dufe-muted); cursor: pointer; font-size: 14px; min-height: 44px; padding: 12px 0; touch-action: manipulation; }
+.teachingDetails[open] > summary { color: var(--dufe-red-deep); }
+.courseLedger { padding: 16px 0; }
+.courseLedger h2, .textbooks h2 { font: 500 20px/1.4 var(--journal-display, serif); margin: 0 0 12px; }
+.courseLedger > div:not(.inlineEmpty) { border-top: 1px solid var(--dufe-line); display: grid; gap: 6px 12px; grid-template-columns: minmax(0, 1fr) auto; padding: 14px 0; }
 .courseLedger > div > span { color: var(--dufe-red-deep); font-size: 12px; }
-.courseLedger > div > strong { font: 500 17px/1.35 var(--journal-display, serif); }
-.courseLedger > div > small { color: var(--dufe-muted); text-align: right; }
+.courseLedger > div > strong { font: 500 16px/1.5 var(--journal-body, sans-serif); grid-column: 1; overflow-wrap: anywhere; }
+.courseLedger > div > small { color: var(--dufe-muted); grid-column: 2; grid-row: 1 / 3; overflow-wrap: anywhere; text-align: right; }
 
-.textbooks, .reviews { border-top: 1px solid var(--dufe-ink); display: grid; gap: clamp(28px, 5vw, 72px); grid-template-columns: minmax(220px, .35fr) minmax(0, 1fr); padding: clamp(36px, 6vw, 80px) clamp(20px, 6vw, 92px); }
-.textbooks > header h2, .reviews > header h2 { font: 500 36px/1.1 var(--journal-display, serif); margin: 12px 0 16px; }
-.textbooks > div { display: grid; gap: 1px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.textbooks article { border-left: 1px solid var(--dufe-line); padding: 8px 26px 30px; }
+.textbooks { padding: 12px 0; scroll-margin-top: 20px; }
+.textbooks article { border-top: 1px solid var(--dufe-line); padding: 14px 0; }
 .textbooks article small { color: var(--dufe-red-deep); font-size: 12px; }
-.textbooks article h3 { font: 500 19px/1.45 var(--journal-display, serif); margin: 13px 0 9px; }
+.textbooks article h3 { font: 500 18px/1.45 var(--journal-display, serif); margin: 8px 0; overflow-wrap: anywhere; }
 .textbooks article p, .textbooks article code { color: var(--dufe-muted); font-size: 12px; line-height: 1.6; }
 .textbooks article code { display: block; margin-top: 8px; }
-.reviewEntry { border-top: 1px solid var(--dufe-line); padding: 24px 0 28px; }
-.reviewEntryMeta { align-items: baseline; display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; }
+.reviewEntry { border-top: 1px solid var(--dufe-line); padding: 16px 0 8px; }
+.reviewEntryMeta { align-items: baseline; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.reviewEntryMeta > b { font-size: 14px; overflow-wrap: anywhere; }
 .reviewEntryMeta > span, .reviewEntryMeta time { color: var(--dufe-muted); font-size: 12px; }
-.reviewEntryBody { font: 16px/1.9 var(--journal-body, sans-serif); margin: 12px 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.reviewEntryBody { font: 16px/1.75 var(--journal-body, sans-serif); margin: 8px 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
 .reviewDiscussion { margin-top: 8px; }
 .reviewDiscussionBar { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; }
 .reviewDiscussionBar button, .reviewThread button, .reviewThread a { background: transparent; border: 0; border-bottom: 1px solid var(--dufe-red); color: var(--dufe-red-deep); min-height: 44px; padding: 0 2px; text-decoration: none; }
@@ -240,25 +196,15 @@
 .inlineEmpty { color: var(--dufe-muted); padding: 28px 0; }
 .inlineEmpty button { background: transparent; border: 0; border-bottom: 1px solid var(--dufe-red); color: var(--dufe-red-deep); min-height: 44px; padding: 0 2px; }
 
-.reviewIndex { display: grid; gap: 8px 24px; grid-template-columns: minmax(180px, 1fr) auto; margin-bottom: 12px; }
-.reviewIndex form label { color: var(--dufe-muted); display: block; font-size: 12px; margin-bottom: 8px; }
-.reviewIndex form > div { align-items: end; display: flex; gap: 12px; }
-.reviewIndex input { background: transparent; border: 0; border-bottom: 1px solid var(--dufe-ink); border-radius: 0; color: var(--dufe-ink); min-height: 44px; min-width: 0; padding: 0 2px; width: 100%; }
-.reviewIndex button { background: transparent; border: 0; border-bottom: 1px solid var(--dufe-red); color: var(--dufe-red-deep); min-height: 44px; padding: 0 2px; flex-shrink: 0; white-space: nowrap; }
-.reviewIndex input:focus-visible, .reviewIndex button:focus-visible { outline: 2px solid var(--dufe-red); outline-offset: 3px; }
-.reviewSort { align-items: end; display: flex; gap: 18px; }
-.reviewSort button { border-bottom-color: transparent; color: var(--dufe-muted); }
-.reviewSort button[aria-pressed="true"] { border-bottom-color: var(--dufe-red); color: var(--dufe-red-deep); font-weight: 700; }
-.reviewSort button:disabled { cursor: not-allowed; opacity: .4; }
-.reviewIndex > p { color: var(--dufe-muted); font-size: 12px; grid-column: 1 / -1; line-height: 1.7; margin: -8px 0 0; }
-.reviewIndex > p button { display: inline-flex; }
+.reviewFilterNotice { align-items: center; color: var(--dufe-muted); display: flex; flex-wrap: wrap; font-size: 13px; gap: 4px 12px; margin: 0 0 8px; overflow-wrap: anywhere; }
+.reviewFilterNotice button { background: transparent; border: 0; color: var(--dufe-red-deep); min-height: 44px; padding: 0; text-decoration: underline; text-underline-offset: 4px; }
 
-.reviewContribution { border-top: 2px solid var(--dufe-ink); margin-top: 20px; padding-top: 24px; scroll-margin-top: 20px; }
-.reviewContribution h2 { font: 500 24px/1.4 var(--journal-display, serif); margin: 0 0 12px; }
-.reviewContribution form > header p { color: var(--dufe-muted); font-size: 13px; line-height: 1.7; margin: 0; }
-.visuallyHidden { clip-path: inset(50%); height: 1px; overflow: hidden; position: absolute; white-space: nowrap; width: 1px; }
-.reviews { grid-template-columns: minmax(0, 760px); justify-content: center; gap: 16px; padding-top: 24px; }
-.reviews > header h2 { font-size: 24px; margin: 0 0 8px; }
+.reviewContribution { border-top: 1px solid var(--dufe-line); margin-top: 16px; padding-top: 16px; scroll-margin-top: 20px; }
+.reviewContribution h2 { font: 500 20px/1.4 var(--journal-display, serif); margin: 0 0 8px; }
+.reviewContribution textarea { font: 16px/1.75 var(--journal-body, sans-serif); resize: vertical; }
+.reviews { border-top: 1px solid var(--dufe-ink); min-width: 0; }
+.reviews > header h2 { align-items: baseline; display: flex; font: 500 18px/1.4 var(--journal-display, serif); gap: 8px; margin: 14px 0; }
+.reviews > header h2 > span { color: var(--dufe-muted); font: 12px/1.4 var(--journal-data, monospace); }
 .reviewPagination > p { color: var(--dufe-muted); font-size: 13px; line-height: 1.7; margin: 0; text-align: center; }
 .reviewPagination .loadMore { margin-top: 18px; }
 .reviewPagination .loadMore:disabled { cursor: progress; opacity: .65; }
@@ -266,7 +212,6 @@
 .bookFacts > div { display: grid; grid-template-columns: 4em minmax(0, 1fr); gap: 12px; margin-top: 4px; }
 .bookFacts dt { color: var(--dufe-muted); }
 .bookFacts dd { margin: 0; overflow-wrap: anywhere; }
-.reviewContribution > div > b, .reviewContribution form > header b { font: 500 22px/1.35 var(--journal-display, serif); }
 .reviewContribution > div > p, .reviewContribution > p { color: var(--dufe-muted); line-height: 1.7; margin: 8px 0 0; }
 .reviewContribution > div > a, .reviewContribution > div > button {
   background: transparent;
@@ -274,31 +219,12 @@
   border-bottom: 1px solid var(--dufe-red);
   color: var(--dufe-red-deep);
   display: inline-flex;
-  margin-top: 14px;
+  margin-top: 0;
   min-height: 44px;
   padding: 0;
   text-decoration: none;
 }
-.reviewContribution form > header { align-items: center; display: flex; justify-content: space-between; }
-.reviewContribution form > header button { background: transparent; border: 0; color: var(--dufe-muted); min-height: 44px; padding: 0 8px; }
-.ratingEditor { display: grid; gap: 18px 32px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 26px; }
-.ratingEditor fieldset { border: 0; margin: 0; min-width: 0; padding: 0; }
-.ratingEditor legend { color: var(--dufe-muted); font-size: 12px; margin-bottom: 8px; }
-.ratingEditor fieldset > div { display: grid; grid-template-columns: repeat(5, 1fr); }
-.ratingEditor label { cursor: pointer; min-width: 0; position: relative; }
-.ratingEditor input { inset: 0; opacity: 0; position: absolute; }
-.ratingEditor label span {
-  align-items: center;
-  border-bottom: 1px solid var(--dufe-line);
-  color: var(--dufe-muted);
-  display: flex;
-  font: 600 12px/1 var(--journal-data, monospace);
-  justify-content: center;
-  min-height: 44px;
-}
-.ratingEditor input:checked + span { border-bottom: 3px solid var(--dufe-red); color: var(--dufe-red-deep); }
-.ratingEditor input:focus-visible + span { outline: 2px solid var(--dufe-red); outline-offset: -2px; }
-.reviewActions { align-items: center; display: flex; flex-wrap: wrap; gap: 12px 20px; margin-top: 20px; }
+.reviewActions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 12px; }
 .reviewActions button { background: transparent; border: 0; border-bottom: 1px solid var(--dufe-ink); color: var(--dufe-ink); min-height: 44px; padding: 0; }
 .reviewActions button:first-child { border-bottom-color: var(--dufe-red); color: var(--dufe-red-deep); font-weight: 700; }
 .reviewActions button:disabled { cursor: progress; opacity: .55; }
@@ -309,13 +235,7 @@
   .hero { align-items: stretch; grid-template-columns: 1fr; }
   .searchField { grid-column: 1 / -1; }
   .collegeList { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .profileGrid { grid-template-columns: 1fr; }
-  .ratings { border-bottom: 1px solid var(--dufe-ink); border-right: 0; }
-  .textbooks, .reviews { grid-template-columns: 1fr; }
-  .reviewIndex { grid-template-columns: 1fr; }
-  .reviewSort { align-items: center; }
-  .reviewIndex input, .reviewContribution textarea, .reviewReplyForm textarea { font-size: 16px; }
-  .reviewEntryBody { font-size: 16px; }
+  .reviewReplyForm textarea { font-size: 16px; }
 }
 
 @media (max-width: 560px) {
@@ -327,14 +247,9 @@
   .teacherList > a { gap: 12px; grid-template-columns: minmax(0, 1fr) auto; }
   .openLabel { display: none; }
   .profileHeader h1 { font-size: 28px; }
-  .profileHeader { gap: 12px; padding-top: 18px; padding-bottom: 18px; }
-  .courseLedger > div:not(.inlineEmpty) { grid-template-columns: 70px 1fr; }
-  .courseLedger > div > small { grid-column: 2; text-align: left; }
-  .textbooks > div { grid-template-columns: 1fr; }
-  .textbooks article { padding-left: 18px; }
-  .ratingEditor { grid-template-columns: 1fr; }
-  .reviewActions { align-items: stretch; flex-direction: column; }
-  .reviewActions button { align-self: flex-start; }
+  .profileHeader { gap: 12px; }
+  .courseLedger > div:not(.inlineEmpty) { grid-template-columns: minmax(0, 1fr); }
+  .courseLedger > div > small { grid-column: 1; grid-row: auto; text-align: left; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,20 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { FormField } from "../../FormField";
 import { PublicMasthead } from "../../PublicMasthead";
 import { TeacherReviewDiscussion } from "../TeacherReviewDiscussion";
 import styles from "../teachers.module.css";
 
-type RatingKey = "courseOrganization" | "contentClarity" | "assessmentExplanation" | "classroomInteraction" | "materialCompleteness";
 type TeacherDetailData = {
   id: string;
   displayName: string;
   collegeName: string;
   courseCount: number;
   reviewCount: number;
-  ratings: Record<RatingKey, number | null>;
   sections: Array<{ id: string; termKey: string; courseId: string; courseTitle: string; sectionNo: string; status: string }>;
   textbooks: Array<{ id: string; termKey: string; courseId: string; courseTitle: string; sectionNo: string; selectionStatus: string; title: string | null; author: string | null; publisher: string | null; edition: string | null; isbn: string | null; status: string }>;
 };
@@ -23,25 +21,15 @@ type TeacherReview = {
   sourceType: "user" | "legacy_approved";
   authorLabel: string;
   body: string;
-  ratings: Record<RatingKey, number> | null;
   discussionCount: number;
   publishedAt: string;
 };
 type ReviewSort = "latest" | "discussed" | "relevant";
-type OwnTeacherReview = Omit<TeacherReview, "ratings" | "discussionCount"> & {
-  ratings: Record<RatingKey, number>;
+type OwnTeacherReview = Omit<TeacherReview, "discussionCount"> & {
   status: "published" | "hidden";
   version: number;
   updatedAt: string;
 };
-
-const ratingLabels: Array<[RatingKey, string]> = [
-  ["courseOrganization", "课程组织"],
-  ["contentClarity", "讲解清晰"],
-  ["assessmentExplanation", "考核说明"],
-  ["classroomInteraction", "课堂互动"],
-  ["materialCompleteness", "资料完整"],
-];
 
 function termLabel(term: string) {
   const match = term.match(/^(\d{4})-(\d{4})-(fall|spring)$/u);
@@ -64,7 +52,9 @@ export function TeacherDetail({
   initialPanel?: "reviews" | "teaching";
   initialCourseId?: string;
 }) {
-  const [panel, setPanel] = useState(initialPanel);
+  const [teachingOpen, setTeachingOpen] = useState(initialPanel === "teaching" || Boolean(initialCourseId));
+  const textbookTarget = useRef<HTMLElement | null>(null);
+  const locatedCourse = useRef("");
   const [courseFilter, setCourseFilter] = useState(initialCourseId);
   const [teacher, setTeacher] = useState<TeacherDetailData | null>(null);
   const [reviews, setReviews] = useState<TeacherReview[]>([]);
@@ -73,7 +63,6 @@ export function TeacherDetail({
   const [reviewMoreStatus, setReviewMoreStatus] = useState<"idle" | "loading" | "error">("idle");
   const reviewGeneration = useRef(0);
   const reviewMoreRequest = useRef<AbortController | null>(null);
-  const [reviewQueryDraft, setReviewQueryDraft] = useState(initialReviewQuery);
   const [reviewQuery, setReviewQuery] = useState(initialReviewQuery);
   const [reviewSort, setReviewSort] = useState<ReviewSort>(initialReviewSort);
   const [status, setStatus] = useState<"loading" | "ready" | "missing" | "error">("loading");
@@ -82,13 +71,6 @@ export function TeacherDetail({
   const [ownReview, setOwnReview] = useState<OwnTeacherReview | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
   const [draftBody, setDraftBody] = useState("");
-  const [draftRatings, setDraftRatings] = useState<Record<RatingKey, number>>({
-    courseOrganization: 0,
-    contentClarity: 0,
-    assessmentExplanation: 0,
-    classroomInteraction: 0,
-    materialCompleteness: 0,
-  });
   const [reviewAction, setReviewAction] = useState<"idle" | "saving" | "deleting">("idle");
   const [reviewNotice, setReviewNotice] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -126,7 +108,6 @@ export function TeacherDetail({
           setAccountStatus("ready");
           if (ownPayload.review) {
             setDraftBody(ownPayload.review.body);
-            setDraftRatings(ownPayload.review.ratings);
           }
         } else {
           setAccountStatus("error");
@@ -145,6 +126,15 @@ export function TeacherDetail({
     void load();
     return () => controller.abort();
   }, [teacherId, revision]);
+
+  useEffect(() => {
+    // Old course links still locate the textbook, without making reviews a hidden panel.
+    const target = `${teacherId}:${initialCourseId}`;
+    if (status === "ready" && initialCourseId && locatedCourse.current !== target) {
+      textbookTarget.current?.scrollIntoView({ block: "start" });
+      locatedCourse.current = target;
+    }
+  }, [initialCourseId, status, teacherId]);
 
   useEffect(() => {
     const generation = ++reviewGeneration.current;
@@ -215,46 +205,21 @@ export function TeacherDetail({
     setReviewListStatus("loading");
   }
 
-  function searchReviews(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const query = reviewQueryDraft.normalize("NFKC").trim();
-    const sort = query ? "relevant" : "latest";
-    if (query !== reviewQuery || sort !== reviewSort) invalidateReviewRequests();
-    setReviewQuery(query);
-    setReviewSort(sort);
-    const url = new URL(window.location.href);
-    if (query) url.searchParams.set("reviewQuery", query);
-    else url.searchParams.delete("reviewQuery");
-    if (query) url.searchParams.set("reviewSort", "relevant");
-    else url.searchParams.delete("reviewSort");
-    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
-  }
-
-  function chooseReviewSort(sort: ReviewSort) {
-    if (sort === "relevant" && !reviewQuery) return;
-    if (sort !== reviewSort) invalidateReviewRequests();
-    setReviewSort(sort);
-    const url = new URL(window.location.href);
-    if (sort === "latest") url.searchParams.delete("reviewSort");
-    else url.searchParams.set("reviewSort", sort);
-    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
-  }
-
   function clearReviewSearch() {
     if (reviewQuery || reviewSort !== "latest") invalidateReviewRequests();
-    setReviewQueryDraft("");
     setReviewQuery("");
     setReviewSort("latest");
     const url = new URL(window.location.href);
     url.searchParams.delete("reviewQuery");
     url.searchParams.delete("reviewSort");
+    url.searchParams.delete("q");
+    url.searchParams.delete("sort");
     window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
   }
 
   function openComposer() {
     if (ownReview) {
       setDraftBody(ownReview.body);
-      setDraftRatings(ownReview.ratings);
     }
     setReviewNotice("");
     setConfirmDelete(false);
@@ -263,19 +228,14 @@ export function TeacherDetail({
 
   async function saveReview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (draftBody.normalize("NFKC").trim().length < 20) {
-      setReviewNotice("请至少写 20 个字，说明具体的课堂体验。");
-      return;
-    }
-    if (Object.values(draftRatings).some((rating) => rating < 1 || rating > 5)) {
-      setReviewNotice("请完成五个教学维度的评分。");
+    if (!draftBody.normalize("NFKC").trim()) {
+      setReviewNotice("请写下评价内容。");
       return;
     }
     setReviewAction("saving");
     setReviewNotice("");
-    const payload: { body: string; ratings: Record<RatingKey, number>; expectedVersion?: number } = {
+    const payload: { body: string; expectedVersion?: number } = {
       body: draftBody,
-      ratings: draftRatings,
     };
     if (ownReview) payload.expectedVersion = ownReview.version;
     try {
@@ -298,7 +258,6 @@ export function TeacherDetail({
       const saved = (await response.json()) as { review: OwnTeacherReview };
       setOwnReview(saved.review);
       setDraftBody(saved.review.body);
-      setDraftRatings(saved.review.ratings);
       setReviews((current) => {
         const withoutSavedReview = current.filter((review) => review.id !== saved.review.id);
         if (saved.review.status !== "published") return withoutSavedReview;
@@ -308,8 +267,7 @@ export function TeacherDetail({
             sourceType: saved.review.sourceType,
             authorLabel: saved.review.authorLabel,
             body: saved.review.body,
-            ratings: saved.review.ratings,
-            discussionCount: 0,
+            discussionCount: current.find((review) => review.id === saved.review.id)?.discussionCount ?? 0,
             publishedAt: saved.review.publishedAt,
           },
           ...withoutSavedReview,
@@ -317,8 +275,8 @@ export function TeacherDetail({
       });
       setComposerOpen(false);
       setReviewNotice(saved.review.status === "published"
-        ? "你的评价已保存并公开。"
-        : "修改已保存；这份评价当前仍未公开。");
+        ? ownReview ? "评价已修改。" : "评价已发布。"
+        : "评价当前未公开。");
       setRevision((value) => value + 1);
     } catch {
       setReviewNotice("评价暂时没有保存，请保留当前内容后重试。");
@@ -345,13 +303,6 @@ export function TeacherDetail({
       if (!response.ok) throw new Error("teacher_review_delete_failed");
       setOwnReview(null);
       setDraftBody("");
-      setDraftRatings({
-        courseOrganization: 0,
-        contentClarity: 0,
-        assessmentExplanation: 0,
-        classroomInteraction: 0,
-        materialCompleteness: 0,
-      });
       setComposerOpen(false);
       setConfirmDelete(false);
       setReviewNotice("你的评价已删除。");
@@ -389,101 +340,23 @@ export function TeacherDetail({
           <p><Link href={`/teachers?college=${encodeURIComponent(teacher.collegeName)}`}>{teacher.collegeName}</Link></p>
           <h1>{teacher.displayName}</h1>
         </div>
-        <a className={styles.writeReviewLink} href="#teacher-contribution" onClick={() => {
-          setPanel("reviews");
-          const url = new URL(window.location.href);
-          url.searchParams.delete("panel");
-          window.history.replaceState(null, "", `${url.pathname}${url.search}`);
-        }}>写评价</a>
+        <a className={styles.writeReviewLink} href="#teacher-contribution">{ownReview ? "我的评价" : "写评价"}</a>
       </header>
 
-      <div className={styles.profileNavigation} role="group" aria-label="教师档案内容">
-        <button type="button" aria-pressed={panel === "reviews"} onClick={() => {
-          setPanel("reviews");
-          const url = new URL(window.location.href);
-          url.searchParams.delete("panel");
-          window.history.replaceState(null, "", `${url.pathname}${url.search}`);
-        }}>学生评价 <span>{teacher.reviewCount}</span></button>
-        <button type="button" aria-pressed={panel === "teaching"} onClick={() => {
-          setPanel("teaching");
-          const url = new URL(window.location.href);
-          url.searchParams.set("panel", "teaching");
-          window.history.replaceState(null, "", `${url.pathname}${url.search}`);
-        }}>课程与教材</button>
-        <Link href="/teachers">查找其他教师</Link>
-      </div>
-      <div hidden={panel !== "teaching"}>
-      <section className={styles.profileGrid}>
-        <article className={styles.ratings}>
-          <header><span>五项教学维度</span><p>只统计当前用户提交的五维评分；历史整理内容不参与均分。</p></header>
-          <div>
-            {ratingLabels.map(([key, label]) => (
-              <div key={key}>
-                <span>{label}</span>
-                <b>{teacher.ratings[key] === null ? "—" : teacher.ratings[key]?.toFixed(1)}</b>
-                <i style={{ "--rating": `${(teacher.ratings[key] ?? 0) * 20}%` } as CSSProperties} />
-              </div>
-            ))}
-          </div>
-        </article>
-
-        <article className={styles.courseLedger}>
-          <header><span>教学班记录</span><b>{teacher.sections.length}</b></header>
-          {teacher.sections.length ? teacher.sections.map((section) => (
-            <div key={section.id}>
-              <span>{termLabel(section.termKey)}</span>
-              <strong>{section.courseTitle}</strong>
-              <small>{section.courseId} · 课序号 {section.sectionNo}{section.status === "needs_review" ? " · 待核对" : ""}</small>
-            </div>
-          )) : <p className={styles.inlineEmpty}>暂未记录具体教学班。</p>}
-        </article>
-      </section>
-
-      <section className={styles.textbooks} aria-labelledby="teacher-textbooks-title">
-        <header><span>按教学班记录</span><h2 id="teacher-textbooks-title">教材</h2><p>同一课程的不同教学班可能使用不同教材，这里不会互相覆盖。</p></header>
-        {courseFilter && <p>当前课程号：{courseFilter} · 请核对学期和课序号。 <button type="button" onClick={() => setCourseFilter("")}>查看这位教师的全部教材</button></p>}
-        <div>
-          {teacher.textbooks.filter((book) => !courseFilter || book.courseId === courseFilter).length ? teacher.textbooks.filter((book) => !courseFilter || book.courseId === courseFilter).map((book) => (
-            <article key={book.id}>
-              <small>{termLabel(book.termKey)} · {book.courseTitle} · {book.sectionNo}</small>
-              <h3>{book.selectionStatus === "not_specified" ? "不指定教材" : book.title ?? "教材待核对"}</h3>
-              {book.selectionStatus !== "not_specified" && <dl className={styles.bookFacts}>
-                <div><dt>版次</dt><dd>{book.edition || "原表未提供"}</dd></div>
-                {book.author && <div><dt>作者</dt><dd>{book.author}</dd></div>}
-                {book.publisher && <div><dt>出版社</dt><dd>{book.publisher}</dd></div>}
-                {book.isbn && <div><dt>ISBN</dt><dd>{book.isbn}</dd></div>}
-              </dl>}
-            </article>
-          )) : <p className={styles.inlineEmpty}>{courseFilter ? "这位教师名下暂未记录该课程的教材，请以任课教师通知为准。" : "暂未记录教材。"}</p>}
-        </div>
-      </section>
-
-      </div>
-      <div hidden={panel !== "reviews"}>
+      <div className={styles.profileContent}>
       <section className={styles.reviews} aria-labelledby="teacher-reviews-title">
-        <header><h2 id="teacher-reviews-title" className={styles.visuallyHidden}>学生评价</h2><p>历史评价供参考，考核方式以当学期说明为准。</p></header>
+        <header><h2 id="teacher-reviews-title">学生评价 <span>{teacher.reviewCount}</span></h2></header>
         <div>
-          <section className={styles.reviewIndex} aria-label="查找与排列评价">
-            <form role="search" onSubmit={searchReviews}>
-              <label htmlFor="teacher-review-query">在评价里查找</label>
-              <div>
-                <input id="teacher-review-query" type="search" value={reviewQueryDraft} onChange={(event) => setReviewQueryDraft(event.target.value)} maxLength={64} placeholder="课堂组织、考核、资料……" />
-                <button type="submit">查找</button>
-              </div>
-            </form>
-            <div className={styles.reviewSort} role="group" aria-label="评价排序方式">
-              <button type="button" aria-pressed={reviewSort === "latest"} onClick={() => chooseReviewSort("latest")}>最新</button>
-              <button type="button" aria-pressed={reviewSort === "discussed"} onClick={() => chooseReviewSort("discussed")}>热议</button>
-              <button type="button" aria-pressed={reviewSort === "relevant"} disabled={!reviewQuery} onClick={() => chooseReviewSort("relevant")}>相关</button>
-            </div>
-            {reviewQuery && <p>正在查找“{reviewQuery}” <button type="button" onClick={clearReviewSearch}>清除查找</button></p>}
-          </section>
+          {(reviewQuery || reviewSort !== "latest") && <p className={styles.reviewFilterNotice}>
+            {reviewQuery ? `筛选：“${reviewQuery}”` : "按旧链接排序"}
+            <button type="button" onClick={clearReviewSearch}>查看全部评价</button>
+          </p>}
 
           {reviewListStatus === "loading" && <p className={styles.inlineEmpty} role="status">正在读取评价…</p>}
-          {reviewListStatus === "error" && <p className={styles.inlineEmpty} role="alert">评价暂时没有加载成功，不会影响教师档案。 <button type="button" onClick={() => setRevision((value) => value + 1)}>重新读取</button></p>}
+          {reviewListStatus === "error" && <p className={styles.inlineEmpty} role="alert">评价加载失败。 <button type="button" onClick={() => setRevision((value) => value + 1)}>重新读取</button></p>}
           {reviewListStatus === "ready" && reviews.length ? reviews.map((review) => (
             <article className={styles.reviewEntry} key={review.id}>
-              <div className={styles.reviewEntryMeta}><b>{review.sourceType === "legacy_approved" ? "学长学姐 · 历史评价" : review.authorLabel}</b><span>{review.discussionCount > 0 ? `${review.discussionCount} 条公开回复 · ` : ""}{review.sourceType === "legacy_approved" ? "站内公开于 " : ""}<time dateTime={review.publishedAt}>{new Date(review.publishedAt).toLocaleDateString("zh-CN")}</time></span></div>
+              <div className={styles.reviewEntryMeta}><b>{review.sourceType === "legacy_approved" ? "学长学姐 · 历史评价" : review.authorLabel}</b><span>{review.sourceType === "legacy_approved" ? "站内公开于 " : ""}<time dateTime={review.publishedAt}>{new Date(review.publishedAt).toLocaleDateString("zh-CN")}</time>{review.discussionCount > 0 ? ` · ${review.discussionCount} 条回复` : ""}</span></div>
               <p className={styles.reviewEntryBody}>{review.body}</p>
               <TeacherReviewDiscussion teacherId={teacherId} reviewId={review.id} reviewLabel={`${review.authorLabel}的评价`} canWrite={Boolean(currentUserId)} currentUserId={currentUserId} />
             </article>
@@ -499,54 +372,74 @@ export function TeacherDetail({
         )}
           <section className={styles.reviewContribution} id="teacher-contribution" aria-labelledby="teacher-contribution-title">
             <h2 id="teacher-contribution-title">{ownReview ? "我的评价" : "写评价"}</h2>
-            {accountStatus === "loading" && <p>正在确认是否可以写评价…</p>}
+            {accountStatus === "loading" && <p>正在确认登录状态…</p>}
             {accountStatus === "guest" && (
-              <div><b>登录后写下真实的课堂体验</b><p>每位登录用户对同一位教师保留一份评价，可以之后修改或删除。</p><Link href="/?view=me">去登录或创建账号</Link></div>
+              <div><Link href="/?view=me">登录后写评价</Link></div>
             )}
             {accountStatus === "error" && <p role="status">暂时无法读取你的评价，公开内容仍可正常浏览。</p>}
             {accountStatus === "ready" && ownReview && (ownReview.status === "hidden" || !composerOpen) && (
               <div>
-                <b>{ownReview.status === "hidden" ? "这份评价当前未公开" : "你的评价已经公开"}</b>
-                <p>{ownReview.status === "hidden" ? "审核期间不能修改正文；你仍可删除这份评价，或等待复核结果。" : "可以继续修改，公开页会显示最新版本。"}</p>
+                {ownReview.status === "hidden" && <p>评价已隐藏，审核期间不可修改，仍可删除。</p>}
                 {ownReview.status === "hidden" ? (
                   <div className={styles.reviewActions}>
                     {!confirmDelete && <button type="button" onClick={() => setConfirmDelete(true)} disabled={reviewAction !== "idle"}>删除我的评价</button>}
-                    {confirmDelete && <><span>删除后公开页将不再显示。</span><button type="button" onClick={() => void deleteReview()} disabled={reviewAction !== "idle"}>{reviewAction === "deleting" ? "正在删除" : "确认删除"}</button><button type="button" onClick={() => setConfirmDelete(false)} disabled={reviewAction !== "idle"}>取消</button></>}
+                    {confirmDelete && <><span>确定删除这条评价？</span><button type="button" onClick={() => void deleteReview()} disabled={reviewAction !== "idle"}>{reviewAction === "deleting" ? "正在删除" : "确认删除"}</button><button type="button" onClick={() => setConfirmDelete(false)} disabled={reviewAction !== "idle"}>取消</button></>}
                   </div>
                 ) : <button type="button" onClick={openComposer}>修改我的评价</button>}
               </div>
             )}
             {accountStatus === "ready" && ownReview?.status !== "hidden" && (!ownReview || composerOpen) && (
               <form onSubmit={(event) => void saveReview(event)}>
-                <header><p>只写自己实际经历的课堂体验；五项评分均为 1—5 分。</p>{ownReview && <button type="button" onClick={() => setComposerOpen(false)} disabled={reviewAction !== "idle"}>取消修改</button>}</header>
-                <div className={styles.ratingEditor}>
-                  {ratingLabels.map(([key, label]) => (
-                    <fieldset key={key} disabled={reviewAction !== "idle"}>
-                      <legend>{label}</legend>
-                      <div>
-                        {[1, 2, 3, 4, 5].map((rating) => (
-                          <label key={rating}>
-                            <input type="radio" name={key} value={rating} checked={draftRatings[key] === rating} onChange={() => setDraftRatings((current) => ({ ...current, [key]: rating }))} />
-                            <span>{rating}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </fieldset>
-                  ))}
-                </div>
-                <FormField label="具体说说课堂组织、讲解、考核或资料" counter={`${draftBody.normalize("NFKC").trim().length} / 3000`}>
-                  <textarea disabled={reviewAction !== "idle"} required value={draftBody} onChange={(event) => setDraftBody(event.target.value)} minLength={20} maxLength={3000} rows={6} placeholder="例如：课堂如何组织、哪些讲解方式有效、考核说明是否清楚……" />
+                <FormField label="评价正文" counter={`${draftBody.normalize("NFKC").trim().length} / 3000`}>
+                  <textarea disabled={reviewAction !== "idle"} required value={draftBody} onChange={(event) => setDraftBody(event.target.value)} minLength={1} maxLength={3000} rows={3} placeholder="写下你的课堂体验…" />
                 </FormField>
                 <div className={styles.reviewActions}>
-                  <button type="submit" disabled={reviewAction !== "idle"}>{reviewAction === "saving" ? "正在保存" : "保存并公开"}</button>
+                  <button type="submit" disabled={reviewAction !== "idle"}>{reviewAction === "saving" ? "正在保存" : ownReview ? "保存修改" : "发布评价"}</button>
+                  {ownReview && <button type="button" onClick={() => setComposerOpen(false)} disabled={reviewAction !== "idle"}>取消修改</button>}
                   {ownReview && !confirmDelete && <button type="button" onClick={() => setConfirmDelete(true)} disabled={reviewAction !== "idle"}>删除我的评价</button>}
-                  {ownReview && confirmDelete && <><span>删除后公开页将不再显示。</span><button type="button" onClick={() => void deleteReview()} disabled={reviewAction !== "idle"}>{reviewAction === "deleting" ? "正在删除" : "确认删除"}</button><button type="button" onClick={() => setConfirmDelete(false)} disabled={reviewAction !== "idle"}>取消</button></>}
+                  {ownReview && confirmDelete && <><span>确定删除这条评价？</span><button type="button" onClick={() => void deleteReview()} disabled={reviewAction !== "idle"}>{reviewAction === "deleting" ? "正在删除" : "确认删除"}</button><button type="button" onClick={() => setConfirmDelete(false)} disabled={reviewAction !== "idle"}>取消</button></>}
                 </div>
               </form>
             )}
             {reviewNotice && <p className={styles.reviewNotice} role="status">{reviewNotice}</p>}
           </section>
       </section>
+      <details className={styles.teachingDetails} open={teachingOpen} onToggle={(event) => setTeachingOpen(event.currentTarget.open)}>
+        <summary>课程与教材</summary>
+        <section className={styles.textbooks} ref={textbookTarget} id="teacher-textbooks" aria-labelledby="teacher-textbooks-title">
+          <header><h2 id="teacher-textbooks-title">教材</h2></header>
+          {courseFilter && <p className={styles.reviewFilterNotice}>课程号：{courseFilter} <button type="button" onClick={() => {
+            setCourseFilter("");
+            const url = new URL(window.location.href);
+            url.searchParams.delete("course");
+            window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+          }}>查看全部教材</button></p>}
+          <div>
+            {teacher.textbooks.filter((book) => !courseFilter || book.courseId === courseFilter).length ? teacher.textbooks.filter((book) => !courseFilter || book.courseId === courseFilter).map((book) => (
+              <article key={book.id}>
+                <small>{termLabel(book.termKey)} · {book.courseTitle} · {book.courseId} · 课序号 {book.sectionNo}{book.status === "needs_review" ? " · 待核对" : ""}</small>
+                <h3>{book.selectionStatus === "not_specified" ? "不指定教材" : book.title ?? "教材待核对"}</h3>
+                {book.selectionStatus !== "not_specified" && <dl className={styles.bookFacts}>
+                  <div><dt>版次</dt><dd>{book.edition || "原表未提供"}</dd></div>
+                  {book.author && <div><dt>作者</dt><dd>{book.author}</dd></div>}
+                  {book.publisher && <div><dt>出版社</dt><dd>{book.publisher}</dd></div>}
+                  {book.isbn && <div><dt>ISBN</dt><dd>{book.isbn}</dd></div>}
+                </dl>}
+              </article>
+            )) : <p className={styles.inlineEmpty}>{courseFilter ? "该课程暂未记录教材。" : "暂未记录教材。"}</p>}
+          </div>
+        </section>
+        <section className={styles.courseLedger} aria-labelledby="teacher-courses-title">
+          <header><h2 id="teacher-courses-title">教学班记录</h2></header>
+          {teacher.sections.length ? teacher.sections.map((section) => (
+            <div key={section.id}>
+              <span>{termLabel(section.termKey)}</span>
+              <strong>{section.courseTitle}</strong>
+              <small>{section.courseId} · 课序号 {section.sectionNo}{section.status === "needs_review" ? " · 待核对" : ""}</small>
+            </div>
+          )) : <p className={styles.inlineEmpty}>暂未记录具体教学班。</p>}
+        </section>
+      </details>
       </div>
     </main>
   );

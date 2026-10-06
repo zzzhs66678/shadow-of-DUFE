@@ -18,7 +18,7 @@ function normalizeBody(value) {
   if (typeof value !== "string") return null;
   const normalized = value.normalize("NFKC").replace(/\r\n?/gu, "\n").trim();
   if (
-    normalized.length < 20 ||
+    normalized.length < 1 ||
     normalized.length > 3_000 ||
     /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(normalized)
   ) {
@@ -68,11 +68,12 @@ export function validateTeacherReviewWrite(value) {
   }
   const body = normalizeBody(value.body);
   const ratings = normalizeRatings(value.ratings);
+  const hasRatings = value.ratings !== undefined && value.ratings !== null;
   const hasVersion = Object.hasOwn(value, "expectedVersion");
   const expectedVersion = hasVersion ? value.expectedVersion : null;
   if (
     !body ||
-    !ratings ||
+    (hasRatings && !ratings) ||
     (expectedVersion !== null && (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1))
   ) {
     return null;

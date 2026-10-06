@@ -248,23 +248,30 @@ test("users and an administrator complete the release browser path", async ({
       secondOwner.getByRole("heading", { name: teacher.displayName }),
     ).toBeVisible();
     await expect(secondOwner.getByRole("heading", { name: "写评价", exact: true })).toBeVisible();
-    for (const dimension of [
-      "课程组织",
-      "讲解清晰",
-      "考核说明",
-      "课堂互动",
-      "资料完整",
-    ]) {
-      await secondOwner
-        .getByRole("group", { name: dimension })
-        .getByRole("radio", { name: "5" })
-        .check();
-    }
+    await expect(secondOwner.getByRole("radio")).toHaveCount(0);
+    const createReviewRequest = secondOwner.waitForRequest((request) =>
+      request.method() === "PUT" && new URL(request.url()).pathname === `/api/teachers/${teacher.id}/my-review`
+    );
+    const createReviewResponse = secondOwner.waitForResponse((response) =>
+      response.request().method() === "PUT" && new URL(response.url()).pathname === `/api/teachers/${teacher.id}/my-review`
+    );
+    await secondOwner.getByLabel(/评价正文/u).fill("好");
+    await secondOwner.getByRole("button", { name: "发布评价", exact: true }).click();
+    expect((await createReviewRequest).postDataJSON()).toEqual({ body: "好" });
+    const createdReview = await (await createReviewResponse).json();
+    await expect(secondOwner.getByText("评价已发布。", { exact: true })).toBeVisible();
+    await expect(secondOwner.getByText("好", { exact: true })).toBeVisible();
+
     const reviewBody = "课堂结构清楚，考核说明完整，课程资料与教学进度能够互相对应。";
     const publishedReviewBody = reviewBody.normalize("NFKC");
-    await secondOwner.getByLabel(/具体说说课堂组织/u).fill(reviewBody);
-    await secondOwner.getByRole("button", { name: "保存并公开" }).click();
-    await expect(secondOwner.getByText("你的评价已保存并公开。")).toBeVisible();
+    await secondOwner.getByRole("button", { name: "修改我的评价", exact: true }).click();
+    await secondOwner.getByLabel(/评价正文/u).fill(reviewBody);
+    const updateReviewRequest = secondOwner.waitForRequest((request) =>
+      request.method() === "PUT" && new URL(request.url()).pathname === `/api/teachers/${teacher.id}/my-review`
+    );
+    await secondOwner.getByRole("button", { name: "保存修改", exact: true }).click();
+    expect((await updateReviewRequest).postDataJSON()).toEqual({ body: reviewBody, expectedVersion: createdReview.review.version });
+    await expect(secondOwner.getByText("评价已修改。", { exact: true })).toBeVisible();
     const publishedReviews = await secondOwner.evaluate(async (teacherId) => {
       const response = await fetch(`/api/teachers/${teacherId}/reviews?limit=20`, {
         cache: "no-store",

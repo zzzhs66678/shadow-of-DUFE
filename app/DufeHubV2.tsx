@@ -37,7 +37,8 @@ import {
 import { FormField } from "./FormField";
 import { TeacherRecordLink } from "./TeacherRecordLink";
 import { TeachingSectionLinks } from "./TeachingSectionLinks";
-import { isSameScheduledMeeting, mergePersonalSchedules } from "./schedule-reconciliation";
+import { authoritativeSchedules, isSameScheduledMeeting, mergePersonalSchedules, scheduledMeetingsOverlap as schedulesOverlap } from "./schedule-reconciliation";
+import { academicCourseOptions } from "./academic-course-options";
 import scheduleStyles from "./personal-timetable.module.css";
 import academicStyles from "./academic-windows.module.css";
 import courseStyles from "./course-center.module.css";
@@ -547,21 +548,6 @@ function latestAcademicSnapshot(
 function compactAcademicYear(value: string) {
   const match = value.match(/^20(\d{2})-20(\d{2})$/u);
   return match ? `${match[1]}–${match[2]}` : value;
-}
-
-function schedulesOverlap(first: Schedule, second: Schedule) {
-  if (
-    first.weekday !== second.weekday ||
-    first.block !== second.block ||
-    first.term !== second.term
-  ) {
-    return false;
-  }
-  const firstWeeks = first.weeks ?? [];
-  const secondWeeks = second.weeks ?? [];
-  if (!firstWeeks.length || !secondWeeks.length) return true;
-  const secondSet = new Set(secondWeeks);
-  return firstWeeks.some((week) => secondSet.has(week));
 }
 
 function normalize(value: string) {
@@ -1075,6 +1061,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
   const fullDataRequestRef = useRef<Promise<void> | null>(null);
   const [view, setView] = useState<View>("home");
   const [term, setTerm] = useState<Term>("fall");
+  const [previewScope, setPreviewScope] = useState("");
   const [saved, setSaved] = useState<SavedState>(emptySavedState);
   const [hydrated, setHydrated] = useState(false);
   const [personalScope, setPersonalScope] =
@@ -1216,8 +1203,8 @@ function HubApp({ data: initialData }: { data: SiteData }) {
     () =>
       (activePlan?.scheduleIds ?? [])
         .map((id) => schedules.get(id))
-        .filter((item): item is Schedule => Boolean(item)),
-    [activePlan, schedules],
+        .filter((item): item is Schedule => Boolean(item) && item?.term === term),
+    [activePlan, schedules, term],
   );
   const academicSnapshot = useMemo(
     () => latestAcademicSnapshot(saved.academicSnapshots, term),
@@ -1231,10 +1218,23 @@ function HubApp({ data: initialData }: { data: SiteData }) {
     () => latestAcademicSnapshot(saved.academicSnapshots, "spring"),
     [saved.academicSnapshots],
   );
-  const activeSchedules = useMemo(() => {
-    const official = schedulesFromAcademicSnapshot(academicSnapshot);
-    return mergePersonalSchedules(official, manualSchedules);
-  }, [academicSnapshot, manualSchedules]);
+  const officialSchedules = useMemo(
+    () => academicSnapshot ? schedulesFromAcademicSnapshot(academicSnapshot) : undefined,
+    [academicSnapshot],
+  );
+  const activeSchedules = useMemo(
+    () => authoritativeSchedules(officialSchedules, manualSchedules),
+    [officialSchedules, manualSchedules],
+  );
+  const planningSchedules = useMemo(
+    () => mergePersonalSchedules(officialSchedules ?? [], manualSchedules),
+    [officialSchedules, manualSchedules],
+  );
+  const scheduleScope = `${personalScope.kind === "user" ? personalScope.userId : "anonymous"}:${term}:${academicSnapshot?.importedAt ?? "manual"}`;
+  const showPlanning = !academicSnapshot || previewScope === scheduleScope;
+  function setShowPlanning(value: boolean) {
+    setPreviewScope(value ? scheduleScope : "");
+  }
   const upcomingExams = useMemo(
     () => upcomingAcademicExams(academicSnapshot),
     [academicSnapshot],
@@ -1277,6 +1277,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
       trainingPlan: trainingPlan ?? state.trainingPlan,
     }));
     setTerm(effectiveSnapshot.term);
+    setPreviewScope("");
     setAcademicImportOpen(false);
     const details = [`${effectiveSnapshot.sections.length} 门课`];
     details.push(
@@ -1706,19 +1707,20 @@ function HubApp({ data: initialData }: { data: SiteData }) {
     const uniqueIds = [...new Set(ids)];
     const additions = uniqueIds.filter((id) => {
       const candidate = schedules.get(id);
-      return candidate && !existing.has(id) && !activeSchedules.some(
+      return candidate && !existing.has(id) && !planningSchedules.some(
         (active) => isSameScheduledMeeting(candidate, active),
       );
     });
     if (additions.length) {
       updateActivePlan((current) => [...current, ...additions]);
+      setShowPlanning(true);
     }
     const schedule = schedules.get(uniqueIds[0]);
     const title = label || schedule?.title || "课程";
     setAddFeedback(
       additions.length
-        ? `${title}的 ${additions.length} 个时段已加入课表`
-        : `${title} 已在课表中`,
+        ? `${title}的 ${additions.length} 个时段已加入${academicSnapshot ? "选课方案" : "课表"}`
+        : `${title} 已在${academicSnapshot ? "教务课表或选课方案" : "课表"}中`,
     );
     window.setTimeout(() => setAddFeedback(""), additions.length ? 1700 : 1300);
     if (additions.length && "vibrate" in navigator) navigator.vibrate(28);
@@ -1928,7 +1930,9 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           saved={saved}
           setSaved={setSaved}
           activePlan={activePlan}
-          activeSchedules={activeSchedules}
+          activeSchedules={showPlanning ? planningSchedules : activeSchedules}
+          showPlanning={showPlanning}
+          onPlanningChange={setShowPlanning}
           academicSnapshot={academicSnapshot}
           trainingPlan={saved.trainingPlan}
           courses={courses}
@@ -2248,7 +2252,8 @@ function HubApp({ data: initialData }: { data: SiteData }) {
             (item) => item.term === term && item.courseId === selectedCourse.id,
           )}
           activeIds={new Set(activePlan?.scheduleIds ?? [])}
-          activeSchedules={activeSchedules}
+          activeSchedules={planningSchedules}
+          addTarget={academicSnapshot ? "选课方案" : "课表"}
           onAddMany={addSchedules}
           onClose={() => setSelectedCourse(null)}
         />
@@ -2331,16 +2336,23 @@ function HubApp({ data: initialData }: { data: SiteData }) {
             setOnboarding(false);
           }}
           onSave={(profile, scheduleIds) => {
-            setSaved((state) => ({
-              ...state,
-              profile,
-              skipped: false,
-              plans: state.plans.map((plan) =>
-                plan.id === state.activePlanId
-                  ? { ...plan, scheduleIds }
-                  : plan,
-              ),
-            }));
+            setShowPlanning(true);
+            setSaved((state) => {
+              const current = state.plans.find((plan) => plan.id === state.activePlanId);
+              // Profile-only edits must not clear a timetable. A different class
+              // becomes a new plan instead of overwriting existing selections.
+              if (!profile.className || !scheduleIds.length ||
+                  (current && current.scheduleIds.length === scheduleIds.length && scheduleIds.every((id) => current.scheduleIds.includes(id)))) {
+                return { ...state, profile, skipped: false };
+              }
+              if (current && !current.scheduleIds.length) {
+                return { ...state, profile, skipped: false,
+                  plans: state.plans.map((plan) => plan.id === current.id ? { ...plan, scheduleIds } : plan) };
+              }
+              const id = `class-plan-${Date.now()}`;
+              return { ...state, profile, skipped: false, activePlanId: id,
+                plans: [...state.plans, { id, name: `${profile.className}选课`, scheduleIds }] };
+            });
             setCollege(profile.college);
             setMajorId(profile.majorId);
             setOnboarding(false);
@@ -4248,10 +4260,10 @@ function TrainingPlanWindow({
               aria-label={
                 sectionIds.length > 1
                   ? `选择${planCourse.courseName}的教学班`
-                  : `将${planCourse.courseName}加入课表`
+                  : `将${planCourse.courseName}加入${academicSnapshot ? "选课方案" : "课表"}`
               }
             >
-              {sectionIds.length > 1 ? `${sectionIds.length} 个班` : "加入课表"}
+              {sectionIds.length > 1 ? `${sectionIds.length} 个班` : academicSnapshot ? "加入方案" : "加入课表"}
             </button>
           ) : (
             <span className={academicStyles.mutedAction}>本学期未开</span>
@@ -4416,6 +4428,8 @@ function SchedulePage({
   setSaved,
   activePlan,
   activeSchedules,
+  showPlanning,
+  onPlanningChange,
   academicSnapshot,
   trainingPlan,
   courses,
@@ -4434,6 +4448,8 @@ function SchedulePage({
   setSaved: React.Dispatch<React.SetStateAction<SavedState>>;
   activePlan?: Plan;
   activeSchedules: Schedule[];
+  showPlanning: boolean;
+  onPlanningChange: (value: boolean) => void;
   academicSnapshot?: AcademicSnapshot;
   trainingPlan: AcademicTrainingPlan | null;
   courses: Map<string, Course>;
@@ -4593,8 +4609,7 @@ function SchedulePage({
       activeSchedules.some(
         (other) =>
           other.id !== item.id &&
-          other.weekday === item.weekday &&
-          other.block === item.block,
+          schedulesOverlap(item, other),
       )
     )
       conflicts.add(item.id);
@@ -4642,6 +4657,7 @@ function SchedulePage({
     };
   });
   function newPlan() {
+    onPlanningChange(true);
     const id = `plan-${Date.now()}`;
     setSaved((state) => ({
       ...state,
@@ -4699,7 +4715,7 @@ function SchedulePage({
           node.dataset.exportIgnore !== "true",
       });
       const link = document.createElement("a");
-      link.download = `${activePlan?.name ?? "我的课表"}-${todayISO()}.png`;
+      link.download = `${academicSnapshot && !showPlanning ? "教务课表" : activePlan?.name ?? "我的课表"}-${todayISO()}.png`;
       link.href = dataUrl;
       link.click();
     } finally {
@@ -4713,7 +4729,7 @@ function SchedulePage({
           <h1>我的课表</h1>
           <p>
             {academicSnapshot
-              ? `${academicSnapshot.academicYear} ${academicSnapshot.termLabel} · 正式教务数据`
+              ? `${academicSnapshot.academicYear} ${academicSnapshot.termLabel} · ${showPlanning ? "选课预览，不代表教务选课结果" : "教务导入"}`
               : saved.profile?.className || "还没导入教务课表，也可以手动选课。"}
           </p>
         </div>
@@ -4731,15 +4747,22 @@ function SchedulePage({
         </div>
       </header>
       <div className="plan-tabs">
+        {academicSnapshot && (
+          <button className={!showPlanning ? "active" : ""} aria-pressed={!showPlanning} onClick={() => onPlanningChange(false)}>
+            教务课表
+          </button>
+        )}
         {saved.plans.map((plan) => (
           <button
             key={plan.id}
-            className={saved.activePlanId === plan.id ? "active" : ""}
-            onClick={() =>
-              setSaved((state) => ({ ...state, activePlanId: plan.id }))
-            }
+            className={showPlanning && saved.activePlanId === plan.id ? "active" : ""}
+            aria-pressed={showPlanning && saved.activePlanId === plan.id}
+            onClick={() => {
+              onPlanningChange(true);
+              setSaved((state) => ({ ...state, activePlanId: plan.id }));
+            }}
           >
-            {plan.name}
+            {academicSnapshot && plan.name === "默认课表" ? "手动选课" : plan.name}
             <small>{plan.scheduleIds.length}</small>
           </button>
         ))}
@@ -4984,7 +5007,8 @@ function SchedulePage({
         >
           <header>
             <div>
-              <h2>{activePlan?.name ?? "我的课表"}</h2>
+              <h2>{academicSnapshot ? showPlanning ? "选课预览" : "教务课表" : activePlan?.name ?? "我的课表"}</h2>
+              {academicSnapshot && showPlanning && <small>含手动课程，不计入今日上课提醒。</small>}
             </div>
             <div className="timetable-tools">
               <p>
@@ -4996,7 +5020,7 @@ function SchedulePage({
                 data-export-ignore="true"
                 onClick={() => setFinderOpen(true)}
               >
-                ＋ 添加课程
+                {academicSnapshot ? "＋ 预选课程" : "＋ 添加课程"}
               </button>
               <button
                 data-export-ignore="true"
@@ -5428,12 +5452,8 @@ function CalendarEditor({
     request.kind === "assignment"
       ? saved.assignments.find((item) => item.id === request.id)
       : undefined;
-  const activeCourseIds = [
-    ...new Set(activeSchedules.map((item) => item.courseId)),
-  ];
-  const courseChoices = activeCourseIds
-    .map((id) => courses.get(id))
-    .filter((item): item is Course => Boolean(item));
+  const courseChoices = academicCourseOptions(activeSchedules, courses,
+    assignment?.courseId ?? (request.kind === "assignment" ? request.courseId : undefined));
   const [title, setTitle] = useState(
     activity?.title ?? assignment?.title ?? "",
   );
@@ -7577,6 +7597,7 @@ function CourseDrawer({
   offerings,
   activeIds,
   activeSchedules,
+  addTarget,
   onAddMany,
   onClose,
 }: {
@@ -7587,6 +7608,7 @@ function CourseDrawer({
   offerings: Schedule[];
   activeIds: Set<string>;
   activeSchedules: Schedule[];
+  addTarget: "课表" | "选课方案";
   onAddMany: (ids: string[], label?: string) => void;
   onClose: () => void;
 }) {
@@ -7914,7 +7936,7 @@ function CourseDrawer({
                           )
                         }
                       >
-                        {added ? "已在课表" : "加入课表"}
+                        {added ? "已添加" : `加入${addTarget}`}
                       </button>
                     </footer>
                   </article>

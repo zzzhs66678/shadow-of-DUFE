@@ -179,3 +179,22 @@ export function mergePersonalSchedules<T extends ScheduledMeeting>(official: T[]
     }),
   ];
 }
+
+/** An imported snapshot is authoritative, including an explicitly empty one.
+ * Manual/class selections remain available in the separate planning preview.
+ */
+export function authoritativeSchedules<T extends ScheduledMeeting>(official: T[] | undefined, manual: T[]): T[] {
+  return [...(official ?? manual)];
+}
+
+/** Exact periods take precedence over the broad display block; unknown data stays conservative. */
+export function scheduledMeetingsOverlap(first: ScheduledMeeting, second: ScheduledMeeting): boolean {
+  if (first.term !== second.term || first.weekday !== second.weekday) return false;
+  const firstPeriods = periodsOf(first)?.split(",");
+  const secondPeriods = periodsOf(second)?.split(",");
+  if (firstPeriods && secondPeriods) {
+    if (!firstPeriods.some((period) => secondPeriods.includes(period))) return false;
+  } else if (first.block !== second.block) return false;
+  if (!first.weeks?.length || !second.weeks?.length) return true;
+  return first.weeks.some((week) => second.weeks?.includes(week));
+}

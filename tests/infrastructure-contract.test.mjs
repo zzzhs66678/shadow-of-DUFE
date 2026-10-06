@@ -215,7 +215,17 @@ test("CI drives the authenticated browser critical path through PostgreSQL", asy
   assert.match(suite, /setInputFiles/);
   assert.match(suite, /\/materials/);
   assert.match(suite, /\/teachers\?q=/);
-  assert.match(suite, /保存并公开/);
+  assert.match(suite, /getByRole\("radio"\)\)\.toHaveCount\(0\)/);
+  assert.match(suite, /getByLabel\(\/评价正文\/u\)\.fill\("好"\)/);
+  assert.match(suite, /name: "发布评价", exact: true/);
+  assert.match(suite, /createReviewRequest\)\.postDataJSON\(\)\)\.toEqual\(\{ body: "好" \}\)/);
+  assert.match(suite, /name: "保存修改", exact: true/);
+  assert.match(suite, /updateReviewRequest\)\.postDataJSON\(\)\)\.toEqual\(\{ body: reviewBody, expectedVersion: createdReview\.review\.version \}\)/);
+  assert.match(suite, /teacherReplyDatabaseSnapshot/);
+  assert.match(suite, /举报“教师评价回复”/);
+  assert.match(suite, /隐藏内容，继续审核/);
+  assert.match(suite, /恢复内容并结案/);
+  assert.match(suite, /这条回复已不可见，讨论位置仍被保留/);
   assert.match(suite, /举报主题/);
   assert.match(suite, /通知/);
   assert.match(suite, /建立审核案件/);
@@ -884,7 +894,12 @@ test("user teacher reviews are session-scoped, versioned, and soft-deleted", asy
   assert.match(routes, /trustedOrigin/);
   assert.match(routes, /teacherReviewWrite/);
   assert.match(contract, /hasOnlyKeys/);
-  assert.match(contract, /normalized\.length < 20/);
+  const { validateTeacherReviewWrite } = await import("../services/auth-api/src/teacher-review-contract.mjs");
+  assert.deepEqual(validateTeacherReviewWrite({ body: "好" }), {
+    body: "好", ratings: null, expectedVersion: null,
+  });
+  assert.equal(validateTeacherReviewWrite({ body: " " }), null);
+  assert.equal(validateTeacherReviewWrite({ body: "字".repeat(3001) }), null);
   assert.match(store, /author_user_id = \$2/);
   assert.match(store, /status = 'deleted'/);
   assert.match(store, /version = \$10/);

@@ -43,6 +43,13 @@ function mapTeacherSummary(row) {
 }
 
 function mapReview(row) {
+  const ratings = {
+    courseOrganization: numberOrNull(row.course_organization_rating),
+    contentClarity: numberOrNull(row.content_clarity_rating),
+    assessmentExplanation: numberOrNull(row.assessment_explanation_rating),
+    classroomInteraction: numberOrNull(row.classroom_interaction_rating),
+    materialCompleteness: numberOrNull(row.material_completeness_rating),
+  };
   return {
     id: String(row.id),
     sourceType: row.source_type,
@@ -50,13 +57,9 @@ function mapReview(row) {
       ? "历史整理内容"
       : row.author_label ?? "已注册用户",
     body: row.body,
-    ratings: row.source_type === "user" ? {
-      courseOrganization: Number(row.course_organization_rating),
-      contentClarity: Number(row.content_clarity_rating),
-      assessmentExplanation: Number(row.assessment_explanation_rating),
-      classroomInteraction: Number(row.classroom_interaction_rating),
-      materialCompleteness: Number(row.material_completeness_rating),
-    } : null,
+    ratings: row.source_type === "user" && Object.values(ratings).every((value) => value !== null)
+      ? ratings
+      : null,
     publishedAt: iso(row.published_at),
   };
 }
@@ -645,11 +648,11 @@ export function createTeacherStore(pool) {
           teacherId,
           userId,
           body,
-          ratings.courseOrganization,
-          ratings.contentClarity,
-          ratings.assessmentExplanation,
-          ratings.classroomInteraction,
-          ratings.materialCompleteness,
+          ratings?.courseOrganization ?? null,
+          ratings?.contentClarity ?? null,
+          ratings?.assessmentExplanation ?? null,
+          ratings?.classroomInteraction ?? null,
+          ratings?.materialCompleteness ?? null,
           contentDigest(body),
         ];
         let result;
@@ -671,14 +674,16 @@ export function createTeacherStore(pool) {
             values,
           );
         } else {
+          // Omitted/null ratings are text-only edits, never a request to erase past scores.
+          // Replace all five together when supplied so partial scores fail the DB constraint.
           result = await client.query(
             `UPDATE teacher_reviews
              SET body = $3,
-                 course_organization_rating = $4,
-                 content_clarity_rating = $5,
-                 assessment_explanation_rating = $6,
-                 classroom_interaction_rating = $7,
-                 material_completeness_rating = $8,
+                 course_organization_rating = CASE WHEN $11 THEN $4 ELSE course_organization_rating END,
+                 content_clarity_rating = CASE WHEN $11 THEN $5 ELSE content_clarity_rating END,
+                 assessment_explanation_rating = CASE WHEN $11 THEN $6 ELSE assessment_explanation_rating END,
+                 classroom_interaction_rating = CASE WHEN $11 THEN $7 ELSE classroom_interaction_rating END,
+                 material_completeness_rating = CASE WHEN $11 THEN $8 ELSE material_completeness_rating END,
                  content_sha256 = $9
              WHERE teacher_id = $1
                AND author_user_id = $2
@@ -689,7 +694,7 @@ export function createTeacherStore(pool) {
                        course_organization_rating, content_clarity_rating,
                        assessment_explanation_rating, classroom_interaction_rating,
                        material_completeness_rating, status, version, published_at, updated_at`,
-            [...values, expectedVersion],
+            [...values, expectedVersion, ratings !== undefined && ratings !== null],
           );
         }
         if (result.rows.length > 0) return mapOwnReview(result.rows[0]);

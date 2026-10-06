@@ -167,6 +167,51 @@ test("old selections reconcile with imports without deleting stored plans; timet
   await expect(page.getByRole("button", { name: "找空教室", exact: true })).toBeVisible();
 });
 
+test("official timetable excludes preselected courses; planning preserves them without changing today's lessons", async ({ page }) => {
+  const catalog = JSON.parse(readFileSync("public/data/course-data.json", "utf8"));
+  const manual = catalog.schedules.find((item: { term: string; weekday: number; courseId: string; weeks: number[] }) =>
+    item.term === "fall" && item.weekday === 2 && item.weeks?.includes(6) && item.courseId !== snapshot.sections[0].courseCode);
+  const seed = { profile: null, skipped: true,
+    plans: [{ id: "default", name: "默认课表", scheduleIds: [manual.id] }], activePlanId: "default",
+    activities: [], assignments: [], academicSnapshots: [{ ...snapshot, exams: [] }], trainingPlan,
+    favoriteRooms: [], recentRooms: [] };
+  await page.clock.install({ time: new Date("2026-10-06T00:00:00+08:00") });
+  await page.addInitScript((state) => {
+    if (!localStorage.getItem("dufesh:student-profile:v3:anonymous")) {
+      localStorage.setItem("dufesh:student-profile:v3:anonymous", JSON.stringify(state));
+    }
+  }, seed);
+  await page.route("**/api/auth/session", (route) => route.fulfill({ json: { authenticated: false } }));
+  await page.goto("/?view=schedule");
+  await expect(page.getByRole("button", { name: "教务课表", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".academic-schedule-card")).toHaveCount(2);
+  await expect(page.locator(".draggable-schedule")).toHaveCount(0);
+  await page.getByRole("button", { name: "＋ 添加作业", exact: true }).click();
+  await expect(page.locator('select[name="assignment-course"] option[value="31131862"]')).toHaveText("内部审计");
+  await page.getByRole("dialog", { name: "添加作业" }).getByRole("button", { name: "关闭", exact: true }).click();
+  await page.locator(".timetable-panel").screenshot({ path: ".codex_tmp/official-only-timetable.png" });
+  await page.getByRole("button", { name: /手动选课/ }).click();
+  await expect(page.locator(".draggable-schedule")).toHaveCount(1);
+  await expect(page.locator(".draggable-schedule strong")).toHaveText(manual.title);
+  await expect(page.getByText("含手动课程，不计入今日上课提醒。", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "今天", exact: true }).click();
+  await expect(page.locator(".today-page").getByText(manual.title, { exact: true })).toHaveCount(0);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("dufesh:student-profile:v3:anonymous")!).plans[0].scheduleIds)).toEqual([manual.id]);
+  await page.goto("/?view=schedule");
+  await expect(page.locator(".draggable-schedule")).toHaveCount(0);
+  // Removing the import for this isolated fixture restores the untouched legacy timetable.
+  await page.evaluate(() => {
+    const key = "dufesh:student-profile:v3:anonymous";
+    const state = JSON.parse(localStorage.getItem(key)!);
+    state.academicSnapshots = [];
+    localStorage.setItem(key, JSON.stringify(state));
+  });
+  await page.reload();
+  await expect(page.locator(".draggable-schedule")).toHaveCount(1);
+  await page.getByRole("button", { name: "今天", exact: true }).click();
+  await expect(page.locator(".today-page").getByText(manual.title, { exact: true }).first()).toBeVisible();
+});
+
 test("teaching-class shortcuts point to existing reviews and exact course materials", async ({ page }) => {
   const catalog = JSON.parse(readFileSync("public/data/course-data.json", "utf8"));
   const manual = catalog.schedules.find((item: { term: string; weekday: number; teacher: string }) => item.term === "fall" && item.weekday < 6 && item.teacher);

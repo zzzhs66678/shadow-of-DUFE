@@ -4,7 +4,29 @@ import test from "node:test";
 import {
   isSameScheduledMeeting,
   mergePersonalSchedules,
+  authoritativeSchedules,
+  scheduledMeetingsOverlap,
 } from "../app/schedule-reconciliation.ts";
+
+test("official timetable never silently includes planned courses; empty snapshots remain authoritative", () => {
+  const enrolled = official();
+  const preselected = catalog({ courseId: "UNSELECTED", id: "draft" });
+  const manual = [preselected];
+  assert.deepEqual(authoritativeSchedules([enrolled], manual), [enrolled]);
+  assert.deepEqual(authoritativeSchedules([], manual), []);
+  assert.deepEqual(authoritativeSchedules(undefined, manual), manual);
+  assert.notEqual(authoritativeSchedules(undefined, manual), manual);
+  assert.deepEqual(mergePersonalSchedules([enrolled], manual), [enrolled, preselected]);
+  assert.deepEqual(manual, [preselected]);
+});
+
+test("conflicts use real period intersections and weeks, not only the display block", () => {
+  assert.equal(scheduledMeetingsOverlap(catalog({ periods: [1, 2, 3, 4] }), catalog({ periods: [3, 4], block: 2 })), true);
+  assert.equal(scheduledMeetingsOverlap(catalog({ periods: [1] }), catalog({ periods: [2] })), false);
+  assert.equal(scheduledMeetingsOverlap(catalog({ weeks: [1, 2, 3] }), catalog({ weeks: [10, 11] })), false);
+  assert.equal(scheduledMeetingsOverlap(catalog(), catalog({ weekday: 2 })), false);
+  assert.equal(scheduledMeetingsOverlap(catalog(), catalog({ term: "spring" })), false);
+});
 
 function catalog(overrides = {}) {
   return {
