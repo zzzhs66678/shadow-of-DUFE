@@ -240,7 +240,7 @@ test("users and an administrator complete the release browser path", async ({
     ).toBeVisible();
 
     await secondOwner.goto(`/teachers?q=${encodeURIComponent(teacher.displayName)}`);
-    await expect(secondOwner.getByText(teacher.collegeName)).toBeVisible();
+    await expect(secondOwner.getByRole("link", { name: new RegExp(teacher.displayName, "u") }).getByText(teacher.collegeName, { exact: true })).toBeVisible();
     await secondOwner
       .getByRole("link", { name: new RegExp(teacher.displayName, "u") })
       .click();
