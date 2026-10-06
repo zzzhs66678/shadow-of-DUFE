@@ -21,7 +21,7 @@ jobs:
         run: |
           docker build \
             --build-arg NODE_IMAGE=node:22-alpine \
-            --build-arg NEXT_PUBLIC_XIAOYING_URL=/campus-lab/ \
+            --build-arg NEXT_PUBLIC_XIAOYING_URL= \
             --tag dufesh-app:ci \
             .
           docker build \

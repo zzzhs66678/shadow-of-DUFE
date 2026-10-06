@@ -19,6 +19,7 @@ test("CI retains immutable tested images without server access", async () => {
   assert.match(block, /actions\/upload-artifact@[a-f0-9]{40}/);
   assert.match(block, /retention-days: 7/);
   assert.doesNotMatch(block, /secrets\.|ssh\s|scp\s|docker push/);
+  assert.match(workflow, /--build-arg NEXT_PUBLIC_XIAOYING_URL= \\/);
 });
 
 test("staging topology is isolated and immutable by default", async () => {
