@@ -8,6 +8,19 @@ async function read(relativePath) {
   return readFile(new URL(relativePath, root), "utf8");
 }
 
+test("CI retains immutable tested images without server access", async () => {
+  const workflow = await read(".github/workflows/quality.yml");
+  const start = workflow.indexOf("      - name: Package verified application images");
+  const block = workflow.slice(start, workflow.indexOf("  postgres-integration:", start));
+  assert.ok(start > workflow.indexOf("      - name: Start and smoke-test the isolated staging stack"));
+  assert.match(block, /docker save "dufesh-app:\$GITHUB_SHA" "dufesh-auth-api:\$GITHUB_SHA"/);
+  assert.match(block, /sha256sum images\.tar\.gz manifest\.txt > SHA256SUMS/);
+  assert.match(block, /if: github\.event_name == 'push'/);
+  assert.match(block, /actions\/upload-artifact@[a-f0-9]{40}/);
+  assert.match(block, /retention-days: 7/);
+  assert.doesNotMatch(block, /secrets\.|ssh\s|scp\s|docker push/);
+});
+
 test("staging topology is isolated and immutable by default", async () => {
   const compose = await read("docker-compose.staging.yml");
 
