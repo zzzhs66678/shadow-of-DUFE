@@ -1,11 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  loadPersonalCourseContext,
-  type PersonalCourseContext,
-} from "../personal-course-context";
+import { useEffect, useRef, useState } from "react";
+import { loadPersonalCourseContext, type PersonalCourseContext } from "../personal-course-context";
 import { PublicMasthead } from "../PublicMasthead";
 import styles from "./teachers.module.css";
 
@@ -17,190 +14,209 @@ type TeacherSummary = {
   reviewCount: number;
   updatedAt: string;
 };
+type TeacherResponse = { items: TeacherSummary[]; nextCursor: string | null };
+type College = { key: string; name: string; teacherCount: number };
 
-type TeacherResponse = {
-  items: TeacherSummary[];
-  nextCursor: string | null;
-};
-
-export function TeacherExplorer({ initialQuery = "" }: { initialQuery?: string }) {
+export function TeacherExplorer({ initialQuery = "", initialCollege = "" }: { initialQuery?: string; initialCollege?: string }) {
   const [query, setQuery] = useState(initialQuery);
+  const [college, setCollege] = useState(initialCollege.normalize("NFKC").trim().toLocaleLowerCase("zh-CN"));
+  const [colleges, setColleges] = useState<College[]>([]);
+  const [collegeStatus, setCollegeStatus] = useState<"loading" | "ready" | "error">("loading");
   const [items, setItems] = useState<TeacherSummary[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [moreStatus, setMoreStatus] = useState<"idle" | "loading" | "error">("idle");
   const [revision, setRevision] = useState(0);
   const [personalContext, setPersonalContext] = useState<PersonalCourseContext | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const requestQuery = useMemo(() => query.normalize("NFKC").trim(), [query]);
+  const generation = useRef(0);
+  const moreRequest = useRef<AbortController | null>(null);
+  const requestQuery = query.normalize("NFKC").trim();
+  const hasFilter = Boolean(requestQuery || college);
+  const collegeName = colleges.find((item) => item.key === college)?.name ?? college;
 
   useEffect(() => {
     let live = true;
     void loadPersonalCourseContext().then((context) => {
       if (live) setPersonalContext(context);
-    });
-    return () => {
-      live = false;
-    };
+    }).catch(() => {});
+    return () => { live = false; };
   }, []);
 
   useEffect(() => {
     const controller = new AbortController();
+    async function loadColleges() {
+      setCollegeStatus("loading");
+      try {
+        const response = await fetch("/api/teachers/colleges", {
+          headers: { Accept: "application/json" }, signal: controller.signal,
+        });
+        if (!response.ok) throw new Error("colleges_unavailable");
+        const payload = await response.json() as { items: College[] };
+        if (controller.signal.aborted) return;
+        setColleges(payload.items);
+        setCollegeStatus("ready");
+      } catch {
+        if (!controller.signal.aborted) setCollegeStatus("error");
+      }
+    }
+    void loadColleges();
+    return () => controller.abort();
+  }, [revision]);
+
+  useEffect(() => {
+    const currentGeneration = ++generation.current;
+    const controller = new AbortController();
+    moreRequest.current?.abort();
+    moreRequest.current = null;
+    const locationParams = new URLSearchParams();
+    if (requestQuery) locationParams.set("q", requestQuery);
+    if (college) locationParams.set("college", college);
+    window.history.replaceState(null, "", `/teachers${locationParams.size ? `?${locationParams}` : ""}`);
     const timer = window.setTimeout(async () => {
-      setStatus("loading");
+      setItems([]);
+      setNextCursor(null);
+      setMoreStatus("idle");
+      setStatus(hasFilter ? "loading" : "ready");
+      if (!hasFilter) return;
       try {
         const params = new URLSearchParams({ limit: "30" });
         if (requestQuery) params.set("q", requestQuery);
+        if (college) params.set("college", college);
         const response = await fetch(`/api/teachers?${params}`, {
-          headers: { Accept: "application/json" },
-          signal: controller.signal,
+          headers: { Accept: "application/json" }, signal: controller.signal,
         });
         if (!response.ok) throw new Error("teachers_unavailable");
         const payload = await response.json() as TeacherResponse;
+        if (controller.signal.aborted || currentGeneration !== generation.current) return;
         setItems(payload.items);
         setNextCursor(payload.nextCursor);
         setStatus("ready");
-        window.history.replaceState(null, "", requestQuery
-          ? `/teachers?q=${encodeURIComponent(requestQuery)}`
-          : "/teachers");
-      } catch (error) {
-        if ((error as Error).name !== "AbortError") setStatus("error");
+      } catch {
+        if (!controller.signal.aborted && currentGeneration === generation.current) setStatus("error");
       }
-    }, 220);
+    }, requestQuery ? 220 : 0);
     return () => {
       window.clearTimeout(timer);
       controller.abort();
+      moreRequest.current?.abort();
+      moreRequest.current = null;
+      if (currentGeneration === generation.current) generation.current += 1;
     };
-  }, [requestQuery, revision]);
+  }, [requestQuery, college, hasFilter, revision]);
+
+  function changeFilters(nextQuery: string, nextCollege: string) {
+    if (nextQuery.normalize("NFKC").trim() !== requestQuery || nextCollege !== college) {
+      generation.current += 1;
+      moreRequest.current?.abort();
+      moreRequest.current = null;
+      setItems([]);
+      setNextCursor(null);
+      setMoreStatus("idle");
+      setStatus("loading");
+    }
+    setQuery(nextQuery);
+    setCollege(nextCollege);
+  }
 
   async function loadMore() {
-    if (!nextCursor || status !== "ready") return;
-    setStatus("loading");
+    if (!nextCursor || status !== "ready" || moreRequest.current) return;
+    const currentGeneration = generation.current;
+    const controller = new AbortController();
+    moreRequest.current = controller;
+    setMoreStatus("loading");
     try {
       const params = new URLSearchParams({ limit: "30", after: nextCursor });
       if (requestQuery) params.set("q", requestQuery);
+      if (college) params.set("college", college);
       const response = await fetch(`/api/teachers?${params}`, {
-        headers: { Accept: "application/json" },
+        headers: { Accept: "application/json" }, signal: controller.signal,
       });
       if (!response.ok) throw new Error("teachers_unavailable");
       const payload = await response.json() as TeacherResponse;
-      setItems((current) => [...current, ...payload.items]);
+      if (controller.signal.aborted || currentGeneration !== generation.current) return;
+      setItems((current) => {
+        const knownIds = new Set(current.map((teacher) => teacher.id));
+        return [...current, ...payload.items.filter((teacher) => !knownIds.has(teacher.id))];
+      });
       setNextCursor(payload.nextCursor);
-      setStatus("ready");
+      setMoreStatus("idle");
     } catch {
-      setStatus("error");
+      if (!controller.signal.aborted && currentGeneration === generation.current) setMoreStatus("error");
+    } finally {
+      if (moreRequest.current === controller) moreRequest.current = null;
     }
   }
 
   return (
     <main className={styles.page} id="main-content">
-      <PublicMasthead
-        navigationLabel="教师页导航"
-        items={[
-          { href: "/?view=catalog", label: "课程" },
-          { href: "/teachers", label: "教师", current: true },
-          { href: "/materials", label: "资料" },
-          { href: "/?view=schedule", label: "我的课表", showOnMobile: false },
-        ]}
-      />
+      <PublicMasthead navigationLabel="教师页导航" items={[
+        { href: "/?view=catalog", label: "课程" },
+        { href: "/teachers", label: "教师", current: true },
+        { href: "/materials", label: "资料" },
+        { href: "/?view=schedule", label: "我的课表", showOnMobile: false },
+      ]} />
       <section className={styles.hero} aria-labelledby="teachers-title">
-        <div className={styles.directoryMark} aria-hidden="true">
-          <i />
-          <span>FACULTY<br />DIRECTORY</span>
-        </div>
         <div className={styles.heroCopy}>
-          <span>东财教师档案</span>
-          <h1 id="teachers-title">这门课，听听上过的人。</h1>
-          <p>按姓名查教师；同名教师请核对学院。</p>
+          <h1 id="teachers-title">教师评价</h1>
+          <p>从学院找老师，或搜索全校姓名；同名教师请核对学院。</p>
         </div>
-        <label className={styles.searchField}>
-          <span>查找教师</span>
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                setQuery("");
-                inputRef.current?.focus();
-              }
-            }}
-            autoComplete="off"
-            type="search"
-            placeholder="输入教师姓名…"
-          />
-          {query && <button onClick={() => setQuery("")} aria-label="清空教师搜索">清空</button>}
-        </label>
+        <div className={styles.searchField} role="search" aria-label="全校教师搜索">
+          <label htmlFor="teacher-name-query">全校姓名搜索</label>
+          <input id="teacher-name-query" value={query} maxLength={64}
+            onChange={(event) => changeFilters(event.target.value, "")}
+            onKeyDown={(event) => { if (event.key === "Escape") changeFilters("", ""); }}
+            autoComplete="off" type="search" placeholder="输入教师姓名…" />
+          {query && <button type="button" onClick={() => changeFilters("", "")} aria-label="清空教师搜索">清空</button>}
+        </div>
       </section>
 
       {Boolean(personalContext?.teacherNames.length) && (
         <section className={styles.personalContext} aria-label="本学期教师">
-          <div>
-            <span>本学期教师</span>
-            <p>来自已导入课表；遇到同名教师，请按学院确认。</p>
-          </div>
-          <div>
-            {personalContext?.teacherNames.map((teacherName) => (
-              <button key={teacherName} onClick={() => setQuery(teacherName)}>
-                {teacherName}
-              </button>
-            ))}
-          </div>
+          <div><span>本学期教师</span><p>来自已导入课表；同名教师，请按学院确认。</p></div>
+          <div>{personalContext?.teacherNames.map((name) => (
+            <button type="button" key={name} onClick={() => changeFilters(name, "")}>{name}</button>
+          ))}</div>
         </section>
       )}
 
-      <section className={styles.results} aria-live="polite" aria-busy={status === "loading"}>
-        <header>
-          <div><span>检索结果</span><b>{status === "ready" ? `${items.length} 位` : "读取中"}</b></div>
-          <p>查看评价、课程与教材。</p>
+      <section className={styles.results} aria-labelledby="directory-title">
+        <header className={styles.directoryHeader}>
+          <h2 id="directory-title">{hasFilter ? collegeName || "全校搜索" : "按学院找老师"}</h2>
+          {hasFilter && <button type="button" onClick={() => changeFilters("", "")}>返回学院索引</button>}
         </header>
-        {status === "error" && (
-          <div className={styles.state} role="alert">
-            <b>教师档案暂时没有连上。</b>
-            <p>检查网络后重试。搜索词会保留。</p>
-            <button onClick={() => setRevision((value) => value + 1)}>重新读取</button>
+        {collegeStatus === "loading" && <p role="status">正在读取学院…</p>}
+        {collegeStatus === "error" && <div className={styles.inlineEmpty} role="alert">学院暂时没有加载成功，仍可搜索全校姓名。 <button type="button" onClick={() => setRevision((value) => value + 1)}>重新读取学院</button></div>}
+        {!hasFilter && collegeStatus === "ready" && (
+          colleges.length ? <div className={styles.collegeList}>
+            {colleges.map((item) => <button type="button" key={item.key} onClick={() => changeFilters("", item.key)}>
+              <span>{item.name}</span><small>{item.teacherCount} 位教师</small><span aria-hidden="true">→</span>
+            </button>)}
+          </div> : <div className={styles.inlineEmpty}><p>教师档案尚未整理入库。</p><p>教师身份尚未入库，评价功能暂不可用。</p></div>
+        )}
+        {hasFilter && <>
+          <div className={styles.directoryFilter}>
+            <label htmlFor="teacher-college">学院</label>
+            <select id="teacher-college" value={college} onChange={(event) => changeFilters(query, event.target.value)}>
+              <option value="">全部学院</option>
+              {college && !colleges.some((item) => item.key === college) && <option value={college}>{collegeName}</option>}
+              {colleges.map((item) => <option key={item.key} value={item.key}>{item.name}（{item.teacherCount}）</option>)}
+            </select>
+            <p role="status">{status === "loading" ? "正在查找教师…" : status === "error" ? "读取失败" : `已显示 ${items.length} 位${nextCursor ? "，可继续加载" : ""}`}</p>
           </div>
-        )}
-        {status === "ready" && items.length === 0 && (
-          <div className={styles.state}>
-            {query ? (
-              <>
-                <b>没有找到对应教师。</b>
-                <p>姓名可能不完整，或档案尚未收录。同名记录不会自动合并。</p>
-                <button onClick={() => setQuery("")}>查看全部教师</button>
-              </>
-            ) : (
-              <>
-                <b>教师档案尚未整理入库。</b>
-                <p>教师身份尚未入库，评价功能暂不可用。</p>
-                <Link href="/?view=catalog">返回课程</Link>
-              </>
-            )}
+          {status === "error" && <div className={styles.state} role="alert"><b>教师档案暂时没有连上。</b><p>搜索词与学院已保留。</p><button type="button" onClick={() => setRevision((value) => value + 1)}>重新读取</button></div>}
+          {status === "ready" && items.length === 0 && <p className={styles.inlineEmpty}>没有找到对应教师。试试完整姓名或切换学院，同名记录不会自动合并。</p>}
+          <div className={styles.teacherList} aria-busy={status === "loading"}>
+            {items.map((teacher) => <Link key={teacher.id} href={`/teachers/${teacher.id}`}>
+              <div><h3>{teacher.displayName}</h3><small>{teacher.collegeName}</small></div>
+              <span className={styles.teacherReviewCount}>{teacher.reviewCount ? `${teacher.reviewCount} 条评价` : "暂无评价"}</span>
+              <span className={styles.openLabel}>阅读评价 →</span>
+            </Link>)}
           </div>
-        )}
-        {items.length > 0 && (
-          <div className={styles.teacherList}>
-            {items.map((teacher) => (
-              <Link key={teacher.id} href={`/teachers/${teacher.id}`}>
-                <span className={styles.nameMark} aria-hidden="true">{teacher.displayName.slice(0, 1)}</span>
-                <div>
-                  <small>{teacher.collegeName}</small>
-                  <h2>{teacher.displayName}</h2>
-                </div>
-                <dl>
-                  <div><dt>教学班</dt><dd>{teacher.courseCount}</dd></div>
-                  <div><dt>公开评价</dt><dd>{teacher.reviewCount}</dd></div>
-                </dl>
-                <span className={styles.openLabel}>阅读评价 →</span>
-              </Link>
-            ))}
-          </div>
-        )}
-        {nextCursor && status !== "error" && (
-          <button className={styles.loadMore} onClick={() => void loadMore()} disabled={status === "loading"}>
-            {status === "loading" ? "正在继续读取" : "继续查看"}
-          </button>
-        )}
+          {moreStatus === "error" && <p role="status">后续教师暂时没有加载成功，已显示的教师仍保留。</p>}
+          {nextCursor && status === "ready" && <button className={styles.loadMore} type="button" onClick={() => void loadMore()} disabled={moreStatus === "loading"}>
+            {moreStatus === "loading" ? "正在继续读取" : moreStatus === "error" ? "重新读取更多教师" : "继续查看教师"}
+          </button>}
+        </>}
       </section>
     </main>
   );

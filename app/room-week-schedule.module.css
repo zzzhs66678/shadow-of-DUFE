@@ -13,12 +13,14 @@
   align-items: center;
   border-bottom: 1px solid var(--room-line);
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   justify-content: space-between;
   padding: 0 0 12px;
 }
 
-.actions button {
+.actions button,
+.weekToggle {
   background: transparent;
   border: 1px solid var(--room-ink);
   border-radius: 999px;
@@ -26,22 +28,24 @@
   cursor: pointer;
   font: inherit;
   font-size: 11px;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 15px;
 }
 
 .actions button:hover,
-.actions button:focus-visible {
+.weekToggle:hover {
   background: var(--room-ink);
   color: #fff;
 }
 
+.actions button:focus-visible,
+.weekToggle:focus-visible {
+  outline: 2px solid var(--room-red);
+  outline-offset: 3px;
+}
+
 .heading {
-  align-items: end;
   border-bottom: 1px solid var(--room-ink);
-  display: flex;
-  gap: 24px;
-  justify-content: space-between;
   padding: 20px 0 18px;
 }
 
@@ -54,17 +58,35 @@
 }
 
 .heading h2 {
-  font: 800 clamp(32px, 5vw, 58px)/1 var(--journal-body, system-ui, sans-serif);
+  font: 800 clamp(32px, 5vw, 58px)/1.3 var(--journal-body, system-ui, sans-serif);
   letter-spacing: -.055em;
   margin: 10px 0 0;
+  overflow-wrap: anywhere;
 }
 
-.heading > p {
+.viewControls {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  justify-content: space-between;
+  margin: 16px 0 10px;
+}
+
+.viewControls p,
+.noLessons {
   color: var(--room-muted);
   font-size: 11px;
+  line-height: 1.6;
   margin: 0;
-  max-width: 290px;
-  text-align: right;
+}
+
+.weekToggle {
+  flex-shrink: 0;
+}
+
+.noLessons {
+  margin-bottom: 10px;
 }
 
 .weekContext {
@@ -89,7 +111,6 @@
 .boardViewport {
   border-bottom: 1px solid var(--room-ink);
   border-top: 1px solid var(--room-ink);
-  margin-top: 22px;
   max-width: 100%;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
@@ -102,13 +123,14 @@
 }
 
 .board {
-  min-width: 980px;
+  min-width: 0;
+  width: 100%;
 }
 
 .headerRow,
 .periodRow {
   display: grid;
-  grid-template-columns: 86px repeat(7, minmax(124px, 1fr));
+  grid-template-columns: clamp(34px, 7vw, 80px) repeat(var(--room-day-count, 5), minmax(0, 1fr));
 }
 
 .headerRow {
@@ -121,11 +143,15 @@
   align-items: center;
   border-left: 1px solid rgba(255, 255, 255, .18);
   display: flex;
+  flex-direction: column;
   font-size: 12px;
   font-weight: 750;
-  gap: 6px;
+  gap: 3px;
   justify-content: center;
-  padding: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: 8px 2px;
+  text-align: center;
 }
 
 .headerRow > span small {
@@ -154,7 +180,10 @@
   background: color-mix(in srgb, var(--room-ink) 4%, var(--room-raised));
   display: grid;
   gap: 5px;
-  padding: 10px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: 10px 4px;
+  text-align: center;
 }
 
 .periodRow > header strong {
@@ -165,16 +194,17 @@
   color: var(--room-muted);
   font-size: 9px;
   line-height: 1.45;
+  font-variant-numeric: tabular-nums;
 }
 
 .cell {
-  align-content: center;
+  align-content: start;
   background: var(--room-raised);
   border-left: 1px solid var(--room-line);
   display: grid;
   gap: 6px;
   min-width: 0;
-  padding: 7px;
+  padding: 7px 4px;
 }
 
 .selectedCell {
@@ -182,9 +212,9 @@
 }
 
 .lesson {
-  border-left: 3px solid var(--room-red);
+  border-left: 2px solid var(--room-red);
   min-width: 0;
-  padding: 5px 6px;
+  padding: 5px 4px;
 }
 
 .lesson strong,
@@ -192,27 +222,31 @@
 .lesson small {
   display: block;
   overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .lesson strong {
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.45;
 }
 
 .lesson span {
   color: var(--room-muted);
-  font-size: 9px;
+  font-size: 11px;
+  line-height: 1.5;
   margin-top: 3px;
 }
 
 .lesson small {
   color: var(--room-muted);
-  font-size: 8px;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
   line-height: 1.35;
   margin-top: 2px;
 }
 
 .emptyCell {
+  align-self: center;
   color: color-mix(in srgb, var(--room-muted) 40%, transparent);
   font-size: 12px;
   justify-self: center;
@@ -235,9 +269,6 @@
 
 @media (max-width: 680px) {
   .heading {
-    align-items: start;
-    flex-direction: column;
-    gap: 8px;
     padding-top: 12px;
   }
 
@@ -245,17 +276,30 @@
     font-size: 38px;
   }
 
-  .heading > p {
-    text-align: left;
+  .cell {
+    padding: 6px 2px;
   }
 
-  .board {
-    min-width: 860px;
+  .lesson {
+    border-left: 0;
+    border-top: 2px solid var(--room-red);
+    padding: 4px 0;
   }
 
-  .headerRow,
-  .periodRow {
-    grid-template-columns: 70px repeat(7, minmax(112px, 1fr));
+  .lesson strong {
+    font-size: 11px;
+  }
+
+  .lesson span {
+    font-size: 10px;
+  }
+
+  .lesson small {
+    font-size: 9px;
+  }
+
+  .periodRow > header strong {
+    font-size: 10px;
   }
 
   .periodRow {

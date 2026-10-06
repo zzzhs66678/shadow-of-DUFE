@@ -385,16 +385,16 @@ export function TeacherDetail({
         ]}
       />
       <header className={styles.profileHeader}>
-        <div className={styles.profileBracket} aria-hidden="true"><span>{teacher.displayName.slice(0, 1)}</span></div>
         <div>
-          <p>{teacher.collegeName}</p>
+          <p><Link href={`/teachers?college=${encodeURIComponent(teacher.collegeName)}`}>{teacher.collegeName}</Link></p>
           <h1>{teacher.displayName}</h1>
-          <small>课堂体验 · 课程与教材</small>
         </div>
-        <dl>
-          <div><dt>教学班</dt><dd>{teacher.courseCount}</dd></div>
-          <div><dt>公开评价</dt><dd>{teacher.reviewCount}</dd></div>
-        </dl>
+        <a className={styles.writeReviewLink} href="#teacher-contribution" onClick={() => {
+          setPanel("reviews");
+          const url = new URL(window.location.href);
+          url.searchParams.delete("panel");
+          window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+        }}>写评价</a>
       </header>
 
       <div className={styles.profileNavigation} role="group" aria-label="教师档案内容">
@@ -461,10 +461,8 @@ export function TeacherDetail({
       </div>
       <div hidden={panel !== "reviews"}>
       <section className={styles.reviews} aria-labelledby="teacher-reviews-title">
-        <header><h2 id="teacher-reviews-title">学长学姐怎么说</h2><p>历史评价供参考，考核方式以当学期说明为准。</p></header>
+        <header><h2 id="teacher-reviews-title" className={styles.visuallyHidden}>学生评价</h2><p>历史评价供参考，考核方式以当学期说明为准。</p></header>
         <div>
-          <details className={styles.reviewTools}>
-          <summary>查找与排列评价{reviewQuery ? ` · “${reviewQuery}”` : ""}{reviewSort !== "latest" ? ` · ${reviewSort === "discussed" ? "热议" : "相关"}` : ""}</summary>
           <section className={styles.reviewIndex} aria-label="查找与排列评价">
             <form role="search" onSubmit={searchReviews}>
               <label htmlFor="teacher-review-query">在评价里查找</label>
@@ -478,58 +476,9 @@ export function TeacherDetail({
               <button type="button" aria-pressed={reviewSort === "discussed"} onClick={() => chooseReviewSort("discussed")}>热议</button>
               <button type="button" aria-pressed={reviewSort === "relevant"} disabled={!reviewQuery} onClick={() => chooseReviewSort("relevant")}>相关</button>
             </div>
-            <p>{reviewQuery ? <>正在查找“{reviewQuery}”{reviewSort === "relevant" ? "，优先显示最接近的内容。" : "。"} <button type="button" onClick={clearReviewSearch}>清除查找</button></> : reviewSort === "discussed" ? "按仍公开的回复数量排列，再按发布时间确定先后。" : "按发布时间从新到旧排列。"}</p>
+            {reviewQuery && <p>正在查找“{reviewQuery}” <button type="button" onClick={clearReviewSearch}>清除查找</button></p>}
           </section>
-          </details>
-          <details className={styles.reviewContribution}>
-            <summary>写评价 / 管理我的评价</summary>
-            {accountStatus === "loading" && <p>正在确认是否可以写评价…</p>}
-            {accountStatus === "guest" && (
-              <div><b>登录后写下真实的课堂体验</b><p>每位登录用户对同一位教师保留一份评价，可以之后修改或删除。</p><Link href="/?view=me">去登录或创建账号</Link></div>
-            )}
-            {accountStatus === "error" && <p role="status">暂时无法读取你的评价，公开内容仍可正常浏览。</p>}
-            {accountStatus === "ready" && !composerOpen && (
-              <div>
-                <b>{ownReview?.status === "hidden" ? "这份评价当前未公开" : ownReview ? "你的评价已经公开" : "你上过这位老师的课吗？"}</b>
-                <p>{ownReview?.status === "hidden" ? "审核期间不能修改正文；你仍可删除这份评价，或等待复核结果。" : ownReview ? "可以继续修改，公开页会显示最新版本。" : "只写与教学有关、自己实际经历过的内容。"}</p>
-                {ownReview?.status === "hidden" ? (
-                  <div className={styles.reviewActions}>
-                    {!confirmDelete && <button type="button" onClick={() => setConfirmDelete(true)} disabled={reviewAction !== "idle"}>删除我的评价</button>}
-                    {confirmDelete && <><span>删除后公开页将不再显示。</span><button type="button" onClick={() => void deleteReview()} disabled={reviewAction !== "idle"}>{reviewAction === "deleting" ? "正在删除" : "确认删除"}</button><button type="button" onClick={() => setConfirmDelete(false)} disabled={reviewAction !== "idle"}>取消</button></>}
-                  </div>
-                ) : <button type="button" onClick={openComposer}>{ownReview ? "修改我的评价" : "写一份评价"}</button>}
-              </div>
-            )}
-            {accountStatus === "ready" && composerOpen && (
-              <form onSubmit={(event) => void saveReview(event)}>
-                <header><b>{ownReview ? "修改我的评价" : "写一份评价"}</b><button type="button" onClick={() => setComposerOpen(false)} disabled={reviewAction !== "idle"}>收起</button></header>
-                <div className={styles.ratingEditor}>
-                  {ratingLabels.map(([key, label]) => (
-                    <fieldset key={key}>
-                      <legend>{label}</legend>
-                      <div>
-                        {[1, 2, 3, 4, 5].map((rating) => (
-                          <label key={rating}>
-                            <input type="radio" name={key} value={rating} checked={draftRatings[key] === rating} onChange={() => setDraftRatings((current) => ({ ...current, [key]: rating }))} />
-                            <span>{rating}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </fieldset>
-                  ))}
-                </div>
-                <FormField label="具体说说课堂组织、讲解、考核或资料" counter={`${draftBody.normalize("NFKC").trim().length} / 3000`}>
-                  <textarea value={draftBody} onChange={(event) => setDraftBody(event.target.value)} minLength={20} maxLength={3000} rows={6} placeholder="例如：课堂如何组织、哪些讲解方式有效、考核说明是否清楚……" />
-                </FormField>
-                <div className={styles.reviewActions}>
-                  <button type="submit" disabled={reviewAction !== "idle"}>{reviewAction === "saving" ? "正在保存" : "保存并公开"}</button>
-                  {ownReview && !confirmDelete && <button type="button" onClick={() => setConfirmDelete(true)} disabled={reviewAction !== "idle"}>删除我的评价</button>}
-                  {ownReview && confirmDelete && <><span>删除后公开页将不再显示。</span><button type="button" onClick={() => void deleteReview()} disabled={reviewAction !== "idle"}>{reviewAction === "deleting" ? "正在删除" : "确认删除"}</button><button type="button" onClick={() => setConfirmDelete(false)} disabled={reviewAction !== "idle"}>取消</button></>}
-                </div>
-              </form>
-            )}
-            {reviewNotice && <p className={styles.reviewNotice} role="status">{reviewNotice}</p>}
-          </details>
+
           {reviewListStatus === "loading" && <p className={styles.inlineEmpty} role="status">正在读取评价…</p>}
           {reviewListStatus === "error" && <p className={styles.inlineEmpty} role="alert">评价暂时没有加载成功，不会影响教师档案。 <button type="button" onClick={() => setRevision((value) => value + 1)}>重新读取</button></p>}
           {reviewListStatus === "ready" && reviews.length ? reviews.map((review) => (
@@ -548,6 +497,55 @@ export function TeacherDetail({
             </button>
           </div>
         )}
+          <section className={styles.reviewContribution} id="teacher-contribution" aria-labelledby="teacher-contribution-title">
+            <h2 id="teacher-contribution-title">{ownReview ? "我的评价" : "写评价"}</h2>
+            {accountStatus === "loading" && <p>正在确认是否可以写评价…</p>}
+            {accountStatus === "guest" && (
+              <div><b>登录后写下真实的课堂体验</b><p>每位登录用户对同一位教师保留一份评价，可以之后修改或删除。</p><Link href="/?view=me">去登录或创建账号</Link></div>
+            )}
+            {accountStatus === "error" && <p role="status">暂时无法读取你的评价，公开内容仍可正常浏览。</p>}
+            {accountStatus === "ready" && ownReview && (ownReview.status === "hidden" || !composerOpen) && (
+              <div>
+                <b>{ownReview.status === "hidden" ? "这份评价当前未公开" : "你的评价已经公开"}</b>
+                <p>{ownReview.status === "hidden" ? "审核期间不能修改正文；你仍可删除这份评价，或等待复核结果。" : "可以继续修改，公开页会显示最新版本。"}</p>
+                {ownReview.status === "hidden" ? (
+                  <div className={styles.reviewActions}>
+                    {!confirmDelete && <button type="button" onClick={() => setConfirmDelete(true)} disabled={reviewAction !== "idle"}>删除我的评价</button>}
+                    {confirmDelete && <><span>删除后公开页将不再显示。</span><button type="button" onClick={() => void deleteReview()} disabled={reviewAction !== "idle"}>{reviewAction === "deleting" ? "正在删除" : "确认删除"}</button><button type="button" onClick={() => setConfirmDelete(false)} disabled={reviewAction !== "idle"}>取消</button></>}
+                  </div>
+                ) : <button type="button" onClick={openComposer}>修改我的评价</button>}
+              </div>
+            )}
+            {accountStatus === "ready" && ownReview?.status !== "hidden" && (!ownReview || composerOpen) && (
+              <form onSubmit={(event) => void saveReview(event)}>
+                <header><p>只写自己实际经历的课堂体验；五项评分均为 1—5 分。</p>{ownReview && <button type="button" onClick={() => setComposerOpen(false)} disabled={reviewAction !== "idle"}>取消修改</button>}</header>
+                <div className={styles.ratingEditor}>
+                  {ratingLabels.map(([key, label]) => (
+                    <fieldset key={key} disabled={reviewAction !== "idle"}>
+                      <legend>{label}</legend>
+                      <div>
+                        {[1, 2, 3, 4, 5].map((rating) => (
+                          <label key={rating}>
+                            <input type="radio" name={key} value={rating} checked={draftRatings[key] === rating} onChange={() => setDraftRatings((current) => ({ ...current, [key]: rating }))} />
+                            <span>{rating}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                  ))}
+                </div>
+                <FormField label="具体说说课堂组织、讲解、考核或资料" counter={`${draftBody.normalize("NFKC").trim().length} / 3000`}>
+                  <textarea disabled={reviewAction !== "idle"} required value={draftBody} onChange={(event) => setDraftBody(event.target.value)} minLength={20} maxLength={3000} rows={6} placeholder="例如：课堂如何组织、哪些讲解方式有效、考核说明是否清楚……" />
+                </FormField>
+                <div className={styles.reviewActions}>
+                  <button type="submit" disabled={reviewAction !== "idle"}>{reviewAction === "saving" ? "正在保存" : "保存并公开"}</button>
+                  {ownReview && !confirmDelete && <button type="button" onClick={() => setConfirmDelete(true)} disabled={reviewAction !== "idle"}>删除我的评价</button>}
+                  {ownReview && confirmDelete && <><span>删除后公开页将不再显示。</span><button type="button" onClick={() => void deleteReview()} disabled={reviewAction !== "idle"}>{reviewAction === "deleting" ? "正在删除" : "确认删除"}</button><button type="button" onClick={() => setConfirmDelete(false)} disabled={reviewAction !== "idle"}>取消</button></>}
+                </div>
+              </form>
+            )}
+            {reviewNotice && <p className={styles.reviewNotice} role="status">{reviewNotice}</p>}
+          </section>
       </section>
       </div>
     </main>

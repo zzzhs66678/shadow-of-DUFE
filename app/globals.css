@@ -6377,6 +6377,10 @@ kbd {
   text-underline-offset: 3px;
 }
 
+.teaching-section-links { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.teaching-section-links:empty { width: 1px; height: 1px; }
+.teaching-section-links a { display: inline-flex; align-items: center; min-height: 36px; }
+
 .schedule-card-main strong {
   display: -webkit-box;
   font-size: 11px;

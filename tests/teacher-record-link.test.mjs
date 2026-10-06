@@ -6,6 +6,7 @@ import {
   teacherHrefFromSchedulePayload,
   teacherSearchHref,
   teacherTeachingHref,
+  teacherReviewLinksFromSchedulePayload,
 } from "../app/teacher-record-link.ts";
 
 const catalogId = `course-v1:${"a".repeat(64)}`;
@@ -66,7 +67,18 @@ test("teacher link performs no render-time lookup and covers every contextual en
   assert.doesNotMatch(component, /useEffect/u);
   assert.match(component, /async function openTeacher/u);
   assert.match(component, /window\.location\.assign\(fallbackHref\)/u);
-  assert.equal((hub.match(/<TeacherRecordLink/g) ?? []).length, 5);
+  assert.equal((hub.match(/<TeacherRecordLink/g) ?? []).length, 3);
+  assert.match(hub, /<TeachingSectionLinks/u);
+});
+
+test("review shortcuts require real reviews and exact teacher identities", () => {
+  assert.deepEqual(teacherReviewLinksFromSchedulePayload({ items: [
+    { id: teacherId, displayName: "老师", reviewCount: 2 },
+    { id: teacherId, displayName: "老师", reviewCount: 2 },
+    { id: "bad", displayName: "老师", reviewCount: 3 },
+    { id: "22222222-2222-4222-8222-222222222222", displayName: "老师", reviewCount: 0 },
+  ] }), [{ href: `/teachers/${teacherId}#teacher-reviews-title`, name: "老师", count: 2 }]);
+  assert.deepEqual(teacherReviewLinksFromSchedulePayload(null), []);
 });
 
 test("textbook navigation preserves course identity and ambiguous teacher search", () => {

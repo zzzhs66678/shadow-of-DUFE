@@ -9,17 +9,18 @@ export const metadata: Metadata = {
 };
 
 type TeachersPageProps = {
-  searchParams: Promise<{ q?: string | string[] }>;
+  searchParams: Promise<{ q?: string | string[]; college?: string | string[] }>;
 };
 
 export default async function TeachersPage({ searchParams }: TeachersPageProps) {
   const params = await searchParams;
   const initialQuery = Array.isArray(params.q) ? params.q[0] ?? "" : params.q ?? "";
+  const initialCollege = Array.isArray(params.college) ? params.college[0] ?? "" : params.college ?? "";
 
   return (
     <>
       <a className="skip-link" href="#main-content">跳到教师搜索</a>
-      <TeacherExplorer initialQuery={initialQuery} />
+      <TeacherExplorer initialQuery={initialQuery} initialCollege={initialCollege} />
     </>
   );
 }

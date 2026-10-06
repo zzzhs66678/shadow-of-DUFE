@@ -296,6 +296,8 @@ jobs:
         run: |
           node --test tests/course-schedule-logic.test.mjs
           node --test tests/course-core-data.test.mjs
+          node --test tests/schedule-reconciliation.test.mjs tests/room-week-schedule.test.mjs tests/teacher-directory.test.mjs tests/teacher-record-link.test.mjs
+          node tests/room-week-schedule.browser.mjs
           node --test tests/academic-access.test.mjs
           node --test tests/product-experience.test.mjs
           node --test tests/performance-budget.test.mjs

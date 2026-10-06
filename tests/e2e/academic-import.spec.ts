@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+import { readFileSync } from "node:fs";
 
 const snapshot = {
   schemaVersion: 1,
@@ -129,6 +130,71 @@ const trainingPlan = {
   importedAt: "2026-09-28T02:03:04.000Z",
 };
 
+test("old selections reconcile with imports without deleting stored plans; timetable remains readable", async ({ page }) => {
+  const catalog = JSON.parse(readFileSync("public/data/course-data.json", "utf8"));
+  const manual = catalog.schedules.find((item: { term: string; weekday: number; teacher: string }) => item.term === "fall" && item.weekday < 6 && item.teacher);
+  const sectionCode = manual.sectionId.split("-")[2];
+  const imported = { ...snapshot, sections: [{ ...snapshot.sections[0],
+    courseCode: manual.courseId, sectionCode, courseName: manual.title, teachers: [manual.teacher],
+    meetings: [{ ...snapshot.sections[0].meetings[0], weekday: manual.weekday, block: manual.block,
+      periods: manual.periods, weeks: manual.weeks, building: manual.building, room: manual.room, timeText: manual.timeText }],
+  }], exams: [] };
+  const seed = { profile: null, skipped: true, plans: [{ id: "default", name: "默认课表", scheduleIds: [manual.id] }],
+    activePlanId: "default", activities: [], assignments: [], academicSnapshots: [imported], trainingPlan,
+    favoriteRooms: [], recentRooms: [] };
+  await page.addInitScript((state) => localStorage.setItem("dufesh:student-profile:v3:anonymous", JSON.stringify(state)), seed);
+  await page.route("**/api/auth/session", (route) => route.fulfill({ json: { authenticated: false } }));
+  await page.goto("/?view=schedule");
+  await expect(page.locator(".academic-schedule-card")).toHaveCount(1);
+  await expect(page.locator(".draggable-schedule")).toHaveCount(0);
+  const card = page.locator(".academic-schedule-card");
+  await expect(card.getByText(manual.teacher, { exact: true })).toBeVisible();
+  await expect(card.getByText(`${manual.building}${manual.room}`, { exact: true })).toBeVisible();
+  expect(await card.locator("small").first().evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  expect(await page.evaluate(() => {
+    const grid = document.querySelector(".week-grid")!;
+    const plan = document.querySelector('[data-testid="training-plan-window"]')!;
+    return Boolean(grid.compareDocumentPosition(plan) & Node.DOCUMENT_POSITION_FOLLOWING);
+  })).toBe(true);
+  await expect(page.locator(".week-grid .day-head")).toHaveCount(5);
+  await page.getByRole("button", { name: "显示完整七天" }).click();
+  await expect(page.locator(".week-grid .day-head")).toHaveCount(7);
+  await page.getByRole("button", { name: "隐藏空白周末" }).click();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("dufesh:student-profile:v3:anonymous")!).plans[0].scheduleIds)).toEqual([manual.id]);
+  await page.locator(".week-grid").screenshot({ path: ".codex_tmp/personal-timetable-390.png" });
+  await page.getByRole("button", { name: "今天", exact: true }).click();
+  await expect(page.locator(".campus-suggestion")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "找空教室", exact: true })).toBeVisible();
+});
+
+test("teaching-class shortcuts point to existing reviews and exact course materials", async ({ page }) => {
+  const catalog = JSON.parse(readFileSync("public/data/course-data.json", "utf8"));
+  const manual = catalog.schedules.find((item: { term: string; weekday: number; teacher: string }) => item.term === "fall" && item.weekday < 6 && item.teacher);
+  await page.addInitScript((id) => localStorage.setItem("dufesh:student-profile:v3:anonymous", JSON.stringify({
+    profile: null, skipped: true, plans: [{ id: "default", name: "默认课表", scheduleIds: [id] }],
+    activePlanId: "default", activities: [], assignments: [], academicSnapshots: [], favoriteRooms: [], recentRooms: [],
+  })), manual.id);
+  await page.route("**/api/auth/session", (route) => route.fulfill({ json: { authenticated: false } }));
+  const teacherId = "11111111-1111-4111-8111-111111111111";
+  await page.route("**/api/teachers/by-schedule?*", (route) => route.fulfill({ json: {
+    items: [{ id: teacherId, displayName: manual.teacher, reviewCount: 3 }],
+  } }));
+  await page.route("**/data/resource-manifest.json", (route) => route.fulfill({ json: { materials: [
+    { id: "real-course", courseTitle: manual.title, courseIds: [manual.courseId], name: "课程资料", kind: "PDF", extension: ".pdf", sizeBytes: 500,
+      description: "", previewable: false, previewUrl: "", downloadUrl: "/resources/test.pdf" },
+    { id: "same-name", courseTitle: manual.title, courseIds: ["ANOTHER-CODE"], name: "同名的其他课程", kind: "PDF", extension: ".pdf", sizeBytes: 500,
+      description: "", previewable: false, previewUrl: "", downloadUrl: "/resources/another.pdf" },
+  ] } }));
+  await page.goto("/?view=schedule");
+  await page.locator(".schedule-card-main").first().click();
+  const shortcuts = page.locator(".teaching-section-links").first();
+  await shortcuts.scrollIntoViewIfNeeded();
+  await expect(shortcuts.getByRole("link", { name: "学生评价 · 3" })).toHaveAttribute("href", `/teachers/${teacherId}#teacher-reviews-title`);
+  await expect(shortcuts.getByRole("link", { name: "学习资料 · 1" })).toHaveAttribute("href", `/materials?course=${manual.courseId}`);
+  await expect(page.getByText("同名的其他课程", { exact: true })).toHaveCount(0);
+  await page.locator(".course-drawer").screenshot({ path: ".codex_tmp/course-shortcuts-390.png" });
+});
+
 test("expired academic transactions return to a fresh login form", async ({
   page,
 }) => {
@@ -228,7 +294,7 @@ test("verified timetable and exams remain visible when the training plan alone f
     .click();
   await expect(page.locator(".academic-schedule-card")).toHaveCount(2);
   await expect(page.locator(".academic-exam-list article")).toHaveCount(1);
-  await expect(page.getByText("在课程中心导入后，可按本学期、待选和已修筛选")).toBeVisible();
+  await expect(page.getByText("导入后可查看待选课程与已修学分")).toBeVisible();
   await expect(page.getByTestId("training-plan-window")).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });

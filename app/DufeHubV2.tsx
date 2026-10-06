@@ -36,6 +36,9 @@ import {
 } from "./personal-sync";
 import { FormField } from "./FormField";
 import { TeacherRecordLink } from "./TeacherRecordLink";
+import { TeachingSectionLinks } from "./TeachingSectionLinks";
+import { isSameScheduledMeeting, mergePersonalSchedules } from "./schedule-reconciliation";
+import scheduleStyles from "./personal-timetable.module.css";
 import academicStyles from "./academic-windows.module.css";
 import courseStyles from "./course-center.module.css";
 import homeStyles from "./home-workspace.module.css";
@@ -77,6 +80,8 @@ type Schedule = {
   sourceRow?: string;
   term: Term;
   courseId: string;
+  courseCode?: string;
+  sectionCode?: string;
   title: string;
   teacher: string;
   weekday: number;
@@ -461,6 +466,8 @@ function schedulesFromAcademicSnapshot(
       sourceRow: `${section.courseCode}:${section.sectionCode}`,
       term: snapshot.term,
       courseId: `academic:${section.courseCode}:${section.sectionCode}`,
+      courseCode: section.courseCode,
+      sectionCode: section.sectionCode,
       title: section.courseName,
       teacher: section.teachers.join(" / "),
       weekday: meeting.weekday,
@@ -1226,22 +1233,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
   );
   const activeSchedules = useMemo(() => {
     const official = schedulesFromAcademicSnapshot(academicSnapshot);
-    const signature = (item: Schedule) =>
-      [
-        normalize(item.title),
-        item.weekday,
-        item.block,
-        normalize(item.building),
-        normalize(item.room),
-        [...(item.weeks ?? [])].sort((left, right) => left - right).join(","),
-      ].join("|");
-    const officialSignatures = new Set(official.map(signature));
-    return [
-      ...official,
-      ...manualSchedules.filter(
-        (schedule) => !officialSignatures.has(signature(schedule)),
-      ),
-    ];
+    return mergePersonalSchedules(official, manualSchedules);
   }, [academicSnapshot, manualSchedules]);
   const upcomingExams = useMemo(
     () => upcomingAcademicExams(academicSnapshot),
@@ -1712,7 +1704,12 @@ function HubApp({ data: initialData }: { data: SiteData }) {
   function addSchedules(ids: string[], label?: string) {
     const existing = new Set(activePlan?.scheduleIds ?? []);
     const uniqueIds = [...new Set(ids)];
-    const additions = uniqueIds.filter((id) => !existing.has(id));
+    const additions = uniqueIds.filter((id) => {
+      const candidate = schedules.get(id);
+      return candidate && !existing.has(id) && !activeSchedules.some(
+        (active) => isSameScheduledMeeting(candidate, active),
+      );
+    });
     if (additions.length) {
       updateActivePlan((current) => [...current, ...additions]);
     }
@@ -2244,8 +2241,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           course={selectedCourse}
           materials={materials.filter(
             (item) =>
-              item.courseIds.includes(selectedCourse.id) ||
-              item.courseTitle === selectedCourse.title,
+              item.courseIds.includes(selectedCourse.id),
           )}
           materialsStatus={materialsStatus}
           offerings={data.schedules.filter(
@@ -2452,26 +2448,6 @@ function HomePage({
   const todayAssignments = saved.assignments.filter(
     (item) => !item.completed && item.dueDate === todayISO(),
   );
-  const freeByBuilding = data.buildings
-    .map((name) => {
-      const all = data.schedules.filter(
-        (item) => item.term === term && item.building === name && item.room,
-      );
-      const rooms = new Set(all.map((item) => item.room));
-      const busy = new Set(
-        all
-          .filter(
-            (item) =>
-              item.weekday === today &&
-              item.block === nowBlock &&
-              week.state === "active" &&
-              scheduleOccursInWeek(item, week.week),
-          )
-          .map((item) => item.room),
-      );
-      return { name, free: Math.max(rooms.size - busy.size, 0) };
-    })
-    .sort((a, b) => b.free - a.free);
   const dateText = new Intl.DateTimeFormat("zh-CN", {
     month: "long",
     day: "numeric",
@@ -2483,7 +2459,6 @@ function HomePage({
       : week.state === "active"
         ? `第 ${week.week} 周`
         : "学期已结束";
-  const bestBuilding = freeByBuilding[0];
   const nextAssignment = saved.assignments
     .filter((item) => !item.completed)
     .sort(
@@ -2583,33 +2558,6 @@ function HomePage({
   const nextThree = todayAgenda
     .filter((item) => item.order >= nowBlock * 100 || item.kind === "assignment")
     .slice(0, 3);
-  const campusSuggestion =
-    assignmentDays !== null && assignmentDays <= 2
-      ? {
-          label: "作业提醒",
-          title:
-            assignmentDays < 0
-              ? `${nextAssignment?.title}已经逾期`
-              : assignmentDays === 0
-                ? `${nextAssignment?.title}今天截止`
-                : `${nextAssignment?.title}只剩 ${assignmentDays} 天`,
-          detail: assignmentCourse?.title || "课程任务",
-          action: "查看作业",
-          onClick: () =>
-            nextAssignment &&
-            onEditCalendar({ kind: "assignment", id: nextAssignment.id }),
-        }
-      : {
-          label: "去自习",
-          title: primaryClass
-            ? `下一站 ${primaryClass.building}${primaryClass.room}`
-            : `${bestBuilding?.name || "教学楼"}当前有 ${bestBuilding?.free ?? 0} 间可用教室`,
-          detail: primaryClass
-            ? `${data.periods[primaryClass.block - 1]?.time} · 提前查看同楼空教室`
-            : `${bestBuilding?.free ?? 0} 间教室在当前节次可用`,
-          action: "查看空教室",
-          onClick: () => onGo("rooms"),
-        };
 
   return (
     <div className={`page-wrap today-page focus-page focus-page-v5 ${homeStyles.workspace}`}>
@@ -2767,7 +2715,7 @@ function HomePage({
           </footer>
         </article>
 
-        <div className="today-side-stack">
+        {nextAssignment && <div className="today-side-stack">
           {nextAssignment && (
             <button
               className="assignment-glance"
@@ -2787,13 +2735,7 @@ function HomePage({
               <small>{assignmentCourse?.title || "未关联课程"} →</small>
             </button>
           )}
-          <button className="campus-suggestion" onClick={campusSuggestion.onClick}>
-            <span>{campusSuggestion.label}</span>
-            <b>{campusSuggestion.title}</b>
-            <small>{campusSuggestion.detail}</small>
-            <em>{campusSuggestion.action} →</em>
-          </button>
-        </div>
+        </div>}
 
         {nextThree.length > 0 && <article className="agenda-glance">
           <header>
@@ -3994,16 +3936,11 @@ function AcademicImportDialog({
 
 function AcademicScheduleCard({ schedule }: { schedule: Schedule }) {
   return (
-    <article className="academic-schedule-card">
-      <span>教务</span>
+    <article className={`academic-schedule-card ${scheduleStyles.lesson}`} title={`教务导入 · ${schedule.building}${schedule.room}`}>
       <strong>{schedule.title}</strong>
-      <small>
-        {schedule.building}
-        {schedule.room}
-      </small>
-      <em>
-        {schedule.teacher || "教师未标注"} · {scheduleWeeksLabel(schedule)}
-      </em>
+      <small className={scheduleStyles.room}>{schedule.building.split(" · ").at(-1)}{schedule.room}</small>
+      {schedule.teacher && <span className={scheduleStyles.teacher}>{schedule.teacher}</span>}
+      <small className={scheduleStyles.weeks}>{scheduleWeeksLabel(schedule)}</small>
     </article>
   );
 }
@@ -4035,7 +3972,7 @@ function DraggableScheduleCard({
     <article
       ref={setNodeRef}
       style={style}
-      className={`draggable-schedule ${isDragging ? "dragging" : ""}`}
+      className={`draggable-schedule ${scheduleStyles.lesson} ${isDragging ? "dragging" : ""}`}
       {...attributes}
     >
       <button
@@ -4044,7 +3981,7 @@ function DraggableScheduleCard({
         {...listeners}
       >
         <strong>{schedule.title}</strong>
-        <small>
+        <small className={scheduleStyles.room}>
           {schedule.building}
           {schedule.room}
         </small>
@@ -4057,6 +3994,7 @@ function DraggableScheduleCard({
           teacherName={schedule.teacher}
         />
       )}
+      <small className={scheduleStyles.weeks}>{scheduleWeeksLabel(schedule)}</small>
       <button
         className="schedule-card-remove"
         data-export-ignore="true"
@@ -4533,6 +4471,11 @@ function SchedulePage({
   const [mobileScheduleView, setMobileScheduleView] = useState<
     "agenda" | "week"
   >("week");
+  const [showFullWeek, setShowFullWeek] = useState(false);
+  const visibleWeekdays = [1, 2, 3, 4, 5, 6, 7].filter((day) =>
+    day <= 5 || showFullWeek || activeSchedules.some((item) => item.weekday === day) ||
+    saved.activities.some((item) => item.weekday === day),
+  );
   const [draggingScheduleId, setDraggingScheduleId] = useState("");
   const [lastRemovedId, setLastRemovedId] = useState("");
   const sortedExams = useMemo(
@@ -4802,26 +4745,6 @@ function SchedulePage({
         ))}
         <button onClick={newPlan}>＋ 新建方案</button>
       </div>
-      {trainingPlan ? (
-        <TrainingPlanWindow
-          key={trainingPlan.planNumber}
-          trainingPlan={trainingPlan}
-          academicSnapshot={academicSnapshot}
-          coursesByCode={coursesByCode}
-          offeringsByCourse={offeringsByCourse}
-          activeAcademicCourseCodes={activeAcademicCourseCodes}
-          onCourse={onCourse}
-          onAdd={onAdd}
-        />
-      ) : (
-        <section className={academicStyles.planWindowEmpty}>
-          <div>
-            <span>培养方案</span>
-            <strong>在课程中心导入后，可按本学期、待选和已修筛选</strong>
-          </div>
-          <button onClick={onOpenCourses}>打开课程中心</button>
-        </section>
-      )}
       {finderOpen && (
         <button
           className="finder-backdrop"
@@ -5093,7 +5016,7 @@ function SchedulePage({
               className={mobileScheduleView === "week" ? "active" : ""}
               onClick={() => setMobileScheduleView("week")}
             >
-              五天
+              一周
             </button>
             <button
               className={mobileScheduleView === "agenda" ? "active" : ""}
@@ -5148,11 +5071,15 @@ function SchedulePage({
           <div
             className={`week-overview-scroll ${mobileScheduleView === "week" ? "mobile-active" : ""}`}
           >
-          <div className="week-grid">
+          <button type="button" className={scheduleStyles.weekToggle} data-export-ignore="true"
+            aria-pressed={showFullWeek} onClick={() => setShowFullWeek((value) => !value)}>
+            {showFullWeek ? "隐藏空白周末" : "显示完整七天"}
+          </button>
+          <div className={`week-grid ${scheduleStyles.grid}`} style={{ gridTemplateColumns: `28px repeat(${visibleWeekdays.length}, minmax(0, 1fr))` }}>
             <div className="grid-corner">节次</div>
-            {weekdayShort.slice(0, 5).map((day) => (
+            {visibleWeekdays.map((day) => (
               <div className="day-head" key={day}>
-                周{day}
+                周{weekdayShort[day - 1]}
               </div>
             ))}
             {[1, 2, 3, 4].flatMap((itemBlock) => [
@@ -5160,7 +5087,7 @@ function SchedulePage({
                 <b>{itemBlock}</b>
                 <span>{data.periods[itemBlock - 1]?.short}</span>
               </div>,
-              ...[1, 2, 3, 4, 5].map((weekday) => {
+              ...visibleWeekdays.map((weekday) => {
                 const cell = activeSchedules.filter(
                   (item) =>
                     item.weekday === weekday && item.block === itemBlock,
@@ -5171,7 +5098,7 @@ function SchedulePage({
                 );
                 return (
                   <div
-                    className={`schedule-cell ${cell.length + personal.length > 1 ? "conflict" : ""}`}
+                    className={`schedule-cell ${cell.some((first, index) => cell.slice(index + 1).some((second) => schedulesOverlap(first, second))) || (personal.length > 0 && cell.length + personal.length > 1) ? "conflict" : ""}`}
                     key={`${weekday}-${itemBlock}`}
                     onDoubleClick={() =>
                       onEditCalendar({
@@ -5448,6 +5375,26 @@ function SchedulePage({
           ) : null}
         </DragOverlay>
       </DndContext>
+      {trainingPlan ? (
+        <TrainingPlanWindow
+          key={trainingPlan.planNumber}
+          trainingPlan={trainingPlan}
+          academicSnapshot={academicSnapshot}
+          coursesByCode={coursesByCode}
+          offeringsByCourse={offeringsByCourse}
+          activeAcademicCourseCodes={activeAcademicCourseCodes}
+          onCourse={onCourse}
+          onAdd={onAdd}
+        />
+      ) : (
+        <section className={academicStyles.planWindowEmpty}>
+          <div>
+            <span>培养方案</span>
+            <strong>导入后可查看待选课程与已修学分</strong>
+          </div>
+          <button onClick={onOpenCourses}>打开课程中心</button>
+        </section>
+      )}
       {lastRemovedId && (
         <div className="remove-undo" role="status">
           <span>课程已从当前课表移除</span>
@@ -7678,7 +7625,7 @@ function CourseDrawer({
       conflict: meetings.some((meeting) =>
         activeSchedules.some(
           (active) =>
-            active.id !== meeting.id && schedulesOverlap(meeting, active),
+            active.id !== meeting.id && !isSameScheduledMeeting(meeting, active) && schedulesOverlap(meeting, active),
         ),
       ),
     }))
@@ -7913,7 +7860,7 @@ function CourseDrawer({
               filteredSections.map((section) => {
                 const first = section.meetings[0];
                 const added = section.meetings.every((other) =>
-                  activeIds.has(other.id),
+                  activeIds.has(other.id) || activeSchedules.some((active) => isSameScheduledMeeting(other, active)),
                 );
                 const compared = compareIds.includes(section.id);
                 return (
@@ -7936,7 +7883,7 @@ function CourseDrawer({
                         </span>
                       </header>
                       <small>
-                        {first.classNames || "班级未标注"} · {section.id}
+                        {first.classNames || "班级未标注"}
                       </small>
                       <div className="section-meetings">
                         {section.meetings.map((meeting) => (
@@ -7949,13 +7896,8 @@ function CourseDrawer({
                       </div>
                     </div>
                     <footer>
-                      {first.teacher && <>
-                        <TeacherRecordLink catalogId={catalogId} scheduleId={first.id}
-                          teacherName={first.teacher} label="学生评价" className="teacher-record-link" />
-                        <TeacherRecordLink catalogId={catalogId} scheduleId={first.id}
-                          teacherName={first.teacher} label="课程教材" destination="teaching"
-                          courseId={course.id} className="teacher-record-link" />
-                      </>}
+                      <TeachingSectionLinks catalogId={catalogId} scheduleId={first.id}
+                        courseId={course.id} materialCount={materials.length} hasTextbook={Boolean(course.textbook)} />
                       <button
                         className={`compare-button ${compared ? "active" : ""}`}
                         onClick={() => toggleCompare(section.id)}
@@ -7987,7 +7929,7 @@ function CourseDrawer({
         {(course.textbook ||
           materials.length > 0 ||
           materialsStatus !== "ready") && (
-          <section className="drawer-resources">
+          <section className="drawer-resources" id="course-drawer-resources">
             <div className="drawer-section-heading">
               <div>
                 <span className="drawer-label">教材与学习资料</span>

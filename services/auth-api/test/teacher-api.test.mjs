@@ -42,6 +42,10 @@ function createStore() {
     sessionToken,
     get calls() { return calls; },
     async health() {},
+    async listPublicTeacherColleges() {
+      calls += 1;
+      return [{ key: "测试学院", name: "测试学院", teacherCount: 61 }];
+    },
     async getActiveSession(hash) {
       calls += 1;
       return hash === tokenDigest(sessionToken, config.tokenPepper)
@@ -177,6 +181,52 @@ test("teacher index and detail expose only public catalog facts", async () => {
     );
     assert.equal(searched.status, 200);
   });
+});
+
+test("teacher colleges are a public read-only full index, not a paginated teacher projection", async () => {
+  await withServer(async (baseUrl, store) => {
+    const response = await fetch(`${baseUrl}/api/teachers/colleges`);
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("cache-control"), /max-age=60/u);
+    assert.deepEqual(await response.json(), { items: [{ key: "测试学院", name: "测试学院", teacherCount: 61 }] });
+    const calls = store.calls;
+    for (const query of ["?limit=1", "?q=测试", "?college=测试学院", "?after=abc"]) {
+      assert.equal((await fetch(`${baseUrl}/api/teachers/colleges${query}`)).status, 400);
+    }
+    for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+      const rejected = await fetch(`${baseUrl}/api/teachers/colleges`, { method });
+      assert.equal(rejected.status, 405);
+      assert.equal(rejected.headers.get("allow"), "GET");
+    }
+    assert.equal(store.calls, calls, "invalid requests never reach the store");
+  });
+});
+
+test("teacher directory validates filters and preserves exact college plus keyset cursor", async () => {
+  const inputs = [];
+  const cursor = { normalizedName: "同名", normalizedCollege: "会计学院", id: teacherId };
+  await withServer(async (baseUrl) => {
+    const params = new URLSearchParams({ q: " 同名 ", college: " 会计学院 ", limit: "1" });
+    const first = await fetch(`${baseUrl}/api/teachers?${params}`);
+    assert.equal(first.status, 200);
+    const payload = await first.json();
+    assert.equal(payload.items[0].cursor, undefined);
+    params.set("after", payload.nextCursor);
+    assert.equal((await fetch(`${baseUrl}/api/teachers?${params}`)).status, 200);
+    assert.deepEqual(inputs, [
+      { query: "同名", college: "会计学院", limit: 1, after: null },
+      { query: "同名", college: "会计学院", limit: 1, after: cursor },
+    ]);
+    for (const query of ["college=a&college=b", "q=a&q=b", "limit=1&limit=2", "offset=1", "after=!", `college=${"院".repeat(161)}`]) {
+      assert.equal((await fetch(`${baseUrl}/api/teachers?${query}`)).status, 400);
+    }
+    assert.equal(inputs.length, 2);
+  }, { store: {
+    async listPublicTeachers(input) {
+      inputs.push(input);
+      return [{ id: teacherId, displayName: "同名", collegeName: "会计学院", cursor }];
+    },
+  } });
 });
 
 test("teacher schedule lookup returns zero or multiple explicit teacher UUIDs", async () => {

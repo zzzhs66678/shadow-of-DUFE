@@ -247,7 +247,7 @@ test("administrator account governance exposes trends, precise filters, and publ
 test("today page keeps the one-glance command deck", () => {
   assert.match(component, /today-command-deck/);
   assert.match(component, /todayAgenda[\s\S]*nextThree/);
-  assert.match(component, /campusSuggestion/);
+  assert.doesNotMatch(component, /campusSuggestion|className="campus-suggestion"/);
   assert.match(productStyles, /\.now-card/);
   assert.match(productStyles, /\.agenda-glance/);
 });
@@ -563,10 +563,12 @@ test("course drawer filters and compares teaching sections", () => {
   assert.match(component, /scheduleWeeksLabel/);
 });
 
-test("mobile timetable defaults to the complete five-day view without changing export", () => {
+test("mobile timetable defaults to the compact week and preserves occupied weekends and export", () => {
   assert.match(component, /mobileScheduleView/);
   assert.match(component, /useState<\s*"agenda" \| "week"\s*>\("week"\)/);
-  assert.match(component, />\s*五天\s*<\/button>/);
+  assert.match(component, />\s*一周\s*<\/button>/);
+  assert.match(component, /visibleWeekdays/);
+  assert.match(component, /showFullWeek/);
   assert.match(component, /mobile-schedule-agenda/);
   assert.match(component, /week-overview-scroll/);
   assert.match(component, /export-canvas/);

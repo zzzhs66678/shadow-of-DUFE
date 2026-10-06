@@ -1,0 +1,40 @@
+/* Keep all three useful facts readable in a narrow week column. */
+.grid:global(.week-grid) { min-width: 0; gap: 2px; }
+.grid :global(.schedule-cell) { padding: 2px; min-width: 0; }
+.grid .lesson {
+  display: flex; flex-direction: column; align-items: stretch; gap: 5px;
+  height: auto; min-height: 0; min-width: 0; overflow: visible;
+  border: 1px solid var(--journal-line, #cfc8bb); border-left: 3px solid var(--journal-red, #a62126);
+  padding: 8px 5px; background: var(--journal-paper, #fbfaf5); color: var(--journal-ink, #211f1b);
+}
+.grid .lesson strong {
+  display: block; font-size: 13px; font-weight: 650; line-height: 1.5;
+  white-space: normal; overflow: visible; overflow-wrap: anywhere; -webkit-line-clamp: unset;
+}
+.grid .lesson .room, .grid .lesson .teacher, .grid .lesson .weeks,
+.grid .lesson :global(.schedule-card-teacher-link) {
+  display: block; font-size: 11px; font-weight: 400; line-height: 1.5;
+  position: static; max-width: none; white-space: normal; overflow: visible;
+  overflow-wrap: anywhere; text-overflow: clip; color: #514c45; margin: 0;
+}
+.grid .lesson .room { color: #211f1b; }
+.grid .lesson .weeks { font-size: 10px; }
+.grid .lesson :global(.schedule-card-main) {
+  position: static; display: flex; flex-direction: column; gap: 5px;
+  padding: 0; height: auto; min-height: 0; width: 100%; border: 0;
+}
+.grid .lesson :global(.schedule-card-remove) {
+  position: static; writing-mode: horizontal-tb; padding: 4px 0; min-height: 28px;
+  border: 0; border-top: 1px solid #ded7ca; margin-top: auto;
+  width: 100%; font-size: 10px; text-align: right;
+}
+.weekToggle { display: block; margin: 0 0 10px auto; background: transparent; border: 0; color: #6a2929; min-height: 36px; font-size: 12px; }
+.weekToggle:focus-visible { outline: 2px solid #a62126; outline-offset: 2px; }
+@media (max-width: 540px) {
+  .grid .lesson { padding: 6px 3px; gap: 4px; border-left-width: 2px; }
+  .grid .lesson strong { font-size: 12px; line-height: 1.45; }
+  .grid .lesson .room, .grid .lesson .teacher, .grid .lesson :global(.schedule-card-teacher-link) { font-size: 11px; }
+  .grid :global(.day-head) { font-size: 11px; padding: 9px 0; }
+  .grid :global(.block-head) { padding: 8px 0; }
+  .grid :global(.block-head b) { font-size: 16px; }
+}

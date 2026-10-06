@@ -19,6 +19,20 @@ export function isCourseCatalogId(value: string) {
   return COURSE_CATALOG_ID.test(value);
 }
 
+export function teacherReviewLinksFromSchedulePayload(payload: unknown): Array<{ href: string; name: string; count: number }> {
+  if (!payload || typeof payload !== "object" || !Array.isArray((payload as { items?: unknown }).items)) return [];
+  const seen = new Set<string>();
+  return ((payload as { items: unknown[] }).items).flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const { id, displayName, reviewCount } = item as Record<string, unknown>;
+    if (typeof id !== "string" || !TEACHER_ID.test(id) || seen.has(id) ||
+      typeof displayName !== "string" || !displayName.trim() ||
+      typeof reviewCount !== "number" || !Number.isSafeInteger(reviewCount) || reviewCount < 1) return [];
+    seen.add(id);
+    return [{ href: `/teachers/${encodeURIComponent(id)}#teacher-reviews-title`, name: displayName, count: reviewCount }];
+  });
+}
+
 export function teacherTeachingHref(href: string, courseId?: string) {
   // Never attach a teaching destination to an ambiguous name-search result.
   if (!/^\/teachers\/[0-9a-f-]+$/iu.test(href)) return href;

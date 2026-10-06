@@ -132,6 +132,19 @@ export function createTeacherRequestHandler({ store, config, rateLimiters }) {
   return async function handleTeacherRequest(request, response, url) {
     if (!url.pathname.startsWith("/api/teachers")) return false;
 
+    if (url.pathname === "/api/teachers/colleges") {
+      if (request.method !== "GET") {
+        methodNotAllowed(response, "GET");
+        return true;
+      }
+      if (url.searchParams.size) {
+        sendJson(response, 400, { error: "invalid_teacher_colleges_query" });
+        return true;
+      }
+      sendJson(response, 200, { items: await store.listPublicTeacherColleges() });
+      return true;
+    }
+
     if (url.pathname === "/api/teachers/by-schedule") {
       if (request.method !== "GET") {
         methodNotAllowed(response, "GET");
@@ -163,6 +176,8 @@ export function createTeacherRequestHandler({ store, config, rateLimiters }) {
         methodNotAllowed(response, "GET");
         return true;
       }
+      const keys = [...url.searchParams.keys()];
+      const allowedKeys = new Set(["q", "college", "limit", "after"]);
       const query = boundedText(url.searchParams.get("q"), 64);
       const college = boundedText(url.searchParams.get("college"), 160);
       const limitValue = url.searchParams.get("limit") ?? "30";
@@ -171,7 +186,11 @@ export function createTeacherRequestHandler({ store, config, rateLimiters }) {
         url.searchParams.get("after"),
         ["normalizedName", "normalizedCollege", "id"],
       );
-      if (query === null || college === null || limit < 1 || limit > 50 || after === undefined) {
+      if (
+        keys.some((key) => !allowedKeys.has(key)) || new Set(keys).size !== keys.length ||
+        query === null || college === null || limit < 1 || limit > 50 || after === undefined ||
+        (after && (after.normalizedName.length > 160 || after.normalizedCollege.length > 160))
+      ) {
         sendJson(response, 400, { error: "invalid_teacher_query" });
         return true;
       }

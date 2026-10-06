@@ -114,6 +114,22 @@ async function assertTeacherReviewPostingAllowed(client, userId) {
 
 export function createTeacherStore(pool) {
   return {
+    async listPublicTeacherColleges() {
+      const result = await pool.query(
+        `SELECT normalized_college, min(college_name) AS college_name,
+                count(*)::integer AS teacher_count
+         FROM teachers
+         WHERE identity_status IN ('pending', 'active')
+         GROUP BY normalized_college
+         ORDER BY normalized_college`,
+      );
+      return result.rows.map((row) => ({
+        key: row.normalized_college,
+        name: row.college_name,
+        teacherCount: Number(row.teacher_count),
+      }));
+    },
+
     async listPublicTeachersBySchedule({ catalogId, scheduleId }) {
       const result = await pool.query(
         `SELECT
@@ -167,21 +183,21 @@ export function createTeacherStore(pool) {
           AND review.status = 'published'
          WHERE teacher.identity_status IN ('pending', 'active')
            AND (
-             $1 = '' OR teacher.normalized_name LIKE '%' || $1 || '%'
+             $1 = '' OR position($1 in teacher.normalized_name) > 0
              OR EXISTS (
                SELECT 1 FROM teacher_aliases AS alias
                WHERE alias.teacher_id = teacher.id
-                 AND alias.normalized_alias LIKE '%' || $1 || '%'
+                 AND position($1 in alias.normalized_alias) > 0
              )
            )
            AND ($2 = '' OR teacher.normalized_college = $2)
            AND (
              $3::text IS NULL OR
-             (teacher.normalized_name, teacher.normalized_college, teacher.id) >
-             ($3, $4, $5::uuid)
+             (teacher.normalized_college, teacher.normalized_name, teacher.id) >
+             ($4, $3, $5::uuid)
            )
          GROUP BY teacher.id
-         ORDER BY teacher.normalized_name, teacher.normalized_college, teacher.id
+         ORDER BY teacher.normalized_college, teacher.normalized_name, teacher.id
          LIMIT $6`,
         [
           normalizedQuery,

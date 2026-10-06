@@ -34,7 +34,8 @@ try {
     await schedule.getByRole('region', { name: /全部课程/ }).waitFor();
     const [building, room] = (await schedule.locator('h2').innerText()).split(' ');
     const expected = catalogue.schedules.filter(item => item.term === 'fall' && item.building === building && item.room === room && item.weeks.includes(3));
-    assert.equal(await schedule.getByRole('columnheader').count(), 8);
+    const visibleDays = new Set([1, 2, 3, 4, 5, 7, ...expected.map(item => item.weekday)]);
+    assert.equal(await schedule.getByRole('columnheader').count(), visibleDays.size + 1);
     assert.equal(await schedule.locator('article').count(), expected.length);
     assert.equal(await page.getByRole('link', { name: '查看这一周的课表 ↓' }).count(), 0);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);

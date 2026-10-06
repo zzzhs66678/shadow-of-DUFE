@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, type CSSProperties } from "react";
 import styles from "./room-week-schedule.module.css";
 
 export type RoomWeekLesson = {
@@ -41,6 +42,7 @@ export default function RoomWeekSchedule({
   onToggleFavorite,
   lessons,
 }: RoomWeekScheduleProps) {
+  const [showFullWeek, setShowFullWeek] = useState(false);
   const sortedLessons = [...lessons].sort(
     (left, right) =>
       left.weekday - right.weekday ||
@@ -48,6 +50,19 @@ export default function RoomWeekSchedule({
       left.title.localeCompare(right.title, "zh-CN") ||
       left.id.localeCompare(right.id),
   );
+  // The caller has already filtered by the selected teaching week's exact
+  // effective weeks. Never use another week's meetings to reveal a weekend.
+  const compactWeekdays = weekdays
+    .map((label, index) => ({ label, weekday: index + 1 }))
+    .filter(
+      ({ weekday }) =>
+        weekday <= 5 ||
+        weekday === selectedWeekday ||
+        sortedLessons.some((lesson) => lesson.weekday === weekday),
+    );
+  const visibleWeekdays = showFullWeek
+    ? weekdays.map((label, index) => ({ label, weekday: index + 1 }))
+    : compactWeekdays;
 
   return (
     <section
@@ -71,7 +86,6 @@ export default function RoomWeekSchedule({
             {week !== null && <b>{sortedLessons.length} 条课程安排</b>}
           </p>
         </div>
-        <p>整周课程已展开；手机左右滑动查看。</p>
       </header>
 
       {week === null ? (
@@ -79,64 +93,89 @@ export default function RoomWeekSchedule({
           所选日期不在当前学期教学周内。返回空教室页换一个日期再看。
         </p>
       ) : (
-        <div
-          className={styles.boardViewport}
-          role="region"
-          aria-label={`${building}${room}第 ${week} 教学周全部课程`}
-          tabIndex={0}
-        >
-          <div className={styles.board} role="table" aria-rowcount={periods.length + 1} aria-colcount={8}>
-            <div className={styles.headerRow} role="row">
-              <span className={styles.corner} role="columnheader">节次</span>
-              {weekdays.map((label, index) => (
-                <span
-                  className={index + 1 === selectedWeekday ? styles.selectedDay : ""}
-                  key={label}
-                  role="columnheader"
-                >
-                  {label}
-                  {index + 1 === selectedWeekday && <small>所选日期</small>}
-                </span>
+        <>
+          <div className={styles.viewControls}>
+            <p>{showFullWeek ? "已显示周一至周日。" : "周末有课或为所选日期时自动显示。"}</p>
+            {(compactWeekdays.length < 7 || showFullWeek) && (
+              <button
+                type="button"
+                className={styles.weekToggle}
+                aria-controls="room-week-board"
+                aria-expanded={showFullWeek}
+                onClick={() => setShowFullWeek((value) => !value)}
+              >
+                {showFullWeek ? "收起空白周末" : "查看全周"}
+              </button>
+            )}
+          </div>
+          {sortedLessons.length === 0 && (
+            <p className={styles.noLessons}>本周暂无已收录课程。</p>
+          )}
+          <div
+            className={styles.boardViewport}
+            role="region"
+            aria-label={`${building}${room}第 ${week} 教学周全部课程`}
+            tabIndex={0}
+          >
+            <div
+              id="room-week-board"
+              className={styles.board}
+              style={{ "--room-day-count": visibleWeekdays.length } as CSSProperties}
+              role="table"
+              aria-rowcount={periods.length + 1}
+              aria-colcount={visibleWeekdays.length + 1}
+            >
+              <div className={styles.headerRow} role="row">
+                <span className={styles.corner} role="columnheader">节次</span>
+                {visibleWeekdays.map(({ label, weekday }) => (
+                  <span
+                    className={weekday === selectedWeekday ? styles.selectedDay : ""}
+                    key={label}
+                    role="columnheader"
+                  >
+                    {label}
+                    {weekday === selectedWeekday && <small>所选日期</small>}
+                  </span>
+                ))}
+              </div>
+
+              {periods.map((period) => (
+                <div className={styles.periodRow} key={period.block} role="row">
+                  <header role="rowheader">
+                    <strong>{period.short}</strong>
+                    <small>{period.time}</small>
+                  </header>
+                  {visibleWeekdays.map(({ label, weekday }) => {
+                    const cellLessons = sortedLessons.filter(
+                      (lesson) =>
+                        lesson.weekday === weekday && lesson.block === period.block,
+                    );
+                    return (
+                      <div
+                        className={`${styles.cell}${weekday === selectedWeekday ? ` ${styles.selectedCell}` : ""}`}
+                        key={`${period.block}-${weekday}`}
+                        role="cell"
+                        aria-label={`${label}${period.short}，${cellLessons.length ? `${cellLessons.length} 条课程` : "无课程"}`}
+                      >
+                        {cellLessons.length ? (
+                          cellLessons.map((lesson) => (
+                            <article className={styles.lesson} key={lesson.id}>
+                              <strong>{lesson.title || "课程名称未提供"}</strong>
+                              <span>{lesson.teacher || "教师未提供"}</span>
+                              <small>{lesson.timeText || period.time}</small>
+                            </article>
+                          ))
+                        ) : (
+                          <span className={styles.emptyCell} aria-hidden="true">—</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               ))}
             </div>
-
-            {periods.map((period) => (
-              <div className={styles.periodRow} key={period.block} role="row">
-                <header role="rowheader">
-                  <strong>{period.short}</strong>
-                  <small>{period.time}</small>
-                </header>
-                {weekdays.map((label, index) => {
-                  const weekday = index + 1;
-                  const cellLessons = sortedLessons.filter(
-                    (lesson) =>
-                      lesson.weekday === weekday && lesson.block === period.block,
-                  );
-                  return (
-                    <div
-                      className={`${styles.cell}${weekday === selectedWeekday ? ` ${styles.selectedCell}` : ""}`}
-                      key={`${period.block}-${weekday}`}
-                      role="cell"
-                      aria-label={`${label}${period.short}，${cellLessons.length ? `${cellLessons.length} 条课程` : "无课程"}`}
-                    >
-                      {cellLessons.length ? (
-                        cellLessons.map((lesson) => (
-                          <article className={styles.lesson} key={lesson.id}>
-                            <strong>{lesson.title || "课程名称未提供"}</strong>
-                            <span>{lesson.teacher || "教师未提供"}</span>
-                            <small>{lesson.timeText || period.time}</small>
-                          </article>
-                        ))
-                      ) : (
-                        <span className={styles.emptyCell} aria-hidden="true">—</span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
           </div>
-        </div>
+        </>
       )}
 
       <p className={styles.disclaimer}>
