@@ -62,10 +62,33 @@ test("floor navigation stays left and opens the selected room week", async ({ pa
   await expect(floors).toBeVisible();
   const floorButtons = floors.getByRole("button");
   expect(await floorButtons.count()).toBeGreaterThan(0);
-  const floorBox = await floors.boundingBox();
-  const roomBox = await page.locator(".floor-canvas").boundingBox();
-  expect(floorBox!.x + floorBox!.width).toBeLessThanOrEqual(roomBox!.x + 1);
-  expect(Math.abs(floorBox!.y - roomBox!.y)).toBeLessThanOrEqual(1);
+  await page.evaluate(() => document.fonts.ready);
+  const originalSize = page.viewportSize()!;
+  const widths = testInfo.project.name === "mobile-390" ? [1059, 1180, 1280, 1440, originalSize.width] : [originalSize.width];
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: originalSize.height });
+    const layout = await page.evaluate(() => {
+      const rect = (selector: string) => {
+        const { x, y, width, height } = document.querySelector(selector)!.getBoundingClientRect();
+        return { x, y, width, height };
+      };
+      return {
+        rail: rect(".floor-selector"), canvas: rect(".floor-canvas"),
+        label: rect(".floor-selector > span"), entry: rect(".corridor-line > span"),
+        columns: getComputedStyle(document.querySelector(".floor-rooms-v5")!).gridTemplateColumns.split(" ").length,
+      };
+    });
+    expect(layout.rail.x + layout.rail.width).toBeLessThanOrEqual(layout.canvas.x + 1);
+    expect(Math.abs(layout.rail.y - layout.canvas.y)).toBeLessThanOrEqual(1);
+    expect(Math.abs(layout.label.y + layout.label.height / 2 - layout.entry.y - layout.entry.height / 2)).toBeLessThanOrEqual(1);
+    expect(layout.columns).toBe(2);
+    if (width > 920) {
+      const nav = page.getByRole("navigation", { name: "主导航", exact: true });
+      await expect(nav.getByRole("button", { name: "空教室", exact: true })).toBeVisible();
+      await expect(nav.getByRole("button", { name: "空教室", exact: true }).locator(".ui-icon")).toBeVisible();
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  }
   const target = floorButtons.last();
   await target.click();
   await expect(target).toHaveAttribute("aria-pressed", "true");

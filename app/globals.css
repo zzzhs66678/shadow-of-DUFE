@@ -6719,16 +6719,11 @@ kbd {
 }
 
 .floor-selector {
-  border: 1px solid var(--map-line);
   display: grid;
-  grid-auto-rows: minmax(46px, auto);
-  padding: 12px 9px;
 }
 
 .floor-selector > span {
-  align-self: end;
   color: var(--map-muted);
-  padding: 0 0 8px;
   text-align: center;
 }
 
@@ -6758,24 +6753,6 @@ kbd {
   border-bottom: 1px solid var(--map-line);
   border-top: 1px solid var(--map-line);
   min-width: 0;
-  padding: clamp(22px, 3vw, 38px);
-}
-
-.floor-canvas > header {
-  align-items: end;
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 32px;
-}
-
-.floor-canvas > header span {
-  color: var(--map-red);
-  font-size: 10px;
-}
-
-.floor-canvas > header h2 {
-  font: 500 clamp(28px, 3vw, 42px)/1.05 var(--serif);
-  margin: 8px 0 0;
 }
 
 .map-legend {
@@ -6802,9 +6779,6 @@ kbd {
 }
 
 .floor-corridor {
-  border: 1px solid var(--map-line);
-  min-height: 400px;
-  padding: 22px;
   position: relative;
 }
 
@@ -6812,10 +6786,8 @@ kbd {
   align-items: center;
   color: var(--map-muted);
   display: grid;
-  font-size: 8px;
   gap: 12px;
   grid-template-columns: auto 1fr auto;
-  margin-bottom: 20px;
 }
 
 .corridor-line i {
@@ -6825,7 +6797,6 @@ kbd {
 .floor-rooms-v5 {
   display: grid;
   gap: 9px;
-  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
 }
 
 .floor-rooms-v5 button {
@@ -6897,7 +6868,6 @@ kbd {
 }
 
 .map-summary > div b {
-  color: #e0676d;
   font-size: 11px;
 }
 
@@ -6970,7 +6940,6 @@ kbd {
   }
 
   .map-summary {
-    grid-column: 1 / -1;
     min-height: 230px;
   }
 
@@ -7063,17 +7032,6 @@ kbd {
 
   .floor-canvas {
     padding: 15px 12px;
-  }
-
-  .floor-canvas > header {
-    align-items: start;
-    display: grid;
-    gap: 12px;
-    margin-bottom: 18px;
-  }
-
-  .floor-canvas > header h2 {
-    font-size: 27px;
   }
 
   .floor-corridor {

@@ -1794,6 +1794,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
               key={item.id}
               className={view === item.id ? "active" : ""}
               onClick={() => go(item.id)}
+              aria-label={item.label}
               aria-current={view === item.id ? "page" : undefined}
             >
               <UiIcon name={item.icon} />
@@ -6138,6 +6139,18 @@ function RoomsPage({
       </nav>
 
       <section className="indoor-map">
+        <header className="floor-map-heading">
+          <div>
+            <span>{building} · {activeFloor} 层</span>
+            <h2>
+              {visibleActiveRooms.filter((room) => roomIsAvailable(building, room)).length} 间可用
+            </h2>
+          </div>
+          <div className="map-legend">
+            <span><i className="free" />空闲</span>
+            <span><i className="busy" />有课</span>
+          </div>
+        </header>
         <nav className="floor-selector" aria-label="选择楼层">
           <span>楼层</span>
           {sortedFloors.map(([floor, floorRooms]) => {
@@ -6159,31 +6172,6 @@ function RoomsPage({
         </nav>
 
         <div className="floor-canvas">
-          <header>
-            <div>
-              <span>
-                {building} · {activeFloor} 层
-              </span>
-              <h2>
-                {
-                  visibleActiveRooms.filter((room) =>
-                    roomIsAvailable(building, room),
-                  ).length
-                }{" "}
-                间可用
-              </h2>
-            </div>
-            <div className="map-legend">
-              <span>
-                <i className="free" />
-                空闲
-              </span>
-              <span>
-                <i className="busy" />
-                有课
-              </span>
-            </div>
-          </header>
           <div className="floor-corridor">
             <div className="corridor-line">
               <span>楼层入口</span>
