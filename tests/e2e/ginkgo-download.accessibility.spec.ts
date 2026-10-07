@@ -23,13 +23,13 @@ test("school services offer the exact plugin ZIP separately from Ginkgo", async 
   const navBox = await nav.boundingBox();
   const pluginBox = await plugin.boundingBox();
   expect(pluginBox!.y).toBeGreaterThanOrEqual(navBox!.y + navBox!.height);
+  await expect(nav.locator('a[href="https://ginkgostu.dufe.edu.cn/notice/system"]')).toHaveCount(1);
   await services.locator("summary").click();
   await expect(plugin).toBeVisible();
   await pluginPanel.locator("summary").click();
   await expect(pluginPanel.locator("li")).toHaveCount(5);
   await expect(pluginPanel).toContainText("chrome://extensions");
   await expect(pluginPanel).toContainText("edge://extensions");
-  await expect(nav.locator('a[href="https://ginkgostu.dufe.edu.cn/notice/system"]')).toHaveCount(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   const result = await new AxeBuilder({ page }).include(".campus-gateway").include('[aria-labelledby="ginkgo-plugin-title"]').analyze();
   expect(result.violations.filter(v => v.impact === "critical" || v.impact === "serious")).toEqual([]);
