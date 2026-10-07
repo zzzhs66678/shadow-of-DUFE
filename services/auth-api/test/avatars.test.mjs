@@ -43,3 +43,10 @@ test("avatar processor enforces the input byte limit before decoding", async () 
     { code: "AVATAR_TOO_LARGE" },
   );
 });
+
+test("SVG uploads are rejected before image decoding, including a forged raster MIME type", async () => {
+  const processor = createAvatarProcessor();
+  const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1"/></svg>');
+  await assert.rejects(() => processor.process(svg, "image/svg+xml"), { code: "AVATAR_TYPE_UNSUPPORTED" });
+  await assert.rejects(() => processor.process(svg, "image/png"), { code: "AVATAR_INVALID_IMAGE" });
+});

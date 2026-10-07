@@ -229,7 +229,7 @@ test("users and an administrator complete the release browser path", async ({
     await expect(secondOwner.getByRole("button", { name: "删除头像" })).toBeVisible();
 
     await secondOwner.goto("/materials");
-    await secondOwner.getByLabel("搜索档案").fill("开课导学");
+    await secondOwner.getByRole("searchbox", { name: /搜索资料/ }).fill("开课导学");
     const materialLink = secondOwner.getByRole("link", {
       name: "00 开课导学.pdf",
     });
