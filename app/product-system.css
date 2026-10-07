@@ -3427,6 +3427,15 @@ button.plan-course-main:hover .plan-course-copy strong {
   box-shadow: none;
 }
 
+.floor-rooms-v5 button strong {
+  font-size: 18px;
+}
+
+.floor-rooms-v5 button span {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .floor-rooms-v5 button.busy {
   background: #f2f4f5;
   color: var(--ui-text-tertiary);

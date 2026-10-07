@@ -6828,8 +6828,6 @@ kbd {
 
 .floor-rooms-v5 button span {
   color: var(--map-muted);
-  font-size: 8px;
-  line-height: 1.45;
   margin-top: 10px;
   overflow: hidden;
   text-overflow: ellipsis;

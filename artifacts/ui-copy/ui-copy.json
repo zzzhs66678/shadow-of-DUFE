@@ -14,7 +14,7 @@
     "suggestion 初始为空，action 为未决定；删除须明确选择。审阅页只在内存保存编辑，请下载 JSON；刷新/关闭会丢失未下载内容。导入旧稿按稳定 ID 匹配原文，不匹配项不覆盖。",
     "运行命令：node scripts/export-ui-copy.mjs；集成其他界面改动后重新生成。--check 检查产物是否与当前源码一致，--self-test 运行内置提取测试。生成器只覆盖此目录内固定命名产物，不修改源码或下载的审阅稿。"
   ],
-  "sourceFingerprint": "b04b8c522514cfb79e5e71f1f70d58f4bebdb7cc5e554d178b3979d949efe17f",
+  "sourceFingerprint": "0a1d59f00bed0eeb58e725677648f07eee7cef811a6c10e439a6d8f5a273809e",
   "summary": {
     "entries": 1866,
     "locations": 2697,
@@ -219,7 +219,7 @@
     },
     {
       "path": "app/globals.css",
-      "sha256": "1f3923202785be673a97e7c7e0b1a12c5b3e750fd333d26c59cb03eb96b39d53",
+      "sha256": "d5319a20adfa89d01a7ef5fe764ba46a6f91414cef94e46c8f49d845defeb203",
       "occurrences": 3
     },
     {
@@ -309,7 +309,7 @@
     },
     {
       "path": "app/product-system.css",
-      "sha256": "1211039a0b220e8d6ab36ec04136f4064778a7c9b4fcb25f7e1a06c5648ee99b",
+      "sha256": "1927430ebf87096001e592cca91458e32ce0bf5cdcb47011a9a176ef062742f9",
       "occurrences": 5
     },
     {
