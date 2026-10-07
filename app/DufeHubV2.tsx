@@ -328,6 +328,7 @@ const campusLinks = {
   campusCard:
     "https://sso.dufe.edu.cn/app.php/open_apps/person_card/index?sessionid=",
   ginkgo: "https://ginkgostu.dufe.edu.cn/notice/system",
+  ginkgoPlugin: "https://github.com/zzzhs66678/DUFE-Ginkgo-Downloader/releases/download/v0.1.0/DUFE-Ginkgo-Downloader-v0.1.0.zip",
 } as const;
 const weekdayLabels = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 const weekdayShort = ["一", "二", "三", "四", "五", "六", "日"];
@@ -7403,6 +7404,12 @@ function MePage({
             <em>↗</em>
           </a>
         </nav>
+        <div className={meStyles.pluginDownload}>
+          <span>白果云插件 <small>v0.1.0</small></span>
+          <a href={campusLinks.ginkgoPlugin} target="_blank" rel="noopener noreferrer" aria-label="下载白果云插件 ZIP">
+            下载 ZIP <span aria-hidden="true">↓</span>
+          </a>
+        </div>
       </details>
       <CampusAlmanac />
       <KnowledgeTribute />

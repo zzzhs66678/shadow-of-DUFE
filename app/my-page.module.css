@@ -150,6 +150,33 @@
   margin-bottom: 18px;
 }
 
+.pluginDownload {
+  align-items: center;
+  border-top: 1px solid rgba(255, 255, 255, .2);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: 4px 16px;
+  margin-top: 12px;
+  padding-top: 8px;
+}
+
+.pluginDownload small {
+  color: rgba(255, 255, 255, .7);
+  font-size: 11px;
+  margin-left: 8px;
+}
+
+.pluginDownload > a {
+  align-items: center;
+  color: #fff;
+  display: inline-flex;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 8px;
+  text-underline-offset: 4px;
+}
+
 @media (max-width: 680px) {
   .overview {
     gap: 12px 14px;
