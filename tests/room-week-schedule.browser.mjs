@@ -149,7 +149,7 @@ try {
     assert.deepEqual(await page.evaluate(() => [window.backCount, window.favoriteCount]), [1, 1]);
     await render({ ...props, favorite: true, week: null });
     await expect(page.getByRole("button", { name: /已收藏/ })).toBeVisible();
-    await expect(page.getByText(/所选日期不在当前学期教学周内/)).toBeVisible();
+    await expect(page.getByText(/这天不在本学期内，请返回空教室页换个日期/)).toBeVisible();
     await expect(page.getByRole("table")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "查看全周", exact: true })).toHaveCount(0);
     assert.deepEqual(errors, []);
