@@ -175,7 +175,7 @@ test("teacher directory disambiguates identities without taking over the daily w
   assert.match(teacherDetailSource, /controller\.signal\.aborted \|\| generation !== reviewGeneration\.current/);
   assert.match(teacherDetailSource, /payload\.items\.filter\(\(review\) => !knownIds\.has\(review\.id\)\)/);
   assert.match(teacherDetailSource, /reviewMoreRequest\.current\?\.abort\(\)/);
-  assert.match(teacherDetailSource, /后续评价暂时没有加载成功，已读内容仍保留/);
+  assert.match(teacherDetailSource, /更多评价加载失败，已读内容仍保留/);
   assert.match(teacherDetailSource, /重新读取更多评价/);
   assert.match(teacherDiscussionSource, /aria-expanded={open}/);
   assert.match(teacherDiscussionSource, /aria-controls=\{open \? `teacher-review-thread-\$\{reviewId\}` : undefined\}/);
@@ -212,7 +212,7 @@ test("teacher directory disambiguates identities without taking over the daily w
 test("teacher and material discovery use scoped course context without hiding schoolwide results", () => {
   assert.match(teacherExplorerSource, /loadPersonalCourseContext/);
   assert.match(teacherExplorerSource, /aria-label="本学期教师"/);
-  assert.match(teacherExplorerSource, /同名教师，请按学院确认/);
+  assert.match(teacherExplorerSource, /同名教师请核对学院/);
   assert.match(materialsSource, /ranking === "personal"/);
   assert.match(materialsSource, /与我相关/);
   assert.match(materialsSource, /全站排序/);
@@ -357,7 +357,8 @@ test("public workspaces share one accessible masthead primitive", () => {
   assert.match(publicMastheadSource, /navigationLabel/);
   assert.match(publicMastheadSource, /aria-current/);
   assert.match(publicMastheadSource, /data-mobile/);
-  assert.match(publicMastheadSource, /DUFE STUDENT DESK/);
+  assert.match(publicMastheadSource, /aria-label="返回东财之影首页"/);
+  assert.doesNotMatch(publicMastheadSource, /DUFE STUDENT DESK/);
   assert.match(publicMastheadStyles, /--dufe-red/);
   assert.match(publicMastheadStyles, /min-height: 44px/);
 
@@ -545,7 +546,7 @@ test("community exposes real latest and snapshot-bounded hot sorting", () => {
   assert.match(communityHubSource, /sort=\${requestedSort}&limit=20/);
   assert.match(communityHubSource, /aria-label="主题排序方式"/);
   assert.match(communityHubSource, /aria-pressed={sort === "hot"}/);
-  assert.match(communityHubSource, /同一热度时点/);
+  assert.match(communityHubSource, /热议综合赞同、回复与近两周的发布时间排序/);
   assert.ok(
     selectSortSource.indexOf("setSort(nextSort)") <
       selectSortSource.indexOf("void loadTopics(nextSort)"),
@@ -575,7 +576,7 @@ test("personal page explains local data, cloud sync, devices, and account contro
   assert.match(meSource, /登录设备/);
   assert.match(meSource, /退出登录/);
   assert.match(meSource, /确认注销/);
-  assert.match(meSource, /只有你确认后，才会把那份课表、日程和任务并入当前账号/);
+  assert.match(meSource, /是否把这些课表、日程和作业导入当前账号/);
   assert.match(meSource, /导入当前账号/);
   assert.match(component, /userPersonalScope/);
 });
@@ -683,8 +684,7 @@ test("global teacher search opens the disambiguating teacher directory", () => {
 });
 
 test("an empty teacher catalog does not pretend reviews are usable", () => {
-  assert.match(teacherExplorerSource, /教师档案尚未整理入库/);
-  assert.match(teacherExplorerSource, /评价功能暂不可用/);
+  assert.match(teacherExplorerSource, /暂无教师档案，暂时无法评价/);
   assert.match(teacherExplorerSource, /同名记录不会自动合并/);
 });
 

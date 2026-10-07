@@ -28,7 +28,6 @@ export function PublicMasthead({
     <header className={styles.masthead}>
       <Link href="/" className={styles.wordmark} aria-label="返回东财之影首页">
         <b>东财之影</b>
-        <span>DUFE STUDENT DESK</span>
       </Link>
       <nav className={styles.navigation} aria-label={navigationLabel}>
         {items.map((item) => (

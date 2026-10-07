@@ -1240,16 +1240,6 @@ body:has(.course-pool.finder-pool.open) .mobile-nav {
   position: relative;
 }
 
-.credential-gateway::before {
-  color: var(--journal-red);
-  content: "账户 / ACCOUNT";
-  font: 700 9px/1 var(--journal-mono);
-  letter-spacing: .12em;
-  position: absolute;
-  right: 0;
-  top: 17px;
-}
-
 .credential-gateway > nav {
   display: flex;
   gap: 22px;
@@ -2008,37 +1998,13 @@ body {
 }
 
 .campus-almanac > header {
-  display: grid;
-  gap: 8px 36px;
-  grid-template-columns: 190px minmax(0, 1fr);
-  margin-bottom: 54px;
-}
-
-.campus-almanac > header span {
-  color: var(--journal-red);
-  font: 700 10px/1.3 var(--journal-data);
-  letter-spacing: 0.08em;
+  display: block;
+  margin-bottom: 24px;
 }
 
 .campus-almanac > header h2 {
-  font: 800 clamp(42px, 6vw, 76px)/0.98 var(--journal-display);
-  grid-column: 2;
-  letter-spacing: -0.075em;
-}
-
-.campus-almanac > header h2 span {
-  color: inherit;
-  font: inherit;
-  letter-spacing: inherit;
-  white-space: nowrap;
-}
-
-.campus-almanac > header p {
-  color: var(--journal-muted);
-  font-size: 14px;
-  grid-column: 2;
-  line-height: 1.8;
-  max-width: 520px;
+  font: 700 clamp(24px, 3vw, 32px)/1.3 var(--journal-display);
+  margin: 0;
 }
 
 .campus-almanac-grid {
@@ -2065,25 +2031,6 @@ body {
 .campus-scene:hover img {
   filter: saturate(0.92) contrast(1.03);
   transform: scale(1.012);
-}
-
-.campus-scene figcaption {
-  border-top: 1px solid var(--journal-line);
-  display: grid;
-  gap: 4px;
-  padding-top: 10px;
-}
-
-.campus-scene figcaption span,
-.campus-signature figcaption span {
-  color: var(--journal-red);
-  font: 700 9px/1.2 var(--journal-data);
-  letter-spacing: 0.08em;
-}
-
-.campus-scene figcaption b,
-.campus-signature figcaption b {
-  font: 700 18px/1.25 var(--journal-display);
 }
 
 .scene-arrival {
@@ -2154,16 +2101,6 @@ body {
   object-fit: cover;
   object-position: 50% 63%;
   width: 100%;
-}
-
-.campus-signature figcaption {
-  background: var(--journal-paper-raised);
-  bottom: -32px;
-  display: grid;
-  gap: 5px;
-  left: 8%;
-  padding: 17px 24px;
-  position: absolute;
 }
 
 .knowledge-tribute {
@@ -2432,16 +2369,6 @@ body {
     margin-top: 72px;
   }
 
-  .campus-almanac > header {
-    display: block;
-    margin-bottom: 34px;
-  }
-
-  .campus-almanac > header h2 {
-    font-size: 45px;
-    margin: 12px 0;
-  }
-
   .campus-almanac-grid {
     gap: 28px 12px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2470,22 +2397,12 @@ body {
     aspect-ratio: 4 / 3;
   }
 
-  .campus-scene figcaption b {
-    font-size: 15px;
-  }
-
   .campus-signature {
     margin-top: 62px;
   }
 
   .campus-signature img {
     aspect-ratio: 16 / 8;
-  }
-
-  .campus-signature figcaption {
-    bottom: -42px;
-    left: 8px;
-    padding: 13px 16px;
   }
 
   .knowledge-tribute {

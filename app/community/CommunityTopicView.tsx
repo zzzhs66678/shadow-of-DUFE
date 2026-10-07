@@ -117,7 +117,7 @@ export function CommunityTopicView({ topicId }: { topicId: string }) {
   async function toggleTopic(action: "like" | "bookmark") {
     if (!topic) return;
     if (!session?.authenticated) {
-      setFeedback("登录后才能点赞或收藏。可从“我的”完成登录。");
+      setFeedback("请先到“我的”登录，再赞同或收藏。");
       return;
     }
     const active = action === "like" ? topic.liked : topic.bookmarked;
@@ -158,7 +158,7 @@ export function CommunityTopicView({ topicId }: { topicId: string }) {
   }
 
   async function deleteTopic() {
-    if (!topic || !window.confirm("删除后主题会保留为不可恢复的线程墓碑。确认删除？")) return;
+    if (!topic || !window.confirm("删除后正文无法恢复，讨论位置仍保留。确认删除主题？")) return;
     setBusy("delete-topic");
     try {
       await communityRequest(`/api/community/topics/${topic.id}`, { method: "DELETE", body: JSON.stringify({ version: topic.version }) });
@@ -191,7 +191,7 @@ export function CommunityTopicView({ topicId }: { topicId: string }) {
 
   async function toggleCommentLike(comment: CommunityComment) {
     if (!session?.authenticated) {
-      setFeedback("登录后才能点赞回复。");
+      setFeedback("登录后才能赞同回复。");
       return;
     }
     setBusy(`comment-like:${comment.id}`);
@@ -229,7 +229,7 @@ export function CommunityTopicView({ topicId }: { topicId: string }) {
   }
 
   async function deleteComment(comment: CommunityComment) {
-    if (!window.confirm("删除后仍会保留一个线程位置，但正文不再显示。确认删除？")) return;
+    if (!window.confirm("删除后正文不再显示，讨论位置仍保留。确认删除回复？")) return;
     setBusy(`comment-delete:${comment.id}`);
     try {
       await communityRequest(`/api/community/comments/${comment.id}`, { method: "DELETE", body: JSON.stringify({ version: comment.version }) });
@@ -280,13 +280,13 @@ export function CommunityTopicView({ topicId }: { topicId: string }) {
         if (!copied) throw new Error("copy_failed");
         setFeedback("讨论链接已复制。");
       } catch {
-        setFeedback("暂时无法自动复制。可以从浏览器地址栏复制这条讨论的链接。");
+        setFeedback("复制失败，请从浏览器地址栏复制链接。");
       }
     }
   }
 
   if (pageState === "loading") {
-    return <main className={styles.page}><CommunityHeader session={session} unread={unread} onOpenNotifications={openNotifications} /><div className={styles.fullState} role="status"><i /><b>正在展开这段讨论</b><p>主题和回复会一起加载。</p></div></main>;
+    return <main className={styles.page}><CommunityHeader session={session} unread={unread} onOpenNotifications={openNotifications} /><div className={styles.fullState} role="status"><i /><b>正在加载讨论…</b></div></main>;
   }
 
   if (pageState === "missing") {
@@ -294,7 +294,7 @@ export function CommunityTopicView({ topicId }: { topicId: string }) {
   }
 
   if (pageState === "error" || !topic) {
-    return <main className={styles.page}><CommunityHeader session={session} unread={unread} onOpenNotifications={openNotifications} /><div className={styles.fullState} role="alert"><b>讨论暂时没有加载成功</b><p>检查网络后重试，页面不会替你提交任何操作。</p><button onClick={() => void loadPage()}>重新加载</button></div></main>;
+    return <main className={styles.page}><CommunityHeader session={session} unread={unread} onOpenNotifications={openNotifications} /><div className={styles.fullState} role="alert"><b>讨论加载失败</b><p>检查网络后重试。</p><button onClick={() => void loadPage()}>重新加载</button></div></main>;
   }
 
   return (
@@ -329,21 +329,21 @@ export function CommunityTopicView({ topicId }: { topicId: string }) {
       )}
 
       <section className={styles.discussion} id="discussion" aria-labelledby="discussion-title">
-        <header><span>讨论线</span><h2 id="discussion-title">回复与补充</h2><p>回复只展开一层，并标明正在回复的人。</p></header>
+        <header><h2 id="discussion-title">回复与补充</h2></header>
         <Feedback message={feedback} />
 
         {session?.authenticated ? (
           <form className={styles.replyComposer} onSubmit={submitReply}>
             <label htmlFor="community-reply">{replyTo ? `回复 ${authorName(replyTo.author)}` : "加入讨论"}</label>
             {replyTo && <button type="button" onClick={() => setReplyTo(null)}>取消指定回复</button>}
-            <textarea id="community-reply" value={replyBody} onChange={(event) => setReplyBody(event.target.value)} maxLength={3000} rows={5} placeholder={replyTo ? "写下针对这条回复的内容…" : "说清楚你的经验、问题或补充…"} />
+            <textarea id="community-reply" value={replyBody} onChange={(event) => setReplyBody(event.target.value)} maxLength={3000} rows={5} placeholder="写回复…" />
             <div><small>{replyBody.length} / 3000</small><button disabled={busy === "reply" || !replyBody.trim()}>{busy === "reply" ? "正在发布" : "发布回复"}</button></div>
           </form>
         ) : (
-          <div className={styles.discussionLogin}><b>登录后加入讨论</b><p>公开主题可以直接阅读，发布和互动需要账号。</p><Link href="/?view=me">去登录</Link></div>
+          <div className={styles.discussionLogin}><b>登录后加入讨论</b><Link href="/?view=me">去登录</Link></div>
         )}
 
-        {threads.length === 0 && <div className={styles.noComments}><b>还没有回复</b><p>如果你有可靠的信息，可以从这里补上第一段。</p></div>}
+        {threads.length === 0 && <div className={styles.noComments}><b>还没有回复</b></div>}
 
         <ol className={styles.commentThreads}>
           {threads.map(({ root, replies }, threadIndex) => (
@@ -374,13 +374,13 @@ export function CommunityTopicView({ topicId }: { topicId: string }) {
           ))}
         </ol>
 
-        {nextCursor && <button className={styles.loadMore} onClick={() => void loadComments(nextCursor, true)}>继续读取更早的讨论</button>}
+        {nextCursor && <button className={styles.loadMore} onClick={() => void loadComments(nextCursor, true)}>加载更多回复</button>}
       </section>
 
       {editingComment && (
         <DialogBackdrop onDismiss={closeEditComment} dismissDisabled={Boolean(busy)}>
           <form ref={editCommentRef} className={styles.reportSheet} role="dialog" aria-modal="true" aria-labelledby="edit-comment-title" onSubmit={saveComment}>
-            <span>修改回复</span><h2 id="edit-comment-title">编辑这条回复</h2>
+            <h2 id="edit-comment-title">修改回复</h2>
             <FormField label="回复正文" counter={`${editCommentBody.length} / 3000`}><textarea value={editCommentBody} onChange={(event) => setEditCommentBody(event.target.value)} maxLength={3000} rows={8} autoFocus /></FormField>
             <DialogActions><button type="button" onClick={() => setEditingComment(null)}>取消</button><button disabled={busy === `comment-edit:${editingComment.id}` || !editCommentBody.trim()}>保存更改</button></DialogActions>
           </form>

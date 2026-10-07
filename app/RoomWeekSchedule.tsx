@@ -90,13 +90,12 @@ export default function RoomWeekSchedule({
 
       {week === null ? (
         <p className={styles.outsideTerm}>
-          所选日期不在当前学期教学周内。返回空教室页换一个日期再看。
+          这天不在本学期内，请返回空教室页换个日期。
         </p>
       ) : (
         <>
-          <div className={styles.viewControls}>
-            <p>{showFullWeek ? "已显示周一至周日。" : "周末有课或为所选日期时自动显示。"}</p>
-            {(compactWeekdays.length < 7 || showFullWeek) && (
+          {(compactWeekdays.length < 7 || showFullWeek) && (
+            <div className={styles.viewControls}>
               <button
                 type="button"
                 className={styles.weekToggle}
@@ -106,8 +105,8 @@ export default function RoomWeekSchedule({
               >
                 {showFullWeek ? "收起空白周末" : "查看全周"}
               </button>
-            )}
-          </div>
+            </div>
+          )}
           {sortedLessons.length === 0 && (
             <p className={styles.noLessons}>本周暂无已收录课程。</p>
           )}

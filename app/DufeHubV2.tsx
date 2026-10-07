@@ -781,9 +781,7 @@ function CampusAlmanac() {
   return (
     <section className="campus-almanac" aria-labelledby="campus-almanac-title">
       <header>
-        <span>我的东财 · 校园影集</span>
-        <h2 id="campus-almanac-title">我们每天走过的<span>东财</span></h2>
-        <p>从入校到夜归，方向、灯光和雪把校园写成另一张课表。</p>
+        <h2 id="campus-almanac-title">校园相册</h2>
       </header>
       <div className="campus-almanac-grid">
         <figure className="campus-scene scene-arrival">
@@ -796,7 +794,6 @@ function CampusAlmanac() {
             loading="lazy"
             decoding="async"
           />
-          <figcaption><span>抵达</span><b>2024 新生季，从这里进场</b></figcaption>
         </figure>
         <figure className="campus-scene scene-wayfinding">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -808,7 +805,6 @@ function CampusAlmanac() {
             loading="lazy"
             decoding="async"
           />
-          <figcaption><span>方向</span><b>雪夜里的路牌</b></figcaption>
         </figure>
         <figure className="campus-scene scene-avenue-day">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -820,7 +816,6 @@ function CampusAlmanac() {
             loading="lazy"
             decoding="async"
           />
-          <figcaption><span>去上课</span><b>同一条路，白天</b></figcaption>
         </figure>
         <figure className="campus-scene scene-avenue-night">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -832,7 +827,6 @@ function CampusAlmanac() {
             loading="lazy"
             decoding="async"
           />
-          <figcaption><span>往回走</span><b>同一条路，夜里</b></figcaption>
         </figure>
         <figure className="campus-scene scene-pavilion">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -844,7 +838,6 @@ function CampusAlmanac() {
             loading="lazy"
             decoding="async"
           />
-          <figcaption><span>停一会儿</span><b>红亭，雪夜</b></figcaption>
         </figure>
         <figure className="campus-scene scene-stadium">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -856,7 +849,6 @@ function CampusAlmanac() {
             loading="lazy"
             decoding="async"
           />
-          <figcaption><span>夜课以后</span><b>雪还在下</b></figcaption>
         </figure>
       </div>
       <figure className="campus-signature">
@@ -869,10 +861,6 @@ function CampusAlmanac() {
           loading="lazy"
           decoding="async"
         />
-        <figcaption>
-          <span>东财日月志 · 大连</span>
-          <b>一场雪把校名擦亮。</b>
-        </figcaption>
       </figure>
     </section>
   );
@@ -906,7 +894,7 @@ function KnowledgeTribute() {
         <span>致敬 · Alexandra Elbakyan</span>
         <h2>希望每个人都能更容易地接近知识。</h2>
         <p>
-          她在 2011 年创建 Sci-Hub，也让论文获取的门槛被更多人看见。东财之影认同知识应更容易抵达读者；站内资料只收录可合法分享或已获授权的内容。
+          Sci-Hub 创办者。本站只收录可合法分享或已获授权的资料。
         </p>
       </div>
       <nav aria-label="了解 Alexandra Elbakyan">
@@ -916,7 +904,7 @@ function KnowledgeTribute() {
           target="_blank"
           rel="noreferrer nofollow"
         >
-          Sci-Hub · 访问网站 ↗
+          Sci-Hub ↗
         </a>
         <a
           href="https://www.nature.com/articles/540507a"
@@ -995,7 +983,7 @@ function CreatorsCorner({
           onClick={onClose}
           aria-label="关闭创作者合影"
         >
-          回到校园 ×
+          关闭 ×
         </button>
         <figure>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1006,13 +994,10 @@ function CreatorsCorner({
             height="1200"
             decoding="async"
           />
-          <figcaption>网站之外，我们偶尔也出门。</figcaption>
         </figure>
         <div>
-          <span>东财之影 · 幕后</span>
-          <h2 id="creators-title">三个学生，想把每天上课这件事做得顺手一点。</h2>
-          <p>我们在东财上课、赶作业、找自习室，也在课余一起做这个网站。</p>
-          <small>始于 2024 · 三个做东西的人</small>
+          <span>幕后</span>
+          <h2 id="creators-title">课余，我们仨在做这个网站。</h2>
         </div>
       </section>
     </div>
@@ -1056,7 +1041,6 @@ export function DufeHubV2() {
           <span>正在加载课程数据</span>
           <i />
         </div>
-        <p>稍等一下，马上就好。</p>
       </main>
     );
   }
@@ -1786,7 +1770,6 @@ function HubApp({ data: initialData }: { data: SiteData }) {
       <header className="topbar hub-topbar">
         <button className="brand-button" onClick={() => go("home")}>
           <span>东财之影</span>
-          <small>今天学什么，去哪儿学</small>
         </button>
         <nav aria-label="主导航">
           {nav.map((item) => (
@@ -1907,7 +1890,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
             <p>
               {fullDataStatus === "error"
                 ? "检查网络后重试，今天页面仍可继续使用。"
-                : "今天页面已经可用，课程、课表和空教室数据正在加载。"}
+                : "可以先看看今天的安排。"}
             </p>
             {fullDataStatus === "error" && (
               <div>
@@ -2151,7 +2134,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
       <footer className="hub-footer">
         <Wordmark />
         <div>
-          <strong>非官方学生工具</strong>
+          <strong>学生自建 · 非官方</strong>
           <p>课程、教室和通知如有变动，以学校官方系统为准。</p>
         </div>
         <div className="footer-links">
@@ -2182,7 +2165,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           aria-haspopup="dialog"
           aria-label="打开创作者合影"
         >
-          <span>幕后 / 03</span>
+          <span>幕后</span>
           <b>谁在捣鼓这个网站？</b>
         </button>
       </footer>
@@ -2244,7 +2227,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
               <p>
                 {fullDataStatus === "error"
                   ? "检查网络后重试，课程详情不会使用不完整数据。"
-                  : "正在按需加载教师、周次和上课地点。"}
+                  : "正在加载上课安排…"}
               </p>
               {fullDataStatus === "error" && (
                 <button onClick={() => void loadFullData()}>重新加载</button>
@@ -2591,7 +2574,7 @@ function HomePage({
     <div className={`page-wrap today-page focus-page focus-page-v5 ${homeStyles.workspace}`}>
       <header className="focus-head focus-head-v5">
         <div>
-          <span>东财日月志 · {dateText}</span>
+          <span>{dateText}</span>
           <h1>今天</h1>
         </div>
         <button onClick={() => onSearch()} aria-label="全站搜索">
@@ -2711,7 +2694,7 @@ function HomePage({
             <small>
               {primaryClass
                 ? data.periods[primaryClass.block - 1]?.short
-                : hasTimetable ? "今天没有后续课程" : "尚未设置课表"}
+                : hasTimetable ? "课后时间" : "尚未导入"}
             </small>
           </header>
           <div>
@@ -2722,13 +2705,9 @@ function HomePage({
                   ? primaryClass.title
                   : hasTimetable
                     ? "今天没有后续课程"
-                    : "先选专业和班级"}
+                    : "把课表导进来吧"}
               </h2>
-              <p>
-                {primaryClass
-                  ? `${data.periods[primaryClass.block - 1]?.time} · ${primaryClass.building}${primaryClass.room}`
-                  : hasTimetable ? "添加日程、记录作业，或找空教室。" : "选择专业和班级，或手动添加课程。"}
-              </p>
+              {primaryClass && <p>{`${data.periods[primaryClass.block - 1]?.time} · ${primaryClass.building}${primaryClass.room}`}</p>}
               {primaryClass && (
                 <small>
                   {primaryClass.teacher || "教师未标注"} ·{" "}
@@ -2797,7 +2776,6 @@ function HomePage({
             ) : (
               <div className="agenda-glance-empty">
                 <b>暂无安排</b>
-                <small>可以找间空教室自习。</small>
               </div>
             )}
           </div>
@@ -2861,9 +2839,8 @@ function HomePage({
           ) : (
             <div className="agenda-empty">
               <b>今天还没有安排</b>
-              <p>上课、自习、社团都可以记在这里。</p>
               <button onClick={() => onEditCalendar({ kind: "activity" })}>
-                添加第一项日程
+                添加日程
               </button>
             </div>
           )}
@@ -2874,7 +2851,6 @@ function HomePage({
         <header>
           <div>
             <span>接下来七天</span>
-            <b>已有安排</b>
           </div>
           <button onClick={() => onGo("schedule")}>管理全部 →</button>
         </header>
@@ -2914,24 +2890,20 @@ function HomePage({
 
       <section className="study-management">
         <header>
-          <span>编辑</span>
-          <h2>管理学习安排</h2>
+          <h2>课表与日程</h2>
         </header>
         <div>
           <button onClick={() => onGo("schedule")}>
             <i>表</i>
             <b>编辑我的课表</b>
-            <span>添加、移除课程或导出图片</span>
           </button>
           <button onClick={() => onEditCalendar({ kind: "activity" })}>
             <i>程</i>
             <b>添加个人日程</b>
-            <span>自习、社团、考试或生活安排</span>
           </button>
           <button onClick={() => onEditCalendar({ kind: "assignment" })}>
             <i>交</i>
             <b>添加课程作业</b>
-            <span>记下截止日，首页会提醒</span>
           </button>
         </div>
       </section>
@@ -3111,7 +3083,7 @@ function CatalogPage({
     <div className={`page-wrap catalog-page-v2 ${courseStyles.page}`}>
       <header className={courseStyles.hero}>
         <div className={courseStyles.heroCopy}>
-          <span>课程中心 · {academicSnapshot?.termLabel || (term === "fall" ? "上学期" : "下学期")}</span>
+          <span>{academicSnapshot?.termLabel || (term === "fall" ? "上学期" : "下学期")}</span>
           <h1>课程</h1>
         </div>
         <section className={courseStyles.importStatus} aria-label="教务数据状态">
@@ -3124,7 +3096,7 @@ function CatalogPage({
           <small>
             {academicSnapshot
               ? `${academicSnapshot.sections.length} 门课 · ${academicSnapshot.examStatus ? (academicSnapshot.examStatus === "stale" ? "考试未更新" : "考试未同步") : `${academicSnapshot.exams.length} 项考试`} · ${importedAt}`
-              : "每学期导入一次，之后可在这里更新。"}
+              : "课表、考试、培养方案一起导入。"}
           </small>
           <button onClick={onAcademicImport}>
             {academicSnapshot ? "更新教务数据" : "导入教务数据"}
@@ -3156,7 +3128,7 @@ function CatalogPage({
             }}
           >
             <span>{{ mine: "我的课程", catalog: "课程库", teachers: "教师评价", materials: "学习资料" }[tab]}</span>
-            <small>{{ mine: `${academicSnapshot?.sections.length ?? manualCourseGroups.size} 门`, catalog: "全校课程", teachers: "按学院找教师", materials: "教材与资料" }[tab]}</small>
+            {tab === "mine" && <small>{academicSnapshot?.sections.length ?? manualCourseGroups.size} 门</small>}
           </button>
         ))}
       </div>
@@ -3484,30 +3456,30 @@ function academicImportErrorMessage(code: string) {
     academic_sms_not_sent: "请先获取短信验证码。",
     academic_sms_send_failed: "学校短信验证码暂时发送失败，请稍后重试。",
     academic_sso_verification_invalid: "请先完成学校拼图验证。",
-    academic_sso_protocol_changed: "学校统一身份认证流程已变化，暂时无法连接。",
+    academic_sso_protocol_changed: "暂时无法完成学校登录，请稍后再试。",
     academic_transaction_expired: "本次教务登录已经超时，请重新连接。",
     academic_additional_auth_required:
-      "学校要求当前版本尚未支持的额外验证，请稍后再试。",
+      "学校要求额外验证，目前还不支持这一步，暂时无法导入。",
     academic_session_not_ready:
       "VPN 已登录，但教务系统没有返回课表，请稍后再试。",
     academic_format_changed:
-      "学校调整了课表页面，暂时无法安全识别，已停止导入。",
+      "课表暂时读不完整，本次未导入，已有课表未改动。",
     academic_exam_format_changed:
-      "学校考试安排页面暂时无法安全识别，课表会继续导入并标明考试未同步。",
+      "考试安排暂时读不完整。课表照常导入，考试标为未同步。",
     academic_exam_unavailable:
-      "学校考试安排服务暂时不可用，课表会继续导入并标明考试未同步。",
+      "暂时连不上考试查询。课表照常导入，考试标为未同步。",
     academic_plan_not_found: "当前学生账号没有可读取的培养方案。",
     academic_plan_format_changed:
-      "学校调整了培养方案页面，暂时无法安全识别，本次数据没有导入。",
+      "培养方案暂时读不完整，本次未更新培养方案。",
     academic_plan_unavailable:
-      "学校培养方案服务暂时不可用，课表和考试会继续导入。",
+      "暂时连不上培养方案查询，课表和考试会继续导入。",
     academic_protocol_changed:
-      "学校登录流程刚刚发生变化，暂时无法连接。",
+      "暂时无法完成学校登录，请稍后再试。",
     academic_timetable_empty: "教务系统返回的本学期课表为空。",
     academic_upstream_timeout: "学校系统响应超时，请稍后再试。",
     academic_upstream_unavailable: "学校 VPN 或教务系统当前不可用。",
     academic_rate_limit_exceeded: "尝试次数较多，请五分钟后再试。",
-    academic_import_unavailable: "教务导入服务正在维护，请稍后再试。",
+    academic_import_unavailable: "教务导入暂不可用，请稍后再试。",
     academic_request_invalid: "本次导入请求已失效，请重新连接。",
     academic_response_invalid: "学校登录后的跳转异常，请重新连接后再试。",
     academic_login_failed: "学校没有确认登录，请重新连接。",
@@ -3734,7 +3706,7 @@ function AcademicImportDialog({
       >
         <header>
           <div>
-            <span>正式教务 · 一学期一次</span>
+            <span>教务导入</span>
             <h2 id="academic-import-title">
               {ssoChallenge
                 ? "完成学校验证"
@@ -3768,7 +3740,7 @@ function AcademicImportDialog({
                 {existing.sections.length} 门课 · {academicMeetingCount(existing)} 个时段 · {existing.examStatus ? (existing.examStatus === "stale" ? "考试未更新" : "考试未同步") : `${existing.exams.length} 项考试`}
               </p>
             )}
-            <FormField label="教务账号" hint="通常是学号；不是东财之影账号。">
+            <FormField label="教务账号" hint="填写学校学号，不是本站用户名。">
               <input
                 name="academic-username"
                 autoComplete="off"
@@ -3780,7 +3752,7 @@ function AcademicImportDialog({
             </FormField>
             <FormField
               label="教务密码"
-              hint="仅用于这一次连接；不会写入数据库、日志或浏览器存储。"
+              hint="仅用于本次导入，不会保存。"
             >
               <input
                 name="academic-password"
@@ -3797,7 +3769,7 @@ function AcademicImportDialog({
               {busy ? "正在登录并读取教务…" : existing ? "更新教务数据" : "登录并自动导入"}
             </button>
             <small className="academic-import-note">
-              登录由学校 VPN 验证。成功后只保存课表、考试和培养方案，登录会话立即丢弃。
+              通过学校 VPN 登录，可能需要短信或拼图验证。本站只保存课表、考试和培养方案。
             </small>
           </form>
         ) : smsDestination ? (
@@ -5431,7 +5403,6 @@ function SchedulePage({
               {!saved.activities.length && !saved.assignments.length && (
                 <div className="planner-empty">
                   <b>还没有个人安排</b>
-                  <p>把自习、社团或作业截止日记在这里。</p>
                 </div>
               )}
             </div>
@@ -6101,13 +6072,8 @@ function RoomsPage({
     <div className="page-wrap rooms-page living-spaces rooms-v5">
       <header className="map-heading">
         <div>
-          <span>校园空间</span>
           <h1>空教室</h1>
-          <p>
-            {nextClass
-              ? `下一节在 ${nextClass.building}${nextClass.room}，先找个顺路的位置。`
-              : "选择时间，查看可用教室。"}
-          </p>
+          {nextClass && <p>下一节：{nextClass.building}{nextClass.room}</p>}
         </div>
         <div className="room-current-context" aria-label="当前查询时间">
           <span>{weekdayLabels[weekday % 7]} · {date.replaceAll("-", "/")}</span>
@@ -6220,13 +6186,8 @@ function RoomsPage({
                 : ""}
               {weekdayLabels[weekday % 7]} · {data.periods[block - 1]?.short}
             </b>
-            <p>
-              {nextClass
-                ? `下一节在${nextClass.building}，同楼的教室已经排在前面。`
-                : "空闲教室已按所选时段筛好。"}
-            </p>
           </div>
-          <p>{data.disclaimer}</p>
+          <p>按课表推算，是否开放以现场为准。</p>
         </aside>
       </section>
       {(saved.favoriteRooms.length > 0 || saved.recentRooms.length > 0) && (
@@ -6378,7 +6339,6 @@ function RoomsPage({
       <section className="floor-overview">
         <header>
           <h2>整栋楼一览</h2>
-          <span>点按楼层进入详细视图</span>
         </header>
         <div>
           {sortedFloors.map(([floor, floorRooms]) => {
@@ -6747,7 +6707,7 @@ function MePage({
         onAuthChanged();
       } else if (payload.debugToken) {
         setEmailVerificationToken(payload.debugToken);
-        setProfileFeedback("已生成一次性验证令牌，请继续完成验证。");
+        setProfileFeedback("已生成邮箱验证码，请继续验证。");
       } else {
         setProfileFeedback("验证邮件已发送，请在 24 小时内完成验证。");
       }
@@ -6775,7 +6735,7 @@ function MePage({
       if (!response.ok) {
         setProfileFeedback(
           payload.error === "invalid_email_verification"
-            ? "验证令牌无效、已使用或已过期。"
+            ? "邮箱验证码无效、已使用或已过期。"
             : "邮箱验证没有完成，请稍后再试。",
         );
         return;
@@ -6795,11 +6755,6 @@ function MePage({
       <header className="workspace-heading">
         <div>
           <h1>我的</h1>
-          <p>
-            {account.status === "authenticated"
-              ? "课表、日程和作业已与账号同步。"
-              : "课表先存在本机；登录后可跨设备同步。"}
-          </p>
         </div>
       </header>
       {academicSnapshot?.examStatus ? (
@@ -6880,7 +6835,7 @@ function MePage({
             </h2>
             <p>
               {account.status === "authenticated"
-                ? `${syncCopy[0]} · 管理资料与登录设备`
+                ? syncCopy[0]
                 : "登录后可在其他设备继续使用。"}
             </p>
           </div>
@@ -6937,7 +6892,7 @@ function MePage({
                 </nav>
                 <form onSubmit={submitCredentials}>
                   {credentialMode === "register" && (
-                    <FormField label="用户名" className="credential-field">
+                    <FormField label="用户名" hint="3–24 个字，可用汉字、字母、数字、_ 或 -" className="credential-field">
                       <input
                         required
                         minLength={3}
@@ -6950,7 +6905,7 @@ function MePage({
                             username: event.target.value,
                           }))
                         }
-                        placeholder="以后也可以用它登录"
+                        placeholder="起个名字吧"
                       />
                     </FormField>
                   )}
@@ -6968,7 +6923,7 @@ function MePage({
                             email: event.target.value,
                           }))
                         }
-                        placeholder="用于登录和找回密码"
+                        placeholder="you@example.com"
                       />
                     </FormField>
                   ) : (
@@ -7087,7 +7042,6 @@ function MePage({
                         : "暂不支持邮件找回"}
                     </button>
                   )}
-                  <span>密码只以 Argon2id 安全哈希保存</span>
                 </footer>
               </div>
             ) : (
@@ -7249,7 +7203,6 @@ function MePage({
                           )
                         : "—"}
                     </dd>
-                    <small>账号状态：正常</small>
                   </div>
                 </dl>
               )}
@@ -7260,12 +7213,12 @@ function MePage({
                     <div>
                       <b>验证邮箱</b>
                       <p>
-                        验证后可用于找回账号；验证令牌仅能使用一次。
+                        验证码仅可使用一次，请勿转发。
                       </p>
                     </div>
                     {emailVerificationToken ? (
                       <form onSubmit={confirmEmailVerification}>
-                        <FormField label="一次性验证令牌" className="verification-field">
+                        <FormField label="邮箱验证码" className="verification-field">
                           <input
                             required
                             maxLength={64}
@@ -7299,7 +7252,7 @@ function MePage({
                           : "发送验证邮件"}
                       </button>
                     ) : (
-                      <small>验证邮件通道待开通</small>
+                      <small>邮件验证暂未开放</small>
                     )}
                   </div>
                 )}
@@ -7314,7 +7267,7 @@ function MePage({
                 <div>
                   <b>这台设备还有未登录时保存的内容</b>
                   <p>
-                    只有你确认后，才会把那份课表、日程和任务并入当前账号。
+                    是否把这些课表、日程和作业导入当前账号？
                   </p>
                 </div>
                 <div>
@@ -7389,7 +7342,7 @@ function MePage({
 
             <footer className="account-actions">
               {account.user?.role === "admin" && (
-                <a href="/admin">进入值守台</a>
+                <a href="/admin">管理后台</a>
               )}
               <button
                 disabled={Boolean(accountBusy)}
@@ -7432,7 +7385,6 @@ function MePage({
             <i>座</i>
             <span>
               <b>我去图书馆</b>
-              <small>预约常用座位</small>
             </span>
             <em>↗</em>
           </a>
@@ -7440,7 +7392,6 @@ function MePage({
             <i>码</i>
             <span>
               <b>东财校园码</b>
-              <small>打开个人校园码</small>
             </span>
             <em>↗</em>
           </a>
@@ -7448,7 +7399,6 @@ function MePage({
             <i>果</i>
             <span>
               <b>白果云</b>
-              <small>签到与课程通知</small>
             </span>
             <em>↗</em>
           </a>
@@ -7814,7 +7764,6 @@ function CourseDrawer({
                 位教师
               </small>
             </div>
-            <em>最多同时比较 4 个教学班</em>
           </div>
           <div className="section-filter-bar">
             <input

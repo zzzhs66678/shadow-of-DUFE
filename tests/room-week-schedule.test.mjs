@@ -95,7 +95,7 @@ test("same-title meetings stay distinct and all full titles, teachers and times 
 test("outside-term dates retain context and back navigation without a misleading timetable", () => {
   const html = render({ week: null, date: "2027-02-01", lessons: [lesson(6)] });
   assert.match(html, /非教学周/);
-  assert.match(html, /所选日期不在当前学期教学周内/);
+  assert.match(html, /这天不在本学期内，请返回空教室页换个日期/);
   assert.match(html, /返回空教室/);
   assert.doesNotMatch(html, /role="table"|查看全周|本周暂无已收录课程/);
 });

@@ -386,7 +386,7 @@ test("users and an administrator complete the release browser path", async ({
     const topicBody = "这条主题由第一名真实注册用户通过页面发布。";
     await owner.goto("/community");
     await owner
-      .getByRole("button", { name: /写一条新主题|写第一条/u })
+      .getByRole("button", { name: "发布主题", exact: true })
       .first()
       .click();
     const composer = owner.locator("form").filter({ hasText: "发布主题" });

@@ -59,7 +59,7 @@ export default function PrivacyPage() {
       <h2>三、Cookie 与本地存储</h2>
       <p>
         主站登录 Cookie 和小影内测 Cookie 均仅服务器可读并只通过 HTTPS
-        发送。小影 Cookie 只用于 `/campus-lab`
+        发送。小影 Cookie 只用于 <code>/campus-lab</code>
         路径。游客数据和界面偏好保存在浏览器本地；清理浏览器数据会删除尚未同步的本机内容。
       </p>
 

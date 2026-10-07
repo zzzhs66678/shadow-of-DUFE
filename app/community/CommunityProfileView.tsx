@@ -110,7 +110,6 @@ export function CommunityProfileView({ userId }: { userId: string }) {
       {profile ? (
         <>
           <section className={styles.profileHero} aria-labelledby="profile-title">
-            <span>COMMUNITY / PUBLIC RECORD</span>
             <AuthorBadge author={profile} />
             <h1 id="profile-title">{authorName(profile)}</h1>
             <p>{profile.username ? `@${profile.username}` : "站内用户"} · {joinedLabel(profile.joinedAt)}</p>
@@ -132,8 +131,8 @@ export function CommunityProfileView({ userId }: { userId: string }) {
               </div>
             </header>
 
-            {state === "loading" && items.length === 0 && <div className={styles.feedState} role="status"><i /><b>正在整理公开记录</b></div>}
-            {state === "error" && items.length === 0 && <div className={styles.feedState} role="alert"><b>公开记录暂时没有载入</b><p>检查网络后可以重新读取。</p><button onClick={() => void load(kind)}>重新加载</button></div>}
+            {state === "loading" && items.length === 0 && <div className={styles.feedState} role="status"><i /><b>正在加载公开记录…</b></div>}
+            {state === "error" && items.length === 0 && <div className={styles.feedState} role="alert"><b>公开记录加载失败</b><p>检查网络后重试。</p><button onClick={() => void load(kind)}>重新加载</button></div>}
             {state === "ready" && items.length === 0 && <div className={styles.feedState}><b>这里还没有公开{kind === "topics" ? "主题" : "回复"}</b><p>未公开、已删除或仅链接可见的内容不会出现在个人主页。</p></div>}
 
             <ol className={styles.profileRecords} aria-label={`公开${kind === "topics" ? "主题" : "回复"}`}>
@@ -164,9 +163,9 @@ export function CommunityProfileView({ userId }: { userId: string }) {
       ) : state === "missing" ? (
         <section className={styles.fullState}><b>这份公开档案不可用</b><p>账号已停用、注销，或你们之间存在屏蔽关系。私人资料不会在这里显示。</p><Link href="/community">返回校园回廊</Link></section>
       ) : state === "error" ? (
-        <section className={styles.fullState}><b>公开档案暂时没有载入</b><p>检查网络后可以重新读取。</p><button onClick={() => void load(kind)}>重新加载</button></section>
+        <section className={styles.fullState}><b>公开档案加载失败</b><p>检查网络后重试。</p><button onClick={() => void load(kind)}>重新加载</button></section>
       ) : (
-        <section className={styles.fullState} role="status"><i /><b>正在打开公开档案</b></section>
+        <section className={styles.fullState} role="status"><i /><b>正在加载公开档案…</b></section>
       )}
     </main>
   );

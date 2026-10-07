@@ -467,7 +467,7 @@ export function AdminConsole() {
           title="管理员账号尚未完成安全初始化"
           copy="请在服务器终端运行管理员初始化命令。验证密钥和恢复码只会显示一次，不会通过网页传递。"
           actionHref="/"
-          actionLabel="安全退出"
+          actionLabel="返回首页"
         />
       )}
 
@@ -527,7 +527,7 @@ export function AdminConsole() {
             <div>
               <span>ON DUTY</span>
               <h1>今日值守簿</h1>
-              <p>只处理有明确依据的异常；搜索、处置与审计记录保持在同一条工作线上。</p>
+              <p>只处理有明确依据的异常。</p>
             </div>
             <div className={styles.watchStatus}>
               <i />
@@ -562,7 +562,7 @@ export function AdminConsole() {
 
           <section className={styles.registrationTrend} aria-labelledby="admin-registration-trend-title">
             <header>
-              <div><span>30 DAYS</span><h2 id="admin-registration-trend-title">新同学抵达记录</h2></div>
+              <div><span>30 DAYS</span><h2 id="admin-registration-trend-title">最近 30 天注册人数</h2></div>
               <p>按上海日期记录最近 30 天真实注册量；柱高只帮助比较，人数以文字为准。</p>
             </header>
             <ol aria-label="最近 30 天新增用户趋势">
@@ -680,7 +680,7 @@ export function AdminConsole() {
             </section>
 
             <aside className={styles.auditTrail} aria-labelledby="admin-audit-title">
-              <header><span>AUDIT</span><h2 id="admin-audit-title">值守印迹</h2></header>
+              <header><span>AUDIT</span><h2 id="admin-audit-title">管理员审计记录</h2></header>
               <ol>
                 {audit.length === 0 ? (
                   <li className={styles.empty}>还没有管理操作记录。</li>

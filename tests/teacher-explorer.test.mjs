@@ -44,7 +44,7 @@ test("standalone teacher directory keeps its main landmark, masthead, hero and i
   assert.match(html, /^<main class="page" id="main-content">/);
   assert.match(html, /<nav aria-label="教师页导航"/);
   assert.match(html, /<h1 id="teachers-title">教师评价<\/h1>/);
-  assert.match(html, /从学院找老师，或搜索全校姓名；同名教师请核对学院。/);
+  assert.match(html, /同名教师请核对学院。/);
   assert.match(html, /id="teacher-name-query"[^>]*value="李老师"/);
   assert.match(html, /<option value="会计学院" selected="">会计学院<\/option>/);
 });

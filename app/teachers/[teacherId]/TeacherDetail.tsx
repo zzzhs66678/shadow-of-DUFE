@@ -318,7 +318,7 @@ export function TeacherDetail({
     return <main className={styles.page}><PublicMasthead navigationLabel="教师详情导航" items={[{ href: "/?view=catalog", label: "课程" }, { href: "/teachers", label: "教师", current: true }, { href: "/materials", label: "资料" }]} /><div className={styles.fullState}><b>这份教师档案不存在或已撤下。</b><Link href="/teachers">返回教师索引</Link></div></main>;
   }
   if (status === "error") {
-    return <main className={styles.page}><PublicMasthead navigationLabel="教师详情导航" items={[{ href: "/?view=catalog", label: "课程" }, { href: "/teachers", label: "教师", current: true }, { href: "/materials", label: "资料" }]} /><div className={styles.fullState} role="alert"><b>教师档案暂时没有连上。</b><button onClick={() => setRevision((value) => value + 1)}>重新读取</button></div></main>;
+    return <main className={styles.page}><PublicMasthead navigationLabel="教师详情导航" items={[{ href: "/?view=catalog", label: "课程" }, { href: "/teachers", label: "教师", current: true }, { href: "/materials", label: "资料" }]} /><div className={styles.fullState} role="alert"><b>教师档案加载失败。</b><button onClick={() => setRevision((value) => value + 1)}>重新读取</button></div></main>;
   }
   if (!teacher) {
     return <main className={styles.page}><PublicMasthead navigationLabel="教师详情导航" items={[{ href: "/?view=catalog", label: "课程" }, { href: "/teachers", label: "教师", current: true }, { href: "/materials", label: "资料" }]} /><div className={styles.fullState} role="status">正在读取教师档案…</div></main>;
@@ -366,7 +366,7 @@ export function TeacherDetail({
         </div>
         {reviewListStatus === "ready" && nextCursor && (
           <div className={styles.reviewPagination} aria-busy={reviewMoreStatus === "loading"}>
-            {reviewMoreStatus === "error" && <p role="status">后续评价暂时没有加载成功，已读内容仍保留。</p>}
+            {reviewMoreStatus === "error" && <p role="status">更多评价加载失败，已读内容仍保留。</p>}
             <button className={styles.loadMore} disabled={reviewMoreStatus === "loading"} onClick={() => void loadMoreReviews()}>
               {reviewMoreStatus === "loading" ? "正在读取…" : reviewMoreStatus === "error" ? "重新读取更多评价" : "继续查看评价"}
             </button>

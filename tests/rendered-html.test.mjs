@@ -57,11 +57,11 @@ test("server-renders the branded data-loading shell", async () => {
 
   const html = await response.text();
   assert.match(html, /<title>东财之影｜课表、空教室与学习资料<\/title>/i);
-  assert.match(html, /DUFE · STUDENT DESK/);
+  assert.doesNotMatch(html, /DUFE · STUDENT DESK/);
   assert.match(html, /东财之影是面向东北财经大学学生的非官方校园学习工具/);
   assert.match(html, /href="\/\?view=schedule"/);
   assert.match(html, /正在加载课程数据/);
-  assert.match(html, /稍等一下，马上就好/);
+  assert.doesNotMatch(html, /稍等一下，马上就好/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/i);
 });
 
@@ -123,8 +123,8 @@ test("community list and topic routes render independent readable shells", async
   assert.equal(list.status, 200);
   const listHtml = await list.text();
   assert.match(listHtml, /<title>校园回廊｜东财之影<\/title>/i);
-  assert.match(listHtml, /让有用的话/);
-  assert.match(listHtml, /按时间追新/);
+  assert.match(listHtml, /<h1 id="community-title">校园回廊<\/h1>/);
+  assert.doesNotMatch(listHtml, /让有用的话|按时间追新/);
   assert.match(listHtml, /主题排序方式/);
   assert.match(listHtml, />最新<\/button>/);
   assert.match(listHtml, />热议<\/button>/);
@@ -136,7 +136,7 @@ test("community list and topic routes render independent readable shells", async
   );
   assert.equal(detail.status, 200);
   const detailHtml = await detail.text();
-  assert.match(detailHtml, /正在展开这段讨论/);
+  assert.match(detailHtml, /正在加载讨论/);
   assert.match(detailHtml, /href="\/community"/);
 
   const profile = await render(
@@ -145,7 +145,7 @@ test("community list and topic routes render independent readable shells", async
   assert.equal(profile.status, 200);
   const profileHtml = await profile.text();
   assert.match(profileHtml, /<title>社区公开档案｜东财之影<\/title>/i);
-  assert.match(profileHtml, /正在打开公开档案/);
+  assert.match(profileHtml, /正在加载公开档案/);
   assert.match(profileHtml, /href="\/community"/);
 });
 

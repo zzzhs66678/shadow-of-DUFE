@@ -136,7 +136,7 @@ export function CommunityHub() {
 
   async function toggleTopic(topic: CommunityTopic, action: "like" | "bookmark") {
     if (!session?.authenticated) {
-      setFeedback("登录后才能点赞或收藏。可从“我的”完成登录。");
+      setFeedback("请先到“我的”登录，再赞同或收藏。");
       return;
     }
     setBusy(`${action}:${topic.id}`);
@@ -198,34 +198,28 @@ export function CommunityHub() {
       <section className={styles.feedHero} aria-labelledby="community-title">
         <div className={styles.corridorMark} aria-hidden="true"><i /><span>DUFE / VOICES</span></div>
         <div>
-          <span>校园回廊 · {dateMark}</span>
-          <h1 id="community-title">
-            <span>让有用的话，</span>
-            <span>在校园里多走一段。</span>
-          </h1>
-          <p>课程经验、学习方法和校园生活都可以在这里展开。按时间追新，也可以看看正在升温的讨论。</p>
+          <span>{dateMark}</span>
+          <h1 id="community-title">校园回廊</h1>
         </div>
         <aside>
           <strong>{topics.length}</strong>
-          <span>本次已读到的主题</span>
-          <p>公开阅读无需登录；发布、互动与举报需要账号。</p>
+          <span>已加载主题</span>
+          <p>阅读无需登录；发布、互动与举报需登录。</p>
         </aside>
       </section>
 
       <section className={styles.communityWorkspace}>
         <aside className={styles.feedRail}>
-          <span>现在</span>
-          <i />
-          <p>{sort === "latest" ? "按发布时间从新到旧，继续加载可以查看更早的主题。" : "热议按赞同、回复与两周内的新鲜度计算；这一轮翻页使用同一热度时点。"}</p>
+          {sort === "hot" && <p>热议综合赞同、回复与近两周的发布时间排序。</p>}
           {sessionFailed ? (
             <div className={styles.railNotice}>账号状态暂时无法确认，公开内容仍可阅读。</div>
           ) : session?.authenticated ? (
             <>
               <AuthorBadge author={session.user} />
-              <button className={styles.primaryAction} onClick={() => setComposerOpen((value) => !value)}>{composerOpen ? "收起发布区" : "写一条新主题"}</button>
+              <button className={styles.primaryAction} onClick={() => setComposerOpen((value) => !value)}>{composerOpen ? "收起发布区" : "发布主题"}</button>
             </>
           ) : (
-            <div className={styles.loginPrompt}><b>想加入讨论？</b><p>登录后可以发布、回复、收藏和管理通知。</p><Link href="/?view=me">去登录</Link></div>
+            <div className={styles.loginPrompt}><b>登录后加入讨论</b><Link href="/?view=me">去登录</Link></div>
           )}
         </aside>
 
@@ -235,7 +229,6 @@ export function CommunityHub() {
               <button type="button" aria-pressed={sort === "latest"} onClick={() => selectSort("latest")}>最新</button>
               <button type="button" aria-pressed={sort === "hot"} onClick={() => selectSort("hot")}>热议</button>
             </div>
-            <p>{sort === "latest" ? "沿时间向前读" : "发现正在被认真讨论的内容"}</p>
           </div>
           {composerOpen && session?.authenticated && (
             <form className={styles.composer} onSubmit={publish}>
@@ -252,9 +245,9 @@ export function CommunityHub() {
           <Feedback message={feedback} />
           {undoBlock && <div className={styles.undoBar}><span>已屏蔽该用户，其内容将不再显示。</span><button onClick={() => void undoBlockAuthor()} disabled={busy === "undo-block"}>立即撤销</button></div>}
 
-          {feedState === "loading" && topics.length === 0 && <div className={styles.feedState} role="status"><i /><b>正在听回廊里的声音</b><p>主题加载完成后会按时间出现。</p></div>}
-          {feedState === "error" && topics.length === 0 && <div className={styles.feedState} role="alert"><b>回廊暂时没有回应</b><p>检查网络后重新连接，已经发布的内容不会被改动。</p><button onClick={() => void loadTopics(sort)}>重新加载</button></div>}
-          {feedState === "ready" && topics.length === 0 && <div className={styles.feedState}><b>这里还没有主题</b><p>{session?.authenticated ? "写下第一条真实有用的信息，让讨论从这里开始。" : "登录后可以发布第一条主题。"}</p>{session?.authenticated && <button onClick={() => setComposerOpen(true)}>写第一条</button>}</div>}
+          {feedState === "loading" && topics.length === 0 && <div className={styles.feedState} role="status"><i /><b>正在加载主题…</b></div>}
+          {feedState === "error" && topics.length === 0 && <div className={styles.feedState} role="alert"><b>主题加载失败</b><p>检查网络后重试。</p><button onClick={() => void loadTopics(sort)}>重新加载</button></div>}
+          {feedState === "ready" && topics.length === 0 && <div className={styles.feedState}><b>还没有主题</b>{session?.authenticated ? <button onClick={() => setComposerOpen(true)}>发布主题</button> : <p>登录后可发布主题。</p>}</div>}
 
           <ol className={styles.topicStream} aria-label={sort === "latest" ? "最新主题" : "热议主题"}>
             {topics.map((topic) => (
@@ -279,8 +272,8 @@ export function CommunityHub() {
             ))}
           </ol>
 
-          {nextCursor && <button className={styles.loadMore} onClick={() => void loadTopics(sort, nextCursor, true)} disabled={feedState === "loading"}>{feedState === "loading" ? "正在继续读取" : "继续往前走"}</button>}
-          {feedState === "error" && topics.length > 0 && <button className={styles.loadMore} onClick={() => void loadTopics(sort, nextCursor ?? undefined, Boolean(nextCursor))}>这一段没有加载成功，重试</button>}
+          {nextCursor && <button className={styles.loadMore} onClick={() => void loadTopics(sort, nextCursor, true)} disabled={feedState === "loading"}>{feedState === "loading" ? "正在加载" : "加载更多主题"}</button>}
+          {feedState === "error" && topics.length > 0 && <button className={styles.loadMore} onClick={() => void loadTopics(sort, nextCursor ?? undefined, Boolean(nextCursor))}>加载失败，重试</button>}
         </div>
       </section>
 

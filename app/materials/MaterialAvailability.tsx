@@ -33,8 +33,8 @@ export function MaterialAvailability({
   if (state === "missing" || state === "denied") {
     return (
       <div className={styles.availabilityWarning} role="alert">
-        <b>{state === "missing" ? "文件暂时不在资料架上" : "这份文件当前不可公开访问"}</b>
-        <p>{state === "missing" ? "索引仍然保留，但文件可能正在整理或已经撤下。" : "资料可能需要额外授权，当前不会绕过访问限制。"}</p>
+        <b>{state === "missing" ? "文件暂时不可用" : "文件访问受限"}</b>
+        <p>{state === "missing" ? "资料记录仍保留，文件可能正在整理或已撤下。" : "文件当前不可公开访问，可能需要额外授权。"}</p>
         <Link href="/materials">返回资料搜索</Link>
       </div>
     );

@@ -472,7 +472,7 @@ async function withPage(width, scenario, run) {
     await page.goto(`${base.origin}${teacherPath}`);
     await expect(page.getByText(firstReview.body, { exact: true })).toBeVisible();
     await page.getByRole('button', { name: '继续查看评价', exact: true }).click();
-    await expect(page.getByText('后续评价暂时没有加载成功，已读内容仍保留。', { exact: true })).toBeVisible();
+    await expect(page.getByText('更多评价加载失败，已读内容仍保留。', { exact: true })).toBeVisible();
     await expect(page.getByText(firstReview.body, { exact: true })).toBeVisible();
     await page.getByRole('button', { name: '重新读取更多评价', exact: true }).click();
     await expect(page.getByText(secondReview.body, { exact: true })).toBeVisible();

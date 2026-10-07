@@ -85,7 +85,7 @@ export default async function MaterialDetailPage({ params }: PageProps) {
             <div><dt>教师</dt><dd>{material.teachers.length ? material.teachers.join(" / ") : "未标注"}</dd></div>
             <div><dt>文件</dt><dd>{material.kind} · {material.extension.replace(".", "").toUpperCase()} · {fileSize(material.sizeBytes)}</dd></div>
             <div><dt>适用范围</dt><dd>{material.terms.map((item) => item === "fall" ? "上学期" : "下学期").join(" / ") || "未标注"}{material.years.length ? ` · 大${material.years.map((item) => "一二三四"[item - 1]).join(" / 大")}` : ""}</dd></div>
-            <div><dt>站内收录</dt><dd>{catalogDate(material.catalogedAt)}<small>这是本站整理入库时间，不等同于原文件发布时间。</small></dd></div>
+            <div><dt>站内收录</dt><dd>{catalogDate(material.catalogedAt)}<small>收录时间不等同于原文件发布时间。</small></dd></div>
           </dl>
           <MaterialAvailability downloadUrl={material.downloadUrl} previewUrl={material.previewUrl} previewable={material.previewable} />
         </div>

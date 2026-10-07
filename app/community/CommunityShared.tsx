@@ -137,7 +137,6 @@ export function ReportDialog({
         aria-labelledby="community-report-title"
         onSubmit={submit}
       >
-        <span>社区安全</span>
         <h2 id="community-report-title">举报“{target.label}”</h2>
         <p>举报不会通知对方。审核员会看到你选择的原因和补充说明。</p>
         <FormField label="问题类型">
@@ -248,12 +247,12 @@ export function NotificationsPanel({
     <div className={styles.panelBackdrop} onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <aside ref={panelRef} className={styles.notificationsPanel} role="dialog" aria-modal="true" aria-labelledby="notifications-title">
         <header>
-          <div><span>回声</span><h2 id="notifications-title">通知</h2></div>
+          <div><h2 id="notifications-title">通知</h2></div>
           <button onClick={onClose} aria-label="关闭通知">×</button>
         </header>
-        {status === "loading" && <p className={styles.panelState} role="status">正在取回通知…</p>}
-        {status === "error" && <p className={styles.panelState} role="alert">通知暂时没有加载成功。关闭后可以再试一次。</p>}
-        {status === "ready" && items.length === 0 && <p className={styles.panelState}>这里还没有新消息。有人回复或提到你时，会出现在这里。</p>}
+        {status === "loading" && <p className={styles.panelState} role="status">正在加载通知…</p>}
+        {status === "error" && <p className={styles.panelState} role="alert">通知加载失败，请关闭后重试。</p>}
+        {status === "ready" && items.length === 0 && <p className={styles.panelState}>暂无通知。</p>}
         {status === "ready" && items.length > 0 && (
           <>
             <button className={styles.readAll} onClick={markAll} disabled={busy === "all"}>全部标为已读</button>

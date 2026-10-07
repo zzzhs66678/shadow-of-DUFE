@@ -463,9 +463,7 @@ export function MaterialsExplorer({
 
       <div className={embedded ? styles.embeddedSearch : styles.hero}>
         {embedded ? <h2 id={titleId} className={styles.visuallyHidden}>学习资料</h2> : <div className={styles.heroCopy}>
-          <span>东财课程资料档案</span>
-          <h1 id={titleId}>按课程、教师或文件名找资料</h1>
-          <p>支持预览与下载。</p>
+          <h1 id={titleId}>学习资料</h1>
         </div>}
         <label className={styles.searchField}>
           <span>搜索资料</span>
@@ -593,7 +591,7 @@ export function MaterialsExplorer({
 
           {status === "ready" && result?.items.length === 0 && (
             <div className={styles.stateCard}>
-              <b>这一组条件下没有资料</b>
+              <b>没有找到符合条件的资料</b>
               <p>清空筛选或换个关键词。</p>
               <button onClick={clearFilters}>回到全部资料</button>
             </div>

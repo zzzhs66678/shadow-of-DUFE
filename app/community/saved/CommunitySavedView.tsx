@@ -118,23 +118,22 @@ export function CommunitySavedView() {
     <main className={styles.page}>
       <CommunityHeader session={session} unread={unread} onOpenNotifications={() => setNotificationsOpen(true)} current="saved" />
       <section className={styles.savedHero}>
-        <span>PRIVATE INDEX · 只对你可见</span>
+        <span>只对你可见</span>
         <h1>我的社区存档</h1>
-        <p>把想再读的讨论留在这里，也随时检查自己屏蔽过的账号。收藏与屏蔽关系不会公开展示。</p>
       </section>
       <section className={styles.savedWorkspace} id="community-saved" aria-labelledby="saved-title">
         <header>
-          <div><span>整理台</span><h2 id="saved-title">留存与边界</h2></div>
+          <div><h2 id="saved-title">收藏与屏蔽</h2></div>
           <div className={styles.savedTabs} role="group" aria-label="社区存档分类">
             <button aria-pressed={tab === "bookmarks"} onClick={() => selectTab("bookmarks")}>我的收藏</button>
             <button aria-pressed={tab === "blocks"} onClick={() => selectTab("blocks")}>已屏蔽账号</button>
           </div>
         </header>
         <Feedback message={feedback} />
-        {state === "anonymous" && <div className={styles.savedState}><b>登录后才能查看私人存档</b><p>这些记录跟随账号保存在云端，不会混入匿名设备数据。</p><Link href="/?view=me">前往“我的”登录</Link></div>}
-        {state === "error" && <div className={styles.savedState} role="alert"><b>存档暂时没有取回</b><p>检查网络后再试一次，现有收藏和屏蔽记录不会丢失。</p><button onClick={() => void load(tab)}>重新读取</button></div>}
-        {state === "loading" && <div className={styles.savedState} role="status"><b>正在整理存档…</b></div>}
-        {empty && <div className={styles.savedState}><b>{tab === "bookmarks" ? "还没有收藏主题" : "没有已屏蔽账号"}</b><p>{tab === "bookmarks" ? "在主题页点“收藏”，之后就能从这里继续阅读。" : "屏蔽是你控制阅读边界的工具，需要时再使用即可。"}</p><Link href="/community">返回校园回廊</Link></div>}
+        {state === "anonymous" && <div className={styles.savedState}><b>登录后查看社区存档</b><Link href="/?view=me">去登录</Link></div>}
+        {state === "error" && <div className={styles.savedState} role="alert"><b>存档加载失败</b><p>检查网络后重试。</p><button onClick={() => void load(tab)}>重新读取</button></div>}
+        {state === "loading" && <div className={styles.savedState} role="status"><b>正在加载存档…</b></div>}
+        {empty && <div className={styles.savedState}><b>{tab === "bookmarks" ? "还没有收藏主题" : "没有已屏蔽账号"}</b><Link href="/community">返回校园回廊</Link></div>}
         {state === "ready" && tab === "bookmarks" && bookmarks.length > 0 && (
           <ol className={styles.savedList}>
             {bookmarks.map((item) => <li key={item.topicId}>

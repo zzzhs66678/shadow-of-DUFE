@@ -24,7 +24,6 @@ export default function Home() {
       </a>
       <section className="preload-intro" aria-labelledby="preload-title">
         <div>
-          <span>DUFE · STUDENT DESK</span>
           <h1 id="preload-title">东财之影</h1>
           <p>{siteDescription}</p>
         </div>
@@ -32,8 +31,8 @@ export default function Home() {
           <Link href="/?view=schedule">我的课表</Link>
           <Link href="/?view=rooms">空教室</Link>
           <Link href="/?view=catalog">课程</Link>
-          <Link href="/teachers">教师档案</Link>
-          <Link href="/materials">课程资料</Link>
+          <Link href="/teachers">教师评价</Link>
+          <Link href="/materials">学习资料</Link>
         </nav>
       </section>
       <DufeHubV2 />

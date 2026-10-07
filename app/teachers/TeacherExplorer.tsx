@@ -184,7 +184,7 @@ export function TeacherExplorer({ initialQuery = "", initialCollege = "", embedd
       <section className={embedded ? styles.embeddedSearch : styles.hero} aria-labelledby={titleId}>
         {embedded ? <h2 id={titleId} className={styles.visuallyHidden}>教师评价</h2> : <div className={styles.heroCopy}>
           <h1 id={titleId}>教师评价</h1>
-          <p>从学院找老师，或搜索全校姓名；同名教师请核对学院。</p>
+          <p>同名教师请核对学院。</p>
         </div>}
         <div className={styles.searchField} role="search" aria-label="全校教师搜索">
           <label htmlFor={queryId}>全校姓名搜索</label>
@@ -198,7 +198,7 @@ export function TeacherExplorer({ initialQuery = "", initialCollege = "", embedd
 
       {Boolean(personalContext?.teacherNames.length) && (
         <section className={styles.personalContext} aria-label="本学期教师">
-          <div><span>本学期教师</span><p>来自已导入课表；同名教师，请按学院确认。</p></div>
+          <div><span>本学期教师</span><p>来自已导入课表；同名教师请核对学院。</p></div>
           <div>{personalContext?.teacherNames.map((name) => (
             <button type="button" key={name} onClick={() => changeFilters(name, "")}>{name}</button>
           ))}</div>
@@ -211,13 +211,13 @@ export function TeacherExplorer({ initialQuery = "", initialCollege = "", embedd
           {hasFilter && <button type="button" onClick={() => changeFilters("", "")}>返回学院索引</button>}
         </header>
         {collegeStatus === "loading" && <p role="status">正在读取学院…</p>}
-        {collegeStatus === "error" && <div className={styles.inlineEmpty} role="alert">学院暂时没有加载成功，仍可搜索全校姓名。 <button type="button" onClick={() => setRevision((value) => value + 1)}>重新读取学院</button></div>}
+        {collegeStatus === "error" && <div className={styles.inlineEmpty} role="alert">学院加载失败，仍可搜索全校姓名。 <button type="button" onClick={() => setRevision((value) => value + 1)}>重新读取学院</button></div>}
         {!hasFilter && collegeStatus === "ready" && (
           colleges.length ? <div className={styles.collegeList}>
             {colleges.map((item) => <button type="button" key={item.key} onClick={() => changeFilters("", item.key)}>
               <span>{item.name}</span><small>{item.teacherCount} 位教师</small><span aria-hidden="true">→</span>
             </button>)}
-          </div> : <div className={styles.inlineEmpty}><p>教师档案尚未整理入库。</p><p>教师身份尚未入库，评价功能暂不可用。</p></div>
+          </div> : <div className={styles.inlineEmpty}><p>暂无教师档案，暂时无法评价。</p></div>
         )}
         {hasFilter && <>
           <div className={styles.directoryFilter}>
@@ -229,7 +229,7 @@ export function TeacherExplorer({ initialQuery = "", initialCollege = "", embedd
             </select>
             <p role="status">{status === "loading" ? "正在查找教师…" : status === "error" ? "读取失败" : `已显示 ${items.length} 位${nextCursor ? "，可继续加载" : ""}`}</p>
           </div>
-          {status === "error" && <div className={styles.state} role="alert"><b>教师档案暂时没有连上。</b><p>搜索词与学院已保留。</p><button type="button" onClick={() => setRevision((value) => value + 1)}>重新读取</button></div>}
+          {status === "error" && <div className={styles.state} role="alert"><b>教师档案加载失败。</b><p>搜索词与学院已保留。</p><button type="button" onClick={() => setRevision((value) => value + 1)}>重新读取</button></div>}
           {status === "ready" && items.length === 0 && <p className={styles.inlineEmpty}>没有找到对应教师。试试完整姓名或切换学院，同名记录不会自动合并。</p>}
           <div className={styles.teacherList} aria-busy={status === "loading"}>
             {items.map((teacher) => <Link key={teacher.id} href={`/teachers/${teacher.id}`}>
@@ -238,7 +238,7 @@ export function TeacherExplorer({ initialQuery = "", initialCollege = "", embedd
               <span className={styles.openLabel}>阅读评价 →</span>
             </Link>)}
           </div>
-          {moreStatus === "error" && <p role="status">后续教师暂时没有加载成功，已显示的教师仍保留。</p>}
+          {moreStatus === "error" && <p role="status">更多教师加载失败，已显示的教师仍保留。</p>}
           {nextCursor && status === "ready" && <button className={styles.loadMore} type="button" onClick={() => void loadMore()} disabled={moreStatus === "loading"}>
             {moreStatus === "loading" ? "正在继续读取" : moreStatus === "error" ? "重新读取更多教师" : "继续查看教师"}
           </button>}

@@ -523,7 +523,7 @@ test("official timetable and exams import through SMS and school verification", 
     page.getByRole("heading", { name: "继续读取教务数据" }),
   ).toBeVisible();
   await expect(page.getByRole("alert")).toContainText(
-    "学校调整了课表页面",
+    "课表暂时读不完整，本次未导入，已有课表未改动",
   );
   await expect(page.getByRole("alert")).toContainText(
     "学校登录仍有效",
