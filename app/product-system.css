@@ -3311,12 +3311,25 @@ button.plan-course-main:hover .plan-course-copy strong {
 }
 
 .floor-selector {
+  align-content: start;
+  align-self: start;
   background: var(--ui-surface-subtle);
   border-right: 1px solid var(--ui-border);
+  gap: 4px;
 }
 
 .floor-selector button {
   border-radius: var(--ui-radius-md);
+  min-height: 48px;
+  min-width: 44px;
+}
+
+.floor-selector > span {
+  font-size: 12px;
+}
+
+.floor-selector button small {
+  font-size: 11px;
 }
 
 .floor-selector button.active {
@@ -3584,6 +3597,29 @@ button.plan-course-main:hover .plan-course-copy strong {
 .calendar-editor label > span,
 .event-colors legend {
   color: var(--ui-text-secondary);
+}
+
+.calendar-editor .editor-time-range {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.calendar-editor label,
+.calendar-editor input,
+.calendar-editor select {
+  min-width: 0;
+}
+
+.calendar-editor input[type="time"],
+.calendar-editor input[type="date"] {
+  font-variant-numeric: tabular-nums;
+  min-height: 44px;
+}
+
+.calendar-editor > header button {
+  height: 44px;
+  width: 44px;
 }
 
 .calendar-editor footer {
@@ -4174,21 +4210,30 @@ button.plan-course-main:hover .plan-course-copy strong {
   }
 
   .indoor-map {
-    display: block;
+    display: grid;
+    grid-template-columns: 60px minmax(0, 1fr);
   }
 
   .floor-selector {
-    border-bottom: 1px solid var(--ui-border);
-    border-right: 0;
-    display: flex;
-    gap: 5px;
-    overflow-x: auto;
-    padding: 10px;
+    border: 0;
+    border-right: 1px solid var(--ui-border);
+    display: grid;
+    grid-column: 1;
+    grid-row: 1;
+    padding: 8px 7px;
   }
 
   .floor-selector button {
-    flex: 0 0 auto;
-    min-height: 38px;
+    min-height: 48px;
+  }
+
+  .floor-canvas {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .map-summary {
+    grid-column: 1 / -1;
   }
 
   .floor-canvas,
@@ -4199,12 +4244,21 @@ button.plan-course-main:hover .plan-course-copy strong {
 
   .floor-rooms-v5 {
     gap: 6px;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .floor-rooms-v5 button {
     min-width: 0;
     padding: 9px 5px;
+  }
+
+  .floor-rooms-v5 button strong {
+    font-size: 16px;
+  }
+
+  .floor-rooms-v5 button span {
+    font-size: 12px;
+    line-height: 1.5;
   }
 
   .room-tools-body,

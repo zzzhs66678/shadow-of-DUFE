@@ -16,6 +16,10 @@ export type PersonalActivity = {
   title: string;
   weekday: number;
   block: number;
+  startTime?: string;
+  endTime?: string;
+  date?: string;
+  repeat?: "none" | "weekly";
   location: string;
   notes: string;
   color: "red" | "blue" | "green" | "amber";
@@ -370,7 +374,13 @@ function normalizeState(state: PersonalSyncState): PersonalSyncState {
 }
 
 function equal(left: unknown, right: unknown) {
-  return JSON.stringify(left) === JSON.stringify(right);
+  // API projections and local editors can insert the same fields in different
+  // orders. Compare all values (including event clocks), not property order.
+  const canonical = (value: unknown) => JSON.stringify(value, (_key, item) =>
+    item && typeof item === "object" && !Array.isArray(item)
+      ? Object.fromEntries(Object.keys(item).sort().map((key) => [key, item[key]]))
+      : item);
+  return canonical(left) === canonical(right);
 }
 
 function mergeInitialRecords<T extends { id: string }>(

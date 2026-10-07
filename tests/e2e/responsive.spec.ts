@@ -56,6 +56,35 @@ for (const view of views) {
   });
 }
 
+test("floor navigation stays left and opens the selected room week", async ({ page }, testInfo) => {
+  await page.goto("/?view=rooms", { waitUntil: "domcontentloaded" });
+  const floors = page.getByRole("navigation", { name: "选择楼层" });
+  await expect(floors).toBeVisible();
+  const floorButtons = floors.getByRole("button");
+  expect(await floorButtons.count()).toBeGreaterThan(0);
+  const floorBox = await floors.boundingBox();
+  const roomBox = await page.locator(".floor-canvas").boundingBox();
+  expect(floorBox!.x + floorBox!.width).toBeLessThanOrEqual(roomBox!.x + 1);
+  expect(Math.abs(floorBox!.y - roomBox!.y)).toBeLessThanOrEqual(1);
+  const target = floorButtons.last();
+  await target.click();
+  await expect(target).toHaveAttribute("aria-pressed", "true");
+  for (const button of await floorButtons.all()) {
+    const box = await button.boundingBox();
+    expect(box!.height).toBeGreaterThanOrEqual(44);
+    expect(box!.width).toBeGreaterThanOrEqual(44);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  await page.locator(".indoor-map").screenshot({ path: testInfo.outputPath("left-floors.png") });
+  const room = page.locator(".floor-rooms-v5 button").first();
+  if (await room.count()) {
+    const roomName = await room.locator("strong").textContent();
+    await room.click();
+    await expect(page.locator("#room-week-schedule")).toBeVisible();
+    await expect(page.locator("#room-week-schedule")).toContainText(roomName!);
+  }
+});
+
 test("personal course context reorders discovery without hiding schoolwide results", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-390", "covered once at the primary mobile width");
 

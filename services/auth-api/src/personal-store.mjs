@@ -69,7 +69,8 @@ async function readPersonalState(database, userId) {
   const plans = [...planMap.values()];
 
   const activitiesResult = await database.query(
-    `SELECT client_id, title, weekday, block, location, notes, color
+    `SELECT client_id, title, weekday, block, location, notes, color,
+            start_time, end_time, event_date::text, repeat_rule
      FROM personal_activities
      WHERE user_id = $1
        AND deleted_at IS NULL
@@ -136,6 +137,12 @@ async function readPersonalState(database, userId) {
         location: row.location,
         notes: row.notes,
         color: row.color,
+        ...(row.start_time ? {
+          startTime: row.start_time,
+          endTime: row.end_time,
+          repeat: row.repeat_rule,
+          ...(row.event_date ? { date: row.event_date } : {}),
+        } : {}),
       })),
       assignments: assignmentsResult.rows.map((row) => ({
         id: row.client_id,
@@ -369,6 +376,7 @@ async function upsertActivities(
        location,
        notes,
        color,
+       start_time, end_time, event_date, repeat_rule,
        revision,
        client_updated_at
      )
@@ -381,6 +389,7 @@ async function upsertActivities(
        incoming.location,
        incoming.notes,
        incoming.color,
+       incoming.start_time, incoming.end_time, incoming.event_date, incoming.repeat_rule,
        $2,
        $3
      FROM jsonb_to_recordset($4::jsonb) AS incoming(
@@ -390,13 +399,18 @@ async function upsertActivities(
        block smallint,
        location text,
        notes text,
-       color text
+       color text,
+       start_time text, end_time text, event_date date, repeat_rule text
      )
      ON CONFLICT (user_id, client_id) DO UPDATE
      SET
        title = EXCLUDED.title,
-       weekday = EXCLUDED.weekday,
-       block = EXCLUDED.block,
+       weekday = CASE WHEN EXCLUDED.start_time IS NULL AND personal_activities.start_time IS NOT NULL THEN personal_activities.weekday ELSE EXCLUDED.weekday END,
+       block = CASE WHEN EXCLUDED.start_time IS NULL AND personal_activities.start_time IS NOT NULL THEN personal_activities.block ELSE EXCLUDED.block END,
+       start_time = COALESCE(EXCLUDED.start_time, personal_activities.start_time),
+       end_time = COALESCE(EXCLUDED.end_time, personal_activities.end_time),
+       event_date = CASE WHEN EXCLUDED.start_time IS NULL THEN personal_activities.event_date ELSE EXCLUDED.event_date END,
+       repeat_rule = COALESCE(EXCLUDED.repeat_rule, personal_activities.repeat_rule),
        location = EXCLUDED.location,
        notes = EXCLUDED.notes,
        color = EXCLUDED.color,
@@ -417,6 +431,10 @@ async function upsertActivities(
           location: item.location,
           notes: item.notes,
           color: item.color,
+          start_time: item.startTime ?? null,
+          end_time: item.endTime ?? null,
+          event_date: item.date ?? null,
+          repeat_rule: item.repeat ?? null,
         })),
       ),
     ],

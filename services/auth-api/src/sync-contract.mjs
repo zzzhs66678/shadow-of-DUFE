@@ -120,6 +120,29 @@ function plan(value, index) {
 
 function activity(value, index) {
   const input = object(value, `state.activities[${index}]`);
+  const clock = {};
+  if (["startTime", "endTime", "date", "repeat"].some((key) => Object.hasOwn(input, key))) {
+    if (typeof input.startTime !== "string" || typeof input.endTime !== "string" ||
+        !TIME_PATTERN.test(input.startTime) || !TIME_PATTERN.test(input.endTime) ||
+        input.endTime <= input.startTime || !["none", "weekly"].includes(input.repeat)) {
+      throw invalid(`state.activities[${index}] requires same-day start/end HH:mm and repeat`);
+    }
+    if (input.date !== undefined) {
+      if (typeof input.date !== "string" || !DATE_PATTERN.test(input.date) ||
+          input.date < "2000-01-01" || input.date > "2100-12-31" ||
+          !Number.isFinite(Date.parse(`${input.date}T00:00:00Z`)) ||
+          new Date(`${input.date}T00:00:00Z`).toISOString().slice(0, 10) !== input.date ||
+          (new Date(`${input.date}T12:00:00Z`).getUTCDay() || 7) !== input.weekday) {
+        throw invalid(`state.activities[${index}].date must be a valid date matching weekday`);
+      }
+      clock.date = input.date;
+    } else if (input.repeat === "none") {
+      throw invalid(`state.activities[${index}].date is required for one-off events`);
+    }
+    clock.startTime = input.startTime;
+    clock.endTime = input.endTime;
+    clock.repeat = input.repeat;
+  }
   if (!COLORS.has(input.color)) {
     throw invalid(`state.activities[${index}].color is unsupported`);
   }
@@ -149,6 +172,7 @@ function activity(value, index) {
       4000,
     ),
     color: input.color,
+    ...clock,
   };
 }
 

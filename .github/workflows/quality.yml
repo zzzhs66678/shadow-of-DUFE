@@ -349,6 +349,8 @@ jobs:
           node --test tests/release-readiness.test.mjs
           node --test tests/staging-release-contract.test.mjs
           node --test tests/personal-storage.test.ts tests/personal-sync.test.ts
+          node --test tests/personal-events.test.ts tests/personal-events-store.test.mjs
+          node scripts/export-ui-copy.mjs --self-test
           npm test --prefix services/auth-api
           npm run test:xiaoying
       - name: Validate the isolated staging topology

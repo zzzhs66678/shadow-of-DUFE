@@ -4374,8 +4374,6 @@ kbd {
   background: transparent;
   border: 1px solid var(--line);
   border-radius: 50%;
-  height: 34px;
-  width: 34px;
 }
 
 .calendar-editor label {
@@ -6721,7 +6719,6 @@ kbd {
 }
 
 .floor-selector {
-  align-content: center;
   border: 1px solid var(--map-line);
   display: grid;
   grid-auto-rows: minmax(46px, auto);
@@ -6731,7 +6728,6 @@ kbd {
 .floor-selector > span {
   align-self: end;
   color: var(--map-muted);
-  font-size: 8px;
   padding: 0 0 8px;
   text-align: center;
 }
@@ -6750,7 +6746,6 @@ kbd {
 }
 
 .floor-selector button small {
-  font-size: 8px;
   margin-top: 4px;
 }
 

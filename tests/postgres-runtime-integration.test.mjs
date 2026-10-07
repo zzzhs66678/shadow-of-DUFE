@@ -1187,7 +1187,10 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
         scheduleIds: ["ci-section-meeting-1", "ci-section-meeting-2"],
       }],
       activePlanId: "default",
-      activities: [],
+      activities: [
+        { id: "ci-legacy-weekly", title: "旧每周例会", weekday: 7, block: 2, location: "", notes: "", color: "red" },
+        { id: "ci-clock-event", title: "周末日程", weekday: 7, block: 2, location: "图书馆", notes: "", color: "green", date: "2026-10-11", repeat: "none", startTime: "12:05", endTime: "12:45" },
+      ],
       assignments: [],
       favoriteRooms: ["之远楼401"],
       recentRooms: ["笃行楼302"],
@@ -1209,6 +1212,8 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
     assert.equal(syncWrite.status, 200);
     assert.equal(syncWriteBody.revision, 1);
     assert.equal(syncWriteBody.state.plans[0].scheduleIds.length, 2);
+    assert.deepEqual([...syncWriteBody.state.activities].sort((a, b) => a.id.localeCompare(b.id)),
+      [...syncState.activities].sort((a, b) => a.id.localeCompare(b.id)));
 
     const syncRetry = await fetch(`${baseUrl}/api/auth/sync`, {
       method: "PUT",
@@ -1235,6 +1240,28 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
     });
     assert.equal(staleSync.status, 409);
     assert.equal((await staleSync.json()).revision, 1);
+
+    // Old tabs may send only block-based fields after reading a new snapshot.
+    // They may edit titles, but must not turn one-off events into weekly ones.
+    const oldClientActivities = syncState.activities.map((item) => ({
+      id: item.id, title: item.title, weekday: 1, block: 4,
+      location: item.location, notes: item.notes, color: item.color,
+    }));
+    const legacyWrite = await fetch(`${baseUrl}/api/auth/sync`, {
+      method: "PUT", headers: { ...requestHeaders, Cookie: owner.cookie },
+      body: JSON.stringify({ ...syncMutation, mutationId: `ci-sync-${suffix}-0003`, baseRevision: 1, state: { ...syncState, activities: oldClientActivities } }),
+    });
+    assert.equal(legacyWrite.status, 200);
+    const legacyBody = await legacyWrite.json();
+    assert.deepEqual(legacyBody.state.activities.find((item) => item.id === "ci-clock-event"), syncState.activities[1]);
+    const syncRead = await fetch(`${baseUrl}/api/auth/sync`, { headers: { Cookie: owner.cookie } });
+    assert.equal(syncRead.status, 200);
+    assert.deepEqual((await syncRead.json()).state.activities, legacyBody.state.activities);
+    const invalidClock = await fetch(`${baseUrl}/api/auth/sync`, {
+      method: "PUT", headers: { ...requestHeaders, Cookie: owner.cookie },
+      body: JSON.stringify({ ...syncMutation, mutationId: `ci-sync-${suffix}-invalid`, baseRevision: 2, state: { ...syncState, activities: [{ ...syncState.activities[1], endTime: "12:05" }] } }),
+    });
+    assert.equal(invalidClock.status, 400);
 
     const ratings = {
       courseOrganization: 5,

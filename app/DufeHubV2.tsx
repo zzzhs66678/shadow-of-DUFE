@@ -36,6 +36,8 @@ import {
   type PersonalSyncState,
 } from "./personal-sync";
 import { FormField } from "./FormField";
+import { useModalFocus } from "./use-modal-focus";
+import { activityTimes, activityTimeLabel, activityTimesOverlap, activityStart, activityBlock, activityOccursOn, activityListOrder, clockMinutes, eventWeekDate, validEventTimes, validEventDate } from "./personal-events";
 import { TeacherRecordLink } from "./TeacherRecordLink";
 import { TeachingSectionLinks } from "./TeachingSectionLinks";
 import { authoritativeSchedules, isSameScheduledMeeting, mergePersonalSchedules, scheduledMeetingsOverlap as schedulesOverlap } from "./schedule-reconciliation";
@@ -221,6 +223,10 @@ type PersonalActivity = {
   title: string;
   weekday: number;
   block: number;
+  startTime?: string;
+  endTime?: string;
+  date?: string;
+  repeat?: "none" | "weekly";
   location: string;
   notes: string;
   color: "red" | "blue" | "green" | "amber";
@@ -278,7 +284,7 @@ type AccountState = {
 };
 type CloudSyncStatus = "local" | "syncing" | "synced" | "conflict" | "offline";
 type CalendarEditorRequest =
-  | { kind: "activity"; weekday?: number; block?: number; id?: string }
+  | { kind: "activity"; date?: string; weekday?: number; block?: number; id?: string }
   | { kind: "assignment"; courseId?: string; id?: string };
 type SearchItem = {
   key: string;
@@ -1872,7 +1878,9 @@ function HubApp({ data: initialData }: { data: SiteData }) {
               ),
             }))
           }
-          onDeleteCalendar={(kind, id) =>
+          onDeleteCalendar={(kind, id) => {
+            const activity = saved.activities.find((item) => item.id === id);
+            if (kind === "activity" && !window.confirm(`删除日程“${activity?.title ?? ""}”？${activity?.repeat !== "none" ? "这会删除每周重复的整项日程。" : ""}`)) return;
             setSaved((state) => ({
               ...state,
               activities:
@@ -1883,8 +1891,8 @@ function HubApp({ data: initialData }: { data: SiteData }) {
                 kind === "assignment"
                   ? state.assignments.filter((item) => item.id !== id)
                   : state.assignments,
-            }))
-          }
+            }));
+          }}
         />
       )}
       {fullDataRequired && fullDataStatus !== "ready" && (
@@ -2451,6 +2459,7 @@ function HomePage({
   const hasTimetable = Boolean(saved.profile) || activeSchedules.length > 0;
   const today = weekdayNumber(new Date());
   const nowBlock = currentBlock();
+  const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
   const todayCourses = activeSchedules
     .filter(
       (item) =>
@@ -2460,8 +2469,8 @@ function HomePage({
     )
     .sort((a, b) => a.block - b.block);
   const todayActivities = saved.activities
-    .filter((item) => item.weekday === today)
-    .sort((a, b) => a.block - b.block);
+    .filter((item) => activityOccursOn(item, todayISO()))
+    .sort((a, b) => activityStart(a) - activityStart(b));
   const todayAssignments = saved.assignments.filter(
     (item) => !item.completed && item.dueDate === todayISO(),
   );
@@ -2492,7 +2501,7 @@ function HomePage({
     ...todayCourses.map((item) => ({
       key: `course-${item.id}`,
       kind: "course" as const,
-      order: item.block * 100,
+      order: activityStart(item),
       eyebrow: data.periods[item.block - 1]?.short || `第 ${item.block} 大节`,
       title: item.title,
       meta: `${item.building}${item.room} · ${item.teacher || "教师未标注"}`,
@@ -2501,8 +2510,8 @@ function HomePage({
     ...todayActivities.map((item) => ({
       key: `activity-${item.id}`,
       kind: "activity" as const,
-      order: item.block * 100 + 1,
-      eyebrow: data.periods[item.block - 1]?.short || `第 ${item.block} 大节`,
+      order: activityStart(item),
+      eyebrow: activityTimeLabel(item),
       title: item.title,
       meta: `${item.location || "未设置地点"} · 个人日程`,
       item,
@@ -2510,7 +2519,7 @@ function HomePage({
     ...todayAssignments.map((item) => ({
       key: `assignment-${item.id}`,
       kind: "assignment" as const,
-      order: 999,
+      order: 1440,
       eyebrow: "今天截止",
       title: item.title,
       meta: data.courses.find((course) => course.id === item.courseId)?.title ||
@@ -2533,19 +2542,19 @@ function HomePage({
       .map((item) => ({
         key: `future-course-${iso}-${item.id}`,
         kind: "course" as const,
-        order: item.block,
+        order: activityStart(item),
         title: item.title,
         meta: `${data.periods[item.block - 1]?.short} · ${item.building}${item.room}`,
         item,
       }));
     const activities = saved.activities
-      .filter((item) => item.weekday === weekday)
+      .filter((item) => activityOccursOn(item, iso))
       .map((item) => ({
         key: `future-activity-${iso}-${item.id}`,
         kind: "activity" as const,
-        order: item.block + 0.1,
+        order: activityStart(item),
         title: item.title,
-        meta: `${data.periods[item.block - 1]?.short} · ${item.location || "个人日程"}`,
+        meta: `${activityTimeLabel(item)} · ${item.location || "个人日程"}`,
         item,
       }));
     const assignments = saved.assignments
@@ -2553,7 +2562,7 @@ function HomePage({
       .map((item) => ({
         key: `future-assignment-${item.id}`,
         kind: "assignment" as const,
-        order: 99,
+        order: 1440,
         title: item.title,
         meta: `${data.courses.find((course) => course.id === item.courseId)?.title || "未关联课程"} · 截止`,
         item,
@@ -2573,7 +2582,8 @@ function HomePage({
   const primaryClass =
     todayCourses.find((item) => item.block >= nowBlock) ?? nextClass;
   const nextThree = todayAgenda
-    .filter((item) => item.order >= nowBlock * 100 || item.kind === "assignment")
+    .filter((item) => item.kind === "assignment" ||
+      clockMinutes(activityTimes(item.item)[1]) > new Date().getHours() * 60 + new Date().getMinutes())
     .slice(0, 3);
 
   return (
@@ -2808,7 +2818,7 @@ function HomePage({
             todayAgenda.map((agenda) => (
               <article
                 key={agenda.key}
-                className={`agenda-row ${agenda.kind} ${agenda.order < nowBlock * 100 ? "past" : ""}`}
+                className={`agenda-row ${agenda.kind} ${agenda.kind !== "assignment" && clockMinutes(activityTimes(agenda.item)[1]) <= nowMinutes ? "past" : ""}`}
               >
                 <time>{agenda.eyebrow}</time>
                 <span>
@@ -4521,7 +4531,7 @@ function SchedulePage({
   const [showFullWeek, setShowFullWeek] = useState(false);
   const visibleWeekdays = [1, 2, 3, 4, 5, 6, 7].filter((day) =>
     day <= 5 || showFullWeek || activeSchedules.some((item) => item.weekday === day) ||
-    saved.activities.some((item) => item.weekday === day),
+    saved.activities.some((item) => activityOccursOn(item, eventWeekDate(day))),
   );
   const [draggingScheduleId, setDraggingScheduleId] = useState("");
   const [lastRemovedId, setLastRemovedId] = useState("");
@@ -4675,7 +4685,7 @@ function SchedulePage({
             schedule: item,
           })),
         ...saved.activities
-          .filter((item) => item.weekday === weekday)
+          .filter((item) => activityOccursOn(item, dateISO(day)))
           .map((item) => ({
             id: `activity-${item.id}`,
             kind: "activity" as const,
@@ -4684,7 +4694,7 @@ function SchedulePage({
             meta: item.location || "个人日程",
             activity: item,
           })),
-      ].sort((a, b) => a.block - b.block),
+      ].sort((a, b) => activityStart(a.kind === "activity" ? a.activity : a.schedule) - activityStart(b.kind === "activity" ? b.activity : b.schedule)),
     };
   });
   function newPlan() {
@@ -5108,7 +5118,7 @@ function SchedulePage({
                           });
                         }}
                       >
-                        <time>{data.periods[entry.block - 1]?.short}</time>
+                        <time>{entry.kind === "activity" ? activityTimeLabel(entry.activity) : data.periods[entry.block - 1]?.short}</time>
                         <span>
                           <strong>{entry.title}</strong>
                           <small>{entry.meta}</small>
@@ -5149,16 +5159,22 @@ function SchedulePage({
                 );
                 const personal = saved.activities.filter(
                   (item) =>
-                    item.weekday === weekday && item.block === itemBlock,
-                );
+                    activityOccursOn(item, eventWeekDate(weekday)) && activityBlock(activityTimes(item)[0]) === itemBlock,
+                ).sort((a, b) => activityStart(a) - activityStart(b));
+                const dateWeek = schoolWeek(new Date(`${eventWeekDate(weekday)}T12:00:00`), term);
+                const activityConflicts = new Set(personal.filter((item) =>
+                  saved.activities.some((other) => other.id !== item.id && activityOccursOn(other, eventWeekDate(weekday)) && activityTimesOverlap(item, other)) ||
+                  activeSchedules.some((course) => course.weekday === weekday && dateWeek.state === "active" && scheduleOccursInWeek(course, dateWeek.week) && activityTimesOverlap(item, course)),
+                ).map((item) => item.id));
                 return (
                   <div
-                    className={`schedule-cell ${cell.some((first, index) => cell.slice(index + 1).some((second) => schedulesOverlap(first, second))) || (personal.length > 0 && cell.length + personal.length > 1) ? "conflict" : ""}`}
+                    className={`schedule-cell ${cell.some((first, index) => cell.slice(index + 1).some((second) => schedulesOverlap(first, second))) || activityConflicts.size > 0 ? "conflict" : ""}`}
                     key={`${weekday}-${itemBlock}`}
                     onDoubleClick={() =>
                       onEditCalendar({
                         kind: "activity",
                         weekday,
+                        date: eventWeekDate(weekday),
                         block: itemBlock,
                       })
                     }
@@ -5188,7 +5204,9 @@ function SchedulePage({
                         }
                       >
                         <strong>{item.title}</strong>
-                        <span>个人日程</span>
+                        <span>{activityTimeLabel(item)}</span>
+                        <span>{item.repeat === "none" ? item.date : "每周"}</span>
+                        {activityConflicts.has(item.id) && <small>时间有重叠</small>}
                         <small>{item.location || "未设置地点"}</small>
                       </button>
                     ))}
@@ -5200,6 +5218,7 @@ function SchedulePage({
                           onEditCalendar({
                             kind: "activity",
                             weekday,
+                            date: eventWeekDate(weekday),
                             block: itemBlock,
                           })
                         }
@@ -5319,8 +5338,8 @@ function SchedulePage({
                 ...saved.activities.map((item) => ({
                   key: `activity-${item.id}`,
                   kind: "activity" as const,
-                  order: item.weekday * 100 + item.block,
-                  label: `周${weekdayShort[item.weekday - 1]} · ${data.periods[item.block - 1]?.short}`,
+                  order: activityListOrder(item),
+                  label: `${item.repeat === "none" ? item.date : `每周${weekdayShort[item.weekday - 1]}`} · ${activityTimeLabel(item)}`,
                   title: item.title,
                   meta: item.location || "未设置地点",
                   completed: false,
@@ -5384,7 +5403,8 @@ function SchedulePage({
                       </button>
                       <button
                         className="danger"
-                        onClick={() =>
+                        onClick={() => {
+                          if (entry.kind === "activity" && !window.confirm(`删除日程“${entry.item.title}”？${entry.item.repeat !== "none" ? "这会删除每周重复的整项日程。" : ""}`)) return;
                           setSaved((state) => ({
                             ...state,
                             activities:
@@ -5399,8 +5419,8 @@ function SchedulePage({
                                     (item) => item.id !== entry.item.id,
                                   )
                                 : state.assignments,
-                          }))
-                        }
+                          }));
+                        }}
                       >
                         删除
                       </button>
@@ -5488,16 +5508,17 @@ function CalendarEditor({
   const [title, setTitle] = useState(
     activity?.title ?? assignment?.title ?? "",
   );
-  const [weekday, setWeekday] = useState(
-    activity?.weekday ??
-      (request.kind === "activity" ? request.weekday : undefined) ??
-      Math.min(5, Math.max(1, new Date().getDay())),
-  );
-  const [block, setBlock] = useState(
-    activity?.block ??
-      (request.kind === "activity" ? request.block : undefined) ??
-      currentBlock(),
-  );
+  const initialTimes = activityTimes(activity ?? {
+    block: (request.kind === "activity" ? request.block : undefined) ?? currentBlock(),
+  });
+  const [startTime, setStartTime] = useState(initialTimes[0]);
+  const [endTime, setEndTime] = useState(initialTimes[1]);
+  const [eventDate, setEventDate] = useState(activity?.date ??
+    (activity ? eventWeekDate(activity.weekday) :
+      request.kind === "activity" ? request.date ?? (request.weekday ? eventWeekDate(request.weekday) : todayISO()) : todayISO()));
+  const [repeat, setRepeat] = useState<"none" | "weekly">(activity?.repeat ?? (activity ? "weekly" : "none"));
+  const [eventError, setEventError] = useState("");
+  const dialogRef = useModalFocus<HTMLFormElement>(true, onClose);
   const [location, setLocation] = useState(activity?.location ?? "");
   const [color, setColor] = useState<PersonalActivity["color"]>(
     activity?.color ?? "red",
@@ -5518,15 +5539,8 @@ function CalendarEditor({
     activity?.notes ?? assignment?.notes ?? "",
   );
 
-  useEffect(() => {
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [onClose]);
-
   function remove() {
+    if (request.kind === "activity" && !window.confirm(`删除日程“${activity?.title ?? title}”？${repeat === "weekly" ? "这会删除每周重复的整项日程。" : ""}`)) return;
     setSaved((state) => ({
       ...state,
       activities:
@@ -5546,11 +5560,22 @@ function CalendarEditor({
     const cleanTitle = title.trim();
     if (!cleanTitle) return;
     if (request.kind === "activity") {
+      if (!validEventDate(eventDate) || !validEventTimes(startTime, endTime)) {
+        setEventError("请选择有效日期和同一天的时间，结束时间须晚于开始时间。");
+        return;
+      }
       const next: PersonalActivity = {
         id: activity?.id ?? `activity-${Date.now()}`,
         title: cleanTitle,
-        weekday,
-        block,
+        weekday: new Date(`${eventDate}T12:00:00`).getDay() || 7,
+        block: activityBlock(startTime),
+        startTime,
+        endTime,
+        // A legacy weekly event has no start boundary. Keep it that way
+        // unless the user changes its date or repetition.
+        ...(activity && !activity.date && repeat === "weekly" && eventDate === eventWeekDate(activity.weekday)
+          ? {} : { date: eventDate }),
+        repeat,
         location: location.trim(),
         notes: notes.trim(),
         color,
@@ -5585,6 +5610,7 @@ function CalendarEditor({
   return (
     <div className="modal-backdrop calendar-editor-backdrop" onMouseDown={onClose}>
       <form
+        ref={dialogRef}
         className="calendar-editor"
         onSubmit={save}
         onMouseDown={(event) => event.stopPropagation()}
@@ -5598,10 +5624,10 @@ function CalendarEditor({
             <h2 id="calendar-editor-title">
               {request.id
                 ? request.kind === "activity"
-                  ? "编辑活动"
+                  ? "编辑日程"
                   : "编辑作业"
                 : request.kind === "activity"
-                  ? "添加活动"
+                  ? "添加日程"
                   : "添加作业"}
             </h2>
           </div>
@@ -5621,6 +5647,7 @@ function CalendarEditor({
               request.kind === "activity" ? "例如：社团例会" : "例如：完成第三章习题"
             }
             required
+            maxLength={request.kind === "activity" ? 120 : 160}
           />
         </label>
 
@@ -5628,38 +5655,38 @@ function CalendarEditor({
           <>
             <div className="editor-grid">
               <label>
-                <span>星期</span>
-                <select
-                  name="calendar-weekday"
-                  value={weekday}
-                  onChange={(event) => setWeekday(Number(event.target.value))}
-                >
-                  {weekdayShort.slice(0, 5).map((day, index) => (
-                    <option key={day} value={index + 1}>
-                      周{day}
-                    </option>
-                  ))}
-                </select>
+                <span>日期</span>
+                <input type="date" name="calendar-date" value={eventDate} required min="2000-01-01" max="2100-12-31"
+                  onChange={(event) => { setEventDate(event.target.value); setEventError(""); }} />
               </label>
               <label>
-                <span>时间段</span>
-                <select
-                  name="calendar-block"
-                  value={block}
-                  onChange={(event) => setBlock(Number(event.target.value))}
-                >
-                  {[1, 2, 3, 4].map((item) => (
-                    <option key={item} value={item}>
-                      第 {item} 大节
-                    </option>
-                  ))}
+                <span>重复</span>
+                <select name="calendar-repeat" value={repeat}
+                  onChange={(event) => setRepeat(event.target.value as "none" | "weekly")}>
+                  <option value="none">不重复</option>
+                  <option value="weekly">每周{validEventDate(eventDate) ? weekdayShort[(new Date(`${eventDate}T12:00:00`).getDay() || 7) - 1] : ""}</option>
                 </select>
               </label>
             </div>
+            <div className="editor-time-range">
+              <label><span>开始时间</span>
+                <input type="time" name="calendar-start" value={startTime} required step="60"
+                  aria-describedby="event-time-help" aria-invalid={Boolean(eventError)}
+                  onChange={(event) => { setStartTime(event.target.value); setEventError(""); }} />
+              </label>
+              <label><span>结束时间</span>
+                <input type="time" name="calendar-end" value={endTime} required step="60"
+                  aria-describedby="event-time-help" aria-invalid={Boolean(eventError)}
+                  onChange={(event) => { setEndTime(event.target.value); setEventError(""); }} />
+              </label>
+            </div>
+            <small id="event-time-help">暂不支持跨天。</small>
+            {eventError && <p role="alert">{eventError}</p>}
             <label>
               <span>地点</span>
               <input
                 name="calendar-location"
+                maxLength={200}
                 autoComplete="off"
                 value={location}
                 onChange={(event) => setLocation(event.target.value)}
@@ -5674,6 +5701,7 @@ function CalendarEditor({
                   type="button"
                   className={`${item} ${color === item ? "active" : ""}`}
                   onClick={() => setColor(item)}
+                  aria-pressed={color === item}
                   aria-label={`选择${({ red: "朱红", blue: "炭墨", green: "松针", amber: "金色" } as const)[item]}`}
                 />
               ))}
@@ -5713,6 +5741,7 @@ function CalendarEditor({
           <span>备注</span>
           <textarea
             name="calendar-notes"
+            maxLength={4000}
             autoComplete="off"
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
