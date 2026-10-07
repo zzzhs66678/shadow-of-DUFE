@@ -220,6 +220,68 @@
 .reviewActions span { color: var(--dufe-muted); font-size: 12px; }
 .reviewNotice { border-left: 3px solid var(--dufe-red); color: var(--dufe-ink) !important; margin-top: 18px !important; padding: 8px 0 8px 14px; }
 
+/* Course-page index only: keep the standalone directory and reviews unchanged. */
+.embedded {
+  --dufe-paper: #f4f1e9;
+  --dufe-paper-raised: #fbfaf5;
+  --dufe-ink: #1d1b18;
+  --dufe-muted: #706a62;
+  --dufe-red: #a52325;
+  --dufe-red-deep: var(--dufe-red);
+  --dufe-line: #cec6ba;
+  --journal-display: var(--journal-body, system-ui, sans-serif);
+  background: var(--dufe-paper);
+  color: var(--dufe-ink);
+  font: 14px/1.65 var(--journal-body, system-ui, sans-serif);
+  min-width: 0;
+}
+
+.embeddedSearch { padding: 16px 0; }
+.embedded .searchField { gap: 0 12px; padding: 0; }
+.embedded .searchField > label { font: 12px/1.5 var(--journal-data, ui-monospace, monospace); }
+.embedded .searchField input { padding: 8px 0; }
+.embedded .searchField input::placeholder { color: var(--dufe-muted); opacity: 1; }
+.embedded :is(button, select, a):focus-visible { outline: 2px solid var(--dufe-red); outline-offset: 3px; }
+.embedded :is(button, select, a) { min-height: 44px; min-width: 44px; touch-action: manipulation; }
+.embedded button { cursor: pointer; font-family: var(--journal-body, system-ui, sans-serif); }
+.embedded button:disabled { cursor: not-allowed; opacity: .65; }
+
+.embedded .personalContext { gap: 8px 20px; padding: 12px 0; }
+.embedded .personalContext > div:first-child > span { font: 600 12px/1.5 var(--journal-data, ui-monospace, monospace); letter-spacing: 0; }
+.embedded .personalContext p { font-size: 12px; }
+.embedded .personalContext > div:last-child { gap: 4px 12px; }
+.embedded .personalContext button { border: 0; border-bottom: 1px solid var(--dufe-line); border-radius: 0; padding: 0 8px; }
+.embedded .personalContext button:hover,
+.embedded .personalContext button:focus-visible { background: var(--dufe-paper-raised); color: var(--dufe-red); }
+
+.embedded .results { padding: 16px 0 24px; }
+.embedded .directoryHeader { gap: 4px 12px; margin-bottom: 8px; }
+.embedded .directoryHeader h2 { font: 600 18px/1.5 var(--journal-body, system-ui, sans-serif); overflow-wrap: anywhere; }
+.embedded .collegeList { gap: 0 24px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+.embedded .collegeList button { min-height: 72px; padding: 12px 0; }
+.embedded .collegeList button > span:first-child { font: 500 16px/1.5 var(--journal-body, system-ui, sans-serif); }
+.embedded .directoryFilter { gap: 8px 12px; margin: 0 0 12px; }
+.embedded .directoryFilter :is(label, p),
+.embedded .teacherList small,
+.embedded .teacherReviewCount,
+.embedded .openLabel { font: 12px/1.5 var(--journal-data, ui-monospace, monospace); }
+.embedded .teacherList > a { border-bottom-color: var(--dufe-line); gap: 12px; min-height: 72px; padding: 12px 0; }
+.embedded .teacherList > a:hover,
+.embedded .teacherList > a:focus-visible { background: var(--dufe-paper-raised); }
+.embedded .teacherList h3 { font: 600 18px/1.5 var(--journal-body, system-ui, sans-serif); margin-bottom: 2px; }
+.embedded .teacherList small { overflow-wrap: anywhere; }
+.embedded .teacherReviewCount { white-space: nowrap; }
+.embedded .inlineEmpty { padding: 16px 0; }
+.embedded .state { border-left-width: 2px; margin: 20px 0; padding: 12px 16px; }
+.embedded .state b { font: 600 18px/1.5 var(--journal-body, system-ui, sans-serif); }
+.embedded .loadMore { margin-top: 20px; min-height: 44px; }
+
+@media (max-width: 680px) {
+  .embedded .personalContext { grid-template-columns: minmax(0, 1fr); }
+  .embedded .teacherList > a { grid-template-columns: minmax(0, 1fr) auto; }
+  .embedded .openLabel { display: none; }
+}
+
 @media (max-width: 900px) {
   .hero { align-items: stretch; grid-template-columns: 1fr; }
   .searchField { grid-column: 1 / -1; }

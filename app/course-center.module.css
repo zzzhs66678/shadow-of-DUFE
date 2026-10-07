@@ -14,9 +14,9 @@
   align-items: end;
   border-bottom: 1px solid var(--course-ink);
   display: grid;
-  gap: clamp(28px, 6vw, 90px);
+  gap: clamp(24px, 5vw, 64px);
   grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
-  padding: 30px 0 26px;
+  padding: 24px 0;
   position: relative;
 }
 
@@ -44,16 +44,9 @@
 }
 
 .heroCopy h1 {
-  font: 800 clamp(48px, 8vw, 94px)/.9 var(--journal-body, system-ui, sans-serif);
-  letter-spacing: -.075em;
-  margin: 17px 0 16px;
-}
-
-.heroCopy p {
-  color: var(--course-muted);
-  font-size: 15px;
-  line-height: 1.65;
-  margin: 0;
+  font: 800 clamp(42px, 5vw, 64px)/1.05 var(--journal-body, system-ui, sans-serif);
+  letter-spacing: -.05em;
+  margin: 14px 0 0;
 }
 
 .importStatus {
@@ -105,7 +98,7 @@
   border-bottom: 1px solid var(--course-ink);
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin: 24px 0 0;
+  margin: 12px 0 0;
 }
 
 .objectNav > button,
@@ -160,6 +153,26 @@
 .objectNav small {
   color: var(--course-muted);
   font-size: 11px;
+}
+
+.objectNav > .activeNav {
+  color: var(--course-red-deep);
+}
+
+.objectNav > button:focus-visible,
+.workspacePanel:focus-visible {
+  outline: 2px solid var(--course-red-deep);
+  outline-offset: 3px;
+}
+
+.workspacePanel {
+  min-width: 0;
+}
+
+.loading {
+  color: var(--course-muted);
+  font-size: 14px;
+  margin: 32px 0;
 }
 
 .planStrip {
@@ -550,12 +563,20 @@
   }
 
   .heroCopy h1 {
-    font-size: 48px;
-    margin: 11px 0 8px;
+    font-size: 42px;
+    margin: 0;
   }
 
-  .heroCopy p {
-    display: none;
+  .heroCopy {
+    align-items: baseline;
+    display: flex;
+    flex-direction: row-reverse;
+    gap: 16px;
+    justify-content: flex-end;
+  }
+
+  .heroCopy > span {
+    font-size: 10px;
   }
 
   .importStatus {
@@ -580,7 +601,7 @@
   .importStatus button {
     grid-column: 2;
     grid-row: 2;
-    min-height: 40px;
+    min-height: 44px;
     padding: 0 13px;
   }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { loadPersonalCourseContext, type PersonalCourseContext } from "../personal-course-context";
 import { PublicMasthead } from "../PublicMasthead";
 import styles from "./teachers.module.css";
@@ -17,7 +17,14 @@ type TeacherSummary = {
 type TeacherResponse = { items: TeacherSummary[]; nextCursor: string | null };
 type College = { key: string; name: string; teacherCount: number };
 
-export function TeacherExplorer({ initialQuery = "", initialCollege = "" }: { initialQuery?: string; initialCollege?: string }) {
+type TeacherExplorerProps = {
+  initialQuery?: string;
+  initialCollege?: string;
+  embedded?: boolean;
+  onSearchChange?: (search: { q: string; college: string }) => void;
+};
+
+export function TeacherExplorer({ initialQuery = "", initialCollege = "", embedded = false, onSearchChange }: TeacherExplorerProps) {
   const [query, setQuery] = useState(initialQuery);
   const [college, setCollege] = useState(initialCollege.normalize("NFKC").trim().toLocaleLowerCase("zh-CN"));
   const [colleges, setColleges] = useState<College[]>([]);
@@ -30,9 +37,32 @@ export function TeacherExplorer({ initialQuery = "", initialCollege = "" }: { in
   const [personalContext, setPersonalContext] = useState<PersonalCourseContext | null>(null);
   const generation = useRef(0);
   const moreRequest = useRef<AbortController | null>(null);
+  const onSearchChangeRef = useRef(onSearchChange);
+  const instanceId = useId();
+  const titleId = embedded ? `${instanceId}-teachers-title` : "teachers-title";
+  const queryId = embedded ? `${instanceId}-teacher-name-query` : "teacher-name-query";
+  const collegeId = embedded ? `${instanceId}-teacher-college` : "teacher-college";
+  const directoryId = embedded ? `${instanceId}-directory-title` : "directory-title";
+  const Root = embedded ? "section" : "main";
   const requestQuery = query.normalize("NFKC").trim();
   const hasFilter = Boolean(requestQuery || college);
   const collegeName = colleges.find((item) => item.key === college)?.name ?? college;
+
+  useEffect(() => {
+    onSearchChangeRef.current = onSearchChange;
+  }, [onSearchChange]);
+
+  useEffect(() => {
+    onSearchChangeRef.current?.({ q: requestQuery, college });
+  }, [requestQuery, college]);
+
+  useEffect(() => {
+    if (embedded) return;
+    const locationParams = new URLSearchParams();
+    if (requestQuery) locationParams.set("q", requestQuery);
+    if (college) locationParams.set("college", college);
+    window.history.replaceState(null, "", `/teachers${locationParams.size ? `?${locationParams}` : ""}`);
+  }, [embedded, requestQuery, college]);
 
   useEffect(() => {
     let live = true;
@@ -68,10 +98,6 @@ export function TeacherExplorer({ initialQuery = "", initialCollege = "" }: { in
     const controller = new AbortController();
     moreRequest.current?.abort();
     moreRequest.current = null;
-    const locationParams = new URLSearchParams();
-    if (requestQuery) locationParams.set("q", requestQuery);
-    if (college) locationParams.set("college", college);
-    window.history.replaceState(null, "", `/teachers${locationParams.size ? `?${locationParams}` : ""}`);
     const timer = window.setTimeout(async () => {
       setItems([]);
       setNextCursor(null);
@@ -148,21 +174,21 @@ export function TeacherExplorer({ initialQuery = "", initialCollege = "" }: { in
   }
 
   return (
-    <main className={styles.page} id="main-content">
-      <PublicMasthead navigationLabel="教师页导航" items={[
+    <Root className={embedded ? styles.embedded : styles.page} id={embedded ? undefined : "main-content"}>
+      {!embedded && <PublicMasthead navigationLabel="教师页导航" items={[
         { href: "/?view=catalog", label: "课程" },
         { href: "/teachers", label: "教师", current: true },
         { href: "/materials", label: "资料" },
         { href: "/?view=schedule", label: "我的课表", showOnMobile: false },
-      ]} />
-      <section className={styles.hero} aria-labelledby="teachers-title">
-        <div className={styles.heroCopy}>
-          <h1 id="teachers-title">教师评价</h1>
+      ]} />}
+      <section className={embedded ? styles.embeddedSearch : styles.hero} aria-labelledby={titleId}>
+        {embedded ? <h2 id={titleId} className={styles.visuallyHidden}>教师评价</h2> : <div className={styles.heroCopy}>
+          <h1 id={titleId}>教师评价</h1>
           <p>从学院找老师，或搜索全校姓名；同名教师请核对学院。</p>
-        </div>
+        </div>}
         <div className={styles.searchField} role="search" aria-label="全校教师搜索">
-          <label htmlFor="teacher-name-query">全校姓名搜索</label>
-          <input id="teacher-name-query" value={query} maxLength={64}
+          <label htmlFor={queryId}>全校姓名搜索</label>
+          <input id={queryId} value={query} maxLength={64}
             onChange={(event) => changeFilters(event.target.value, "")}
             onKeyDown={(event) => { if (event.key === "Escape") changeFilters("", ""); }}
             autoComplete="off" type="search" placeholder="输入教师姓名…" />
@@ -179,9 +205,9 @@ export function TeacherExplorer({ initialQuery = "", initialCollege = "" }: { in
         </section>
       )}
 
-      <section className={styles.results} aria-labelledby="directory-title">
+      <section className={styles.results} aria-labelledby={directoryId}>
         <header className={styles.directoryHeader}>
-          <h2 id="directory-title">{hasFilter ? collegeName || "全校搜索" : "按学院找老师"}</h2>
+          <h2 id={directoryId}>{hasFilter ? collegeName || "全校搜索" : "按学院找老师"}</h2>
           {hasFilter && <button type="button" onClick={() => changeFilters("", "")}>返回学院索引</button>}
         </header>
         {collegeStatus === "loading" && <p role="status">正在读取学院…</p>}
@@ -195,8 +221,8 @@ export function TeacherExplorer({ initialQuery = "", initialCollege = "" }: { in
         )}
         {hasFilter && <>
           <div className={styles.directoryFilter}>
-            <label htmlFor="teacher-college">学院</label>
-            <select id="teacher-college" value={college} onChange={(event) => changeFilters(query, event.target.value)}>
+            <label htmlFor={collegeId}>学院</label>
+            <select id={collegeId} value={college} onChange={(event) => changeFilters(query, event.target.value)}>
               <option value="">全部学院</option>
               {college && !colleges.some((item) => item.key === college) && <option value={college}>{collegeName}</option>}
               {colleges.map((item) => <option key={item.key} value={item.key}>{item.name}（{item.teacherCount}）</option>)}
@@ -218,6 +244,6 @@ export function TeacherExplorer({ initialQuery = "", initialCollege = "" }: { in
           </button>}
         </>}
       </section>
-    </main>
+    </Root>
   );
 }

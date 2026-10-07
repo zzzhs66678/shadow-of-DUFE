@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import {
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -42,6 +43,8 @@ import { academicCourseOptions } from "./academic-course-options";
 import scheduleStyles from "./personal-timetable.module.css";
 import academicStyles from "./academic-windows.module.css";
 import courseStyles from "./course-center.module.css";
+import { courseWorkspaceTabs, type CourseWorkspaceTab } from "./course-workspace";
+import { useCourseWorkspace } from "./use-course-workspace";
 import homeStyles from "./home-workspace.module.css";
 import meStyles from "./my-page.module.css";
 import RoomWeekSchedule from "./RoomWeekSchedule";
@@ -58,6 +61,8 @@ import {
 type Term = "fall" | "spring";
 type View = "home" | "catalog" | "schedule" | "rooms" | "me";
 type SearchKind = "all" | "course" | "material" | "teacher" | "room";
+const WorkspaceTeachers = lazy(() => import("./teachers/TeacherExplorer").then((module) => ({ default: module.TeacherExplorer })));
+const WorkspaceMaterials = lazy(() => import("./materials/MaterialsExplorer").then((module) => ({ default: module.MaterialsExplorer })));
 const COURSE_CATALOG_ID = /^course-v1:[0-9a-f]{64}$/u;
 
 type Major = { id: string; college: string; name: string; aliases: string[] };
@@ -2961,13 +2966,17 @@ function CatalogPage({
   onCourse: (c: Course) => void;
   onAcademicImport: () => void;
 }) {
-  const [mode, setMode] = useState<"mine" | "catalog">(
+  const workspace = useCourseWorkspace(
     academicSnapshot || activeSchedules.length ? "mine" : "catalog",
   );
-  const [query, setQuery] = useState("");
+  const { tab: mode, query } = workspace.state;
   const [ranking, setRanking] = useState<"personal" | "all">("personal");
   const [planOpen, setPlanOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const selectTab = (tab: CourseWorkspaceTab) => {
+    setPlanOpen(false);
+    workspace.update({ tab }, true);
+  };
   const normalizedQuery = normalize(query);
   const collegeMajors = data.majors.filter(
     (item) => !college || item.college === college,
@@ -3093,7 +3102,6 @@ function CatalogPage({
         <div className={courseStyles.heroCopy}>
           <span>课程中心 · {academicSnapshot?.termLabel || (term === "fall" ? "上学期" : "下学期")}</span>
           <h1>课程</h1>
-          <p>查本学期与全校课程；教师和资料也在这里。</p>
         </div>
         <section className={courseStyles.importStatus} aria-label="教务数据状态">
           <span>{academicSnapshot ? "教务数据已导入" : "尚未导入教务数据"}</span>
@@ -3113,38 +3121,59 @@ function CatalogPage({
         </section>
       </header>
 
-      <nav className={courseStyles.objectNav} aria-label="课程、教师与资料">
-        <button
-          className={mode === "mine" && !planOpen ? courseStyles.activeNav : ""}
-          aria-pressed={mode === "mine" && !planOpen}
-          onClick={() => {
-            setPlanOpen(false);
-            setMode("mine");
-          }}
-        >
-          <span>我的课程</span>
-          <small>{academicSnapshot?.sections.length ?? manualCourseGroups.size} 门</small>
-        </button>
-        <button
-          className={mode === "catalog" && !planOpen ? courseStyles.activeNav : ""}
-          aria-pressed={mode === "catalog" && !planOpen}
-          onClick={() => {
-            setPlanOpen(false);
-            setMode("catalog");
-          }}
-        >
-          <span>课程库</span>
-          <small>全校课程</small>
-        </button>
-        <Link href="/teachers">
-          <span>教师评价</span>
-          <small>搜教师</small>
-        </Link>
-        <Link href="/materials">
-          <span>学习资料</span>
-          <small>搜资料</small>
-        </Link>
-      </nav>
+      <div className={courseStyles.objectNav} role="tablist" aria-label="课程、教师与资料">
+        {courseWorkspaceTabs.map((tab, index) => (
+          <button
+            key={tab}
+            id={`course-tab-${tab}`}
+            type="button"
+            role="tab"
+            aria-selected={mode === tab}
+            aria-controls={`course-panel-${tab}`}
+            tabIndex={mode === tab ? 0 : -1}
+            className={mode === tab ? courseStyles.activeNav : ""}
+            onClick={() => selectTab(tab)}
+            onKeyDown={(event) => {
+              const targetIndex = event.key === "ArrowRight" ? (index + 1) % 4
+                : event.key === "ArrowLeft" ? (index + 3) % 4
+                  : event.key === "Home" ? 0 : event.key === "End" ? 3 : -1;
+              if (targetIndex < 0) return;
+              event.preventDefault();
+              const target = courseWorkspaceTabs[targetIndex];
+              selectTab(target);
+              document.getElementById(`course-tab-${target}`)?.focus();
+            }}
+          >
+            <span>{{ mine: "我的课程", catalog: "课程库", teachers: "教师评价", materials: "学习资料" }[tab]}</span>
+            <small>{{ mine: `${academicSnapshot?.sections.length ?? manualCourseGroups.size} 门`, catalog: "全校课程", teachers: "按学院找教师", materials: "教材与资料" }[tab]}</small>
+          </button>
+        ))}
+      </div>
+
+      {courseWorkspaceTabs.filter((tab) => tab !== mode).map((tab) => (
+        <section key={tab} id={`course-panel-${tab}`} role="tabpanel" aria-labelledby={`course-tab-${tab}`} hidden />
+      ))}
+      <section id={`course-panel-${mode}`} role="tabpanel" aria-labelledby={`course-tab-${mode}`} className={courseStyles.workspacePanel} tabIndex={0}>
+      {!workspace.ready ? <p className={courseStyles.loading} role="status">正在加载…</p> : mode === "teachers" ? (
+        <Suspense fallback={<p className={courseStyles.loading} role="status">正在加载教师…</p>}>
+          <WorkspaceTeachers
+            key={`teachers-${workspace.revision}`}
+            embedded
+            initialQuery={workspace.state.teachers.q}
+            initialCollege={workspace.state.teachers.college}
+            onSearchChange={(teachers) => workspace.update({ teachers })}
+          />
+        </Suspense>
+      ) : mode === "materials" ? (
+        <Suspense fallback={<p className={courseStyles.loading} role="status">正在加载资料…</p>}>
+          <WorkspaceMaterials
+            key={`materials-${workspace.revision}`}
+            embedded
+            initialSearch={workspace.state.materials}
+            onSearchChange={(materials) => workspace.update({ materials })}
+          />
+        </Suspense>
+      ) : <>
 
       {trainingPlan && (
         <section className={courseStyles.planStrip} aria-label="培养方案概况">
@@ -3171,7 +3200,7 @@ function CatalogPage({
         <input
           value={query}
           onChange={(event) => {
-            setQuery(event.target.value);
+            workspace.update({ query: event.target.value });
             setShowAll(false);
           }}
           placeholder="课程名或课程号"
@@ -3307,7 +3336,7 @@ function CatalogPage({
               <p>可以导入教务课表，也可以去课程库手动选课。</p>
               <div>
                 <button onClick={onAcademicImport}>导入教务数据</button>
-                <button onClick={() => setMode("catalog")}>浏览课程库</button>
+                <button onClick={() => selectTab("catalog")}>浏览课程库</button>
               </div>
             </div>
           )}
@@ -3388,7 +3417,7 @@ function CatalogPage({
             </div>
           </header>
           <p className={courseStyles.resultCount} aria-live="polite">
-            {catalogItems.length} 门课程 · 个性化只调整顺序，不隐藏全校结果
+            {catalogItems.length} 门课程
           </p>
           <div className={courseStyles.courseRows}>
             {visibleCatalogItems.map((course) => {
@@ -3427,6 +3456,8 @@ function CatalogPage({
           )}
         </section>
       )}
+      </>}
+      </section>
     </div>
   );
 }

@@ -342,6 +342,7 @@ jobs:
           node tests/room-week-schedule.browser.mjs
           node --test tests/academic-access.test.mjs
           node --test tests/product-experience.test.mjs
+          node --test tests/course-workspace.test.mjs tests/teacher-explorer.test.mjs tests/materials-explorer.test.mjs
           node --test tests/performance-budget.test.mjs
           node --test tests/infrastructure-contract.test.mjs
           node --test tests/environment-contract.test.mjs

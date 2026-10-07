@@ -666,8 +666,11 @@ test("customer-facing copy does not expose planning notes", () => {
 test("course center keeps personal courses, school catalog, teachers, and materials distinct", () => {
   assert.match(component, /id: "catalog", label: "课程"/);
   assert.match(component, /aria-label="课程、教师与资料"/);
-  assert.match(component, /<span>我的课程<\/span>[\s\S]*?<span>课程库<\/span>[\s\S]*?<span>教师评价<\/span>[\s\S]*?<span>学习资料<\/span>/);
-  assert.match(component, /个性化只调整顺序，不隐藏全校结果/);
+  assert.match(component, /mine: "我的课程", catalog: "课程库", teachers: "教师评价", materials: "学习资料"/);
+  assert.match(component, /role="tablist"/);
+  assert.match(component, /role="tabpanel"/);
+  assert.match(component, /<WorkspaceTeachers[\s\S]*?embedded/);
+  assert.match(component, /<WorkspaceMaterials[\s\S]*?embedded/);
   assert.match(component, /aria-label="教务数据状态"/);
   assert.match(courseCenterStyles, /\.objectNav/);
   assert.match(courseCenterStyles, /\.courseRows/);

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { FormField } from "../FormField";
 import {
   loadPersonalCourseContext,
@@ -59,6 +59,18 @@ const emptyFilters: Filters = {
   years: [],
 };
 
+const compactFiltersQuery = "(max-width: 980px)";
+
+function subscribeCompactFilters(onChange: () => void) {
+  const media = window.matchMedia(compactFiltersQuery);
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
+
+function getCompactFilters() {
+  return window.matchMedia(compactFiltersQuery).matches;
+}
+
 function formatFileSize(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   return `${(bytes / 1024 / 1024).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
@@ -86,7 +98,7 @@ function normalizeMatch(value: string) {
     .replace(/[\s·._()（）【】\[\]《》<>/\\-]+/g, "");
 }
 
-type MaterialSearchState = {
+export type MaterialSearchState = {
   q?: string;
   course?: string;
   teacher?: string;
@@ -96,25 +108,46 @@ type MaterialSearchState = {
   year?: string;
 };
 
-export function MaterialsExplorer({ initialSearch = {} }: { initialSearch?: MaterialSearchState }) {
-  const [query, setQuery] = useState(initialSearch.q ?? "");
-  const [course, setCourse] = useState(initialSearch.course ?? "");
-  const [teacher, setTeacher] = useState(initialSearch.teacher ?? "");
-  const [type, setType] = useState(initialSearch.type ?? "");
-  const [tag, setTag] = useState(initialSearch.tag ?? "");
-  const [term, setTerm] = useState(initialSearch.term ?? "");
-  const [year, setYear] = useState(initialSearch.year ?? "");
+export function MaterialsExplorer({
+  initialSearch = {},
+  embedded = false,
+  onSearchChange,
+}: {
+  initialSearch?: MaterialSearchState;
+  embedded?: boolean;
+  onSearchChange?: (search: MaterialSearchState) => void;
+}) {
+  const [search, setSearch] = useState(initialSearch);
+  const { q: query = "", course = "", teacher = "", type = "", tag = "", term = "", year = "" } = search;
   const [result, setResult] = useState<SearchResponse | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState(false);
   const [revision, setRevision] = useState(0);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const compactFilters = useSyncExternalStore(subscribeCompactFilters, getCompactFilters, () => false);
+  const filtersExpanded = !compactFilters || filtersOpen;
   const [ranking, setRanking] = useState<"personal" | "all">("personal");
   const [personalContext, setPersonalContext] = useState<PersonalCourseContext | null>(null);
   const [personalCatalog, setPersonalCatalog] = useState<Material[] | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultRefs = useRef<Array<HTMLAnchorElement | null>>([]);
+  const generation = useRef(0);
+  const searchController = useRef<AbortController | null>(null);
+  const moreController = useRef<AbortController | null>(null);
+  const onSearchChangeRef = useRef(onSearchChange);
+  const instanceId = useId();
+  const titleId = embedded ? `${instanceId}-materials-title` : "materials-title";
+  const Root = embedded ? "section" : "main";
+
+  const invalidateRequests = useCallback(() => {
+    generation.current += 1;
+    searchController.current?.abort();
+    moreController.current?.abort();
+    searchController.current = null;
+    moreController.current = null;
+  }, []);
 
   const requestParams = useMemo(() => {
     const params = new URLSearchParams();
@@ -128,6 +161,17 @@ export function MaterialsExplorer({ initialSearch = {} }: { initialSearch?: Mate
     params.set("limit", "24");
     return params;
   }, [course, query, tag, teacher, term, type, year]);
+
+  useEffect(() => {
+    onSearchChangeRef.current = onSearchChange;
+  }, [onSearchChange]);
+
+  useEffect(() => {
+    if (!embedded) return;
+    const visibleParams = new URLSearchParams(requestParams);
+    visibleParams.delete("limit");
+    onSearchChangeRef.current?.(Object.fromEntries(visibleParams));
+  }, [embedded, requestParams]);
 
   useEffect(() => {
     let live = true;
@@ -157,17 +201,23 @@ export function MaterialsExplorer({ initialSearch = {} }: { initialSearch?: Mate
         if (!response.ok) throw new Error("material_manifest_unavailable");
         return response.json() as Promise<{ materials?: Material[] }>;
       })
-      .then((payload) => setPersonalCatalog(payload.materials ?? []))
+      .then((payload) => {
+        if (!controller.signal.aborted) setPersonalCatalog(payload.materials ?? []);
+      })
       .catch((error) => {
-        if ((error as Error).name !== "AbortError") setPersonalCatalog(null);
+        if (!controller.signal.aborted && (error as Error).name !== "AbortError") setPersonalCatalog(null);
       });
     return () => controller.abort();
   }, [personalContext]);
 
   useEffect(() => {
+    const currentGeneration = ++generation.current;
     const controller = new AbortController();
+    searchController.current = controller;
     const timer = window.setTimeout(async () => {
+      if (controller.signal.aborted || currentGeneration !== generation.current) return;
       setStatus("loading");
+      setLoadingMore(false);
       setLoadMoreError(false);
       try {
         const response = await fetch(`/api/materials?${requestParams}`, {
@@ -176,25 +226,30 @@ export function MaterialsExplorer({ initialSearch = {} }: { initialSearch?: Mate
         });
         if (!response.ok) throw new Error("materials_unavailable");
         const payload = (await response.json()) as SearchResponse;
+        if (controller.signal.aborted || currentGeneration !== generation.current) return;
         setResult(payload);
         setActiveIndex(-1);
         setStatus("ready");
 
-        const visibleParams = new URLSearchParams(requestParams);
-        visibleParams.delete("limit");
-        const nextUrl = visibleParams.size
-          ? `/materials?${visibleParams}`
-          : "/materials";
-        window.history.replaceState(null, "", nextUrl);
+        if (!embedded) {
+          const visibleParams = new URLSearchParams(requestParams);
+          visibleParams.delete("limit");
+          const nextUrl = visibleParams.size
+            ? `/materials?${visibleParams}`
+            : "/materials";
+          window.history.replaceState(null, "", nextUrl);
+        }
       } catch (error) {
-        if ((error as Error).name !== "AbortError") setStatus("error");
+        if (!controller.signal.aborted && currentGeneration === generation.current && (error as Error).name !== "AbortError") {
+          setStatus("error");
+        }
       }
     }, 220);
     return () => {
       window.clearTimeout(timer);
-      controller.abort();
+      invalidateRequests();
     };
-  }, [requestParams, revision]);
+  }, [embedded, invalidateRequests, requestParams, revision]);
 
   const personalCourseCodes = useMemo(
     () => new Set((personalContext?.currentCourseCodes ?? []).map(normalizeMatch)),
@@ -288,40 +343,58 @@ export function MaterialsExplorer({ initialSearch = {} }: { initialSearch?: Mate
       .slice(0, items.length);
   }, [course, materialRelation, personalCatalog, query, ranking, result, tag, teacher, term, type, year]);
 
+  function changeSearch(key: keyof MaterialSearchState, value: string) {
+    if ((search[key] ?? "") === value) return;
+    // Invalidate at the interaction, including the debounce window before the next effect.
+    invalidateRequests();
+    setStatus("loading");
+    setLoadingMore(false);
+    setSearch((current) => ({ ...current, [key]: value }));
+  }
+
   function clearFilters() {
-    setQuery("");
-    setCourse("");
-    setTeacher("");
-    setType("");
-    setTag("");
-    setTerm("");
-    setYear("");
+    if (hasFilters) {
+      invalidateRequests();
+      setStatus("loading");
+      setLoadingMore(false);
+      setSearch({});
+    }
     inputRef.current?.focus();
   }
 
   async function loadMore() {
-    if (!result?.hasMore || loadingMore) return;
+    if (status !== "ready" || !result?.hasMore || loadingMore || moreController.current) return;
+    const currentGeneration = generation.current;
+    const controller = new AbortController();
+    moreController.current = controller;
     setLoadingMore(true);
     setLoadMoreError(false);
     try {
       const params = new URLSearchParams(requestParams);
       params.set("offset", String(result.items.length));
       const response = await fetch(`/api/materials?${params}`, {
+        signal: controller.signal,
         headers: { Accept: "application/json" },
       });
       if (!response.ok) throw new Error("materials_unavailable");
       const payload = (await response.json()) as SearchResponse;
-      setResult((current) => current
-        ? { ...payload, items: [...current.items, ...payload.items] }
-        : payload);
+      if (controller.signal.aborted || currentGeneration !== generation.current) return;
+      setResult((current) => {
+        if (controller.signal.aborted || currentGeneration !== generation.current) return current;
+        return current ? { ...payload, items: [...current.items, ...payload.items] } : payload;
+      });
     } catch {
-      setLoadMoreError(true);
+      if (!controller.signal.aborted && currentGeneration === generation.current) setLoadMoreError(true);
     } finally {
-      setLoadingMore(false);
+      if (!controller.signal.aborted && currentGeneration === generation.current) {
+        moreController.current = null;
+        setLoadingMore(false);
+      }
     }
   }
 
   const hasFilters = Boolean(query || course || teacher || type || tag || term || year);
+  const selectedFilterCount = [course, teacher, type, tag, term, year].filter(Boolean).length;
   const hasPersonalRanking = Boolean(
     personalContext &&
       (personalContext.currentCourseCodes.length ||
@@ -332,7 +405,7 @@ export function MaterialsExplorer({ initialSearch = {} }: { initialSearch?: Mate
   const filters = result?.filters ?? emptyFilters;
 
   function handleSearchKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    const count = rankedItems.length;
+    const count = status === "ready" ? rankedItems.length : 0;
     if (event.key === "ArrowDown" && count) {
       event.preventDefault();
       const next = activeIndex >= 0 ? activeIndex : 0;
@@ -373,8 +446,12 @@ export function MaterialsExplorer({ initialSearch = {} }: { initialSearch?: Mate
   }
 
   return (
-    <main className={styles.page} id="main-content">
-      <PublicMasthead
+    <Root
+      className={`${styles.page}${embedded ? ` ${styles.embedded}` : ""}`}
+      id={embedded ? undefined : "main-content"}
+      aria-labelledby={embedded ? titleId : undefined}
+    >
+      {!embedded && <PublicMasthead
         navigationLabel="资料页导航"
         items={[
           { href: "/?view=catalog", label: "课程" },
@@ -382,81 +459,103 @@ export function MaterialsExplorer({ initialSearch = {} }: { initialSearch?: Mate
           { href: "/materials", label: "资料", current: true },
           { href: "/?view=schedule", label: "我的课表", showOnMobile: false },
         ]}
-      />
+      />}
 
-      <section className={styles.hero} aria-labelledby="materials-title">
-        <div className={styles.indexMark} aria-hidden="true">
-          <span>ARCHIVE</span>
-          <b>{String(result?.catalog.total ?? 457).padStart(3, "0")}</b>
-        </div>
-        <div className={styles.heroCopy}>
+      <div className={embedded ? styles.embeddedSearch : styles.hero}>
+        {embedded ? <h2 id={titleId} className={styles.visuallyHidden}>学习资料</h2> : <div className={styles.heroCopy}>
           <span>东财课程资料档案</span>
-          <h1 id="materials-title">按课程、教师或文件名找资料</h1>
+          <h1 id={titleId}>按课程、教师或文件名找资料</h1>
           <p>支持预览与下载。</p>
-        </div>
+        </div>}
         <label className={styles.searchField}>
-          <span>搜索档案</span>
+          <span>搜索资料</span>
           <input
             ref={inputRef}
             type="search"
             name="material-search"
             autoComplete="off"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => changeSearch("q", event.target.value)}
             onKeyDown={handleSearchKeyDown}
             placeholder="输入课程、教师或资料标题…"
           />
           <kbd>ESC 清空</kbd>
         </label>
-      </section>
+      </div>
 
       <section className={styles.workspace}>
         <aside className={styles.filters} aria-label="资料筛选">
+          {compactFilters && (
+            <button
+              type="button"
+              className={styles.filterToggle}
+              aria-expanded={filtersExpanded}
+              aria-controls={`${instanceId}-filters`}
+              onClick={() => setFiltersOpen((open) => !open)}
+            >
+              <span>筛选资料{selectedFilterCount ? ` · 已选 ${selectedFilterCount}` : ""}</span>
+              <span aria-hidden="true">{filtersExpanded ? "收起" : "展开"}</span>
+            </button>
+          )}
+          <div id={`${instanceId}-filters`} className={styles.filterContent} hidden={!filtersExpanded}>
           <header>
             <span>缩小范围</span>
             {hasFilters && <button onClick={clearFilters}>全部清空</button>}
           </header>
           <FormField label="课程" className={styles.filterField}>
-            <select value={course} onChange={(event) => setCourse(event.target.value)}>
+            <select value={course} onChange={(event) => changeSearch("course", event.target.value)}>
               <option value="">全部课程</option>
+              {course && !filters.courses.includes(course) && <option value={course}>{course}</option>}
               {filters.courses.map((item) => <option key={item}>{item}</option>)}
             </select>
           </FormField>
           <FormField label="教师" className={styles.filterField}>
-            <select value={teacher} onChange={(event) => setTeacher(event.target.value)}>
+            <select value={teacher} onChange={(event) => changeSearch("teacher", event.target.value)}>
               <option value="">全部教师</option>
+              {teacher && !filters.teachers.includes(teacher) && <option value={teacher}>{teacher}</option>}
               {filters.teachers.map((item) => <option key={item}>{item}</option>)}
             </select>
           </FormField>
           <FormField label="资料类型" className={styles.filterField}>
-            <select value={type} onChange={(event) => setType(event.target.value)}>
+            <select value={type} onChange={(event) => changeSearch("type", event.target.value)}>
               <option value="">全部类型</option>
+              {type && !filters.types.includes(type) && <option value={type}>{type}</option>}
               {filters.types.map((item) => <option key={item}>{item}</option>)}
+            </select>
+          </FormField>
+          <FormField label="标签" className={styles.filterField}>
+            <select value={tag} onChange={(event) => changeSearch("tag", event.target.value)}>
+              <option value="">全部标签</option>
+              {tag && !filters.tags.includes(tag) && <option value={tag}>{tag}</option>}
+              {filters.tags.map((item) => <option key={item}>{item}</option>)}
             </select>
           </FormField>
           <div className={styles.filterPair}>
             <FormField label="学期" className={styles.filterField}>
-              <select value={term} onChange={(event) => setTerm(event.target.value)}>
+              <select value={term} onChange={(event) => changeSearch("term", event.target.value)}>
                 <option value="">全部</option>
+                {term && !filters.terms.includes(term) && <option value={term}>{termLabel(term)}</option>}
                 {filters.terms.map((item) => <option key={item} value={item}>{termLabel(item)}</option>)}
               </select>
             </FormField>
             <FormField label="年级" className={styles.filterField}>
-              <select value={year} onChange={(event) => setYear(event.target.value)}>
+              <select value={year} onChange={(event) => changeSearch("year", event.target.value)}>
                 <option value="">全部</option>
+                {year && !filters.years.includes(Number(year)) && <option value={year}>{year}</option>}
                 {filters.years.map((item) => <option key={item} value={item}>大{"一二三四"[item - 1]}</option>)}
               </select>
             </FormField>
           </div>
           <p>↑↓ 浏览，Enter 打开，Esc 清空。</p>
+          </div>
         </aside>
 
         <div className={styles.resultsPanel}>
           <header className={styles.resultHeader}>
             <div>
               <span>资料索引</span>
-              <strong>
-                {status === "loading" ? "正在检索…" : `${result?.total ?? 0} 份结果`}
+              <strong role="status" aria-live="polite">
+                {status === "loading" ? "正在检索…" : status === "error" ? "检索未完成" : `${result?.total ?? 0} 份结果`}
               </strong>
             </div>
             {hasPersonalRanking ? (
@@ -474,9 +573,7 @@ export function MaterialsExplorer({ initialSearch = {} }: { initialSearch?: Mate
                   全站排序
                 </button>
               </div>
-            ) : (
-              <i aria-hidden="true">{hasFilters ? "SEARCH / ACTIVE" : "OPEN / SHELF"}</i>
-            )}
+            ) : null}
           </header>
 
           {status === "loading" && (
@@ -503,7 +600,7 @@ export function MaterialsExplorer({ initialSearch = {} }: { initialSearch?: Mate
           )}
 
           {status === "ready" && Boolean(result?.items.length) && (
-            <div className={styles.results} id="material-results" role="list" aria-label="资料搜索结果">
+            <div className={styles.results} id={embedded ? `${instanceId}-material-results` : "material-results"} role="list" aria-label="资料搜索结果">
               {rankedItems.map((material, index) => {
                 const relation = materialRelation(material);
                 return (
@@ -513,7 +610,6 @@ export function MaterialsExplorer({ initialSearch = {} }: { initialSearch?: Mate
                     role="listitem"
                   >
                     <div className={styles.fileMark} aria-hidden="true">
-                      <span>{String(index + 1).padStart(2, "0")}</span>
                       <b>{material.extension.replace(".", "").slice(0, 4).toUpperCase()}</b>
                     </div>
                     <div className={styles.resultCopy}>
@@ -529,7 +625,7 @@ export function MaterialsExplorer({ initialSearch = {} }: { initialSearch?: Mate
                       </p>
                       <Link
                         ref={(node) => { resultRefs.current[index] = node; }}
-                        id={`material-result-${index}`}
+                        id={`${embedded ? `${instanceId}-` : ""}material-result-${index}`}
                         href={`/materials/${encodeURIComponent(material.id)}`}
                         onFocus={() => setActiveIndex(index)}
                         onKeyDown={(event) => handleResultKeyDown(index, event)}
@@ -566,6 +662,6 @@ export function MaterialsExplorer({ initialSearch = {} }: { initialSearch?: Mate
           )}
         </div>
       </section>
-    </main>
+    </Root>
   );
 }
