@@ -7404,13 +7404,29 @@ function MePage({
             <em>↗</em>
           </a>
         </nav>
-        <div className={meStyles.pluginDownload}>
-          <span>白果云插件 <small>v0.1.0</small></span>
+      </details>
+      <section className={meStyles.pluginDownload} aria-labelledby="ginkgo-plugin-title">
+        <div className={meStyles.pluginHeader}>
+          <div>
+            <small>Windows · Chrome / Edge</small>
+            <h2 id="ginkgo-plugin-title">白果云插件</h2>
+            <p>v0.1.0 · ZIP 安装包</p>
+          </div>
           <a href={campusLinks.ginkgoPlugin} target="_blank" rel="noopener noreferrer" aria-label="下载白果云插件 ZIP">
-            下载 ZIP <span aria-hidden="true">↓</span>
+            下载插件 <span aria-hidden="true">↓</span>
           </a>
         </div>
-      </details>
+        <details className={meStyles.pluginGuide}>
+          <summary>怎么安装</summary>
+          <ol>
+            <li>下载后，解压 <code>DUFE-Ginkgo-Downloader-v0.1.0.zip</code>。</li>
+            <li>在电脑浏览器的地址栏输入 <code>chrome://extensions</code>；Edge 用户输入 <code>edge://extensions</code>。</li>
+            <li>开启“开发者模式”，点击“加载已解压的扩展程序”。</li>
+            <li>选择解压后的 <code>DUFE-Ginkgo-Downloader-v0.1.0</code> 文件夹。</li>
+            <li>登录白果云，打开课程或章节页面即可使用。</li>
+          </ol>
+        </details>
+      </section>
       <CampusAlmanac />
       <KnowledgeTribute />
       <section className="trust-panel">

@@ -14,10 +14,10 @@
     "suggestion 初始为空，action 为未决定；删除须明确选择。审阅页只在内存保存编辑，请下载 JSON；刷新/关闭会丢失未下载内容。导入旧稿按稳定 ID 匹配原文，不匹配项不覆盖。",
     "运行命令：node scripts/export-ui-copy.mjs；集成其他界面改动后重新生成。--check 检查产物是否与当前源码一致，--self-test 运行内置提取测试。生成器只覆盖此目录内固定命名产物，不修改源码或下载的审阅稿。"
   ],
-  "sourceFingerprint": "84e3ea42ce5ed1a4eb88dc1a644cdb53c9c687a7a0b4095f86ba87587583c088",
+  "sourceFingerprint": "7328d4031219d2c2e63f4cc8f0624898a2cf43f33be5bf2710e2a234e86e6d7e",
   "summary": {
-    "entries": 1777,
-    "locations": 2621,
+    "entries": 1790,
+    "locations": 2636,
     "filesScanned": 103,
     "filesWithCopy": 54
   },
@@ -34,8 +34,8 @@
     },
     {
       "path": "app/DufeHubV2.tsx",
-      "sha256": "a146a9ce8355809c800ca7dccbd2bc1f8b0ae16544972387269abcc0184c7e6d",
-      "occurrences": 1037
+      "sha256": "5741cd5f47e8bd3a63a0d8ee2d08e194602a09a59a72b3cb94295837516a419c",
+      "occurrences": 1052
     },
     {
       "path": "app/FormField.tsx",
@@ -269,7 +269,7 @@
     },
     {
       "path": "app/my-page.module.css",
-      "sha256": "8ed84dcb5ccb46e6103a498ba685df445b219264f9672d21efea186ba6a866e0",
+      "sha256": "1504cb336eebdcb757b7b252734b11a7c8a5deb015f63235999d9966923da31d",
       "occurrences": 0
     },
     {
@@ -2226,9 +2226,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7750,
+          "line": 7766,
           "column": 57,
-          "offset": 265775,
+          "offset": 266484,
           "kind": "jsx-text",
           "category": "界面：纯符号",
           "dynamic": false,
@@ -2404,9 +2404,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8202,
+          "line": 8218,
           "column": 22,
-          "offset": 282307,
+          "offset": 283016,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -2590,9 +2590,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7505,
+          "line": 7521,
           "column": 16,
-          "offset": 257963,
+          "offset": 258672,
           "kind": "string",
           "category": "源码：共享文案候选（待核对引用）",
           "dynamic": false,
@@ -2604,9 +2604,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7558,
+          "line": 7574,
           "column": 27,
-          "offset": 259691,
+          "offset": 260400,
           "kind": "string",
           "category": "界面：表达式分支",
           "dynamic": false,
@@ -3108,9 +3108,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7917,
+          "line": 7933,
           "column": 66,
-          "offset": 272275,
+          "offset": 272984,
           "kind": "jsx-text",
           "category": "界面：纯符号",
           "dynamic": false,
@@ -3122,9 +3122,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7918,
+          "line": 7934,
           "column": 48,
-          "offset": 272330,
+          "offset": 273039,
           "kind": "jsx-text",
           "category": "界面：纯符号",
           "dynamic": false,
@@ -3136,9 +3136,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7919,
+          "line": 7935,
           "column": 44,
-          "offset": 272395,
+          "offset": 273104,
           "kind": "jsx-text",
           "category": "界面：纯符号",
           "dynamic": false,
@@ -3150,9 +3150,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7996,
+          "line": 8012,
           "column": 51,
-          "offset": 275581,
+          "offset": 276290,
           "kind": "jsx-text",
           "category": "界面：纯符号",
           "dynamic": false,
@@ -4310,9 +4310,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7567,
+          "line": 7583,
           "column": 22,
-          "offset": 260014,
+          "offset": 260723,
           "kind": "jsx-text",
           "category": "界面：纯符号",
           "dynamic": false,
@@ -4838,9 +4838,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8181,
+          "line": 8197,
           "column": 29,
-          "offset": 281660,
+          "offset": 282369,
           "kind": "string",
           "category": "源码：技术键或匹配词",
           "dynamic": false,
@@ -5032,9 +5032,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7759,
+          "line": 7775,
           "column": 19,
-          "offset": 266083,
+          "offset": 266792,
           "kind": "template",
           "category": "界面：表达式分支",
           "dynamic": true,
@@ -5109,9 +5109,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7749,
+          "line": 7765,
           "column": 17,
-          "offset": 265695,
+          "offset": 266404,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -7262,9 +7262,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7581,
+          "line": 7597,
           "column": 47,
-          "offset": 260426,
+          "offset": 261135,
           "kind": "string",
           "category": "界面：属性或无障碍标签",
           "dynamic": false,
@@ -7276,9 +7276,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7581,
+          "line": 7597,
           "column": 54,
-          "offset": 260433,
+          "offset": 261142,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -7377,9 +7377,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7582,
+          "line": 7598,
           "column": 47,
-          "offset": 260492,
+          "offset": 261201,
           "kind": "string",
           "category": "界面：属性或无障碍标签",
           "dynamic": false,
@@ -7391,9 +7391,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7582,
+          "line": 7598,
           "column": 54,
-          "offset": 260499,
+          "offset": 261208,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -9579,9 +9579,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7616,
+          "line": 7632,
           "column": 21,
-          "offset": 261196,
+          "offset": 261905,
           "kind": "string",
           "category": "源码：技术键或匹配词",
           "dynamic": false,
@@ -9673,9 +9673,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7616,
+          "line": 7632,
           "column": 14,
-          "offset": 261189,
+          "offset": 261898,
           "kind": "string",
           "category": "源码：技术键或匹配词",
           "dynamic": false,
@@ -10959,9 +10959,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7750,
+          "line": 7766,
           "column": 48,
-          "offset": 265766,
+          "offset": 266475,
           "kind": "string",
           "category": "界面：属性或无障碍标签",
           "dynamic": false,
@@ -11199,9 +11199,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8145,
+          "line": 8161,
           "column": 36,
-          "offset": 280444,
+          "offset": 281153,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -11244,9 +11244,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8155,
+          "line": 8171,
           "column": 14,
-          "offset": 280837,
+          "offset": 281546,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -11408,9 +11408,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8164,
+          "line": 8180,
           "column": 11,
-          "offset": 281090,
+          "offset": 281799,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -11707,9 +11707,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7983,
+          "line": 7999,
           "column": 41,
-          "offset": 274990,
+          "offset": 275699,
           "kind": "template",
           "category": "界面：纯符号",
           "dynamic": true,
@@ -12022,9 +12022,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7906,
+          "line": 7922,
           "column": 37,
-          "offset": 271682,
+          "offset": 272391,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -12036,9 +12036,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8042,
+          "line": 8058,
           "column": 33,
-          "offset": 277427,
+          "offset": 278136,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -12410,9 +12410,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7523,
+          "line": 7539,
           "column": 20,
-          "offset": 258548,
+          "offset": 259257,
           "kind": "string",
           "category": "界面：属性或无障碍标签",
           "dynamic": false,
@@ -13809,9 +13809,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8156,
+          "line": 8172,
           "column": 15,
-          "offset": 280860,
+          "offset": 281569,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -17018,9 +17018,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8190,
+          "line": 8206,
           "column": 22,
-          "offset": 281904,
+          "offset": 282613,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -17246,9 +17246,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7503,
+          "line": 7519,
           "column": 13,
-          "offset": 257915,
+          "offset": 258624,
           "kind": "string",
           "category": "源码：共享文案候选（待核对引用）",
           "dynamic": false,
@@ -21917,9 +21917,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7804,
+          "line": 7820,
           "column": 19,
-          "offset": 267793,
+          "offset": 268502,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -21931,9 +21931,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7829,
+          "line": 7845,
           "column": 30,
-          "offset": 268710,
+          "offset": 269419,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -24615,9 +24615,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7460,
+          "line": 7476,
           "column": 60,
-          "offset": 256886,
+          "offset": 257595,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -31481,9 +31481,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7456,
+          "line": 7472,
           "column": 29,
-          "offset": 256760,
+          "offset": 257469,
           "kind": "string",
           "category": "界面：属性或无障碍标签",
           "dynamic": false,
@@ -31495,9 +31495,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7463,
+          "line": 7479,
           "column": 36,
-          "offset": 256985,
+          "offset": 257694,
           "kind": "string",
           "category": "源码：技术键或匹配词",
           "dynamic": false,
@@ -31720,6 +31720,36 @@
       ]
     },
     {
+      "id": "cfb9d2babff13f1b4d08e16b9c92e326a08b81d6ffd53c2cec7a33306ff62f2d",
+      "original": "Windows · Chrome / Edge",
+      "reviewNote": "",
+      "suggestion": "",
+      "action": "undecided",
+      "groups": [
+        "我的"
+      ],
+      "categories": [
+        "界面：英文或数字"
+      ],
+      "dynamic": false,
+      "locations": [
+        {
+          "path": "app/DufeHubV2.tsx",
+          "line": 7411,
+          "column": 20,
+          "offset": 255289,
+          "kind": "jsx-text",
+          "category": "界面：英文或数字",
+          "dynamic": false,
+          "enclosingFunctions": [
+            "MePage"
+          ],
+          "group": "我的",
+          "reachability": "静态入口/相对引用可达（非运行时证明）"
+        }
+      ]
+    },
+    {
       "id": "497dabacebf808c7e2942e6441c51a91f1e546e492c2a937cefe61d08f6768e8",
       "original": "白果云插件",
       "reviewNote": "",
@@ -31735,9 +31765,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7408,
-          "column": 17,
-          "offset": 255165,
+          "line": 7412,
+          "column": 42,
+          "offset": 255362,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -31750,8 +31780,8 @@
       ]
     },
     {
-      "id": "8c807b66253a61439efeeaf99bc84231ab1533fbfef98ae9451baddd7e62d32e",
-      "original": "v0.1.0",
+      "id": "c94a60c6ca37850bd148b0615f5d9e43164f91c1b4d4abae49e910274675d543",
+      "original": "v0.1.0 · ZIP 安装包",
       "reviewNote": "",
       "suggestion": "",
       "action": "undecided",
@@ -31759,17 +31789,17 @@
         "我的"
       ],
       "categories": [
-        "界面：英文或数字"
+        "界面：JSX 文本片段"
       ],
       "dynamic": false,
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7408,
-          "column": 30,
-          "offset": 255178,
+          "line": 7413,
+          "column": 16,
+          "offset": 255388,
           "kind": "jsx-text",
-          "category": "界面：英文或数字",
+          "category": "界面：JSX 文本片段",
           "dynamic": false,
           "enclosingFunctions": [
             "MePage"
@@ -31795,9 +31825,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7409,
+          "line": 7415,
           "column": 99,
-          "offset": 255298,
+          "offset": 255524,
           "kind": "string",
           "category": "界面：属性或无障碍标签",
           "dynamic": false,
@@ -31810,8 +31840,8 @@
       ]
     },
     {
-      "id": "25a9fd0290d602027bf5f9e5a686371708397bbf84a113a70897459f4e728b44",
-      "original": "下载 ZIP",
+      "id": "5146bf3b6777050c1d8b2f634db7fa266752c216b7f350a2e0ff20ecc739c078",
+      "original": "下载插件",
       "reviewNote": "",
       "suggestion": "",
       "action": "undecided",
@@ -31825,9 +31855,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7410,
+          "line": 7416,
           "column": 13,
-          "offset": 255325,
+          "offset": 255551,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -31855,11 +31885,445 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7410,
-          "column": 45,
-          "offset": 255357,
+          "line": 7416,
+          "column": 43,
+          "offset": 255581,
           "kind": "jsx-text",
           "category": "界面：纯符号",
+          "dynamic": false,
+          "enclosingFunctions": [
+            "MePage"
+          ],
+          "group": "我的",
+          "reachability": "静态入口/相对引用可达（非运行时证明）"
+        }
+      ]
+    },
+    {
+      "id": "0aa86734f6db027b707210a332645ab1a1e90c16d34b862744eccc838af0d259",
+      "original": "怎么安装",
+      "reviewNote": "",
+      "suggestion": "",
+      "action": "undecided",
+      "groups": [
+        "我的"
+      ],
+      "categories": [
+        "界面：JSX 文本片段"
+      ],
+      "dynamic": false,
+      "locations": [
+        {
+          "path": "app/DufeHubV2.tsx",
+          "line": 7420,
+          "column": 20,
+          "offset": 255690,
+          "kind": "jsx-text",
+          "category": "界面：JSX 文本片段",
+          "dynamic": false,
+          "enclosingFunctions": [
+            "MePage"
+          ],
+          "group": "我的",
+          "reachability": "静态入口/相对引用可达（非运行时证明）"
+        }
+      ]
+    },
+    {
+      "id": "c9e820ffe1f64b69b0d4e59f7da4abeee66fefae83007dd697ad2b4e0c8b3bb7",
+      "original": "下载后，解压",
+      "reviewNote": "",
+      "suggestion": "",
+      "action": "undecided",
+      "groups": [
+        "我的"
+      ],
+      "categories": [
+        "界面：JSX 文本片段"
+      ],
+      "dynamic": false,
+      "locations": [
+        {
+          "path": "app/DufeHubV2.tsx",
+          "line": 7422,
+          "column": 17,
+          "offset": 255736,
+          "kind": "jsx-text",
+          "category": "界面：JSX 文本片段",
+          "dynamic": false,
+          "enclosingFunctions": [
+            "MePage"
+          ],
+          "group": "我的",
+          "reachability": "静态入口/相对引用可达（非运行时证明）"
+        }
+      ]
+    },
+    {
+      "id": "b91aac32306b7396f714f3b5ea9aad5acb598e89f2e9b255ad52269e2689de31",
+      "original": "DUFE-Ginkgo-Downloader-v0.1.0.zip",
+      "reviewNote": "",
+      "suggestion": "",
+      "action": "undecided",
+      "groups": [
+        "我的"
+      ],
+      "categories": [
+        "界面：英文或数字"
+      ],
+      "dynamic": false,
+      "locations": [
+        {
+          "path": "app/DufeHubV2.tsx",
+          "line": 7422,
+          "column": 30,
+          "offset": 255749,
+          "kind": "jsx-text",
+          "category": "界面：英文或数字",
+          "dynamic": false,
+          "enclosingFunctions": [
+            "MePage"
+          ],
+          "group": "我的",
+          "reachability": "静态入口/相对引用可达（非运行时证明）"
+        }
+      ]
+    },
+    {
+      "id": "eb0d5884569b398e475b89e77a068c6c575a0064ff6a72fafc173102c4cfcd57",
+      "original": "。",
+      "reviewNote": "",
+      "suggestion": "",
+      "action": "undecided",
+      "groups": [
+        "我的",
+        "法律与账号注销",
+        "管理后台"
+      ],
+      "categories": [
+        "界面：纯符号"
+      ],
+      "dynamic": false,
+      "locations": [
+        {
+          "path": "app/DufeHubV2.tsx",
+          "line": 7422,
+          "column": 70,
+          "offset": 255789,
+          "kind": "jsx-text",
+          "category": "界面：纯符号",
+          "dynamic": false,
+          "enclosingFunctions": [
+            "MePage"
+          ],
+          "group": "我的",
+          "reachability": "静态入口/相对引用可达（非运行时证明）"
+        },
+        {
+          "path": "app/DufeHubV2.tsx",
+          "line": 7423,
+          "column": 103,
+          "offset": 255898,
+          "kind": "jsx-text",
+          "category": "界面：纯符号",
+          "dynamic": false,
+          "enclosingFunctions": [
+            "MePage"
+          ],
+          "group": "我的",
+          "reachability": "静态入口/相对引用可达（非运行时证明）"
+        },
+        {
+          "path": "app/admin/AdminConsole.tsx",
+          "line": 747,
+          "column": 119,
+          "offset": 28869,
+          "kind": "jsx-text",
+          "category": "界面：纯符号",
+          "dynamic": false,
+          "enclosingFunctions": [
+            "AdminConsole"
+          ],
+          "group": "管理后台",
+          "reachability": "静态入口/相对引用可达（非运行时证明）"
+        },
+        {
+          "path": "app/terms/page.tsx",
+          "line": 54,
+          "column": 65,
+          "offset": 1511,
+          "kind": "jsx-text",
+          "category": "界面：纯符号",
+          "dynamic": false,
+          "enclosingFunctions": [
+            "TermsPage"
+          ],
+          "group": "法律与账号注销",
+          "reachability": "静态入口/相对引用可达（非运行时证明）"
+        }
+      ]
+    },
+    {
+      "id": "91098650f86955594131e5106cdfca086e7c9e70dfd5a60ebb3445544a3a9cd8",
+      "original": "在电脑浏览器的地址栏输入",
+      "reviewNote": "",
+      "suggestion": "",
+      "action": "undecided",
+      "groups": [
+        "我的"
+      ],
+      "categories": [
+        "界面：JSX 文本片段"
+      ],
+      "dynamic": false,
+      "locations": [
+        {
+          "path": "app/DufeHubV2.tsx",
+          "line": 7423,
+          "column": 17,
+          "offset": 255812,
+          "kind": "jsx-text",
+          "category": "界面：JSX 文本片段",
+          "dynamic": false,
+          "enclosingFunctions": [
+            "MePage"
+          ],
+          "group": "我的",
+          "reachability": "静态入口/相对引用可达（非运行时证明）"
+        }
+      ]
+    },
+    {
+      "id": "c0ae15d785f5343cd50ab12f25ee9c3c614590f73dc68d2c3e237efa3f073c2e",
+      "original": "chrome://extensions",
+      "reviewNote": "",
+      "suggestion": "",
+      "action": "undecided",
+      "groups": [
+        "我的"
+      ],
+      "categories": [
+        "界面：英文或数字"
+      ],
+      "dynamic": false,
+      "locations": [
+        {
+          "path": "app/DufeHubV2.tsx",
+          "line": 7423,
+          "column": 36,
+          "offset": 255831,
+          "kind": "jsx-text",
+          "category": "界面：英文或数字",
+          "dynamic": false,
+          "enclosingFunctions": [
+            "MePage"
+          ],
+          "group": "我的",
+          "reachability": "静态入口/相对引用可达（非运行时证明）"
+        }
+      ]
+    },
+    {
+      "id": "f6aaa462b87f8138f6fa1b0b291cc5c631b27845d87db5d4d84b444b681c8830",
+      "original": "；Edge 用户输入",
+      "reviewNote": "",
+      "suggestion": "",
+      "action": "undecided",
+      "groups": [
+        "我的"
+      ],
+      "categories": [
+        "界面：JSX 文本片段"
+      ],
+      "dynamic": false,
+      "locations": [
+        {
+          "path": "app/DufeHubV2.tsx",
+          "line": 7423,
+          "column": 62,
+          "offset": 255857,
+          "kind": "jsx-text",
+          "category": "界面：JSX 文本片段",
+          "dynamic": false,
+          "enclosingFunctions": [
+            "MePage"
+          ],
+          "group": "我的",
+          "reachability": "静态入口/相对引用可达（非运行时证明）"
+        }
+      ]
+    },
+    {
+      "id": "1a0e3fcc4fa3c4839dac2622bbc0082a491048b0412093e04df57875334361cd",
+      "original": "edge://extensions",
+      "reviewNote": "",
+      "suggestion": "",
+      "action": "undecided",
+      "groups": [
+        "我的"
+      ],
+      "categories": [
+        "界面：英文或数字"
+      ],
+      "dynamic": false,
+      "locations": [
+        {
+          "path": "app/DufeHubV2.tsx",
+          "line": 7423,
+          "column": 79,
+          "offset": 255874,
+          "kind": "jsx-text",
+          "category": "界面：英文或数字",
+          "dynamic": false,
+          "enclosingFunctions": [
+            "MePage"
+          ],
+          "group": "我的",
+          "reachability": "静态入口/相对引用可达（非运行时证明）"
+        }
+      ]
+    },
+    {
+      "id": "45d985758ea8722e4d41a77bb1f4d9cb5d31536a212bb368ecfcf0b36883fef6",
+      "original": "开启“开发者模式”，点击“加载已解压的扩展程序”。",
+      "reviewNote": "",
+      "suggestion": "",
+      "action": "undecided",
+      "groups": [
+        "我的"
+      ],
+      "categories": [
+        "界面：JSX 文本片段"
+      ],
+      "dynamic": false,
+      "locations": [
+        {
+          "path": "app/DufeHubV2.tsx",
+          "line": 7424,
+          "column": 17,
+          "offset": 255921,
+          "kind": "jsx-text",
+          "category": "界面：JSX 文本片段",
+          "dynamic": false,
+          "enclosingFunctions": [
+            "MePage"
+          ],
+          "group": "我的",
+          "reachability": "静态入口/相对引用可达（非运行时证明）"
+        }
+      ]
+    },
+    {
+      "id": "7ca969e214c4feade888e850c931a4ed8ca80ae538cbc6f410338f7d99a0e1b0",
+      "original": "选择解压后的",
+      "reviewNote": "",
+      "suggestion": "",
+      "action": "undecided",
+      "groups": [
+        "我的"
+      ],
+      "categories": [
+        "界面：JSX 文本片段"
+      ],
+      "dynamic": false,
+      "locations": [
+        {
+          "path": "app/DufeHubV2.tsx",
+          "line": 7425,
+          "column": 17,
+          "offset": 255968,
+          "kind": "jsx-text",
+          "category": "界面：JSX 文本片段",
+          "dynamic": false,
+          "enclosingFunctions": [
+            "MePage"
+          ],
+          "group": "我的",
+          "reachability": "静态入口/相对引用可达（非运行时证明）"
+        }
+      ]
+    },
+    {
+      "id": "a55034a0b41c4c2d06f2ac4cac240bc4ad757c54930b9420c449d681cb86577b",
+      "original": "DUFE-Ginkgo-Downloader-v0.1.0",
+      "reviewNote": "",
+      "suggestion": "",
+      "action": "undecided",
+      "groups": [
+        "我的"
+      ],
+      "categories": [
+        "界面：英文或数字"
+      ],
+      "dynamic": false,
+      "locations": [
+        {
+          "path": "app/DufeHubV2.tsx",
+          "line": 7425,
+          "column": 30,
+          "offset": 255981,
+          "kind": "jsx-text",
+          "category": "界面：英文或数字",
+          "dynamic": false,
+          "enclosingFunctions": [
+            "MePage"
+          ],
+          "group": "我的",
+          "reachability": "静态入口/相对引用可达（非运行时证明）"
+        }
+      ]
+    },
+    {
+      "id": "3264d15108721f02de9d804996e07bdcf32c5312bdd57adf37fb998fef25fe6d",
+      "original": "文件夹。",
+      "reviewNote": "",
+      "suggestion": "",
+      "action": "undecided",
+      "groups": [
+        "我的"
+      ],
+      "categories": [
+        "界面：JSX 文本片段"
+      ],
+      "dynamic": false,
+      "locations": [
+        {
+          "path": "app/DufeHubV2.tsx",
+          "line": 7425,
+          "column": 67,
+          "offset": 256018,
+          "kind": "jsx-text",
+          "category": "界面：JSX 文本片段",
+          "dynamic": false,
+          "enclosingFunctions": [
+            "MePage"
+          ],
+          "group": "我的",
+          "reachability": "静态入口/相对引用可达（非运行时证明）"
+        }
+      ]
+    },
+    {
+      "id": "ab533951e7ff177ac07be640025af0aecaa563933039d956f23ce8bf51d445a6",
+      "original": "登录白果云，打开课程或章节页面即可使用。",
+      "reviewNote": "",
+      "suggestion": "",
+      "action": "undecided",
+      "groups": [
+        "我的"
+      ],
+      "categories": [
+        "界面：JSX 文本片段"
+      ],
+      "dynamic": false,
+      "locations": [
+        {
+          "path": "app/DufeHubV2.tsx",
+          "line": 7426,
+          "column": 17,
+          "offset": 256044,
+          "kind": "jsx-text",
+          "category": "界面：JSX 文本片段",
           "dynamic": false,
           "enclosingFunctions": [
             "MePage"
@@ -31885,9 +32349,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7418,
+          "line": 7434,
           "column": 15,
-          "offset": 255536,
+          "offset": 256245,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -31915,9 +32379,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7421,
+          "line": 7437,
           "column": 11,
-          "offset": 255590,
+          "offset": 256299,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -31945,9 +32409,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7425,
+          "line": 7441,
           "column": 25,
-          "offset": 255716,
+          "offset": 256425,
           "kind": "string",
           "category": "界面：属性或无障碍标签",
           "dynamic": false,
@@ -31975,9 +32439,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7429,
+          "line": 7445,
           "column": 11,
-          "offset": 255822,
+          "offset": 256531,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -32005,9 +32469,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7444,
+          "line": 7460,
           "column": 19,
-          "offset": 256300,
+          "offset": 257009,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -32035,9 +32499,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7445,
+          "line": 7461,
           "column": 43,
-          "offset": 256355,
+          "offset": 257064,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -32065,9 +32529,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7447,
+          "line": 7463,
           "column": 15,
-          "offset": 256401,
+          "offset": 257110,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -32095,9 +32559,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7450,
+          "line": 7466,
           "column": 21,
-          "offset": 256490,
+          "offset": 257199,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -32125,9 +32589,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7475,
+          "line": 7491,
           "column": 17,
-          "offset": 257417,
+          "offset": 258126,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -32160,9 +32624,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7504,
+          "line": 7520,
           "column": 18,
-          "offset": 257940,
+          "offset": 258649,
           "kind": "string",
           "category": "源码：共享文案候选（待核对引用）",
           "dynamic": false,
@@ -32174,9 +32638,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7556,
+          "line": 7572,
           "column": 25,
-          "offset": 259611,
+          "offset": 260320,
           "kind": "string",
           "category": "界面：表达式分支",
           "dynamic": false,
@@ -32309,9 +32773,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7506,
+          "line": 7522,
           "column": 17,
-          "offset": 257987,
+          "offset": 258696,
           "kind": "string",
           "category": "源码：共享文案候选（待核对引用）",
           "dynamic": false,
@@ -32323,9 +32787,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7560,
+          "line": 7576,
           "column": 29,
-          "offset": 259776,
+          "offset": 260485,
           "kind": "string",
           "category": "界面：表达式分支",
           "dynamic": false,
@@ -32520,9 +32984,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7507,
+          "line": 7523,
           "column": 14,
-          "offset": 258008,
+          "offset": 258717,
           "kind": "string",
           "category": "源码：共享文案候选（待核对引用）",
           "dynamic": false,
@@ -32534,9 +32998,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7561,
+          "line": 7577,
           "column": 29,
-          "offset": 259810,
+          "offset": 260519,
           "kind": "string",
           "category": "界面：表达式分支",
           "dynamic": false,
@@ -32616,9 +33080,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7529,
+          "line": 7545,
           "column": 24,
-          "offset": 258696,
+          "offset": 259405,
           "kind": "string",
           "category": "界面：属性或无障碍标签",
           "dynamic": false,
@@ -32646,9 +33110,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7534,
+          "line": 7550,
           "column": 25,
-          "offset": 258894,
+          "offset": 259603,
           "kind": "string",
           "category": "界面：属性或无障碍标签",
           "dynamic": false,
@@ -32676,9 +33140,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7536,
+          "line": 7552,
           "column": 48,
-          "offset": 258973,
+          "offset": 259682,
           "kind": "string",
           "category": "界面：属性或无障碍标签",
           "dynamic": false,
@@ -32706,9 +33170,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7536,
+          "line": 7552,
           "column": 57,
-          "offset": 258982,
+          "offset": 259691,
           "kind": "jsx-text",
           "category": "界面：英文或数字",
           "dynamic": false,
@@ -32736,9 +33200,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7572,
+          "line": 7588,
           "column": 25,
-          "offset": 260154,
+          "offset": 260863,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -32766,9 +33230,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7574,
+          "line": 7590,
           "column": 19,
-          "offset": 260207,
+          "offset": 260916,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -32796,9 +33260,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7580,
+          "line": 7596,
           "column": 21,
-          "offset": 260368,
+          "offset": 261077,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -32827,9 +33291,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7583,
+          "line": 7599,
           "column": 47,
-          "offset": 260558,
+          "offset": 261267,
           "kind": "string",
           "category": "界面：属性或无障碍标签",
           "dynamic": false,
@@ -32841,9 +33305,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7583,
+          "line": 7599,
           "column": 55,
-          "offset": 260566,
+          "offset": 261275,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -32871,9 +33335,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7588,
+          "line": 7604,
           "column": 17,
-          "offset": 260664,
+          "offset": 261373,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -32901,9 +33365,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7589,
+          "line": 7605,
           "column": 17,
-          "offset": 260694,
+          "offset": 261403,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -32931,9 +33395,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7590,
+          "line": 7606,
           "column": 17,
-          "offset": 260727,
+          "offset": 261436,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -32961,9 +33425,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7767,
+          "line": 7783,
           "column": 46,
-          "offset": 266397,
+          "offset": 267106,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -32991,9 +33455,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7769,
+          "line": 7785,
           "column": 35,
-          "offset": 266468,
+          "offset": 267177,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -33022,9 +33486,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7771,
+          "line": 7787,
           "column": 17,
-          "offset": 266589,
+          "offset": 267298,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -33066,9 +33530,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7777,
+          "line": 7793,
           "column": 26,
-          "offset": 266749,
+          "offset": 267458,
           "kind": "string",
           "category": "界面：属性或无障碍标签",
           "dynamic": false,
@@ -33096,9 +33560,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7782,
+          "line": 7798,
           "column": 27,
-          "offset": 266964,
+          "offset": 267673,
           "kind": "string",
           "category": "界面：属性或无障碍标签",
           "dynamic": false,
@@ -33126,9 +33590,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7787,
+          "line": 7803,
           "column": 26,
-          "offset": 267151,
+          "offset": 267860,
           "kind": "string",
           "category": "界面：属性或无障碍标签",
           "dynamic": false,
@@ -33157,9 +33621,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7789,
+          "line": 7805,
           "column": 35,
-          "offset": 267209,
+          "offset": 267918,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -33201,9 +33665,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7799,
+          "line": 7815,
           "column": 26,
-          "offset": 267587,
+          "offset": 268296,
           "kind": "string",
           "category": "界面：属性或无障碍标签",
           "dynamic": false,
@@ -33231,9 +33695,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7801,
+          "line": 7817,
           "column": 33,
-          "offset": 267643,
+          "offset": 268352,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -33261,9 +33725,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7811,
+          "line": 7827,
           "column": 26,
-          "offset": 268031,
+          "offset": 268740,
           "kind": "string",
           "category": "界面：属性或无障碍标签",
           "dynamic": false,
@@ -33291,9 +33755,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7813,
+          "line": 7829,
           "column": 33,
-          "offset": 268087,
+          "offset": 268796,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -33321,9 +33785,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7816,
+          "line": 7832,
           "column": 19,
-          "offset": 268215,
+          "offset": 268924,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -33335,9 +33799,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7829,
+          "line": 7845,
           "column": 21,
-          "offset": 268701,
+          "offset": 269410,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -33365,9 +33829,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7816,
+          "line": 7832,
           "column": 28,
-          "offset": 268224,
+          "offset": 268933,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -33395,9 +33859,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7823,
+          "line": 7839,
           "column": 26,
-          "offset": 268456,
+          "offset": 269165,
           "kind": "string",
           "category": "界面：属性或无障碍标签",
           "dynamic": false,
@@ -33425,9 +33889,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7825,
+          "line": 7841,
           "column": 33,
-          "offset": 268512,
+          "offset": 269221,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -33455,9 +33919,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7837,
+          "line": 7853,
           "column": 26,
-          "offset": 268962,
+          "offset": 269671,
           "kind": "string",
           "category": "界面：属性或无障碍标签",
           "dynamic": false,
@@ -33485,9 +33949,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7839,
+          "line": 7855,
           "column": 35,
-          "offset": 269020,
+          "offset": 269729,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -33515,9 +33979,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7853,
+          "line": 7869,
           "column": 26,
-          "offset": 269513,
+          "offset": 270222,
           "kind": "string",
           "category": "界面：属性或无障碍标签",
           "dynamic": false,
@@ -33546,9 +34010,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7855,
+          "line": 7871,
           "column": 35,
-          "offset": 269571,
+          "offset": 270280,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -33590,9 +34054,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7856,
+          "line": 7872,
           "column": 41,
-          "offset": 269626,
+          "offset": 270335,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -33620,9 +34084,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7857,
+          "line": 7873,
           "column": 40,
-          "offset": 269681,
+          "offset": 270390,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -33650,9 +34114,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7861,
+          "line": 7877,
           "column": 19,
-          "offset": 269807,
+          "offset": 270516,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -33680,9 +34144,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7861,
+          "line": 7877,
           "column": 48,
-          "offset": 269836,
+          "offset": 270545,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -33710,9 +34174,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7880,
+          "line": 7896,
           "column": 17,
-          "offset": 270501,
+          "offset": 271210,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -33740,9 +34204,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7908,
+          "line": 7924,
           "column": 47,
-          "offset": 271833,
+          "offset": 272542,
           "kind": "string",
           "category": "界面：表达式分支",
           "dynamic": false,
@@ -33770,9 +34234,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7908,
+          "line": 7924,
           "column": 59,
-          "offset": 271845,
+          "offset": 272554,
           "kind": "string",
           "category": "界面：表达式分支",
           "dynamic": false,
@@ -33800,9 +34264,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7912,
+          "line": 7928,
           "column": 46,
-          "offset": 271998,
+          "offset": 272707,
           "kind": "string",
           "category": "界面：表达式分支",
           "dynamic": false,
@@ -33830,9 +34294,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7931,
+          "line": 7947,
           "column": 37,
-          "offset": 273029,
+          "offset": 273738,
           "kind": "string",
           "category": "界面：表达式分支",
           "dynamic": false,
@@ -33860,9 +34324,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7931,
+          "line": 7947,
           "column": 47,
-          "offset": 273039,
+          "offset": 273748,
           "kind": "string",
           "category": "界面：表达式分支",
           "dynamic": false,
@@ -33890,9 +34354,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7943,
+          "line": 7959,
           "column": 34,
-          "offset": 273523,
+          "offset": 274232,
           "kind": "string",
           "category": "界面：表达式分支",
           "dynamic": false,
@@ -33920,9 +34384,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7943,
+          "line": 7959,
           "column": 42,
-          "offset": 273531,
+          "offset": 274240,
           "kind": "template",
           "category": "界面：表达式分支",
           "dynamic": true,
@@ -33950,9 +34414,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7950,
+          "line": 7966,
           "column": 42,
-          "offset": 273741,
+          "offset": 274450,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -33980,9 +34444,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7961,
+          "line": 7977,
           "column": 48,
-          "offset": 274132,
+          "offset": 274841,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -34010,9 +34474,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7964,
+          "line": 7980,
           "column": 23,
-          "offset": 274275,
+          "offset": 274984,
           "kind": "string",
           "category": "界面：表达式分支",
           "dynamic": false,
@@ -34040,9 +34504,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7966,
+          "line": 7982,
           "column": 25,
-          "offset": 274361,
+          "offset": 275070,
           "kind": "string",
           "category": "界面：表达式分支",
           "dynamic": false,
@@ -34070,9 +34534,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7967,
+          "line": 7983,
           "column": 25,
-          "offset": 274397,
+          "offset": 275106,
           "kind": "template",
           "category": "界面：表达式分支",
           "dynamic": true,
@@ -34100,9 +34564,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7973,
+          "line": 7989,
           "column": 17,
-          "offset": 274620,
+          "offset": 275329,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -34130,9 +34594,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7978,
+          "line": 7994,
           "column": 23,
-          "offset": 274788,
+          "offset": 275497,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -34163,9 +34627,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 7996,
+          "line": 8012,
           "column": 45,
-          "offset": 275575,
+          "offset": 276284,
           "kind": "string",
           "category": "界面：表达式分支",
           "dynamic": false,
@@ -34218,9 +34682,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8003,
+          "line": 8019,
           "column": 29,
-          "offset": 275974,
+          "offset": 276683,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -34263,9 +34727,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8007,
+          "line": 8023,
           "column": 27,
-          "offset": 276126,
+          "offset": 276835,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -34308,9 +34772,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8019,
+          "line": 8035,
           "column": 64,
-          "offset": 276449,
+          "offset": 277158,
           "kind": "string",
           "category": "界面：属性或无障碍标签",
           "dynamic": false,
@@ -34322,9 +34786,9 @@
         },
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8022,
+          "line": 8038,
           "column": 23,
-          "offset": 276524,
+          "offset": 277233,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -34352,9 +34816,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8023,
+          "line": 8039,
           "column": 46,
-          "offset": 276583,
+          "offset": 277292,
           "kind": "jsx-text",
           "category": "界面：英文或数字",
           "dynamic": false,
@@ -34383,9 +34847,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8025,
+          "line": 8041,
           "column": 57,
-          "offset": 276670,
+          "offset": 277379,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -34427,9 +34891,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8033,
+          "line": 8049,
           "column": 43,
-          "offset": 277040,
+          "offset": 277749,
           "kind": "string",
           "category": "界面：表达式分支",
           "dynamic": false,
@@ -34457,9 +34921,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8033,
+          "line": 8049,
           "column": 50,
-          "offset": 277047,
+          "offset": 277756,
           "kind": "string",
           "category": "界面：表达式分支",
           "dynamic": false,
@@ -34487,9 +34951,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8059,
+          "line": 8075,
           "column": 23,
-          "offset": 278086,
+          "offset": 278795,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -34517,9 +34981,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8141,
+          "line": 8157,
           "column": 20,
-          "offset": 280348,
+          "offset": 281057,
           "kind": "string",
           "category": "界面：属性或无障碍标签",
           "dynamic": false,
@@ -34547,9 +35011,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8148,
+          "line": 8164,
           "column": 55,
-          "offset": 280579,
+          "offset": 281288,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -34577,9 +35041,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8150,
+          "line": 8166,
           "column": 55,
-          "offset": 280664,
+          "offset": 281373,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -34607,9 +35071,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8152,
+          "line": 8168,
           "column": 55,
-          "offset": 280752,
+          "offset": 281461,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -34637,9 +35101,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8157,
+          "line": 8173,
           "column": 17,
-          "offset": 280889,
+          "offset": 281598,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -34667,9 +35131,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8180,
+          "line": 8196,
           "column": 23,
-          "offset": 281626,
+          "offset": 282335,
           "kind": "string",
           "category": "界面：表达式分支",
           "dynamic": false,
@@ -34697,9 +35161,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8181,
+          "line": 8197,
           "column": 23,
-          "offset": 281654,
+          "offset": 282363,
           "kind": "template",
           "category": "界面：表达式分支",
           "dynamic": true,
@@ -34727,9 +35191,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8214,
+          "line": 8230,
           "column": 20,
-          "offset": 282719,
+          "offset": 283428,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -34757,9 +35221,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8221,
+          "line": 8237,
           "column": 20,
-          "offset": 282886,
+          "offset": 283595,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -34787,9 +35251,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8233,
+          "line": 8249,
           "column": 20,
-          "offset": 283284,
+          "offset": 283993,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -34817,9 +35281,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8237,
+          "line": 8253,
           "column": 28,
-          "offset": 283439,
+          "offset": 284148,
           "kind": "template",
           "category": "界面：表达式分支",
           "dynamic": true,
@@ -34847,9 +35311,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8237,
+          "line": 8253,
           "column": 52,
-          "offset": 283463,
+          "offset": 284172,
           "kind": "string",
           "category": "界面：表达式分支",
           "dynamic": false,
@@ -34877,9 +35341,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8246,
+          "line": 8262,
           "column": 13,
-          "offset": 283694,
+          "offset": 284403,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -34907,9 +35371,9 @@
       "locations": [
         {
           "path": "app/DufeHubV2.tsx",
-          "line": 8248,
+          "line": 8264,
           "column": 17,
-          "offset": 283738,
+          "offset": 284447,
           "kind": "jsx-text",
           "category": "界面：JSX 文本片段",
           "dynamic": false,
@@ -42687,51 +43151,6 @@
             "AdminConsole"
           ],
           "group": "管理后台",
-          "reachability": "静态入口/相对引用可达（非运行时证明）"
-        }
-      ]
-    },
-    {
-      "id": "eb0d5884569b398e475b89e77a068c6c575a0064ff6a72fafc173102c4cfcd57",
-      "original": "。",
-      "reviewNote": "",
-      "suggestion": "",
-      "action": "undecided",
-      "groups": [
-        "法律与账号注销",
-        "管理后台"
-      ],
-      "categories": [
-        "界面：纯符号"
-      ],
-      "dynamic": false,
-      "locations": [
-        {
-          "path": "app/admin/AdminConsole.tsx",
-          "line": 747,
-          "column": 119,
-          "offset": 28869,
-          "kind": "jsx-text",
-          "category": "界面：纯符号",
-          "dynamic": false,
-          "enclosingFunctions": [
-            "AdminConsole"
-          ],
-          "group": "管理后台",
-          "reachability": "静态入口/相对引用可达（非运行时证明）"
-        },
-        {
-          "path": "app/terms/page.tsx",
-          "line": 54,
-          "column": 65,
-          "offset": 1511,
-          "kind": "jsx-text",
-          "category": "界面：纯符号",
-          "dynamic": false,
-          "enclosingFunctions": [
-            "TermsPage"
-          ],
-          "group": "法律与账号注销",
           "reachability": "静态入口/相对引用可达（非运行时证明）"
         }
       ]
