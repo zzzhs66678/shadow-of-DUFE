@@ -617,21 +617,18 @@ test("mobile timetable defaults to the compact week and preserves occupied weeke
   assert.match(productStyles, /\.timetable-panel\.export-canvas \.week-grid/);
 });
 
-test("room finder opens on the building map and keeps recommendations optional", () => {
-  assert.match(component, /RoomStartMode/);
-  assert.match(component, /RoomDuration/);
-  assert.match(component, /<details className="room-tools">/);
-  assert.ok(component.indexOf("building-tabs") < component.indexOf("room-tools"));
-  assert.match(component, /换时间 · 找连续空闲/);
+test("room finder keeps the overview and removes the redundant advanced panel", () => {
+  assert.match(component, /aria-label="查询时间"/);
+  assert.ok(component.indexOf('aria-label="查询时间"') < component.indexOf('className="building-tabs"'));
+  assert.doesNotMatch(component, /RoomDuration|room-tools|room-intents|room-recommendations|roomQuery|targetBlocks/);
+  assert.doesNotMatch(component, /连续空闲 · 教室号|连续两大节|直到我的下节课/);
   assert.doesNotMatch(component, /离你更近，也空得更久/);
-  assert.match(component, /targetBlocks/);
+  assert.match(component, /item\.block === block &&/);
   assert.match(component, /roomIsAvailable/);
   assert.match(component, /availableUntil/);
   assert.match(component, /favoriteRooms/);
   assert.match(component, /recentRooms/);
-  assert.match(productStyles, /\.room-recommendations/);
-  assert.match(productStyles, /\.room-intents/);
-  assert.match(productStyles, /\.room-tools/);
+  assert.doesNotMatch(productStyles, /\.room-recommendations|\.room-intents|\.room-tools|\.map-time/);
 });
 
 test("a room opens directly into one complete weekly timetable", () => {

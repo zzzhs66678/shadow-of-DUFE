@@ -40,6 +40,7 @@ const contentTypes = new Map([
   [".webmanifest", "application/manifest+json; charset=utf-8"],
   [".webp", "image/webp"],
   [".xml", "application/xml; charset=utf-8"],
+  [".zip", "application/zip"],
 ]);
 
 function documentContentSecurityPolicy(nonce) {

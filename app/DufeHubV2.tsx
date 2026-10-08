@@ -49,6 +49,9 @@ import { courseWorkspaceTabs, type CourseWorkspaceTab } from "./course-workspace
 import { useCourseWorkspace } from "./use-course-workspace";
 import homeStyles from "./home-workspace.module.css";
 import meStyles from "./my-page.module.css";
+import { CompetitionsGateway } from "./competitions/CompetitionsGateway";
+import roomFilterStyles from "./room-time-filter.module.css";
+import { groupRoomsByFloor, roomFloor } from "./room-floors";
 import RoomWeekSchedule from "./RoomWeekSchedule";
 import {
   anonymousPersonalScope,
@@ -295,6 +298,7 @@ type SearchItem = {
   material?: Material;
   teacher?: string;
   room?: string;
+  building?: string;
 };
 type Material = {
   id: string;
@@ -1096,7 +1100,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
   const [building, setBuilding] = useState(data.buildings[0]);
   const [date, setDate] = useState(todayISO);
   const [block, setBlock] = useState(currentBlock);
-  const [roomQuery, setRoomQuery] = useState("");
+  const [selectedRoom, setSelectedRoom] = useState("");
   const [coursePoolQuery, setCoursePoolQuery] = useState("");
   const [calendarEditor, setCalendarEditor] =
     useState<CalendarEditorRequest | null>(null);
@@ -1524,7 +1528,10 @@ function HubApp({ data: initialData }: { data: SiteData }) {
   }, [term]);
 
   useEffect(() => {
-    const syncView = () => setView(viewFromLocation());
+    const syncView = () => {
+      setView(viewFromLocation());
+      setSelectedRoom("");
+    };
     syncView();
     window.addEventListener("popstate", syncView);
     return () => window.removeEventListener("popstate", syncView);
@@ -1647,6 +1654,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           title: fullRoom,
           meta: "查看今天哪些时段有课",
           room: schedule.room,
+          building: schedule.building,
           score: 2,
         });
       }
@@ -1674,6 +1682,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
     .sort((a, b) => a.weekday - b.weekday || a.block - b.block)[0];
 
   function go(next: View) {
+    setSelectedRoom("");
     setView(next);
     const url = new URL(window.location.href);
     if (next === "home") url.searchParams.delete("view");
@@ -1750,9 +1759,10 @@ function HubApp({ data: initialData }: { data: SiteData }) {
       window.location.assign(`/teachers?q=${encodeURIComponent(item.teacher)}`);
       return;
     }
-    if (item.room) {
-      setRoomQuery(item.room);
+    if (item.room && item.building) {
       go("rooms");
+      setBuilding(item.building);
+      setSelectedRoom(`${item.building}|${item.room}`);
     }
   }
 
@@ -1956,9 +1966,8 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           setDate={setDate}
           block={block}
           setBlock={setBlock}
-          query={roomQuery}
-          setQuery={setRoomQuery}
-          nextClass={nextClass}
+          selectedRoom={selectedRoom}
+          setSelectedRoom={setSelectedRoom}
           saved={saved}
           setSaved={setSaved}
         />
@@ -5749,9 +5758,8 @@ function RoomsPage({
   setDate,
   block,
   setBlock,
-  query,
-  setQuery,
-  nextClass,
+  selectedRoom,
+  setSelectedRoom,
   saved,
   setSaved,
 }: {
@@ -5763,47 +5771,20 @@ function RoomsPage({
   setDate: (v: string) => void;
   block: number;
   setBlock: (v: number) => void;
-  query: string;
-  setQuery: (v: string) => void;
-  nextClass?: Schedule;
+  selectedRoom: string;
+  setSelectedRoom: (v: string) => void;
   saved: SavedState;
   setSaved: React.Dispatch<React.SetStateAction<SavedState>>;
 }) {
-  type RoomStartMode = "now" | "next" | "manual";
-  type RoomDuration = "one" | "two" | "until-class";
-  const [startMode, setStartMode] = useState<RoomStartMode>("now");
-  const [duration, setDuration] = useState<RoomDuration>("one");
   const [floorChoice, setFloorChoice] = useState("");
-  const [selectedRoom, setSelectedRoom] = useState("");
   const roomListScrollRef = useRef(0);
+  const roomDatePickerRef = useRef<HTMLDetailsElement>(null);
   const selectedDate = new Date(`${date}T12:00:00`);
   const weekday = selectedDate.getDay() || 7;
   const selectedWeek = schoolWeek(selectedDate, term);
   const activeThisWeek = (item: Schedule) =>
     selectedWeek.state === "active" &&
     scheduleOccursInWeek(item, selectedWeek.week);
-  const nextClassToday =
-    nextClass &&
-    nextClass.weekday === weekday &&
-    selectedWeek.state === "active" &&
-    scheduleOccursInWeek(nextClass, selectedWeek.week)
-      ? nextClass
-      : undefined;
-  const targetBlocks =
-    duration === "one"
-      ? [block]
-      : duration === "two"
-        ? block < 4
-          ? [block, block + 1]
-          : []
-        : nextClassToday
-          ? nextClassToday.block > block
-            ? Array.from(
-                { length: nextClassToday.block - block },
-                (_, index) => block + index,
-              )
-            : []
-          : Array.from({ length: 5 - block }, (_, index) => block + index);
   const roomSchedules = data.schedules.filter(
     (item) =>
       item.term === term && data.buildings.includes(item.building) && item.room,
@@ -5834,38 +5815,36 @@ function RoomsPage({
   }
 
   function conflictFor(buildingName: string, room: string) {
-    if (!targetBlocks.length) return undefined;
     return (schedulesByRoom.get(roomKey(buildingName, room)) ?? [])
       .filter(
         (item) =>
           item.weekday === weekday &&
-          targetBlocks.includes(item.block) &&
+          item.block === block &&
           activeThisWeek(item),
       )
       .sort((a, b) => a.block - b.block)[0];
   }
 
   function roomIsAvailable(buildingName: string, room: string) {
-    return targetBlocks.length > 0 && !conflictFor(buildingName, room);
+    return selectedWeek.state === "active" && !conflictFor(buildingName, room);
   }
 
   function roomNextUse(buildingName: string, room: string) {
-    const afterBlock = Math.max(block, ...targetBlocks);
     return (schedulesByRoom.get(roomKey(buildingName, room)) ?? [])
       .filter(
         (item) =>
           item.weekday === weekday &&
-          item.block > afterBlock &&
+          item.block > block &&
           activeThisWeek(item),
       )
-      .sort((a, b) => a.block - b.block)[0];
+      .sort((a, b) => a.block - b.block || activityStart(a) - activityStart(b))[0];
   }
 
   function availableUntil(buildingName: string, room: string) {
     const next = roomNextUse(buildingName, room);
     return next
-      ? `可用至 ${data.periods[next.block - 1]?.time.split("–")[0]}`
-      : "今天后面都空着";
+      ? `下节课 ${activityTimes(next)[0]}`
+      : "";
   }
 
   const occupied = new Map(
@@ -5878,15 +5857,7 @@ function RoomsPage({
   const unavailableRooms = new Set(
     rooms.filter((room) => !roomIsAvailable(building, room)),
   );
-  const floors = new Map<string, string[]>();
-  for (const room of rooms) {
-    const floor = room.match(/\d/)?.[0] ?? "?";
-    if (!floors.has(floor)) floors.set(floor, []);
-    floors.get(floor)!.push(room);
-  }
-  const sortedFloors = [...floors.entries()].sort(
-    (a, b) => Number(b[0]) - Number(a[0]),
-  );
+  const sortedFloors = groupRoomsByFloor(rooms);
   const defaultFloor =
     sortedFloors.find(([floor]) => floor === "1")?.[0] ??
     sortedFloors.at(-1)?.[0] ??
@@ -5896,96 +5867,10 @@ function RoomsPage({
     : defaultFloor;
   const activeFloorRooms =
     sortedFloors.find(([floor]) => floor === activeFloor)?.[1] ?? [];
-  const needle = normalize(query);
-  const visibleActiveRooms = activeFloorRooms.filter(
-    (room) => !needle || normalize(room).includes(needle),
-  );
-
-  const recommendations = data.buildings
-    .flatMap((buildingName) =>
-      (roomsByBuilding.get(buildingName) ?? []).map((room) => {
-        const key = roomKey(buildingName, room);
-        const nextUse = roomNextUse(buildingName, room);
-        const favorite = saved.favoriteRooms.includes(key);
-        const recentIndex = saved.recentRooms.indexOf(key);
-        let score = nextUse?.block ?? 5;
-        if (buildingName === nextClassToday?.building) score += 30;
-        if (buildingName === building) score += 12;
-        if (favorite) score += 22;
-        if (recentIndex >= 0) score += Math.max(0, 8 - recentIndex);
-        const reason = favorite
-          ? "你收藏过"
-          : buildingName === nextClassToday?.building
-            ? "和下一节课同楼"
-            : recentIndex >= 0
-              ? "最近看过"
-              : nextUse
-                ? "空闲时间更长"
-                : "今天后面没有排课";
-        return {
-          key,
-          building: buildingName,
-          room,
-          score,
-          favorite,
-          reason,
-          until: availableUntil(buildingName, room),
-        };
-      }),
-    )
-    .filter((item) => roomIsAvailable(item.building, item.room))
-    .sort(
-      (a, b) =>
-        b.score - a.score ||
-        a.building.localeCompare(b.building, "zh-CN") ||
-        a.room.localeCompare(b.room, "zh-CN", { numeric: true }),
-    )
-    .slice(0, 3);
-
-  const startOptions: Array<{
-    id: RoomStartMode;
-    label: string;
-    detail: string;
-  }> = [
-    { id: "now", label: "现在", detail: "从当前大节开始" },
-    { id: "next", label: "下一大节", detail: "提前找好位置" },
-    { id: "manual", label: "自己选时间", detail: "用下方日期和节次" },
-  ];
-  const durationOptions: Array<{
-    id: RoomDuration;
-    label: string;
-    detail: string;
-  }> = [
-    { id: "one", label: "一大节", detail: "适合短时自习" },
-    { id: "two", label: "连续两大节", detail: "中途不用换教室" },
-    {
-      id: "until-class",
-      label: "直到我的下节课",
-      detail: nextClassToday ? `空到去${nextClassToday.building}` : "今天剩余时间",
-    },
-  ];
-  const periodLabel = targetBlocks.length
-    ? targetBlocks
-        .map((item) => data.periods[item - 1]?.short)
-        .filter(Boolean)
-        .join("、")
-    : "今天没有足够的连续时段";
   const selectedPeriod = data.periods[block - 1];
-  const startLabel =
-    startMode === "now"
-      ? `现在 · ${selectedPeriod?.short}`
-      : startMode === "next"
-        ? `下一大节 · ${selectedPeriod?.short}`
-        : `${date.replaceAll("-", "/")} · ${selectedPeriod?.short}`;
-  const durationLabel =
-    duration === "one"
-      ? "一大节"
-      : duration === "two"
-        ? "连续两大节"
-        : "直到我的下节课";
-  const querySummary = targetBlocks.length
-    ? `${startLabel} · ${durationLabel}`
-    : periodLabel;
+  const queryTimeRange = selectedPeriod?.time;
+  const dateLabel = date === todayISO() ? "今天" : date === dateISO(dateAtOffset(1)) ? "明天" : `${selectedDate.getMonth() + 1}/${selectedDate.getDate()}`;
+  const isCurrentQuery = date === todayISO() && block === currentBlock();
   const selectedRoomInfo = selectedRoom
     ? {
         key: selectedRoom,
@@ -5999,7 +5884,7 @@ function RoomsPage({
     roomListScrollRef.current = window.scrollY;
     setSelectedRoom(key);
     setBuilding(buildingName);
-    setFloorChoice(room.match(/\d/)?.[0] ?? "");
+    setFloorChoice(roomFloor(room));
     setSaved((state) => ({
       ...state,
       recentRooms: [key, ...state.recentRooms.filter((item) => item !== key)].slice(
@@ -6011,6 +5896,7 @@ function RoomsPage({
   }
 
   function closeRoomSchedule() {
+    if (selectedRoomInfo) setFloorChoice(roomFloor(selectedRoomInfo.room));
     setSelectedRoom("");
     window.requestAnimationFrame(() =>
       window.scrollTo({ top: roomListScrollRef.current, behavior: "auto" }),
@@ -6026,22 +5912,12 @@ function RoomsPage({
     }));
   }
 
-  function chooseStart(nextMode: RoomStartMode) {
-    setStartMode(nextMode);
-    if (nextMode === "now") {
-      setDate(todayISO());
-      setBlock(currentBlock());
-      return;
-    }
-    if (nextMode === "next") {
-      const current = currentBlock();
-      if (current < 4) {
-        setDate(todayISO());
-        setBlock(current + 1);
-      } else {
-        setDate(dateISO(dateAtOffset(1)));
-        setBlock(1);
-      }
+  function chooseRoomDate(nextDate: string) {
+    if (!validEventDate(nextDate)) return;
+    setDate(nextDate);
+    if (roomDatePickerRef.current) {
+      roomDatePickerRef.current.open = false;
+      roomDatePickerRef.current.querySelector("summary")?.focus();
     }
   }
 
@@ -6070,18 +5946,45 @@ function RoomsPage({
   }
 
   return (
-    <div className="page-wrap rooms-page living-spaces rooms-v5">
-      <header className="map-heading">
-        <div>
+    <div className={`page-wrap rooms-page living-spaces rooms-v5 ${roomFilterStyles.compactPage}`}>
+      <section className={roomFilterStyles.filter} aria-label="查询时间">
+        <header className={roomFilterStyles.heading}>
           <h1>空教室</h1>
-          {nextClass && <p>下一节：{nextClass.building}{nextClass.room}</p>}
+          <div className={roomFilterStyles.dateActions}>
+            {!isCurrentQuery && <button className={roomFilterStyles.reset} type="button" onClick={() => {
+              setDate(todayISO());
+              setBlock(currentBlock());
+            }}>回到当前</button>}
+            <details className={roomFilterStyles.datePicker} ref={roomDatePickerRef} onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.preventDefault();
+                event.currentTarget.open = false;
+                event.currentTarget.querySelector("summary")?.focus();
+              }
+            }}>
+              <summary aria-label="选择查询日期" title={`${date} ${weekdayLabels[weekday % 7]}`}>{dateLabel} <span aria-hidden="true">⌄</span></summary>
+              <div className={roomFilterStyles.datePopover}>
+                <div>
+                  <button type="button" onClick={() => chooseRoomDate(todayISO())}>今天</button>
+                  <button type="button" onClick={() => chooseRoomDate(dateISO(dateAtOffset(1)))}>明天</button>
+                </div>
+                <label>
+                  <span>日期</span>
+                  <input type="date" name="room-date" value={date} min="2000-01-01" max="2100-12-31" onChange={(event) => chooseRoomDate(event.target.value)} />
+                </label>
+              </div>
+            </details>
+          </div>
+        </header>
+        <div className={roomFilterStyles.periods} role="group" aria-label="选择时段">
+          {data.periods.map((item) => (
+              <button type="button" key={item.block} aria-pressed={block === item.block} title={`${item.time} · ${item.short}`} onClick={() => setBlock(item.block)}>
+                {item.time.split("–")[0]}
+              </button>
+          ))}
         </div>
-        <div className="room-current-context" aria-label="当前查询时间">
-          <span>{weekdayLabels[weekday % 7]} · {date.replaceAll("-", "/")}</span>
-          <strong>{selectedPeriod?.short}</strong>
-          <small>{selectedPeriod?.time}</small>
-        </div>
-      </header>
+        {selectedWeek.state !== "active" && <p role="status">这个日期不在当前学期内，暂时无法判断空闲。</p>}
+      </section>
 
       <nav className="building-tabs" aria-label="选择教学楼">
         {data.buildings.map((item) => {
@@ -6092,6 +5995,8 @@ function RoomsPage({
             <button
               key={item}
               className={building === item ? "active" : ""}
+              aria-pressed={building === item}
+              aria-label={`${item}，${available.length} 间空闲`}
               onClick={() => {
                 setBuilding(item);
                 setFloorChoice("");
@@ -6108,12 +6013,15 @@ function RoomsPage({
       <section className="indoor-map">
         <header className="floor-map-heading">
           <div>
-            <span>{building} · {activeFloor} 层</span>
+            <span>{building} · {activeFloor === "?" ? "楼层未标注" : `${activeFloor} 层`}</span>
             <h2>
-              {visibleActiveRooms.filter((room) => roomIsAvailable(building, room)).length} 间可用
+              {activeFloorRooms.filter((room) => roomIsAvailable(building, room)).length} 间可用
             </h2>
+            <p className={roomFilterStyles.queryContext} aria-label="当前查询时间" aria-live="polite">
+              {dateLabel} · {queryTimeRange}
+            </p>
           </div>
-          <div className="map-legend">
+          <div className={roomFilterStyles.legend}>
             <span><i className="free" />空闲</span>
             <span><i className="busy" />有课</span>
           </div>
@@ -6129,10 +6037,14 @@ function RoomsPage({
                 key={floor}
                 className={activeFloor === floor ? "active" : ""}
                 aria-pressed={activeFloor === floor}
+                aria-label={`${floor === "?" ? "楼层未标注" : `${floor} 层`}，${free} 间空闲，共 ${floorRooms.length} 间`}
                 onClick={() => setFloorChoice(floor)}
               >
-                <b>{floor}F</b>
+                <b>{floor === "?" ? "其他" : `${floor}F`}</b>
                 <small>{free}</small>
+                <span className={roomFilterStyles.floorAvailability} aria-hidden="true">
+                  <i style={{ width: `${Math.round((free / floorRooms.length) * 100)}%` }} />
+                </span>
               </button>
             );
           })}
@@ -6146,29 +6058,27 @@ function RoomsPage({
               <span>教室区</span>
             </div>
             <div className="floor-rooms-v5">
-              {visibleActiveRooms.length ? (
-                visibleActiveRooms.map((room, index) => {
+              {activeFloorRooms.length ? (
+                activeFloorRooms.map((room, index) => {
                   const lesson = occupied.get(room);
                   const available = !unavailableRooms.has(room);
                   const key = roomKey(building, room);
+                  const roomNote = available ? availableUntil(building, room) : selectedWeek.state !== "active" ? "暂无该日期课表" : lesson?.title || "有课";
                   return (
                     <button
                       key={room}
                       className={`${available ? "free" : "busy"} ${saved.favoriteRooms.includes(key) ? "favorite" : ""}`}
+                      aria-label={`${room}，${available ? "空闲" : "不可用"}${roomNote ? `，${roomNote}` : ""}，查看一周课表`}
                       style={{ "--room-order": index } as CSSProperties}
                       onClick={() => selectRoom(building, room)}
                     >
                       <strong>{room}</strong>
-                      <span>
-                        {available
-                          ? availableUntil(building, room)
-                          : lesson?.title || "这段时间不连续空闲"}
-                      </span>
+                      {roomNote && <span>{roomNote}</span>}
                     </button>
                   );
                 })
               ) : (
-                <p>这一层暂时没有符合条件的空教室。</p>
+                <p>这一层暂无教室。</p>
               )}
             </div>
           </div>
@@ -6188,7 +6098,6 @@ function RoomsPage({
               {weekdayLabels[weekday % 7]} · {data.periods[block - 1]?.short}
             </b>
           </div>
-          <p>按课表推算，是否开放以现场为准。</p>
         </aside>
       </section>
       {(saved.favoriteRooms.length > 0 || saved.recentRooms.length > 0) && (
@@ -6213,159 +6122,6 @@ function RoomsPage({
         </nav>
       )}
 
-      <details className="room-tools">
-        <summary>
-          <span>
-            <b>换时间 · 找连续空闲</b>
-            <small>{querySummary}</small>
-          </span>
-          <i aria-hidden="true">展开</i>
-        </summary>
-        <div className="room-tools-body">
-          <section className="room-intents" aria-label="空教室高级筛选">
-            <div className="room-intent-groups">
-              <div className="room-intent-group">
-                <p><span>时间快捷选择</span></p>
-                <div>
-                  {startOptions.map((item) => (
-                    <button
-                      key={item.id}
-                      className={startMode === item.id ? "active" : ""}
-                      onClick={() => chooseStart(item.id)}
-                    >
-                      <b>{item.label}</b>
-                      <span>{item.detail}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="room-intent-group">
-                <p><span>连续空闲</span></p>
-                <div>
-                  {durationOptions.map((item) => (
-                    <button
-                      key={item.id}
-                      className={duration === item.id ? "active" : ""}
-                      disabled={item.id === "two" && block >= 4}
-                      onClick={() => setDuration(item.id)}
-                    >
-                      <b>{item.label}</b>
-                      <span>{item.detail}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="map-time">
-            <label>
-              <span>日期</span>
-              <input
-                type="date"
-                name="room-date"
-                value={date}
-                onChange={(event) => {
-                  setDate(event.target.value);
-                  setStartMode("manual");
-                }}
-              />
-            </label>
-            <div className="manual-periods">
-              <span>起始节次</span>
-              <div>
-                {data.periods.map((item) => (
-                  <button
-                    key={item.block}
-                    className={block === item.block ? "active" : ""}
-                    onClick={() => {
-                      setBlock(item.block);
-                      setStartMode("manual");
-                    }}
-                  >
-                    <b>{item.short}</b>
-                    <span>{item.time}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-            <label>
-              <span>教室号</span>
-              <input
-                name="room-number"
-                autoComplete="off"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="例如：301…"
-              />
-            </label>
-          </section>
-
-          <section className="room-recommendations">
-            <header>
-              <div>
-                <span>可选建议</span>
-                <h2>{recommendations.length ? "推荐教室" : "这段时间没有合适的教室"}</h2>
-              </div>
-              <small>{weekdayLabels[weekday % 7]} · {querySummary}</small>
-            </header>
-            <div>
-              {recommendations.map((item) => (
-                <article key={item.key}>
-                  <button
-                    className="recommendation-main"
-                    onClick={() => selectRoom(item.building, item.room)}
-                  >
-                    <span>{item.reason}</span>
-                    <strong>{item.building}{item.room}</strong>
-                    <small>{item.until}</small>
-                  </button>
-                  <button
-                    className={item.favorite ? "favorite active" : "favorite"}
-                    onClick={() => toggleFavorite(item.key)}
-                    aria-label={item.favorite ? "取消收藏" : "收藏教室"}
-                  >
-                    {item.favorite ? "★" : "☆"}
-                  </button>
-                </article>
-              ))}
-              {!recommendations.length && (
-                <p>换一个起始节次，或者只查一大节试试。</p>
-              )}
-            </div>
-          </section>
-        </div>
-      </details>
-
-      <section className="floor-overview">
-        <header>
-          <h2>整栋楼一览</h2>
-        </header>
-        <div>
-          {sortedFloors.map(([floor, floorRooms]) => {
-            const free = floorRooms.filter((room) =>
-              roomIsAvailable(building, room),
-            );
-            return (
-              <button
-                key={floor}
-                className={activeFloor === floor ? "active" : ""}
-                onClick={() => setFloorChoice(floor)}
-              >
-                <b>{floor}F</b>
-                <span>{free.length} 间空闲</span>
-                <i
-                  style={
-                    {
-                      "--fill": `${Math.round((free.length / Math.max(1, floorRooms.length)) * 100)}%`,
-                    } as CSSProperties
-                  }
-                />
-              </button>
-            );
-          })}
-        </div>
-      </section>
     </div>
   );
 }
@@ -7427,6 +7183,7 @@ function MePage({
           </ol>
         </details>
       </section>
+      <CompetitionsGateway />
       <CampusAlmanac />
       <KnowledgeTribute />
       <section className="trust-panel">

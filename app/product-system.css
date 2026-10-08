@@ -451,256 +451,6 @@
   margin: 7px 0 3px;
 }
 
-.room-tools {
-  margin: 18px 0;
-  overflow: hidden;
-}
-
-.room-tools > summary {
-  align-items: center;
-  background: var(--ds-surface);
-  cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  list-style: none;
-  padding: 14px 18px;
-}
-
-.room-tools > summary::-webkit-details-marker {
-  display: none;
-}
-
-.room-tools > summary > span {
-  display: grid;
-  gap: 4px;
-}
-
-.room-tools > summary b {
-  font-size: 13px;
-}
-
-.room-tools > summary small {
-  color: var(--ds-muted);
-  font-size: 10px;
-}
-
-.room-tools > summary i {
-  color: var(--ds-accent);
-  font-size: 11px;
-  font-style: normal;
-}
-
-.room-tools > summary i::after {
-  content: " ＋";
-}
-
-.room-tools[open] > summary {
-  border-bottom: 1px solid var(--ds-line);
-}
-
-.room-tools[open] > summary i::after {
-  content: " －";
-}
-
-.room-tools-body {
-  background: color-mix(in srgb, var(--ds-paper) 72%, white);
-  padding: 18px;
-}
-
-.room-intents {
-  margin-bottom: 14px;
-  overflow: hidden;
-  padding: 20px;
-}
-
-.room-intents > header,
-.room-recommendations > header {
-  align-items: flex-end;
-  display: flex;
-  justify-content: space-between;
-}
-
-.room-intents > header span {
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.room-intents > header small {
-  color: rgba(245, 241, 232, 0.62);
-  font-size: 11px;
-}
-
-.room-intent-groups {
-  display: grid;
-  gap: 18px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: 16px;
-}
-
-.room-intent-group {
-  min-width: 0;
-}
-
-.room-intent-group > p {
-  align-items: center;
-  display: flex;
-  gap: 8px;
-  margin: 0 0 9px;
-}
-
-.room-intent-group > p b {
-  align-items: center;
-  background: rgba(255, 255, 255, 0.13);
-  border-radius: 50%;
-  display: inline-flex;
-  font-size: 10px;
-  height: 22px;
-  justify-content: center;
-  width: 22px;
-}
-
-.room-intent-group > p span {
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.room-intent-group > div {
-  display: grid;
-  gap: 7px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.room-intents button {
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  color: #f5f1e8;
-  display: flex;
-  flex-direction: column;
-  min-height: 76px;
-  padding: 14px;
-  text-align: left;
-}
-
-.room-intents button span {
-  color: rgba(245, 241, 232, 0.58);
-  font-size: 11px;
-  margin-top: 6px;
-}
-
-.room-intents button.active {
-  background: #f5f1e8;
-  border-color: #f5f1e8;
-  color: #183d31;
-}
-
-.room-intents button.active span {
-  color: #597267;
-}
-
-.room-intents button:disabled {
-  cursor: not-allowed;
-  opacity: 0.34;
-}
-
-.map-time > .manual-periods {
-  display: block;
-}
-
-.manual-periods > span {
-  color: var(--ds-muted);
-  display: block;
-  font-size: 10px;
-  margin-bottom: 7px;
-}
-
-.manual-periods > div {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-}
-
-.room-recommendations {
-  border-bottom: 1px solid #cbd8d0;
-  border-top: 1px solid #cbd8d0;
-  margin: 18px 0;
-  padding: 22px 0;
-}
-
-.room-recommendations > header span {
-  color: var(--ds-green);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.room-recommendations > header h2 {
-  font: 600 clamp(22px, 2.6vw, 34px)/1.15 var(--sans);
-  letter-spacing: -0.035em;
-  margin: 6px 0 0;
-}
-
-.room-recommendations > header > small {
-  color: var(--ds-muted);
-}
-
-.room-recommendations > div {
-  display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin-top: 18px;
-}
-
-.room-recommendations article {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  overflow: hidden;
-}
-
-.room-recommendations .recommendation-main {
-  background: none;
-  border: 0;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  padding: 17px;
-  text-align: left;
-}
-
-.room-recommendations .recommendation-main span {
-  color: var(--ds-green);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-}
-
-.room-recommendations .recommendation-main strong {
-  font: 600 24px/1.1 var(--sans);
-  letter-spacing: -0.03em;
-  margin: 12px 0 8px;
-}
-
-.room-recommendations .recommendation-main small {
-  color: var(--ds-muted);
-}
-
-.room-recommendations .favorite {
-  background: transparent;
-  border: 0;
-  border-left: 1px solid #dce5df;
-  color: #789184;
-  font-size: 22px;
-  min-width: 48px;
-}
-
-.room-recommendations .favorite.active {
-  color: var(--ds-amber);
-}
-
-.room-recommendations > div > p {
-  color: var(--ds-muted);
-  grid-column: 1 / -1;
-  margin: 0;
-  padding: 20px 0 4px;
-}
-
 .room-memory {
   align-items: center;
   display: flex;
@@ -776,11 +526,6 @@
 
   .section-filter-bar {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .room-recommendations > div {
-    grid-template-columns: repeat(3, minmax(220px, 1fr));
-    overflow-x: auto;
   }
 }
 
@@ -940,78 +685,9 @@
     flex: 0 0 190px;
   }
 
-  .room-intents {
-    border-radius: 18px;
-    padding: 16px;
-  }
-
-  .room-intents > header {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 5px;
-  }
-
-  .room-intent-groups {
-    display: block;
-    margin-left: -2px;
-    margin-right: -2px;
-    padding: 2px;
-  }
-
-  .room-intent-group + .room-intent-group {
-    border-top: 1px solid rgba(255, 255, 255, 0.13);
-    margin-top: 15px;
-    padding-top: 14px;
-  }
-
-  .room-intent-group > div {
-    display: flex;
-    overflow-x: auto;
-  }
-
-  .room-intents button {
-    flex: 0 0 148px;
-    min-height: 72px;
-  }
-
-  .room-recommendations {
-    margin-top: 12px;
-    padding: 18px 0;
-  }
-
-  .room-recommendations > header {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .room-recommendations > header h2 {
-    font-size: 24px;
-  }
-
-  .room-recommendations > div {
-    overflow-x: auto;
-  }
-
-  .room-recommendations article {
-    flex: 0 0 250px;
-  }
-
   .room-current-context {
     align-items: flex-start;
     margin-top: 10px;
-  }
-
-  .room-tools {
-    border-radius: 15px;
-  }
-
-  .room-tools-body {
-    padding: 12px;
-  }
-
-  .room-tools .map-time {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -1407,7 +1083,6 @@
 .finder-pool input,
 .section-filter-bar input,
 .section-filter-bar select,
-.map-time input,
 .room-search input {
   background: #ffffff;
   border: 1px solid #171717;
@@ -1524,7 +1199,6 @@
 
 .room-map-shell-v5,
 .advanced-room-filters,
-.room-recommendations,
 .room-memory {
   background: #ffffff;
   border: 1px solid #171717;
@@ -1638,9 +1312,6 @@
   height: 28px;
   padding: 6px;
   width: 28px;
-}
-
-@media (max-width: 1180px) {
 }
 
 @media (max-width: 920px) {
@@ -1830,7 +1501,6 @@ a:active {
 .lineup-workspace,
 .timetable-panel,
 .course-pool,
-.room-intents,
 .me-grid article,
 .trust-panel {
   border-radius: 22px;
@@ -1845,14 +1515,12 @@ a:active {
 
 .course-card-grid > button,
 .course-pool article,
-.room-recommendations article,
 .floor-rooms-v5 button {
   border-radius: 16px;
 }
 
 .course-card-grid > button:hover,
-.course-pool article:hover,
-.room-recommendations article:hover {
+.course-pool article:hover {
   border-color: color-mix(in srgb, var(--accent) 38%, var(--line));
   box-shadow: 0 14px 34px rgba(10, 49, 63, 0.09);
   transform: translateY(-2px);
@@ -2093,12 +1761,10 @@ a:active {
     padding-right: 14px;
   }
 
-  .room-intent-group > div,
   .catalog-workspace > aside {
     scrollbar-width: none;
   }
 
-  .room-intent-group > div::-webkit-scrollbar,
   .catalog-workspace > aside::-webkit-scrollbar {
     display: none;
   }
@@ -2884,7 +2550,6 @@ body:has(.hub-v2) .preload-intro {
 .lineup-workspace,
 .timetable-panel,
 .course-pool,
-.room-intents,
 .me-grid article,
 .trust-panel {
   box-shadow: var(--ui-shadow-sm);
@@ -2940,7 +2605,6 @@ body:has(.hub-v2) .preload-intro {
 .calendar-editor input,
 .calendar-editor select,
 .calendar-editor textarea,
-.map-time input,
 .account-delete-dialog input {
   background: var(--ui-surface);
   border: 1px solid var(--ui-border-strong);
@@ -3450,47 +3114,6 @@ button.plan-course-main:hover .plan-course-copy strong {
   background: var(--ui-brand-soft);
   border: 1px solid #cbdce2;
   border-radius: var(--ui-radius-md);
-}
-
-.room-tools {
-  background: var(--ui-surface);
-  border: 1px solid var(--ui-border);
-  border-radius: var(--ui-radius-lg);
-  box-shadow: var(--ui-shadow-sm);
-  margin-top: 16px;
-}
-
-.room-tools > summary {
-  min-height: 58px;
-}
-
-.room-intents {
-  background: var(--ui-brand);
-  border: 0;
-  border-radius: var(--ui-radius-md);
-  color: #fff;
-}
-
-.room-intents button {
-  border-radius: var(--ui-radius-md);
-}
-
-.room-recommendations article {
-  background: var(--ui-surface);
-  border: 1px solid var(--ui-border);
-  border-radius: var(--ui-radius-md);
-  box-shadow: none;
-}
-
-.room-recommendations article:hover {
-  background: var(--ui-surface-subtle);
-  transform: none;
-}
-
-.floor-overview {
-  border-top: 1px solid var(--ui-border);
-  margin-top: 28px;
-  padding-top: 22px;
 }
 
 /* Personal page and account states */
@@ -4356,24 +3979,6 @@ button.plan-course-main:hover .plan-course-copy strong {
     line-height: 1.5;
   }
 
-  .room-tools-body,
-  .room-tools .map-time {
-    grid-template-columns: 1fr;
-  }
-
-  .room-recommendations > div {
-    display: grid;
-    grid-template-columns: 1fr;
-    margin-right: 0;
-    overflow: visible;
-    padding-right: 0;
-  }
-
-  .room-recommendations article {
-    min-width: 0;
-    width: 100%;
-  }
-
   .room-memory {
     overflow-x: auto;
   }
@@ -4424,7 +4029,6 @@ button.plan-course-main:hover .plan-course-copy strong {
   .calendar-editor textarea,
   .command-panel input,
   .section-filter-bar input,
-  .map-time input,
   .account-delete-dialog input {
     font-size: 16px;
   }
@@ -4943,7 +4547,6 @@ button.plan-course-main:hover .plan-course-copy strong {
 .schedule-calendar,
 .room-map-shell-v5,
 .advanced-room-filters,
-.room-recommendations,
 .room-memory,
 .me-grid article,
 .account-center,

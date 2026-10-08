@@ -8,6 +8,7 @@ export const publicPagePaths = {
   home: "/",
   teachers: "/teachers",
   materials: "/materials",
+  competitions: "/competitions",
   community: "/community",
   privacy: "/privacy",
   terms: "/terms",

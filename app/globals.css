@@ -6594,20 +6594,17 @@ kbd {
   margin: 0;
 }
 
-.map-heading label,
-.map-time label {
+.map-heading label {
   display: grid;
   gap: 7px;
 }
 
-.map-heading label span,
-.map-time label span {
+.map-heading label span {
   color: var(--map-muted);
   font-size: 9px;
 }
 
-.map-heading input,
-.map-time input {
+.map-heading input {
   background: transparent;
   border: 0;
   border-bottom: 1px solid var(--map-ink);
@@ -6618,57 +6615,6 @@ kbd {
 
 .map-heading input {
   color-scheme: light;
-}
-
-.map-time {
-  align-items: center;
-  border-bottom: 1px solid var(--map-line);
-  display: grid;
-  gap: 30px;
-  grid-template-columns: 1fr 180px;
-  margin-bottom: 14px;
-  padding-bottom: 14px;
-}
-
-.map-time > div {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-}
-
-.map-time > div button {
-  background: transparent;
-  border: 0;
-  border-left: 1px solid var(--map-line);
-  color: var(--map-muted);
-  min-height: 54px;
-}
-
-.map-time > div button:last-child {
-  border-right: 1px solid var(--map-line);
-}
-
-.map-time button b,
-.map-time button span {
-  display: block;
-}
-
-.map-time button b {
-  font-size: 13px;
-}
-
-.map-time button span {
-  font: 9px/1 var(--mono);
-  margin-top: 6px;
-}
-
-.map-time button.active {
-  color: var(--map-red);
-}
-
-.map-time button.active b::before {
-  content: "●";
-  font-size: 7px;
-  margin-right: 7px;
 }
 
 .building-tabs {
@@ -6880,58 +6826,6 @@ kbd {
   margin-top: auto;
 }
 
-.floor-overview {
-  border-bottom: 1px solid var(--map-line);
-  display: grid;
-  gap: 30px;
-  grid-template-columns: 190px 1fr;
-  padding: 42px 0;
-}
-
-.floor-overview > header h2 {
-  font-size: 22px;
-  letter-spacing: -.04em;
-  margin: 0 0 8px;
-}
-
-.floor-overview > header span {
-  color: var(--map-muted);
-  font-size: 9px;
-}
-
-.floor-overview > div {
-  display: grid;
-  gap: 8px;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-}
-
-.floor-overview button {
-  background: transparent;
-  border: 1px solid var(--map-line);
-  display: grid;
-  gap: 8px;
-  padding: 13px;
-  text-align: left;
-}
-
-.floor-overview button b {
-  font: 500 22px/1 var(--serif);
-}
-
-.floor-overview button span {
-  color: var(--map-muted);
-  font-size: 8px;
-}
-
-.floor-overview button i {
-  background: linear-gradient(90deg, var(--map-red) var(--fill), #d8d3ca var(--fill));
-  height: 3px;
-}
-
-.floor-overview button.active {
-  border-color: var(--map-red);
-}
-
 @media (max-width: 1000px) {
   .indoor-map {
     grid-template-columns: 68px minmax(0, 1fr);
@@ -6987,23 +6881,6 @@ kbd {
     width: 100%;
   }
 
-  .map-time {
-    display: block;
-  }
-
-  .map-time > div {
-    margin-bottom: 14px;
-    overflow-x: auto;
-  }
-
-  .map-time > div button {
-    min-width: 82px;
-  }
-
-  .map-time label {
-    width: 100%;
-  }
-
   .building-tabs {
     display: flex;
     overflow-x: auto;
@@ -7054,23 +6931,6 @@ kbd {
     padding: 22px;
   }
 
-  .floor-overview {
-    display: block;
-    padding: 34px 0;
-  }
-
-  .floor-overview > header {
-    margin-bottom: 16px;
-  }
-
-  .floor-overview > div {
-    display: flex;
-    overflow-x: auto;
-  }
-
-  .floor-overview button {
-    flex: 0 0 112px;
-  }
 }
 
 /* V8 final cascade: keep the five-day grid visible on narrow screens. */

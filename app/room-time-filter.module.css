@@ -1,0 +1,314 @@
+.compactPage:global(.page-wrap.living-spaces.rooms-v5) {
+  padding-top: 20px;
+}
+
+.filter {
+  margin-bottom: 12px;
+}
+
+.heading {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  min-height: 44px;
+}
+
+.heading h1 {
+  color: var(--journal-ink, #1d1c19);
+  font-family: var(--journal-display);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.dateActions {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.dateActions .reset {
+  color: var(--journal-muted, #615d56);
+  font-size: 12px;
+  min-height: 44px;
+  padding: 0 6px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.datePicker {
+  position: relative;
+}
+
+.datePicker > summary {
+  align-items: center;
+  border: 1px solid var(--journal-line, #c9c3b9);
+  color: var(--journal-ink, #1d1c19);
+  cursor: pointer;
+  display: flex;
+  font-size: 14px;
+  gap: 10px;
+  list-style: none;
+  min-height: 44px;
+  padding: 0 12px;
+}
+
+.datePicker > summary::-webkit-details-marker {
+  display: none;
+}
+
+.datePopover {
+  background: var(--journal-paper, #f5f1e8);
+  border: 1px solid var(--journal-ink, #1d1c19);
+  box-shadow: 0 6px 16px #0002;
+  padding: 12px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  width: 236px;
+  z-index: 5;
+}
+
+.datePopover > div {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.datePopover button {
+  border: 1px solid var(--journal-line, #c9c3b9);
+  color: var(--journal-ink, #1d1c19);
+  flex: 1;
+  font-size: 14px;
+  min-height: 44px;
+}
+
+.datePopover label {
+  display: grid;
+  font-size: 13px;
+  gap: 6px;
+}
+
+.datePopover input {
+  background: var(--journal-paper, #f5f1e8);
+  border: 1px solid var(--journal-line, #c9c3b9);
+  border-radius: 0;
+  color: var(--journal-ink, #1d1c19);
+  font: inherit;
+  min-height: 44px;
+  min-width: 0;
+  padding: 8px;
+  width: 100%;
+}
+
+.periods {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.periods > button {
+  background: transparent;
+  border: 1px solid var(--journal-line, #c9c3b9);
+  color: var(--journal-ink, #1d1c19);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  min-height: 44px;
+  padding: 6px;
+  text-align: center;
+  border-radius: 5px;
+}
+
+.periods > button[aria-pressed="true"] {
+  background: var(--journal-red, #a62125);
+  border-color: var(--journal-red, #a62125);
+  color: #fff;
+}
+
+.filter :is(button, summary, input):focus-visible {
+  outline: 2px solid var(--journal-ink, #1d1c19);
+  outline-offset: 3px;
+}
+
+.filter > p {
+  color: var(--journal-red, #a62125);
+  font-size: 14px;
+  margin-top: 12px;
+}
+
+.compactPage :global(.building-tabs) {
+  gap: 4px;
+  margin: 0 0 14px;
+  padding: 0;
+  scrollbar-width: thin;
+}
+
+.compactPage :global(.building-tabs button) {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 12px;
+}
+
+.compactPage :global(.building-tabs button > span) {
+  font-size: 14px;
+}
+
+.compactPage :global(.building-tabs button > b) {
+  color: inherit;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.compactPage :global(.building-tabs button > small) {
+  display: none;
+}
+
+.compactPage :global(.building-tabs button.active) {
+  background: var(--ui-brand-soft, #f1e1dd);
+  border-bottom-color: var(--journal-red, #a62125);
+  color: var(--journal-red, #a62125);
+}
+
+.compactPage :global(.floor-map-heading) {
+  gap: 10px;
+  padding-bottom: 12px;
+  padding-top: 16px;
+}
+
+.compactPage :global(.floor-map-heading h2) {
+  font-size: 28px;
+  margin: 5px 0;
+}
+
+.queryContext {
+  color: var(--journal-muted, #615d56);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.compactPage .legend span {
+  align-items: center;
+  color: var(--journal-muted, #615d56);
+  display: flex;
+  font-size: 12px;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.legend i {
+  border: 1px solid var(--journal-line, #c9c3b9);
+  height: 8px;
+  width: 8px;
+}
+
+.legend :global(.free) {
+  background: #2d6950;
+  border-color: #2d6950;
+}
+
+.legend :global(.busy) {
+  background: #d8d3ca;
+}
+
+.compactPage :global(.floor-selector button.active) {
+  box-shadow: inset 3px 0 var(--journal-red, #a62125);
+}
+
+.floorAvailability {
+  background: var(--journal-line, #c9c3b9);
+  border-radius: 2px;
+  display: block;
+  height: 3px;
+  justify-self: center;
+  margin-top: 4px;
+  overflow: hidden;
+  width: 28px;
+}
+
+.floorAvailability i {
+  background: #2d6950;
+  display: block;
+  height: 100%;
+}
+
+.compactPage :global(.floor-rooms-v5 button) {
+  align-items: stretch;
+  border-radius: 5px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  overflow: hidden;
+}
+
+.compactPage :global(.floor-rooms-v5 button strong) {
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.compactPage :global(.floor-rooms-v5 button span) {
+  color: var(--journal-muted, #615d56);
+}
+
+.compactPage :global(.floor-rooms-v5 button.free span) {
+  color: #315b49;
+}
+
+.compactPage :global(.floor-rooms-v5 button:focus-visible),
+.compactPage :global(.floor-selector button:focus-visible),
+.compactPage :global(.building-tabs button:focus-visible) {
+  outline: 2px solid var(--journal-ink, #1d1c19);
+  outline-offset: -2px;
+}
+
+@media (max-width: 600px) {
+  .compactPage:global(.page-wrap.living-spaces.rooms-v5) {
+    padding-top: 12px;
+  }
+
+  .compactPage :global(.floor-rooms-v5) {
+    gap: 8px;
+  }
+
+  .compactPage :global(.floor-rooms-v5 button) {
+    min-height: 86px;
+    padding: 10px 9px;
+  }
+
+  .compactPage :global(.floor-rooms-v5 button span) {
+    line-height: 1.4;
+    margin-top: 7px;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .compactPage :global(.floor-rooms-v5 button.busy span) {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .compactPage :global(.floor-selector button b) {
+    font-family: var(--mono);
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 360px) {
+  .legend {
+    flex-direction: column;
+  }
+}

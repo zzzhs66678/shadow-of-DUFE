@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { competitions, competitionPath } from "../app/competitions/catalog.ts";
 
 async function render(pathname = "/") {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
@@ -100,6 +101,7 @@ test("sitemap URLs match public pages and the real material catalog, all returni
   const urls = [...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1]);
   const catalog = JSON.parse(await readFile(new URL("../public/data/resource-manifest.json", import.meta.url), "utf8"));
   const expected = ["/", "/teachers", "/materials", "/community", "/privacy", "/terms", "/account/delete",
+    "/competitions", ...competitions.map(item => competitionPath(item.slug)),
     ...catalog.materials.map((item) => `/materials/${encodeURIComponent(item.id)}`)];
   assert.deepEqual(urls.map((url) => new URL(url).pathname).sort(), [...new Set(expected)].sort());
   assert.equal(new Set(urls).size, urls.length);
@@ -116,6 +118,26 @@ test("sitemap URLs match public pages and the real material catalog, all returni
   }
   assert.equal((await render("/seo-missing-page")).status, 404);
   assert.equal((await render("/materials/seo-missing-material")).status, 404);
+  assert.equal((await render("/competitions/missing-competition")).status, 404);
+});
+
+test("competition pages render dated notices and only real downloads without JavaScript", async () => {
+  const listing = await render("/competitions");
+  assert.equal(listing.status, 200);
+  const listHtml = await listing.text();
+  assert.match(listHtml, /学科考试及竞赛/);
+  for (const item of competitions) {
+    assert.ok(listHtml.includes(`href="${competitionPath(item.slug)}"`));
+    const response = await render(competitionPath(item.slug));
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    assert.ok(html.includes(item.notice.url));
+    assert.ok(html.includes(`dateTime="${item.notice.publishedAt}"`));
+    assert.doesNotMatch(html, /正在报名|立即报名|即将开始/);
+    assert.equal(html.includes("下载试题"), item.resources.length > 0);
+    if (item.resources.length) assert.ok(html.includes(item.resources[0].href));
+    else assert.match(html, /暂无资料/);
+  }
 });
 
 test("community list and topic routes render independent readable shells", async () => {
