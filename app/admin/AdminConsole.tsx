@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
+import { UserRegistration } from "./UserRegistration";
 import { DialogActions, DialogBackdrop } from "../DialogBackdrop";
 import { FormField } from "../FormField";
 import { useModalFocus } from "../use-modal-focus";
@@ -95,6 +96,7 @@ type ApiError = Error & { status?: number; code?: string };
 const actionLabels: Record<string, string> = {
   "admin.elevation.created": "管理员完成二次验证",
   "admin.user.status_changed": "用户状态已变更",
+  "admin.user.registration_viewed": "已查看用户注册资料",
   "admin.bootstrap.created": "管理员权限已建立",
   "admin.mfa.rotated": "管理员验证器已轮换",
   "admin.community.case_opened": "社区举报已入案",
@@ -194,6 +196,8 @@ export function AdminConsole() {
   const [feedback, setFeedback] = useState("");
   const [busy, setBusy] = useState("");
   const [target, setTarget] = useState<AdminUser | null>(null);
+  const [registrationUserId, setRegistrationUserId] = useState<string | null>(null);
+  const closeRegistration = useCallback(() => setRegistrationUserId(null), []);
   const [profileTarget, setProfileTarget] = useState<AdminUser | null>(null);
   const [publicProfile, setPublicProfile] = useState<AdminPublicProfile | null>(null);
   const [publicItems, setPublicItems] = useState<PublicProfileItem[]>([]);
@@ -212,6 +216,7 @@ export function AdminConsole() {
   }, []);
 
   const handleMfaExpired = useCallback(() => {
+    setRegistrationUserId(null);
     setScreen("elevation");
   }, []);
 
@@ -666,6 +671,7 @@ export function AdminConsole() {
                     </div>
                     <div className={styles.userAction}>
                       <em data-status={user.status}>{user.status === "active" ? "正常" : "已停用"}</em>
+                      <button onClick={() => setRegistrationUserId(user.id)}>注册资料</button>
                       <button onClick={() => { setProfileTarget(user); setPublicItems([]); setPublicProfile(null); setPublicCursor(null); void loadPublicProfile(user, "topics"); }}>
                         查看公开资料
                       </button>
@@ -698,6 +704,7 @@ export function AdminConsole() {
         </>
       )}
 
+      {registrationUserId && screen === "dashboard" && <UserRegistration key={registrationUserId} userId={registrationUserId} elevatedUntil={access?.elevatedUntil ?? null} onClose={closeRegistration} onExpired={handleMfaExpired} />}
       {target && (
         <DialogBackdrop onDismiss={closeUserAction} dismissDisabled={Boolean(busy)}>
           <form

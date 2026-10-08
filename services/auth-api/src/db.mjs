@@ -1,4 +1,5 @@
 import pg from "pg";
+import { createAdminUserDetailsStore } from "./admin-user-details.mjs";
 import { createPersonalStore } from "./personal-store.mjs";
 import { createCommunityStore } from "./community-store.mjs";
 import { createTeacherReviewStore } from "./teacher-review-store.mjs";
@@ -97,6 +98,7 @@ export function createAuthStore(pool) {
     ...communityStore,
     ...teacherReviewStore,
     ...teacherStore,
+    ...createAdminUserDetailsStore(pool),
     async health() {
       await pool.query("SELECT 1");
     },

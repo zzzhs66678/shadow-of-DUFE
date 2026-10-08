@@ -449,6 +449,35 @@ export function createAdminRequestHandler({
       return true;
     }
 
+    const registrationMatch = url.pathname.match(/^\/api\/admin\/users\/([0-9a-f-]{36})\/registration$/iu);
+    if (registrationMatch) {
+      if (request.method !== "POST") {
+        methodNotAllowed(response, "POST");
+        return true;
+      }
+      if (!isUuid(registrationMatch[1]) || !exactQuery(url.searchParams, new Set())) {
+        sendJson(response, 400, { error: "invalid_admin_query" });
+        return true;
+      }
+      try {
+        const registration = await store.getAdminUserRegistration({
+          actorUserId: session.userId,
+          actorSessionId: session.id,
+          actorElevationTokenHash: elevationTokenHash,
+          targetUserId: registrationMatch[1],
+          requestId,
+          ipHash: tokenDigest(`admin-ip:${clientAddress(request)}`, config.tokenPepper),
+          userAgentHash: tokenDigest(`admin-ua:${String(request.headers["user-agent"] ?? "")}`, config.tokenPepper),
+        });
+        if (!registration) sendJson(response, 404, { error: "admin_user_not_found" });
+        else sendJson(response, 200, { registration });
+      } catch (error) {
+        if (error?.code !== "AUTH_ADMIN_FORBIDDEN") throw error;
+        sendJson(response, 403, { error: "admin_mfa_required" }, [clearAdminCookie()]);
+      }
+      return true;
+    }
+
     const publicProfileMatch = url.pathname.match(
       /^\/api\/admin\/users\/([0-9a-f-]{36})\/public-profile$/iu,
     );

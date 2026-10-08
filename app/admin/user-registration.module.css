@@ -1,0 +1,11 @@
+.sheet { background: var(--admin-paper, #f6f3eb); color: var(--admin-ink, #211e19); border: 1px solid currentColor; width: min(640px, 100%); max-height: calc(100dvh - 40px); overflow: auto; padding: clamp(20px, 4vw, 36px); }
+.sheet header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.sheet h2 { font-size: 26px; margin: 0; }
+.sheet p { font-size: 13px; line-height: 1.7; }
+.sheet dl { margin: 24px 0; }
+.sheet dl > div { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 16px; padding: 12px 0; border-bottom: 1px solid #d5cfc1; }
+.sheet dt { font-size: 13px; }
+.sheet dd { font-size: 14px; margin: 0; overflow-wrap: anywhere; user-select: text; }
+.sheet button, .sheet a { min-height: 44px; padding: 10px 14px; background: transparent; color: inherit; border: 1px solid #b6ad9d; font-size: 14px; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+@media (max-width: 400px) { .sheet dl > div { grid-template-columns: 88px minmax(0, 1fr); gap: 10px; } }
