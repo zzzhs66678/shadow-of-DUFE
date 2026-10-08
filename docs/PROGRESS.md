@@ -643,3 +643,10 @@
 - staging 真实部署 UI 使用合成 API 资料完成 390/1280px 查看与关闭；真实 PostgreSQL/MFA/审计链路由 CI 验证。页面/健康接口 200、匿名查看资料 401；只重建 staging app/auth，未迁移数据库，正式站及其他容器指纹不变。
 - 已验证回滚至 app `a55be8a7f447fe185e53dc5b040b8ed9f32d543b`、auth `bbd816f971a52b175d73a351a3b6b0173c4f9a4e` 并恢复当前版本；current 指向 4a51166，previous 指向 a55be8a。旧 app/auth 版本不同，回滚应使用 uploads/admin-4a51166/rollback.json 的显式镜像覆盖，不能猜同一标签。
 - 服务器记录：`/srv/apps/dufesh-staging/releases/4a51166845e6a067dc1be4fe6bdcbccbaad13718/ADMIN_REGISTRATION_DEPLOYMENT.json`。正式站仍为 e7855e3，等待生产发布确认。
+
+## 2026-10-09 管理工作台重整（staging 已部署，正式站未发布）
+
+- 应用提交 `80bbbbdd2905eb06047520346b1270f4db560547`；用户、内容审核、通知、操作记录独立分区，资料面板统一账号信息和公开主题/回复，精简文案并保留确认。MFA、权限与审计逻辑未放宽。
+- 完整 push CI `37819910261`、PR CI `37819917296` 全绿，浏览器 107 通过、7 个重复宽度跳过；真实 PostgreSQL 17 管理与审核链通过。线上 320/390/1280px 使用合成 API 验证实际发布界面、资料、切换/刷新、草稿保留及可访问性，页面和健康 200、匿名管理接口 401。
+- CI 运行包 SHA-256 `9aa475895d0a581a3fe9cb83aa356435fdcea1a379eb2a1de86979ef4d7b65e3`；按 D-059 验证不变依赖后生成 app 镜像 `sha256:4e0b5a7700d275fde0156fa495401d1232c4a2551a93fc7a185ef405cb8085df`。仅替换 staging app，无数据库迁移，其余 9 个容器指纹不变。
+- staging current 指向 80bbbbd，previous 指向 4a51166，auth 继续使用 4a51166；已实际验证仅 app 回滚再前滚。证据位于 `/srv/apps/dufesh-staging/uploads/admin-ui-80bbbbd/`，包含 CI 摘要、源码、部署脚本和容器前后指纹。production 仍为 e7855e3。
