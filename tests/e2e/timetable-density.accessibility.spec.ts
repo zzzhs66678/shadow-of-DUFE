@@ -70,6 +70,9 @@ test("personal timetable keeps source, full text and direct remove/undo at compa
   await dragHandle.focus();
   await page.keyboard.press("Space");
   await expect(page.locator(".schedule-drag-overlay")).toBeVisible();
+  // KeyboardSensor attaches its document key listener in a zero-delay timer.
+  // Wait for that task before sending a separate user's cancellation key.
+  await page.evaluate(() => new Promise<void>(resolve => setTimeout(resolve, 0)));
   await page.keyboard.press("Escape");
   await expect(page.locator(".schedule-drag-overlay")).toHaveCount(0);
   await expect(cards).toHaveCount(sample.length);
