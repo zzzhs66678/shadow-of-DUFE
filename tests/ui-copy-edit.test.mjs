@@ -17,9 +17,11 @@ test("campus photos keep images and alt text without visible introductions or ca
 
 test("routine screens are concise while meaningful risks remain explicit", () => {
   assert.doesNotMatch(hub, /稍等一下，马上就好|今天学什么，去哪儿学|最多同时比较 4 个教学班|校园空间|同楼已经排前面/u);
-  for (const copy of ["现在的数据只保存在这台设备", "清理微信或浏览器缓存前", "选课预览，不代表教务选课结果", "考试安排未同步", "仅用于本次导入，不会保存。", "按课表推算，是否开放以现场为准。", "是否把这些课表、日程和作业导入当前账号？"]) {
+  for (const copy of ["现在的数据只保存在这台设备", "清理微信或浏览器缓存前", "选课预览，不代表教务选课结果", "考试安排未同步", "仅用于本次导入，不会保存。", "是否把这些课表、日程和作业导入当前账号？"]) {
     assert.ok(hub.includes(copy), copy);
   }
+  assert.doesNotMatch(hub, /按课表推算，是否开放以现场为准。/u);
+  assert.match(hub, /这个日期不在当前学期内，暂时无法判断空闲。/u);
 });
 
 test("import errors report known state rather than inventing a school-side change", () => {
