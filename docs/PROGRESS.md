@@ -633,3 +633,13 @@
 - 本地证据：staging/发布契约 8/8、TypeScript、Compose YAML 解析、生产构建与差异检查通过。PR #10 run `31687272428` 已复用生产镜像启动隔离 PostgreSQL、执行 20 个迁移，并通过主应用、认证 API、HTTPS Caddy、教师接口、社区和实际 JS/CSS 资源冒烟；verify、PG17、Linux 镜像、CodeQL 与全历史密钥扫描全绿。独立外部 staging 地址/凭据仍未提供，本轮未部署。
 - 2026-08-13 接入真实 staging 前复核发现域名保护使用了宽泛子串匹配，会误拦所有 `*.dufesh.cn`。现已改为解析 URL authority 后仅拒绝 `dufesh.cn`、`www.dufesh.cn` 和 `112.126.75.74`，允许隔离子域；4 项 staging 契约通过，尚未部署。
 - 2026-08-13 在北京 ECS `i-2zej47hn80v6wdsbw4va` 完成隔离 staging 部署并接入 `https://staging.dufesh.cn`：发布目录 `/srv/apps/dufesh-staging/releases/9e7f5fa1cf8d2057a8c8d7c90885b1d9c8a3bf15`，包 SHA-256 `ed17e1e1d74693a9fde52206ef9eec1a2eac93d645e39cfb16b537bb85bc937e`；数据库、凭据、资料目录、卷和 Compose 项目均与 production 分离。20 个迁移完成，回环与公网 HTTPS 冒烟通过，首页 200、证书可信、认证健康 200、`noindex` 生效；app 镜像 `sha256:439a15f1cccdc2c63908f3e47d0b25086bc1a1242f39012fc3f96ca261faea96`，auth-api 镜像 `sha256:e65d7c37ebdd7fd303dc7cde356b084f8345af93ed06d80bb98f0c8d014e3701`。专用 ingress 网络仅含 production Caddy 与 staging app/auth-api，不含数据库；production app/auth-api/PostgreSQL 和正式认证接口在热重载后保持健康。服务器已保存不含密钥的 `DEPLOYMENT_MANIFEST` 与带时间戳 Caddy/auth 配置备份。
+
+## 2026-10-09 管理员注册资料（staging）
+
+- 应用版本：`4a51166845e6a067dc1be4fe6bdcbccbaad13718`；PR #11；完整 CI `37807844086` 与 PR CI `37807968702` 成功。
+- 入口：管理后台 → 账号名册 → 注册资料。完整邮箱及已保存资料只在显式打开详情后返回；保留 MFA、事务权限复核和不含资料正文的查看审计。
+- 按 D-059 使用 Linux CI 工件，源码归档用 `git -c core.autocrlf=false archive`，逐项通过依赖摘要校验；旧镜像依赖、vendor、构建配置按换行规范化后内容相同。运行包 SHA256 `9220b0e76d057a10c729fd8e60d2b91f1ff3ad278b9b0046fcde12bc3e7c5c62`。
+- 最终 app 镜像 `sha256:a5f2be0305f7acacffcbfb8d8dbd1833f05f41f5728d4927cf557f481a261252`，auth 镜像 `sha256:ee97663977cef3a07f4b584aebe71d14de6f5934f35d8f1648cc1fba6173a8db`；不是 CI 完整镜像摘要。
+- staging 真实部署 UI 使用合成 API 资料完成 390/1280px 查看与关闭；真实 PostgreSQL/MFA/审计链路由 CI 验证。页面/健康接口 200、匿名查看资料 401；只重建 staging app/auth，未迁移数据库，正式站及其他容器指纹不变。
+- 已验证回滚至 app `a55be8a7f447fe185e53dc5b040b8ed9f32d543b`、auth `bbd816f971a52b175d73a351a3b6b0173c4f9a4e` 并恢复当前版本；current 指向 4a51166，previous 指向 a55be8a。旧 app/auth 版本不同，回滚应使用 uploads/admin-4a51166/rollback.json 的显式镜像覆盖，不能猜同一标签。
+- 服务器记录：`/srv/apps/dufesh-staging/releases/4a51166845e6a067dc1be4fe6bdcbccbaad13718/ADMIN_REGISTRATION_DEPLOYMENT.json`。正式站仍为 e7855e3，等待生产发布确认。
