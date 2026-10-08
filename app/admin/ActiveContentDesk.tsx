@@ -173,7 +173,7 @@ export function ActiveContentDesk({
       setSelected(null);
       setFeedback(refreshFailures.length
         ? `处置已生效，但${refreshFailures.join("和")}刷新失败；请勿重复操作。`
-        : "处置已生效，并已写入案件记录与管理员审计。");
+        : "处理完成。");
     } catch (error) {
       setFeedback(contentError(error));
       if ((error as ApiError).code === "admin_mfa_required") onMfaExpired();
@@ -189,7 +189,7 @@ export function ActiveContentDesk({
   return (
     <section className={`${styles.moderationDesk} ${styles.activeContentDesk}`} aria-labelledby="active-content-title">
       <header>
-        <div><span>主动巡查</span><h2 id="active-content-title">公开内容值守</h2><p>无需等待举报即可检索主题与回复；任何处置仍须先建案，并写入两套不可变审计。</p></div>
+        <div><h2 id="active-content-title">主题与回复</h2></div>
         <nav aria-label="内容类型">
           <button aria-pressed={type === "topic"} onClick={() => setType("topic")}>主题</button>
           <button aria-pressed={type === "comment"} onClick={() => setType("comment")}>回复</button>
@@ -197,7 +197,7 @@ export function ActiveContentDesk({
       </header>
       <div className={styles.contentFilters}>
         <form role="search" onSubmit={search}>
-          <FormField label="按标题或正文查找"><input type="search" value={queryDraft} onChange={(event) => setQueryDraft(event.target.value)} maxLength={64} /></FormField>
+          <FormField label="按标题或正文查找" className={styles.caseField}><input type="search" value={queryDraft} onChange={(event) => setQueryDraft(event.target.value)} maxLength={64} /></FormField>
           <button>查找</button>
         </form>
         <div role="group" aria-label="内容状态">
@@ -208,7 +208,7 @@ export function ActiveContentDesk({
 
       {feedback && <p className={styles.moderationFeedback} role="status">{feedback}</p>}
       {status === "loading" && <p className={styles.moderationState} role="status">正在读取内容目录…</p>}
-      {status === "error" && <p className={styles.moderationState} role="alert">内容目录没有加载成功。举报队列不受影响。<button onClick={() => void loadContent()}>重试</button></p>}
+      {status === "error" && <p className={styles.moderationState} role="alert">内容加载失败。<button onClick={() => void loadContent()}>重试</button></p>}
       {status === "ready" && items.length === 0 && <p className={styles.moderationState}>当前条件下没有内容。</p>}
       {status === "ready" && items.length > 0 && (
         <ol className={styles.reportQueue}>
@@ -224,7 +224,7 @@ export function ActiveContentDesk({
           ))}
         </ol>
       )}
-      {status === "ready" && nextCursor && <button className={styles.queueMore} onClick={() => void loadContent(nextCursor, true)}>继续读取内容</button>}
+      {status === "ready" && nextCursor && <button className={styles.queueMore} onClick={() => void loadContent(nextCursor, true)}>加载更多</button>}
 
       {selected && (
         <DialogBackdrop onDismiss={closeSelected} dismissDisabled={Boolean(busy)} priority="critical">

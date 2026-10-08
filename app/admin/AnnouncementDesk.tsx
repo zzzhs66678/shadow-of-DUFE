@@ -184,11 +184,11 @@ export function AnnouncementDesk({
     <section className={styles.announcementDesk} aria-labelledby="admin-announcement-title">
       <header>
         <div>
-          <span>BROADCAST</span>
+
           <h2 id="admin-announcement-title">系统公告</h2>
-          <p>面向全部活跃账号发送站内通知。每次发布都会永久保留公告主记录与值守审计。</p>
+          <p>发送给全部活跃账号。</p>
         </div>
-        <b>全站 · 活跃账号</b>
+
       </header>
 
       {feedback && <p className={styles.announcementFeedback} role="status">{feedback}</p>}
@@ -212,7 +212,7 @@ export function AnnouncementDesk({
               placeholder="说明影响范围、时间和学生需要采取的动作"
             />
           </FormField>
-          <FormField label="点击后的站内路径" counter={`${fallbackPath.length}/500`} className={styles.caseField}>
+          <FormField label="跳转链接（站内）" counter={`${fallbackPath.length}/500`} className={styles.caseField}>
             <input
               value={fallbackPath}
               onChange={(event) => setFallbackPath(event.target.value)}
@@ -222,12 +222,12 @@ export function AnnouncementDesk({
             />
           </FormField>
           <button className={styles.announcementPreviewButton} disabled={!ready}>
-            预览投递
+            预览公告
           </button>
         </form>
 
         <aside className={styles.announcementHistory} aria-label="最近系统公告">
-          <h3>最近投递</h3>
+          <h3>已发布</h3>
           {loading ? (
             <p>正在读取公告记录…</p>
           ) : announcements.length === 0 ? (
@@ -266,7 +266,7 @@ export function AnnouncementDesk({
             {feedback && <p className={styles.caseFeedback} role="alert">{feedback}</p>}
             <DialogActions>
               <button type="button" onClick={closePreview} disabled={publishing}>返回修改</button>
-              <button disabled={publishing}>{publishing ? "正在原子投递" : "确认发布"}</button>
+              <button disabled={publishing}>{publishing ? "正在发布" : "确认发布"}</button>
             </DialogActions>
           </form>
         </DialogBackdrop>

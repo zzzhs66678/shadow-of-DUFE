@@ -1,11 +1,33 @@
-.sheet { background: var(--admin-paper, #f6f3eb); color: var(--admin-ink, #211e19); border: 1px solid currentColor; width: min(640px, 100%); max-height: calc(100dvh - 40px); overflow: auto; padding: clamp(20px, 4vw, 36px); }
-.sheet header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.sheet h2 { font-size: 26px; margin: 0; }
-.sheet p { font-size: 13px; line-height: 1.7; }
-.sheet dl { margin: 24px 0; }
-.sheet dl > div { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 16px; padding: 12px 0; border-bottom: 1px solid #d5cfc1; }
-.sheet dt { font-size: 13px; }
-.sheet dd { font-size: 14px; margin: 0; overflow-wrap: anywhere; user-select: text; }
-.sheet button, .sheet a { min-height: 44px; padding: 10px 14px; background: transparent; color: inherit; border: 1px solid #b6ad9d; font-size: 14px; }
-.actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-@media (max-width: 400px) { .sheet dl > div { grid-template-columns: 88px minmax(0, 1fr); gap: 10px; } }
+.sheet { background: #fff; color: #202a2a; border: 1px solid #dce3e1; border-radius: 12px; width: min(700px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; padding: 28px; box-shadow: 0 24px 80px #202a2a24; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+.sheet * { box-sizing: border-box; }
+.sheet header { display: flex; justify-content: space-between; align-items: center; gap: 16px; color: #626d6d; font-size: 12px; }
+.sheet button, .sheet a { font: inherit; cursor: pointer; }
+.sheet button { min-height: 40px; padding: 9px 14px; border: 1px solid #dce3e1; background: white; border-radius: 5px; color: #202a2a; font-size: 12px; }
+.sheet button:disabled { opacity: .5; }
+.sheet :is(button,a):focus-visible { outline: 2px solid #af2734; outline-offset: 3px; }
+.sheet p { font-size: 13px; line-height: 1.8; }
+.identity { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin: 24px 0; }
+.identity > i { width: 50px; height: 56px; display: grid; place-items: center; background: #f3f5f4; border-radius: 9px; color: #af2734; font-size: 23px; font-style: normal; flex-shrink: 0; overflow: hidden; }
+.identity h2 { font-size: 23px; line-height: 1.4; margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.identity > div { flex: 1; min-width: 0; }
+.identity p { font-size: 12px; color: #626d6d; margin: 5px 0 0; overflow-wrap: anywhere; }
+.identity > span { font-size: 11px; color: #626d6d; padding: 6px 9px; border-radius: 5px; background: #f3f5f4; }
+.tabs { display: flex; gap: 24px; border-bottom: 1px solid #dce3e1; margin-bottom: 24px; }
+.tabs button { border: 0; border-radius: 0; border-bottom: 2px solid transparent; padding: 12px 2px; font-size: 13px; color: #626d6d; }
+.tabs button[aria-pressed="true"] { border-bottom-color: #af2734; color: #af2734; font-weight: 600; }
+.group { margin-top: 28px; }
+.group h3 { font-size: 13px; margin: 0 0 14px; font-weight: 600; }
+.group dl { margin: 0; display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; }
+.group dl > div { display: grid; grid-template-columns: 76px minmax(0, 1fr); padding: 12px 0; border-top: 1px solid #edf0ef; gap: 12px; min-width: 0; }
+.group:first-of-type dl { grid-template-columns: 1fr; }
+.group dt { font-size: 12px; line-height: 1.7; color: #626d6d; }
+.group dd { font-size: 13px; line-height: 1.7; margin: 0; overflow-wrap: anywhere; user-select: text; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-top: 12px; }
+.actions a { font-size: 12px; color: #af2734; text-decoration: none; padding: 10px 0; }
+.sheet .note { font-size: 11px; color: #626d6d; margin: 14px 0 0; }
+.activity ol { list-style: none; margin: 0; padding: 0; }
+.activity li { border-bottom: 1px solid #dce3e1; padding: 20px 0; }
+.activity time { color: #626d6d; font-size: 11px; display: block; margin-bottom: 9px; }
+.activity a { color: #202a2a; font-size: 15px; text-decoration: none; display: block; font-weight: 500; }
+.activity p { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 600px) { .sheet { padding: 20px; } .group dl { grid-template-columns: 1fr; } .identity > span { margin-left: 64px; } .identity { gap: 10px 14px; } }

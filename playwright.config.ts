@@ -40,6 +40,7 @@ export default defineConfig({
     stderr: "pipe",
   },
   projects: [
+    { name: "admin-workspace", testMatch: /admin-workspace\.spec\.ts/ },
     {
       name: "desktop",
       testMatch: /accessibility\.spec\.ts/,

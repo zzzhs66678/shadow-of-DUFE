@@ -378,7 +378,7 @@ test("users and an administrator complete the release browser path", async ({
     await administrator.goto("/admin");
     await expect(
       administrator.getByRole("heading", {
-        name: "这个入口只对值守人员开放",
+        name: "仅管理员可访问",
       }),
     ).toBeVisible();
 
@@ -427,7 +427,7 @@ test("users and an administrator complete the release browser path", async ({
     await administrator.goto("/admin");
     await expect(
       administrator.getByRole("heading", {
-        name: /值守之前/u,
+        name: /验证身份/u,
       }),
     ).toBeVisible();
     const totp = adminSecurityTest.codeForStep(
@@ -435,26 +435,28 @@ test("users and an administrator complete the release browser path", async ({
       Math.floor(Date.now() / 1_000 / 30),
     );
     await administrator.getByLabel("动态码或恢复码").fill(totp);
-    await administrator.getByRole("button", { name: "开始值守" }).click();
+    await administrator.getByRole("button", { name: "进入后台" }).click();
     await expect(
-      administrator.getByRole("heading", { name: "今日值守簿" }),
+      administrator.getByRole("heading", { name: "用户管理" }),
     ).toBeVisible();
-    await expect(administrator.getByText("在册账号")).toBeVisible();
+    await expect(administrator.getByRole("region", { name: "账号概况" })).toBeVisible();
     await expect(
       administrator
-        .getByRole("region", { name: "查找与处置" })
+        .getByRole("region", { name: "注册用户" })
         .locator("span")
         .filter({ hasText: `@${ownerUsername} ·` }),
     ).toBeVisible();
 
+    await administrator.getByRole("navigation", { name: "管理功能" }).getByRole("button", { name: "内容审核" }).click();
     await expect(
-      administrator.getByRole("heading", { name: "举报案卷" }),
+      administrator.getByRole("heading", { name: "举报处理" }),
     ).toBeVisible();
+    await administrator.getByRole("navigation", { name: "审核分类" }).getByRole("button", { name: "历史评价" }).click();
     await expect(
-      administrator.getByRole("heading", { name: "教师评价复核" }),
+      administrator.getByRole("heading", { name: "历史评价" }),
     ).toBeVisible();
     const teacherReviewDesk = administrator.locator("section").filter({
-      has: administrator.getByRole("heading", { name: "教师评价复核" }),
+      has: administrator.getByRole("heading", { name: "历史评价" }),
     });
     await teacherReviewDesk
       .getByRole("button", { name: new RegExp(teacher.displayName, "u") })
@@ -470,7 +472,7 @@ test("users and an administrator complete the release browser path", async ({
       .click();
     await expect(teacherReviewDialog).toBeHidden();
     await expect(
-      administrator.getByText(/历史评价已作为“历史整理内容”公开/u),
+      administrator.getByText(/已公开为历史评价/u),
     ).toBeVisible();
 
     await secondOwner.goto(`/teachers/${teacher.id}`);
@@ -479,8 +481,9 @@ test("users and an administrator complete the release browser path", async ({
     await expect(legacyReviewArticle.getByText("历史评价", { exact: true })).toBeVisible();
     await expect(legacyReviewArticle.locator("time, img")).toHaveCount(0);
 
+    await administrator.getByRole("navigation", { name: "审核分类" }).getByRole("button", { name: "举报处理" }).click();
     const moderationDesk = administrator.locator("section").filter({
-      has: administrator.getByRole("heading", { name: "举报案卷" }),
+      has: administrator.getByRole("heading", { name: "举报处理" }),
     });
     await moderationDesk
       .getByRole("button", { name: new RegExp(teacher.displayName, "u") })
@@ -522,7 +525,7 @@ test("users and an administrator complete the release browser path", async ({
 
     await administrator.reload();
     const refreshedModerationDesk = administrator.locator("section").filter({
-      has: administrator.getByRole("heading", { name: "举报案卷" }),
+      has: administrator.getByRole("heading", { name: "举报处理" }),
     });
     await refreshedModerationDesk
       .getByRole("button", { name: new RegExp(teacher.displayName, "u") })
@@ -548,7 +551,7 @@ test("users and an administrator complete the release browser path", async ({
     await expect(deletedReviewArticle.getByText(teacherReplyBody)).toBeHidden();
 
     const finalModerationDesk = administrator.locator("section").filter({
-      has: administrator.getByRole("heading", { name: "举报案卷" }),
+      has: administrator.getByRole("heading", { name: "举报处理" }),
     });
     await finalModerationDesk.getByRole("button", { name: "待入案" }).click();
     await expect(

@@ -61,27 +61,6 @@ type UserFilters = {
   registeredTo: string;
 };
 
-type AdminPublicProfile = {
-  id: string;
-  username: string | null;
-  displayName: string | null;
-  avatarUrl: string | null;
-  joinedAt: string;
-  topicCount: number;
-  commentCount: number;
-  accountStatus: "active" | "disabled";
-};
-
-type PublicProfileItem = {
-  id: string;
-  topicId?: string;
-  title?: string;
-  topicTitle?: string;
-  body: string;
-  publicPath: string;
-  createdAt: string;
-};
-
 type Screen =
   | "loading"
   | "anonymous"
@@ -184,6 +163,8 @@ function userFilterSearch(filters: UserFilters, cursor?: string | null) {
 }
 
 export function AdminConsole() {
+  const [workspace, setWorkspace] = useState("users");
+  const [reviewTab, setReviewTab] = useState("reports");
   const [screen, setScreen] = useState<Screen>("loading");
   const [access, setAccess] = useState<AccessState | null>(null);
   const [overview, setOverview] = useState<Overview | null>(null);
@@ -198,17 +179,9 @@ export function AdminConsole() {
   const [target, setTarget] = useState<AdminUser | null>(null);
   const [registrationUserId, setRegistrationUserId] = useState<string | null>(null);
   const closeRegistration = useCallback(() => setRegistrationUserId(null), []);
-  const [profileTarget, setProfileTarget] = useState<AdminUser | null>(null);
-  const [publicProfile, setPublicProfile] = useState<AdminPublicProfile | null>(null);
-  const [publicItems, setPublicItems] = useState<PublicProfileItem[]>([]);
-  const [publicKind, setPublicKind] = useState<"topics" | "comments">("topics");
-  const [publicState, setPublicState] = useState<"idle" | "loading" | "ready" | "error">("idle");
-  const [publicCursor, setPublicCursor] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const closeUserAction = useCallback(() => setTarget(null), []);
-  const closePublicProfile = useCallback(() => setProfileTarget(null), []);
   const actionDialogRef = useModalFocus<HTMLFormElement>(Boolean(target), closeUserAction, Boolean(busy));
-  const profileDialogRef = useModalFocus<HTMLElement>(Boolean(profileTarget), closePublicProfile, publicState === "loading");
 
   const loadAudit = useCallback(async () => {
     const payload = await requestJson<{ events: AuditEvent[] }>("/api/admin/audit");
@@ -219,6 +192,24 @@ export function AdminConsole() {
     setRegistrationUserId(null);
     setScreen("elevation");
   }, []);
+
+  useEffect(() => {
+    const readLocation = () => {
+      const [section, review] = window.location.hash.slice(1).split("-");
+      if (["users", "review", "notices", "audit"].includes(section)) setWorkspace(section);
+      if (["reports", "content", "history"].includes(review)) setReviewTab(review);
+    };
+    const frame = window.requestAnimationFrame(readLocation);
+    window.addEventListener("hashchange", readLocation);
+    return () => { window.cancelAnimationFrame(frame); window.removeEventListener("hashchange", readLocation); };
+  }, []);
+
+  function navigate(section: string, review = reviewTab) {
+    setWorkspace(section);
+    setReviewTab(review);
+    window.history.replaceState(null, "", `#${section}${section === "review" ? `-${review}` : ""}`);
+    if (section === "audit") void loadAudit().catch((error) => setFeedback(errorMessage(error)));
+  }
 
   const loadDashboard = useCallback(async (nextFilters = emptyUserFilters) => {
     const [overviewPayload, usersPayload] = await Promise.all([
@@ -252,31 +243,6 @@ export function AdminConsole() {
     }
   }, [activeFilters, usersCursor]);
 
-  const loadPublicProfile = useCallback(async (
-    user: AdminUser,
-    kind: "topics" | "comments",
-    cursor?: string | null,
-    append = false,
-  ) => {
-    setPublicState("loading");
-    try {
-      const suffix = cursor ? `&cursor=${encodeURIComponent(cursor)}` : "";
-      const payload = await requestJson<{
-        profile: AdminPublicProfile;
-        items: PublicProfileItem[];
-        nextCursor: string | null;
-      }>(`/api/admin/users/${user.id}/public-profile?kind=${kind}&limit=10${suffix}`);
-      setPublicProfile(payload.profile);
-      setPublicItems((current) => append ? [...current, ...payload.items] : payload.items);
-      setPublicKind(kind);
-      setPublicCursor(payload.nextCursor);
-      setPublicState("ready");
-    } catch (error) {
-      setPublicState("error");
-      setFeedback(errorMessage(error));
-    }
-  }, []);
-
   const loadAccess = useCallback(async () => {
     try {
       const nextAccess = await requestJson<AccessState>("/api/admin/session");
@@ -304,10 +270,6 @@ export function AdminConsole() {
     return () => window.cancelAnimationFrame(frame);
   }, [loadAccess]);
 
-  const verifiedRatio = useMemo(() => {
-    if (!overview?.totalUsers) return 0;
-    return Math.round((overview.verifiedEmails / overview.totalUsers) * 100);
-  }, [overview]);
   const registrationPeak = useMemo(
     () => Math.max(1, ...(overview?.registrationTrend ?? []).map((item) => item.count)),
     [overview],
@@ -430,15 +392,15 @@ export function AdminConsole() {
           <span>东财之影</span>
         </Link>
         <div>
-          <span>PRIVATE · 值守台</span>
-          <p>每一次高权限操作，都必须留下原因和可核对的记录。</p>
+          <span>管理后台</span>
+
         </div>
       </header>
 
       {screen === "loading" && (
         <section className={styles.statePanel} aria-live="polite">
           <i className={styles.seal}>守</i>
-          <span>正在核对值守身份</span>
+          <span>正在验证身份</span>
           <div className={styles.loadingRule} />
         </section>
       )}
@@ -447,8 +409,8 @@ export function AdminConsole() {
         <StatePanel
           mark="未"
           eyebrow="需要登录"
-          title="先回到“我的”完成登录"
-          copy="值守台不会创建或猜测管理员身份。登录后，系统仍会要求一次独立的双重验证。"
+          title="请先登录管理员账号"
+          copy="登录后需输入动态验证码。"
           actionHref="/?view=me"
           actionLabel="返回我的"
         />
@@ -458,8 +420,8 @@ export function AdminConsole() {
         <StatePanel
           mark="止"
           eyebrow="权限不足"
-          title="这个入口只对值守人员开放"
-          copy="你的账号可以继续正常使用课表、资料和校园服务；管理员信息不会被查询或展示。"
+          title="仅管理员可访问"
+          copy="请切换到管理员账号。"
           actionHref="/"
           actionLabel="返回首页"
         />
@@ -480,8 +442,8 @@ export function AdminConsole() {
         <StatePanel
           mark="断"
           eyebrow="暂时不可用"
-          title="值守台没有完成连接"
-          copy="没有执行任何管理操作。请检查网络或服务状态后重新核对。"
+          title="暂时无法连接"
+          copy="请检查网络后重试。"
           actionLabel="重新核对"
           onAction={() => {
             setScreen("loading");
@@ -493,14 +455,10 @@ export function AdminConsole() {
       {screen === "elevation" && (
         <section className={styles.gate} aria-labelledby="admin-gate-title">
           <div className={styles.gateStatement}>
-            <span>SECOND FACTOR</span>
-            <h1 id="admin-gate-title">值守之前，<br />再确认一次是你。</h1>
-            <p>输入验证器中的 6 位动态码，或使用一枚尚未使用的恢复码。验证通过后，本次值守权限只在当前登录设备短暂有效。</p>
-            <dl>
-              <div><dt>基础登录</dt><dd>已确认</dd></div>
-              <div><dt>管理员角色</dt><dd>已确认</dd></div>
-              <div><dt>短时值守</dt><dd>等待验证</dd></div>
-            </dl>
+            <span>管理员验证</span>
+            <h1 id="admin-gate-title">验证身份</h1>
+            <p>输入认证器的 6 位动态码，或一次性恢复码。</p>
+
           </div>
           <form className={styles.gateForm} onSubmit={elevate}>
             <i className={styles.seal}>验</i>
@@ -518,95 +476,41 @@ export function AdminConsole() {
               aria-describedby={feedback ? "admin-gate-feedback" : undefined}
             />
             <button disabled={busy === "elevation" || !mfaCode.trim()}>
-              {busy === "elevation" ? "正在核对" : "开始值守"}
+              {busy === "elevation" ? "正在核对" : "进入后台"}
             </button>
             {feedback && <p id="admin-gate-feedback" role="alert">{feedback}</p>}
-            <small>验证码不会写入日志；恢复码使用一次后立即失效。</small>
+            <small>恢复码仅可使用一次。</small>
           </form>
         </section>
       )}
 
       {screen === "dashboard" && overview && (
-        <>
-          <section className={styles.deskHeading}>
-            <div>
-              <span>ON DUTY</span>
-              <h1>今日值守簿</h1>
-              <p>只处理有明确依据的异常。</p>
-            </div>
-            <div className={styles.watchStatus}>
-              <i />
-              <span>短时权限有效至</span>
-              <b>{formatDate(access?.elevatedUntil ?? null)}</b>
-              <button onClick={endWatch} disabled={busy === "leave"}>结束值守</button>
-            </div>
-          </section>
-
-          <section className={styles.ledger} aria-label="账号概况">
-            <article className={styles.primaryMetric}>
-              <span>在册账号</span>
-              <strong>{overview.totalUsers}</strong>
-              <p>{overview.activeUsers} 个账号当前可正常登录</p>
-            </article>
-            <article>
-              <span>已停用</span>
-              <strong>{overview.disabledUsers}</strong>
-              <p>需要复核后才可恢复</p>
-            </article>
-            <article>
-              <span>邮箱验证</span>
-              <strong>{verifiedRatio}<small>%</small></strong>
-              <p>{overview.verifiedEmails} 人已完成验证</p>
-            </article>
-            <article>
-              <span>管理员</span>
-              <strong>{overview.administrators}</strong>
-              <p>高权限账号应保持最少</p>
-            </article>
-          </section>
-
-          <section className={styles.registrationTrend} aria-labelledby="admin-registration-trend-title">
-            <header>
-              <div><span>30 DAYS</span><h2 id="admin-registration-trend-title">最近 30 天注册人数</h2></div>
-              <p>按上海日期记录最近 30 天真实注册量；柱高只帮助比较，人数以文字为准。</p>
-            </header>
-            <ol aria-label="最近 30 天新增用户趋势">
-              {overview.registrationTrend.map((item) => (
-                <li key={item.date}>
-                  <i style={{ "--trend-height": `${Math.max(4, Math.round(item.count / registrationPeak * 100))}%` } as CSSProperties} />
-                  <span>{item.date.slice(5)}</span>
-                  <b>{item.count}<span className="sr-only"> 人</span></b>
-                </li>
+        <div className={styles.workspace}>
+          <aside className={styles.sidebar}>
+            <span className={styles.sidebarLabel}>管理</span>
+            <nav aria-label="管理功能">
+              {[["users", "用户"], ["review", "内容审核"], ["notices", "通知"], ["audit", "操作记录"]].map(([key, label]) => (
+                <button key={key} aria-pressed={workspace === key} onClick={() => navigate(key)}>{label}</button>
               ))}
-            </ol>
-          </section>
-
-          {feedback && <div className={styles.feedback} role="status">{feedback}</div>}
-
-          <ModerationDesk
-            onMfaExpired={handleMfaExpired}
-            onAuditChanged={loadAudit}
-          />
-
-          <ActiveContentDesk
-            onMfaExpired={handleMfaExpired}
-            onAuditChanged={loadAudit}
-          />
-
-          <TeacherReviewDesk
-            onMfaExpired={handleMfaExpired}
-            onAuditChanged={loadAudit}
-          />
-
-          <AnnouncementDesk
-            onMfaExpired={handleMfaExpired}
-            onAuditChanged={loadAudit}
-          />
-
-          <div className={styles.workbench}>
+            </nav>
+            <Link href="/">返回网站 ↗</Link>
+          </aside>
+          <div className={styles.workspaceBody}>
+            <header className={styles.deskHeading}>
+              <div><h1>{{ users: "用户管理", review: "内容审核", notices: "通知公告", audit: "操作记录" }[workspace]}</h1></div>
+              <div className={styles.watchStatus}><span>验证有效至 {access?.elevatedUntil ? new Date(access.elevatedUntil).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false }) : "—"}</span><button onClick={endWatch} disabled={busy === "leave"}>退出管理</button></div>
+            </header>
+            {feedback && <div className={styles.feedback} role="status">{feedback}</div>}
+            <div className={styles.panel} hidden={workspace !== "users"}>
+              <section className={styles.ledger} aria-label="账号概况">
+                <div><span>注册用户</span><strong>{overview.totalUsers}</strong></div>
+                <div><span>正常</span><strong>{overview.activeUsers}</strong></div>
+                <div><span>已停用</span><strong>{overview.disabledUsers}</strong></div>
+                <div><span>邮箱已验证</span><strong>{overview.verifiedEmails}</strong></div>
+              </section>
             <section className={styles.userBook} aria-labelledby="admin-users-title">
               <header>
-                <div><span>账号名册</span><h2 id="admin-users-title">查找与处置</h2></div>
+                <div><h2 id="admin-users-title">注册用户</h2><span>{users.length} 个已加载账号</span></div>
                 <form onSubmit={searchUsers} role="search">
                   <div>
                     <label htmlFor="admin-user-query">用户名或邮箱</label>
@@ -615,10 +519,12 @@ export function AdminConsole() {
                       name="query"
                       value={filters.query}
                       onChange={(event) => setFilters((current) => ({ ...current, query: event.target.value }))}
-                      placeholder="输入账号线索"
+                      placeholder="搜索用户名或邮箱"
                       maxLength={64}
                     />
                   </div>
+                  <button disabled={busy === "search"}>{busy === "search" ? "查找中" : "查找"}</button>
+                  <details className={styles.userFilters}><summary>更多筛选</summary><div className={styles.filterFields}>
                   <div>
                     <label htmlFor="admin-user-role">角色</label>
                     <select id="admin-user-role" name="role" value={filters.role} onChange={(event) => setFilters((current) => ({ ...current, role: event.target.value as UserFilters["role"] }))}>
@@ -639,18 +545,18 @@ export function AdminConsole() {
                     <label htmlFor="admin-user-to">注册止日</label>
                     <input id="admin-user-to" name="registeredTo" type="date" value={filters.registeredTo} onChange={(event) => setFilters((current) => ({ ...current, registeredTo: event.target.value }))} />
                   </div>
-                  <button disabled={busy === "search"}>{busy === "search" ? "查找中" : "查找"}</button>
+                  </div></details>
                 </form>
               </header>
               {Object.values(activeFilters).some(Boolean) && (
                 <div className={styles.queryNote}>
-                  当前名册已按检索条件筛选
+                  已筛选
                   <button onClick={() => { setFilters(emptyUserFilters); setActiveFilters(emptyUserFilters); void loadDashboard(emptyUserFilters); }}>清除全部</button>
                 </div>
               )}
               <div className={styles.userList}>
                 {users.length === 0 ? (
-                  <p className={styles.empty}>没有找到符合条件的账号。换一个用户名或邮箱再试。</p>
+                  <p className={styles.empty}>没有匹配的用户。</p>
                 ) : users.map((user) => (
                   <article key={user.id} className={user.status === "disabled" ? styles.disabledUser : undefined}>
                     <div className={styles.userIdentity}>
@@ -671,10 +577,7 @@ export function AdminConsole() {
                     </div>
                     <div className={styles.userAction}>
                       <em data-status={user.status}>{user.status === "active" ? "正常" : "已停用"}</em>
-                      <button onClick={() => setRegistrationUserId(user.id)}>注册资料</button>
-                      <button onClick={() => { setProfileTarget(user); setPublicItems([]); setPublicProfile(null); setPublicCursor(null); void loadPublicProfile(user, "topics"); }}>
-                        查看公开资料
-                      </button>
+                      <button onClick={() => setRegistrationUserId(user.id)}>查看资料</button>
                       <button onClick={() => { setTarget(user); setReason(""); setFeedback(""); }}>
                         {user.status === "active" ? "停用" : "恢复"}
                       </button>
@@ -682,11 +585,40 @@ export function AdminConsole() {
                   </article>
                 ))}
               </div>
-              {usersCursor && <button className={styles.usersMore} onClick={() => void loadMoreUsers()} disabled={busy === "users-more"}>{busy === "users-more" ? "正在续读" : "继续读取名册"}</button>}
+              {usersCursor && <button className={styles.usersMore} onClick={() => void loadMoreUsers()} disabled={busy === "users-more"}>{busy === "users-more" ? "正在加载" : "加载更多"}</button>}
             </section>
 
+              <details className={styles.trendDisclosure}><summary>注册趋势 · 最近 30 天</summary>
+          <section className={styles.registrationTrend} aria-labelledby="admin-registration-trend-title">
+            <header>
+              <div><h3 id="admin-registration-trend-title">最近 30 天</h3></div>
+
+            </header>
+            <ol aria-label="最近 30 天新增用户趋势">
+              {overview.registrationTrend.map((item) => (
+                <li key={item.date}>
+                  <i style={{ "--trend-height": `${Math.max(4, Math.round(item.count / registrationPeak * 100))}%` } as CSSProperties} />
+                  <span>{item.date.slice(5)}</span>
+                  <b>{item.count}<span className="sr-only"> 人</span></b>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+              </details>
+            </div>
+            <div className={styles.panel} hidden={workspace !== "review"}>
+              <nav className={styles.reviewNav} aria-label="审核分类">
+                {[["reports", "举报处理"], ["content", "主题与回复"], ["history", "历史评价"]].map(([key, label]) => <button key={key} aria-pressed={reviewTab === key} onClick={() => navigate("review", key)}>{label}</button>)}
+              </nav>
+              <div hidden={reviewTab !== "reports"}><ModerationDesk onMfaExpired={handleMfaExpired} onAuditChanged={loadAudit} /></div>
+              <div hidden={reviewTab !== "content"}><ActiveContentDesk onMfaExpired={handleMfaExpired} onAuditChanged={loadAudit} /></div>
+              <div hidden={reviewTab !== "history"}><TeacherReviewDesk onMfaExpired={handleMfaExpired} onAuditChanged={loadAudit} /></div>
+            </div>
+            <div className={styles.panel} hidden={workspace !== "notices"}><AnnouncementDesk onMfaExpired={handleMfaExpired} onAuditChanged={loadAudit} /></div>
+            <div className={styles.panel} hidden={workspace !== "audit"}>
             <aside className={styles.auditTrail} aria-labelledby="admin-audit-title">
-              <header><span>AUDIT</span><h2 id="admin-audit-title">管理员审计记录</h2></header>
+              <header><h2 id="admin-audit-title">操作记录</h2><span>最近 50 条</span></header>
               <ol>
                 {audit.length === 0 ? (
                   <li className={styles.empty}>还没有管理操作记录。</li>
@@ -700,8 +632,9 @@ export function AdminConsole() {
                 ))}
               </ol>
             </aside>
+            </div>
           </div>
-        </>
+        </div>
       )}
 
       {registrationUserId && screen === "dashboard" && <UserRegistration key={registrationUserId} userId={registrationUserId} elevatedUntil={access?.elevatedUntil ?? null} onClose={closeRegistration} onExpired={handleMfaExpired} />}
@@ -729,42 +662,7 @@ export function AdminConsole() {
         </DialogBackdrop>
       )}
 
-      {profileTarget && (
-        <DialogBackdrop onDismiss={closePublicProfile} dismissDisabled={publicState === "loading"}>
-          <section ref={profileDialogRef} className={styles.publicProfileSheet} role="dialog" aria-modal="true" aria-labelledby="admin-public-profile-title">
-            <header>
-              <div><span>PUBLIC RECORD</span><h2 id="admin-public-profile-title">{publicProfile?.displayName || publicProfile?.username || profileTarget.displayName || "公开资料"}</h2></div>
-              <button type="button" onClick={closePublicProfile} aria-label="关闭公开资料">×</button>
-            </header>
-            {publicProfile && (
-              <>
-                <p>@{publicProfile.username || "未设置"} · {publicProfile.accountStatus === "active" ? "账号正常" : "账号已停用"} · 加入于 {formatDate(publicProfile.joinedAt, false)}</p>
-                <dl>
-                  <div><dt>公开主题</dt><dd>{publicProfile.topicCount}</dd></div>
-                  <div><dt>公开回复</dt><dd>{publicProfile.commentCount}</dd></div>
-                </dl>
-                <nav aria-label="公开资料类型">
-                  <button type="button" aria-pressed={publicKind === "topics"} onClick={() => { setPublicItems([]); void loadPublicProfile(profileTarget, "topics"); }}>主题</button>
-                  <button type="button" aria-pressed={publicKind === "comments"} onClick={() => { setPublicItems([]); void loadPublicProfile(profileTarget, "comments"); }}>回复</button>
-                </nav>
-              </>
-            )}
-            {publicState === "loading" && publicItems.length === 0 && <p role="status">正在读取公开资料…</p>}
-            {publicState === "error" && <p role="alert">公开资料没有读取成功。可以关闭后重试。</p>}
-            {publicState === "ready" && publicItems.length === 0 && <p>这名用户暂无公开{publicKind === "topics" ? "主题" : "回复"}。</p>}
-            <ol>
-              {publicItems.map((item) => (
-                <li key={item.id}>
-                  <time dateTime={item.createdAt}>{formatDate(item.createdAt)}</time>
-                  <Link href={item.publicPath}>{publicKind === "topics" ? item.title : `回复于《${item.topicTitle || "主题"}》`}</Link>
-                  <p>{item.body}</p>
-                </li>
-              ))}
-            </ol>
-            {publicCursor && <button className={styles.usersMore} type="button" onClick={() => void loadPublicProfile(profileTarget, publicKind, publicCursor, true)} disabled={publicState === "loading"}>{publicState === "loading" ? "正在续读" : "继续读取公开记录"}</button>}
-          </section>
-        </DialogBackdrop>
-      )}
+
     </main>
   );
 }

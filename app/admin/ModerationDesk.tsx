@@ -204,8 +204,8 @@ export function ModerationDesk({
       setFeedback(refreshFailures.length > 0
         ? `处置已经生效，但${refreshFailures.join("和")}刷新失败；请勿重复操作，稍后刷新页面。`
         : payload.case.status === "reviewing"
-          ? "动作已写入审计，案件仍在审核中，可继续恢复、删除或解封。"
-          : "治理动作已写入审计，案件已经结案。");
+          ? "操作已保存，可继续审核。"
+          : "处理完成。");
     } catch (error) {
       setFeedback(moderationError(error));
       if ((error as ApiError).code === "admin_mfa_required") onMfaExpired();
@@ -221,7 +221,7 @@ export function ModerationDesk({
   return (
     <section className={styles.moderationDesk} aria-labelledby="moderation-title">
       <header>
-        <div><span>社区举报</span><h2 id="moderation-title">举报案卷</h2><p>先核对提交时保存的证据，再入案和处置。每一步都会写入两套不可变审计。</p></div>
+        <div><h2 id="moderation-title">举报处理</h2></div>
         <nav aria-label="举报队列">
           <button aria-pressed={queueStatus === "open"} onClick={() => setQueueStatus("open")}>待入案</button>
           <button aria-pressed={queueStatus === "reviewing"} onClick={() => setQueueStatus("reviewing")}>审核中</button>
@@ -230,8 +230,8 @@ export function ModerationDesk({
 
       {feedback && <p className={styles.moderationFeedback} role="status">{feedback}</p>}
       {status === "loading" && <p className={styles.moderationState} role="status">正在读取举报队列…</p>}
-      {status === "error" && <p className={styles.moderationState} role="alert">举报队列没有加载成功。账号值守区不受影响。<button onClick={() => void loadQueue(queueStatus)}>重试</button></p>}
-      {status === "ready" && reports.length === 0 && <p className={styles.moderationState}>当前队列为空。新的举报会按提交时间进入这里。</p>}
+      {status === "error" && <p className={styles.moderationState} role="alert">举报加载失败。<button onClick={() => void loadQueue(queueStatus)}>重试</button></p>}
+      {status === "ready" && reports.length === 0 && <p className={styles.moderationState}>暂无待处理举报。</p>}
       {status === "ready" && reports.length > 0 && (
         <ol className={styles.reportQueue}>
           {reports.map((report) => (
