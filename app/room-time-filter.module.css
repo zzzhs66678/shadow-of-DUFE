@@ -279,18 +279,31 @@
     padding-top: 12px;
   }
 
+  .filter { margin-bottom: 8px; }
+  .heading { margin-bottom: 6px; }
+  .heading h1 { font-size: 24px; }
+  .compactPage :global(.building-tabs) { margin-bottom: 8px; }
+  .compactPage :global(.floor-map-heading) { padding-top: 12px; padding-bottom: 8px; }
+  .compactPage :global(.floor-map-heading h2) { font-size: 24px; }
+  .compactPage :global(.floor-selector) { gap: 4px; grid-auto-rows: minmax(44px, auto); }
+  .compactPage :global(.floor-selector button) { min-height: 44px; }
+
   .compactPage :global(.floor-rooms-v5) {
-    gap: 8px;
+    gap: 6px;
   }
 
   .compactPage :global(.floor-rooms-v5 button) {
-    min-height: 86px;
-    padding: 10px 9px;
+    min-height: 72px;
+    padding: 8px;
+  }
+
+  .compactPage :global(.floor-rooms-v5 button strong) {
+    font-size: 16px;
   }
 
   .compactPage :global(.floor-rooms-v5 button span) {
     line-height: 1.4;
-    margin-top: 7px;
+    margin-top: 5px;
     overflow-wrap: anywhere;
     white-space: normal;
   }

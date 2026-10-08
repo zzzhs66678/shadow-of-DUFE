@@ -19,6 +19,7 @@
 }
 .grid .lesson .room { color: #211f1b; }
 .grid .lesson .weeks { font-size: 10px; }
+.grid .lesson:global(.draggable-schedule) { background: #ecd7d2; }
 .grid .lesson :global(.schedule-card-main) {
   position: static; display: flex; flex-direction: column; gap: 5px;
   padding: 0; height: auto; min-height: 0; width: 100%; border: 0;
@@ -28,13 +29,32 @@
   border: 0; border-top: 1px solid #ded7ca; margin-top: auto;
   width: 100%; font-size: 10px; text-align: right;
 }
-.weekToggle { display: block; margin: 0 0 10px auto; background: transparent; border: 0; color: #6a2929; min-height: 36px; font-size: 12px; }
+.gridTools { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 8px; }
+.sourceLegend { display: flex; flex-wrap: wrap; gap: 8px 12px; color: #514c45; font-size: 10px; }
+.sourceLegend > span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.sourceLegend i { display: inline-block; width: 10px; height: 10px; border: 1px solid #a69c91; }
+.officialSwatch { background: var(--journal-paper, #fbfaf5); }
+.manualSwatch { background: #ecd7d2; }
+.weekToggle { display: block; margin: 0 0 0 auto; background: transparent; border: 0; color: #6a2929; min-height: 36px; font-size: 12px; }
 .weekToggle:focus-visible { outline: 2px solid #a62126; outline-offset: 2px; }
-@media (max-width: 540px) {
-  .grid .lesson { padding: 6px 3px; gap: 4px; border-left-width: 2px; }
-  .grid .lesson strong { font-size: 12px; line-height: 1.45; }
-  .grid .lesson .room, .grid .lesson .teacher, .grid .lesson :global(.schedule-card-teacher-link) { font-size: 11px; }
-  .grid :global(.day-head) { font-size: 11px; padding: 9px 0; }
-  .grid :global(.block-head) { padding: 8px 0; }
+.grid :global(.day-head)[aria-current="date"] {
+  color: #a62126; font-weight: 700; box-shadow: inset 0 -2px #a62126;
+}
+@media (max-width: 680px) {
+  .workspace :global(.schedule-heading-actions) { gap: 6px; }
+  .workspace :global(.schedule-heading-actions) button { min-height: 36px; padding: 6px 10px; font-size: 12px; }
+  .workspace :global(.timetable-panel) > header { gap: 6px; margin-bottom: 8px; padding-bottom: 8px; }
+  .workspace :global(.timetable-tools) { display: flex; align-items: center; justify-content: flex-start; flex-wrap: wrap; gap: 4px 8px; }
+  .workspace :global(.timetable-tools) p { flex-basis: 100%; margin: 0; }
+  .workspace :global(.timetable-tools) button { min-height: 36px; padding: 6px 10px; }
+  .workspace :global(.mobile-schedule-switch) { margin: 8px 0; }
+  .grid .lesson { padding: 4px 2px; gap: 3px; border-left-width: 2px; }
+  .grid .lesson strong { font-size: 11px; line-height: 1.4; }
+  .grid .lesson .room, .grid .lesson .teacher, .grid .lesson :global(.schedule-card-teacher-link) { font-size: 10px; line-height: 1.4; }
+  .grid .lesson .weeks { font-size: 9px; line-height: 1.35; }
+  .grid .lesson :global(.schedule-card-main) { gap: 3px; }
+  .grid :global(.schedule-cell) { min-height: 80px; }
+  .grid :global(.day-head) { font-size: 11px; padding: 7px 0; }
+  .grid :global(.block-head) { padding: 6px 0; }
   .grid :global(.block-head b) { font-size: 16px; }
 }

@@ -178,7 +178,7 @@ app/DufeHub.tsx:297:13 · 主站与共享组件 · DufeHubApp · 源码：未找
 处理：未决定
 app/DufeHub.tsx:300:13 · 主站与共享组件 · DufeHubApp · 源码：未找到入口引用 / 界面：JSX 文本片段 · 源码待确认：未找到入口引用
 app/DufeHubV2.tsx:1771:27 · 主站壳层与账号交互 · HubApp · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5952:15 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5965:15 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/page.tsx:32:37 · 主站与共享组件 · Home · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [780a32a91907bdd5bd135580c33f6370cd7a4fc7b09006ee119640dd2623a2ae] 主站与共享组件 / 主站壳层与账号交互
@@ -289,9 +289,9 @@ app/DufeHub.tsx:347:73 · 主站与共享组件 · DufeHubApp · 源码：未找
 app/DufeHub.tsx:348:19 · 主站与共享组件 · DufeHubApp · 源码：未找到入口引用 / 界面：纯符号 · 源码待确认：未找到入口引用
 app/DufeHubV2.tsx:2228:17 · 主站壳层与账号交互 · HubApp · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:3733:13 · 教务导入 · AcademicImportDialog · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4057:10 · 课表·移除课程 · ScheduleTrash · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5617:13 · 日程编辑 · CalendarEditor · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7523:57 · 课程详情抽屉 · CourseDrawer · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4061:10 · 课表·移除课程 · ScheduleTrash · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5630:13 · 日程编辑 · CalendarEditor · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7536:57 · 课程详情抽屉 · CourseDrawer · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/admin/ActiveContentDesk.tsx:232:231 · 管理后台 · ActiveContentDesk · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/admin/ModerationDesk.tsx:253:254 · 管理后台 · ModerationDesk · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/admin/TeacherReviewDesk.tsx:223:99 · 管理后台 · TeacherReviewDesk · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
@@ -311,8 +311,8 @@ app/DufeHub.tsx:352:43 · 主站与共享组件 · DufeHubApp · 源码：未找
 处理：未决定
 app/DufeHub.tsx:357:53 · 主站与共享组件 · DufeHubApp · 源码：未找到入口引用 / 界面：JSX 文本片段 · 源码待确认：未找到入口引用
 app/DufeHubV2.tsx:3357:21 · 课程 · CatalogPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4834:17 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7975:22 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4839:17 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7988:22 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/admin/UserRegistration.tsx:85:235 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:1957:41 · 后端与邮件 · parseTrainingPlanProfile · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
 
@@ -329,9 +329,9 @@ app/DufeHubV2.tsx:1773:29 · 主站壳层与账号交互 · HubApp · 源码：�
 app/DufeHubV2.tsx:2814:51 · 今日 · HomePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:3097:15 · 课程 · CatalogPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:3424:66 · 课程 · CatalogPage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5428:30 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7278:16 · 全站搜索 · SearchCommand · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7331:27 · 全站搜索 · SearchCommand · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5441:30 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7291:16 · 全站搜索 · SearchCommand · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7344:27 · 全站搜索 · SearchCommand · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 app/materials/MaterialsExplorer.tsx:457:44 · 学习资料 · MaterialsExplorer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 app/materials/MaterialsExplorer.tsx:503:28 · 学习资料 · MaterialsExplorer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 app/materials/[materialId]/page.tsx:69:44 · 学习资料 · MaterialDetailPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
@@ -361,19 +361,19 @@ app/DufeHubV2.tsx:3285:87 · 课程 · CatalogPage · 界面：纯符号 · 静�
 app/DufeHubV2.tsx:3285:160 · 课程 · CatalogPage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:3317:83 · 课程 · CatalogPage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:3749:65 · 教务导入 · AcademicImportDialog · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4250:39 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4250:81 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4261:39 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4261:81 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6016:30 · 空教室 · RoomsPage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6021:27 · 空教室 · RoomsPage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6098:44 · 空教室 · RoomsPage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6534:49 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6534:144 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7690:66 · 课程详情抽屉 · CourseDrawer · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7691:48 · 课程详情抽屉 · CourseDrawer · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7692:44 · 课程详情抽屉 · CourseDrawer · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7769:51 · 课程详情抽屉 · CourseDrawer · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4254:39 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4254:81 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4265:39 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4265:81 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6029:30 · 空教室 · RoomsPage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6034:27 · 空教室 · RoomsPage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6111:44 · 空教室 · RoomsPage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6547:49 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6547:144 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7703:66 · 课程详情抽屉 · CourseDrawer · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7704:48 · 课程详情抽屉 · CourseDrawer · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7705:44 · 课程详情抽屉 · CourseDrawer · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7782:51 · 课程详情抽屉 · CourseDrawer · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/TeachingSectionLinks.tsx:49:61 · 主站与共享组件 · TeachingSectionLinks · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/admin/ActiveContentDesk.tsx:221:62 · 管理后台 · ActiveContentDesk · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/admin/ActiveContentDesk.tsx:221:83 · 管理后台 · ActiveContentDesk · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
@@ -424,8 +424,8 @@ app/DufeHub.tsx:670:16 · 主站与共享组件 · DufeHubApp · 源码：未找
 app/DufeHub.tsx:672:16 · 主站与共享组件 · DufeHubApp · 源码：未找到入口引用 / 界面：纯符号 · 源码待确认：未找到入口引用
 app/DufeHubV2.tsx:2752:59 · 今日 · HomePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:2783:23 · 今日 · HomePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5109:29 · 课表 · SchedulePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7129:48 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5114:29 · 课表 · SchedulePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7142:48 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/competitions/CompetitionsGateway.tsx:26:66 · 主站与共享组件 · CompetitionsGateway · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/competitions/page.tsx:33:63 · 主站与共享组件 · CompetitionsPage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/teachers/TeacherExplorer.tsx:218:102 · 教师 · TeacherExplorer · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
@@ -537,7 +537,7 @@ app/DufeHub.tsx:421:37 · 主站与共享组件 · DufeHubApp · 源码：未找
 处理：未决定
 app/DufeHub.tsx:423:19 · 主站与共享组件 · DufeHubApp · 源码：未找到入口引用 / 界面：JSX 文本片段 · 源码待确认：未找到入口引用
 app/DufeHubV2.tsx:2623:11 · 今日 · HomePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7158:18 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7171:18 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [dea821f7aa3a78346883ca780f98479bd5c170995fa6c799e56e105c09b320e2] 主站与共享组件
 类别：源码：未找到入口引用 / 界面：JSX 文本片段
@@ -556,10 +556,10 @@ app/DufeHub.tsx:430:16 · 主站与共享组件 · DufeHubApp · 源码：未找
 app/DufeHubV2.tsx:2614:15 · 今日 · HomePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:2619:15 · 今日 · HomePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:2624:15 · 今日 · HomePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7146:17 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7153:17 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7160:17 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7340:22 · 全站搜索 · SearchCommand · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7159:17 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7166:17 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7173:17 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7353:22 · 全站搜索 · SearchCommand · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/admin/UserRegistration.tsx:117:249 · 管理后台 · UserRegistration · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/competitions/[slug]/page.tsx:36:76 · 主站与共享组件 · CompetitionPage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 
@@ -639,7 +639,7 @@ app/DufeHub.tsx:453:13 · 主站与共享组件 · DufeHubApp · 源码：未找
 建议：
 处理：未决定
 app/DufeHub.tsx:459:20 · 主站与共享组件 · DufeHubApp · 源码：未找到入口引用 / 界面：JSX 文本片段 · 源码待确认：未找到入口引用
-app/DufeHubV2.tsx:4862:30 · 课表 · SchedulePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4867:30 · 课表 · SchedulePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [940dba58d1bf140323bfbe1c61eaa6a689ffe56a659fc6f0771bc492ebd31812] 主站与共享组件
 类别：源码：未找到入口引用 / 界面：英文或数字
@@ -654,7 +654,7 @@ app/DufeHub.tsx:496:31 · 主站与共享组件 · DufeHubApp · 源码：未找
 建议：
 处理：未决定
 app/DufeHub.tsx:497:29 · 主站与共享组件 · DufeHubApp · 源码：未找到入口引用 / 界面：JSX 文本片段 · 源码待确认：未找到入口引用
-app/DufeHubV2.tsx:4904:23 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4909:23 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/materials/MaterialsExplorer.tsx:543:78 · 学习资料 · MaterialsExplorer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [bb6ea9081a413a6159880e466e20c4ca162881adf2e2f588c0e0e6b730c8dcf6] 主站与共享组件 / 学习资料 / 课程 / 课表 / 首次设置
@@ -664,9 +664,9 @@ app/materials/MaterialsExplorer.tsx:543:78 · 学习资料 · MaterialsExplorer 
 处理：未决定
 app/DufeHub.tsx:497:31 · 主站与共享组件 · DufeHubApp · 源码：未找到入口引用 / 源码：技术键或匹配词 · 源码待确认：未找到入口引用
 app/DufeHubV2.tsx:3383:44 · 课程 · CatalogPage · 源码：技术键或匹配词 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4904:25 · 课表 · SchedulePage · 源码：技术键或匹配词 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4946:25 · 课表 · SchedulePage · 源码：技术键或匹配词 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7954:29 · 首次设置 · Onboarding · 源码：技术键或匹配词 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4909:25 · 课表 · SchedulePage · 源码：技术键或匹配词 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4951:25 · 课表 · SchedulePage · 源码：技术键或匹配词 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7967:29 · 首次设置 · Onboarding · 源码：技术键或匹配词 · 静态入口/相对引用可达（非运行时证明）
 app/materials/MaterialsExplorer.tsx:543:80 · 学习资料 · MaterialsExplorer · 源码：技术键或匹配词 · 静态入口/相对引用可达（非运行时证明）
 app/materials/[materialId]/page.tsx:87:180 · 学习资料 · MaterialDetailPage · 源码：技术键或匹配词 · 静态入口/相对引用可达（非运行时证明）
 
@@ -680,7 +680,7 @@ app/DufeHubV2.tsx:3141:102 · 课程 · CatalogPage · 界面：JSX 文本片段
 app/DufeHubV2.tsx:3210:42 · 课程 · CatalogPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:3260:84 · 课程 · CatalogPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:3447:71 · 课程 · CatalogPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4343:21 · 培养方案 · renderCategory ← TrainingPlanWindow · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4347:21 · 培养方案 · renderCategory ← TrainingPlanWindow · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [bc3dd80d099b3190111141c2d5755aa2ec952a6779ea30e472c9a7c763c3e3ab] 主站与共享组件 / 共享函数·formatPlanCredits / 课程详情抽屉
 类别：源码：共享文案候选（待核对引用） / 源码：未找到入口引用 / 界面：表达式分支 / 界面：表达式分支
@@ -689,7 +689,7 @@ app/DufeHubV2.tsx:4343:21 · 培养方案 · renderCategory ← TrainingPlanWind
 处理：未决定
 app/DufeHub.tsx:506:54 · 主站与共享组件 · DufeHubApp · 源码：未找到入口引用 / 界面：表达式分支 · 源码待确认：未找到入口引用
 app/DufeHubV2.tsx:579:10 · 共享函数·formatPlanCredits · formatPlanCredits · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7532:19 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7545:19 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [b404a7a91a3b12fd28c9a3da25fd96b01b49c2f8ee56dd2e3b9c7d0c1d197e2e] 主站与共享组件 / 主站壳层与账号交互 / 后端与邮件 / 课程详情抽屉
 类别：源码：后端候选（未证明可见） / 源码：未找到入口引用 / 界面：JSX 文本片段 / 界面：JSX 文本片段
@@ -699,7 +699,7 @@ app/DufeHubV2.tsx:7532:19 · 课程详情抽屉 · CourseDrawer · 界面：表�
 app/DufeHub.tsx:509:35 · 主站与共享组件 · DufeHubApp · 源码：未找到入口引用 / 界面：JSX 文本片段 · 源码待确认：未找到入口引用
 app/DufeHub.tsx:671:19 · 主站与共享组件 · DufeHubApp · 源码：未找到入口引用 / 界面：JSX 文本片段 · 源码待确认：未找到入口引用
 app/DufeHubV2.tsx:2223:21 · 主站壳层与账号交互 · HubApp · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7522:17 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7535:17 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:939:3 · 后端与邮件 · 顶层 · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:1286:33 · 后端与邮件 · parseTimetableHtml · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:1306:43 · 后端与邮件 · parseTimetableHtml · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
@@ -766,9 +766,9 @@ app/DufeHub.tsx:527:15 · 主站与共享组件 · DufeHubApp · 源码：未找
 处理：未决定
 app/DufeHub.tsx:527:44 · 主站与共享组件 · DufeHubApp · 源码：未找到入口引用 / 界面：纯符号 · 源码待确认：未找到入口引用
 app/DufeHub.tsx:528:54 · 主站与共享组件 · DufeHubApp · 源码：未找到入口引用 / 界面：纯符号 · 源码待确认：未找到入口引用
-app/DufeHubV2.tsx:4378:45 · 培养方案 · TrainingPlanWindow · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6961:27 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/RoomWeekSchedule.tsx:168:81 · 主站与共享组件 · RoomWeekSchedule · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4382:45 · 培养方案 · TrainingPlanWindow · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6974:27 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/RoomWeekSchedule.tsx:170:81 · 主站与共享组件 · RoomWeekSchedule · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/admin/AdminConsole.tsx:501:204 · 管理后台 · AdminConsole · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 
 [2f744fe588fccbe9143783a07b2b2161bc420010cfe87687471132a803711850] 主站与共享组件
@@ -812,8 +812,8 @@ app/DufeHub.tsx:542:13 · 主站与共享组件 · DufeHubApp · 源码：未找
 建议：
 处理：未决定
 app/DufeHub.tsx:550:17 · 主站与共享组件 · DufeHubApp · 源码：未找到入口引用 / 界面：JSX 文本片段 · 源码待确认：未找到入口引用
-app/DufeHubV2.tsx:5640:23 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5972:25 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5653:23 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5985:25 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:989:3 · 后端与邮件 · 顶层 · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:1589:55 · 后端与邮件 · parseExamHtml · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:1631:45 · 后端与邮件 · parseExamHtml · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
@@ -907,8 +907,8 @@ app/DufeHub.tsx:629:49 · 主站与共享组件 · DufeHubApp · 源码：未找
 处理：未决定
 app/DufeHub.tsx:630:53 · 主站与共享组件 · DufeHubApp · 源码：未找到入口引用 / 界面：JSX 文本片段 · 源码待确认：未找到入口引用
 app/DufeHub.tsx:637:46 · 主站与共享组件 · DufeHubApp · 源码：未找到入口引用 / 界面：表达式分支 · 源码待确认：未找到入口引用
-app/DufeHubV2.tsx:6026:41 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6066:144 · 空教室 · RoomsPage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6039:41 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6079:144 · 空教室 · RoomsPage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [5047a8124b56ad5372b0443ee8144aa0e767c587d7ddffa18d39714616630c80] 主站与共享组件
 类别：源码：未找到入口引用 / 界面：表达式分支
@@ -1128,8 +1128,8 @@ app/RoomWeekSchedule.tsx:31:49 · 主站与共享组件 · 顶层 · 源码：�
 建议：
 处理：未决定
 app/DufeHubV2.tsx:340:12 · 主站·顶层共享常量 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7354:47 · 全站搜索 · SearchCommand · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7354:54 · 全站搜索 · SearchCommand · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7367:47 · 全站搜索 · SearchCommand · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7367:54 · 全站搜索 · SearchCommand · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [3ef7768cdd119be4b5c8078839aa0817ca595e3850e131448950089a944f38ed] 主站·顶层共享常量
 类别：源码：共享文案候选（待核对引用）
@@ -1151,8 +1151,8 @@ app/DufeHubV2.tsx:342:11 · 主站·顶层共享常量 · 顶层 · 源码：共
 建议：
 处理：未决定
 app/DufeHubV2.tsx:343:10 · 主站·顶层共享常量 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7355:47 · 全站搜索 · SearchCommand · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7355:54 · 全站搜索 · SearchCommand · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7368:47 · 全站搜索 · SearchCommand · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7368:54 · 全站搜索 · SearchCommand · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [15a0d8201ae89c83a1b3aa58f110edeada8e784685bac80701a742cdcb6fc3c8] 主站·顶层共享常量
 类别：源码：共享文案候选（待核对引用）
@@ -1181,7 +1181,7 @@ app/DufeHubV2.tsx:345:10 · 主站·顶层共享常量 · 顶层 · 源码：共
 建议：
 处理：未决定
 app/DufeHubV2.tsx:350:34 · 主站·顶层共享常量 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4789:48 · 课表 · SchedulePage · 源码：技术键或匹配词 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4794:48 · 课表 · SchedulePage · 源码：技术键或匹配词 · 静态入口/相对引用可达（非运行时证明）
 app/personal-sync.ts:342:33 · 主站与共享组件 · normalizeState · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [6374921f43b81d709fe780c4f7836ceaa0f4f3e6fe23652e9d3e58596d4f8c23] 共享函数·scheduleWeeksLabel
@@ -1502,8 +1502,8 @@ app/DufeHubV2.tsx:1286:13 · 主站壳层与账号交互 · applyAcademicImport 
 处理：未决定
 app/DufeHubV2.tsx:1287:13 · 主站壳层与账号交互 · applyAcademicImport ← HubApp · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:2629:70 · 今日 · HomePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5227:74 · 课表 · SchedulePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6518:70 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5240:74 · 课表 · SchedulePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6531:70 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [7302c0b156944b2a324a21c733c93fa2d9905b4c71efef75b2e3ed3de52088f5] 主站壳层与账号交互 / 教务导入 / 课程
 类别：源码：共享文案候选（待核对引用） / 界面：表达式分支
@@ -1584,8 +1584,8 @@ app/DufeHubV2.tsx:1727:11 · 主站壳层与账号交互 · addSchedules ← Hub
 处理：未决定
 app/DufeHubV2.tsx:1727:69 · 主站壳层与账号交互 · addSchedules ← HubApp · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:2263:41 · 主站壳层与账号交互 · HubApp · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4287:70 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7389:21 · 课程详情抽屉 · CourseDrawer · 源码：技术键或匹配词 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4291:70 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7402:21 · 课程详情抽屉 · CourseDrawer · 源码：技术键或匹配词 · 静态入口/相对引用可达（非运行时证明）
 
 [2e3250329028d2f6e6c72edfe333c7f95a603959c6ca1d9ecdff17706f299fc8] 主站壳层与账号交互 / 培养方案 / 社区与通知 / 课程详情抽屉
 类别：源码：共享文案候选（待核对引用） / 源码：技术键或匹配词 / 界面：属性或无障碍标签
@@ -1595,8 +1595,8 @@ app/DufeHubV2.tsx:7389:21 · 课程详情抽屉 · CourseDrawer · 源码：技�
 app/DufeHubV2.tsx:1727:78 · 主站壳层与账号交互 · addSchedules ← HubApp · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:1728:58 · 主站壳层与账号交互 · addSchedules ← HubApp · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:2263:50 · 主站壳层与账号交互 · HubApp · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4287:79 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7389:14 · 课程详情抽屉 · CourseDrawer · 源码：技术键或匹配词 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4291:79 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7402:14 · 课程详情抽屉 · CourseDrawer · 源码：技术键或匹配词 · 静态入口/相对引用可达（非运行时证明）
 app/community/CommunityShared.tsx:40:43 · 社区与通知 · CommunityHeader · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [757a4ac18aa4a9979aceb90bf4a75d95d6547446aa146199dc00a2015ab30f69] 主站壳层与账号交互
@@ -1619,25 +1619,26 @@ app/DufeHubV2.tsx:1728:44 · 主站壳层与账号交互 · addSchedules ← Hub
 建议：
 处理：未决定
 app/DufeHubV2.tsx:1770:30 · 主站壳层与账号交互 · HubApp · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4742:91 · 课表 · exportTimetable ← SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4753:15 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5034:92 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4747:91 · 课表 · exportTimetable ← SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4758:15 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5039:92 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 app/materials/MaterialsExplorer.tsx:460:45 · 学习资料 · MaterialsExplorer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 app/page.tsx:31:40 · 主站与共享组件 · Home · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/teachers/TeacherExplorer.tsx:182:43 · 教师 · TeacherExplorer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 app/teachers/[teacherId]/TeacherDetail.tsx:335:45 · 教师 · TeacherDetail · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [d5f5a7a010731feb6cc67fcbde1bc7133c86019f6d88186e5075344f59de5ff5] 主站壳层与账号交互 / 今日 / 空教室 / 课表
-类别：源码：共享文案候选（待核对引用） / 界面：JSX 文本片段
+类别：源码：共享文案候选（待核对引用） / 界面：JSX 文本片段 / 界面：属性或无障碍标签
 原文：今天
 建议：
 处理：未决定
 app/DufeHubV2.tsx:1772:26 · 主站壳层与账号交互 · HubApp · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:2588:15 · 今日 · HomePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:2798:19 · 今日 · HomePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4648:13 · 课表 · SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5872:43 · 空教室 · RoomsPage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5968:84 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4653:13 · 课表 · SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5142:47 · 课表 · SchedulePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5885:43 · 空教室 · RoomsPage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5981:84 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [7f1d9dd04cd1c7b8d8ab488980624bde64ea370ebafc9eb7b1c4d8dc757c976a] 主站壳层与账号交互 / 我的
 类别：源码：共享文案候选（待核对引用） / 界面：JSX 文本片段 / 界面：属性或无障碍标签
@@ -1646,7 +1647,7 @@ app/DufeHubV2.tsx:5968:84 · 空教室 · RoomsPage · 界面：JSX 文本片段
 处理：未决定
 app/DufeHubV2.tsx:1774:24 · 主站壳层与账号交互 · HubApp · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:1840:24 · 主站壳层与账号交互 · HubApp · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6514:15 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6527:15 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [5b89107fb686d1af8047c434cc956d9a965f4a8b19610bcf93a09b94abab8be4] 主站壳层与账号交互
 类别：界面：JSX 文本片段 / 界面：属性或无障碍标签
@@ -1684,8 +1685,8 @@ app/DufeHubV2.tsx:1833:19 · 主站壳层与账号交互 · HubApp · 界面：�
 处理：未决定
 app/DufeHubV2.tsx:1843:71 · 主站壳层与账号交互 · HubApp · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:1844:17 · 主站壳层与账号交互 · HubApp · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6557:55 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6557:62 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6570:55 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6570:62 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [9379abd8bca527526227b9389a2d12dbecbc0ec9c30ec664337acbb3f501f5c0] 主站壳层与账号交互 / 日程编辑 / 课表
 类别：提示与错误候选 / 界面：表达式分支
@@ -1693,8 +1694,8 @@ app/DufeHubV2.tsx:6557:62 · 我的 · MePage · 界面：表达式分支 · 静
 建议：
 处理：未决定
 app/DufeHubV2.tsx:1878:56 · 主站壳层与账号交互 · HubApp · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5390:76 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5525:56 · 日程编辑 · remove ← CalendarEditor · 提示与错误候选 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5403:76 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5538:56 · 日程编辑 · remove ← CalendarEditor · 提示与错误候选 · 静态入口/相对引用可达（非运行时证明）
 
 [e7824d0e09f66364ad1626e58d9530618c73602bfa2149e89ac6505c88224aa4] 主站壳层与账号交互 / 日程编辑 / 课表
 类别：提示与错误候选
@@ -1702,8 +1703,8 @@ app/DufeHubV2.tsx:5525:56 · 日程编辑 · remove ← CalendarEditor · 提示
 建议：
 处理：未决定
 app/DufeHubV2.tsx:1878:120 · 主站壳层与账号交互 · HubApp · 提示与错误候选 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5390:136 · 课表 · SchedulePage · 提示与错误候选 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5525:115 · 日程编辑 · remove ← CalendarEditor · 提示与错误候选 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5403:136 · 课表 · SchedulePage · 提示与错误候选 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5538:115 · 日程编辑 · remove ← CalendarEditor · 提示与错误候选 · 静态入口/相对引用可达（非运行时证明）
 
 [bf731e762c9cf71eaec8eac94c6975ade3b57f28ff9e6e354653ca6e0a1ea9f2] 主站壳层与账号交互
 类别：界面：表达式分支
@@ -1819,7 +1820,7 @@ app/DufeHubV2.tsx:2183:46 · 主站壳层与账号交互 · HubApp · 界面：�
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2226:28 · 主站壳层与账号交互 · HubApp · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7523:48 · 课程详情抽屉 · CourseDrawer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7536:48 · 课程详情抽屉 · CourseDrawer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [175ab5e2f4c1a431d1af2dcf5b49a801a8df5e0a7f90ceb70f0722b7545dbc25] 主站壳层与账号交互
 类别：界面：表达式分支
@@ -1855,7 +1856,7 @@ app/DufeHubV2.tsx:2240:21 · 主站壳层与账号交互 · HubApp · 界面：�
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2280:14 · 主站壳层与账号交互 · HubApp · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7041:48 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7054:48 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 
 [172e2036f23761792ffa19f9167c2ff87eab347b7bf0b26f0242dc3e87eb9a03] 主站壳层与账号交互
 类别：界面：属性或无障碍标签
@@ -1870,7 +1871,7 @@ app/DufeHubV2.tsx:2290:24 · 主站壳层与账号交互 · HubApp · 界面：�
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2300:17 · 主站壳层与账号交互 · HubApp · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7918:36 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7931:36 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [c37aa3cec8deb674a4626acfb0588c501e1e5234501842d9b1f43984482a5518] 主站壳层与账号交互 / 首次设置
 类别：界面：JSX 文本片段
@@ -1878,7 +1879,7 @@ app/DufeHubV2.tsx:7918:36 · 首次设置 · Onboarding · 界面：JSX 文本�
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2304:18 · 主站壳层与账号交互 · HubApp · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7928:14 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7941:14 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [16dcb91dddbcd22d58c43a4c1cde89fdbc2da7e4599f75fe679e095b141fe30c] 主站壳层与账号交互
 类别：界面：表达式分支
@@ -1907,9 +1908,9 @@ app/DufeHubV2.tsx:2313:21 · 主站壳层与账号交互 · HubApp · 界面：�
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2324:15 · 主站壳层与账号交互 · HubApp · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5223:47 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5452:43 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7937:11 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5236:47 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5465:43 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7950:11 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [f9cac3f54d3f2aaa29add3396d0d12ba37096eaf8065edc53e152d928b5fcb63] 主站壳层与账号交互
 类别：界面：JSX 文本片段
@@ -1931,8 +1932,8 @@ app/DufeHubV2.tsx:2361:53 · 主站壳层与账号交互 · HubApp · 源码：�
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2400:7 · 共享·考试提醒 · ExamRail · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5256:27 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6534:41 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5269:27 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6547:41 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [e946a25c2ddc61e878924abe752eed8617f2a54c66b1b585b7ecfc599b3a17aa] 共享·考试提醒
 类别：界面：属性或无障碍标签
@@ -1947,7 +1948,7 @@ app/DufeHubV2.tsx:2403:61 · 共享·考试提醒 · ExamRail · 界面：属性
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2404:13 · 共享·考试提醒 · ExamRail · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6531:19 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6544:19 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [680a387a76afd9fb6e7b5e357f714f005f36e65033fad96760fe1173066ac4dc] 共享·考试提醒 / 学习资料 / 课程 / 课程详情抽屉
 类别：界面：纯符号
@@ -1959,7 +1960,7 @@ app/DufeHubV2.tsx:2409:26 · 共享·考试提醒 · ExamRail · 界面：纯符
 app/DufeHubV2.tsx:3235:51 · 课程 · CatalogPage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:3279:50 · 课程 · CatalogPage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:3428:49 · 课程 · CatalogPage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7756:41 · 课程详情抽屉 · CourseDrawer · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7769:41 · 课程详情抽屉 · CourseDrawer · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/materials/MaterialsExplorer.tsx:635:49 · 学习资料 · MaterialsExplorer · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/materials/MaterialsExplorer.tsx:636:26 · 学习资料 · MaterialsExplorer · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 
@@ -2019,9 +2020,9 @@ app/DufeHubV2.tsx:2499:55 · 今日 · HomePage · 源码：共享文案候选�
 处理：未决定
 app/DufeHubV2.tsx:2501:63 · 今日 · HomePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:2723:44 · 今日 · HomePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4667:69 · 课表 · SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7679:37 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7815:33 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4672:69 · 课表 · SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7692:37 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7828:33 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/materials/MaterialsExplorer.tsx:634:85 · 学习资料 · MaterialsExplorer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [db008dd3506b55c6e4d6ad17fe4682d4e788f63b0f61bd8af8fb77dea704bc0f] 今日
@@ -2037,8 +2038,8 @@ app/DufeHubV2.tsx:2510:13 · 今日 · HomePage · 源码：共享文案候选�
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2510:33 · 今日 · HomePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5193:50 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5327:42 · 课表 · SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5206:50 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5340:42 · 课表 · SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [106e2c9d79fd8df533dc865b5a19659d63e4bde302e184550acf96c35ea22f31] 今日 / 课表
 类别：源码：共享文案候选（待核对引用） / 界面：表达式分支
@@ -2047,7 +2048,7 @@ app/DufeHubV2.tsx:5327:42 · 课表 · SchedulePage · 源码：共享文案候�
 处理：未决定
 app/DufeHubV2.tsx:2517:16 · 今日 · HomePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:2748:23 · 今日 · HomePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5340:27 · 课表 · SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5353:27 · 课表 · SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [b5bf93a7e5f6431093b4576ae328f41950559fde1910d580db4cf3113471dc15] 今日 / 课表
 类别：源码：共享文案候选（待核对引用） / 界面：表达式分支
@@ -2057,7 +2058,7 @@ app/DufeHubV2.tsx:5340:27 · 课表 · SchedulePage · 源码：共享文案候�
 app/DufeHubV2.tsx:2520:9 · 今日 · HomePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:2561:87 · 今日 · HomePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:2752:50 · 今日 · HomePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5343:65 · 课表 · SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5356:65 · 课表 · SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [b739454b075a13d2b8f9aae121ef1ba18807725ea87409880ab8765220b3d105] 今日 / 日程编辑 / 课表
 类别：源码：共享文案候选（待核对引用） / 界面：表达式分支
@@ -2065,8 +2066,8 @@ app/DufeHubV2.tsx:5343:65 · 课表 · SchedulePage · 源码：共享文案候�
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2551:64 · 今日 · HomePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4677:36 · 课表 · SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5605:50 · 日程编辑 · CalendarEditor · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4682:36 · 课表 · SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5618:50 · 日程编辑 · CalendarEditor · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [ad4e87561f3f47c259cb4ba76d38f9a1b474c9829c6e070c335e3f8222d31024] 今日
 类别：源码：共享文案候选（待核对引用）
@@ -2081,7 +2082,7 @@ app/DufeHubV2.tsx:2561:15 · 今日 · HomePage · 源码：共享文案候选�
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2590:55 · 今日 · HomePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7296:20 · 全站搜索 · SearchCommand · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7309:20 · 全站搜索 · SearchCommand · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [5de438c36f7c3db6d35cc810f3519a4f3526bb6bf78b6a11273dad3a8e7eb915] 今日
 类别：界面：表达式分支
@@ -2103,7 +2104,7 @@ app/DufeHubV2.tsx:2602:43 · 今日 · HomePage · 界面：表达式分支 · �
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2609:47 · 今日 · HomePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7140:25 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7153:25 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [92b8d940bd7007600b83a4ba2b0c8641ef9b3df64cd288cbc2df6ec24f847cec] 今日
 类别：界面：JSX 文本片段
@@ -2118,7 +2119,7 @@ app/DufeHubV2.tsx:2610:15 · 今日 · HomePage · 界面：JSX 文本片段 · 
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2612:14 · 今日 · HomePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7142:16 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7155:16 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [54e573e8910ac25399a0bf4e376edb97b5098c50e3709baca443f2b13e5606df] 今日 / 我的
 类别：界面：JSX 文本片段
@@ -2126,7 +2127,7 @@ app/DufeHubV2.tsx:7142:16 · 我的 · MePage · 界面：JSX 文本片段 · �
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2613:11 · 今日 · HomePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7144:18 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7157:18 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [a5dfb24fa9042cd69d8b124069cf47cc03d5389e6b326bbda35a936b771ce72a] 今日 / 我的
 类别：界面：JSX 文本片段
@@ -2134,7 +2135,7 @@ app/DufeHubV2.tsx:7144:18 · 我的 · MePage · 界面：JSX 文本片段 · �
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2617:14 · 今日 · HomePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7149:16 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7162:16 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [d5922ed3ffe48e8dd17ffe77dd7cd965d91885f7aa39d7b15ea43789547041b0] 今日
 类别：界面：JSX 文本片段
@@ -2149,7 +2150,7 @@ app/DufeHubV2.tsx:2618:11 · 今日 · HomePage · 界面：JSX 文本片段 · 
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2622:14 · 今日 · HomePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7156:16 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7169:16 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [88df420f820778969522bb696703b7e244a6caa38f4bd2ebb1b1fcb011aea79f] 今日 / 我的 / 课表
 类别：界面：JSX 文本片段
@@ -2157,9 +2158,9 @@ app/DufeHubV2.tsx:7156:16 · 我的 · MePage · 界面：JSX 文本片段 · �
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2631:19 · 今日 · HomePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5229:23 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5243:23 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6520:19 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5242:23 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5256:23 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6533:19 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [e28da4c1479bc21f8f182f00f3681fe92d21a20c7c5582521881f129e84c2cfe] 今日 / 我的 / 课表
 类别：界面：表达式分支
@@ -2167,8 +2168,8 @@ app/DufeHubV2.tsx:6520:19 · 我的 · MePage · 界面：JSX 文本片段 · �
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2633:58 · 今日 · HomePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5231:62 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6522:58 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5244:62 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6535:58 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [439e864e8324379f32e0b99914aa2bc73cf946f51c4b82587b636dbf3c2235ab] 今日 / 我的 / 课表
 类别：界面：表达式分支
@@ -2176,8 +2177,8 @@ app/DufeHubV2.tsx:6522:58 · 我的 · MePage · 界面：表达式分支 · 静
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2633:68 · 今日 · HomePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5231:72 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6522:68 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5244:72 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6535:68 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [ca86d9c64dcba20a564b72446685bcd87726be3803b5a21a06058532ee59fd24] 今日
 类别：界面：JSX 文本片段
@@ -2192,7 +2193,7 @@ app/DufeHubV2.tsx:2635:16 · 今日 · HomePage · 界面：JSX 文本片段 · 
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2637:51 · 今日 · HomePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6526:43 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6539:43 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [8aef316742353993fab6f79735a3d0739c10657d8dc2c949c73d7e0b966a4f86] 今日
 类别：界面：JSX 文本片段 / 界面：属性或无障碍标签
@@ -2229,8 +2230,8 @@ app/DufeHubV2.tsx:2660:25 · 今日 · HomePage · 界面：表达式分支 · �
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2665:37 · 今日 · HomePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5260:41 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6534:136 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5273:41 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6547:136 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [5b1bf7da98203d657760df89c878d335483dee41a8561bb19127d860471ae12b] 今日 / 我的 / 课表
 类别：界面：表达式分支
@@ -2238,8 +2239,8 @@ app/DufeHubV2.tsx:6534:136 · 我的 · MePage · 界面：表达式分支 · �
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2675:23 · 今日 · HomePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5270:27 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6534:176 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5283:27 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6547:176 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [7bd9d53b62f054cb4c7066875a9465c9dcfbe03bf4d0e9af4e65d36025b3169b] 今日 / 后端与邮件 / 课表
 类别：源码：后端候选（未证明可见） / 界面：JSX 文本片段
@@ -2247,7 +2248,7 @@ app/DufeHubV2.tsx:6534:176 · 我的 · MePage · 界面：表达式分支 · �
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2682:29 · 今日 · HomePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5276:31 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5289:31 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:1002:3 · 后端与邮件 · 顶层 · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:1648:50 · 后端与邮件 · parseExamHtml · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-routes.mjs:205:16 · 后端与邮件 · 顶层 · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
@@ -2258,7 +2259,7 @@ services/auth-api/src/academic-routes.mjs:205:16 · 后端与邮件 · 顶层 ·
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2688:29 · 今日 · HomePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5282:31 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5295:31 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:1005:3 · 后端与邮件 · 顶层 · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:1535:27 · 后端与邮件 · parseExamCards · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:1651:7 · 后端与邮件 · parseExamHtml · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
@@ -2340,7 +2341,7 @@ app/DufeHubV2.tsx:2730:97 · 今日 · HomePage · 界面：表达式分支 · �
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2730:106 · 今日 · HomePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7929:15 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7942:15 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [a0be7f490fe84945266c09c2631bc54be9217093463e3f90de545111f6ab3014] 今日
 类别：界面：JSX 文本片段
@@ -2383,7 +2384,7 @@ app/DufeHubV2.tsx:2760:21 · 今日 · HomePage · 界面：JSX 文本片段 · 
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2761:37 · 今日 · HomePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5084:47 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5089:47 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [357ea6d9147dccda7ba66ae266b3eed84521d13d00d0027f87afb22dd7cd2791] 今日
 类别：界面：JSX 文本片段
@@ -2412,7 +2413,7 @@ app/DufeHubV2.tsx:2799:37 · 今日 · HomePage · 界面：JSX 文本片段 · 
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2802:13 · 今日 · HomePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4763:13 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4768:13 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [a14f23af70166ec2402f853687f1ab70e70c0d2c370755e05e12560b5d29cdc7] 今日 / 课表
 类别：界面：表达式分支
@@ -2420,7 +2421,7 @@ app/DufeHubV2.tsx:4763:13 · 课表 · SchedulePage · 界面：JSX 文本片段
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2814:87 · 今日 · HomePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5356:56 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5369:56 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [b0dff016ff17d665f4c60411ca7cefcf98d3fd1c0cbbc6f663f2d46764bf0663] 今日 / 课表
 类别：界面：表达式分支
@@ -2428,7 +2429,7 @@ app/DufeHubV2.tsx:5356:56 · 课表 · SchedulePage · 界面：表达式分支 
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2814:94 · 今日 · HomePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5356:63 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5369:63 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [db8db0530432bd1596cd1ef21016dfc12392548a4b82019f1b1d7a315e0a55c0] 今日
 类别：界面：JSX 文本片段
@@ -2443,8 +2444,8 @@ app/DufeHubV2.tsx:2819:60 · 今日 · HomePage · 界面：JSX 文本片段 · 
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2824:25 · 今日 · HomePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4814:17 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5374:53 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4819:17 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5387:53 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [051836569928a9f91145a70e00b212b62a06c21a97d2d828cb75acd3fbe851b9] 今日 / 教师 / 社区与通知 / 课表
 类别：界面：JSX 文本片段
@@ -2452,7 +2453,7 @@ app/DufeHubV2.tsx:5374:53 · 课表 · SchedulePage · 界面：表达式分支 
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2835:23 · 今日 · HomePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5385:25 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5398:25 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/community/CommunityTopicView.tsx:315:118 · 社区与通知 · CommunityTopicView · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/community/CommunityTopicView.tsx:431:58 · 社区与通知 · CommentEntry · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/teachers/TeacherReviewDiscussion.tsx:178:127 · 教师 · TeacherReviewDiscussion · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
@@ -2463,8 +2464,8 @@ app/teachers/TeacherReviewDiscussion.tsx:178:127 · 教师 · TeacherReviewDiscu
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2843:23 · 今日 · HomePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5408:25 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5738:15 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5421:25 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5751:15 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/community/CommunityTopicView.tsx:315:207 · 社区与通知 · CommunityTopicView · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/community/CommunityTopicView.tsx:431:167 · 社区与通知 · CommentEntry · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/teachers/TeacherReviewDiscussion.tsx:179:160 · 教师 · TeacherReviewDiscussion · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
@@ -2482,7 +2483,7 @@ app/DufeHubV2.tsx:2851:18 · 今日 · HomePage · 界面：JSX 文本片段 · 
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2853:17 · 今日 · HomePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5612:21 · 日程编辑 · CalendarEditor · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5625:21 · 日程编辑 · CalendarEditor · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [0fa7293bf9578ce739dfe9e54f5741da0a6de88b9520e593b950fde54c510fc4] 今日
 类别：界面：JSX 文本片段
@@ -2576,7 +2577,7 @@ app/DufeHubV2.tsx:2922:15 · 今日 · HomePage · 界面：JSX 文本片段 · 
 建议：
 处理：未决定
 app/DufeHubV2.tsx:2923:12 · 今日 · HomePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7122:18 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7135:18 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/community/CommunityHub.tsx:202:36 · 社区与通知 · CommunityHub · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/community/CommunityTopicView.tsx:303:66 · 社区与通知 · CommunityTopicView · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/community/page.tsx:6:10 · 社区与通知 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
@@ -2743,7 +2744,7 @@ app/DufeHubV2.tsx:3172:64 · 课程 · CatalogPage · 界面：属性或无障�
 app/DufeHubV2.tsx:3174:19 · 课程 · CatalogPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:3207:21 · 课程 · CatalogPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:3432:51 · 课程 · CatalogPage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5449:19 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5462:19 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/materials/MaterialsExplorer.tsx:618:63 · 学习资料 · MaterialsExplorer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [a8876570a1b39263faa62b4fb0290c9914ccf2d43d06fa90c239fef0a17828e1] 培养方案 / 课程
@@ -2753,8 +2754,8 @@ app/materials/MaterialsExplorer.tsx:618:63 · 学习资料 · MaterialsExplorer 
 处理：未决定
 app/DufeHubV2.tsx:3177:15 · 课程 · CatalogPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:3221:21 · 课程 · CatalogPage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4199:31 · 培养方案 · TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4226:15 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4203:31 · 培养方案 · TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4230:15 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [79b640b7c2fc08652408d4815432b142a144dbfa10abcab98c2edfc60f6967da] 课程
 类别：界面：JSX 文本片段
@@ -2804,7 +2805,7 @@ app/DufeHubV2.tsx:3191:56 · 课程 · CatalogPage · 界面：表达式分支 �
 建议：
 处理：未决定
 app/DufeHubV2.tsx:3191:67 · 课程 · CatalogPage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4848:28 · 课表 · SchedulePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4853:28 · 课表 · SchedulePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [eb07760dd5a17e586512d01781fe1191dd3fd2b1c274c33dc8b3311365bcff8c] 课程
 类别：界面：属性或无障碍标签
@@ -2820,8 +2821,8 @@ app/DufeHubV2.tsx:3199:23 · 课程 · CatalogPage · 界面：属性或无障�
 处理：未决定
 app/DufeHubV2.tsx:3219:19 · 课程 · CatalogPage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:3432:34 · 课程 · CatalogPage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4197:29 · 培养方案 · TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4272:19 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4201:29 · 培养方案 · TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4276:19 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/materials/MaterialsExplorer.tsx:618:55 · 学习资料 · MaterialsExplorer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [a4de172ca06da640d58b8747d656e09af3cada08996e834745892497e7a7992b] 课程
@@ -2837,7 +2838,7 @@ app/DufeHubV2.tsx:3223:23 · 课程 · CatalogPage · 源码：共享文案候�
 建议：
 处理：未决定
 app/DufeHubV2.tsx:3225:25 · 课程 · CatalogPage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4228:15 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4232:15 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [5355c30246331144dbf526552adc70f70549608cf47969a1e5c584ff7d03b2d1] 课程
 类别：源码：共享文案候选（待核对引用）
@@ -2882,7 +2883,7 @@ app/DufeHubV2.tsx:3249:47 · 课程 · CatalogPage · 界面：JSX 文本片段 
 建议：
 处理：未决定
 app/DufeHubV2.tsx:3256:41 · 课程 · CatalogPage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5242:25 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5255:25 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [0707ed2acf0162e51fd38f8b237df09d16346908ab5915af7fb925a6648c8390] 课程
 类别：界面：表达式分支
@@ -2960,7 +2961,7 @@ app/DufeHubV2.tsx:3332:62 · 课程 · CatalogPage · 界面：JSX 文本片段 
 建议：
 处理：未决定
 app/DufeHubV2.tsx:3341:21 · 课程 · CatalogPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7963:22 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7976:22 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/admin/TeacherReviewDesk.tsx:226:24 · 管理后台 · TeacherReviewDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/admin/UserRegistration.tsx:85:190 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 app/teachers/TeacherExplorer.tsx:224:40 · 教师 · TeacherExplorer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
@@ -2995,8 +2996,8 @@ services/auth-api/src/academic-access.mjs:1958:50 · 后端与邮件 · parseTra
 建议：
 处理：未决定
 app/DufeHubV2.tsx:3383:33 · 课程 · CatalogPage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4200:25 · 培养方案 · TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7276:13 · 全站搜索 · SearchCommand · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4204:25 · 培养方案 · TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7289:13 · 全站搜索 · SearchCommand · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 app/materials/MaterialsExplorer.tsx:534:34 · 学习资料 · MaterialsExplorer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/materials/MaterialsExplorer.tsx:541:34 · 学习资料 · MaterialsExplorer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
@@ -3042,7 +3043,7 @@ app/DufeHubV2.tsx:3408:17 · 课程 · CatalogPage · 界面：JSX 文本片段 
 建议：
 处理：未决定
 app/DufeHubV2.tsx:3413:35 · 课程 · CatalogPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4369:73 · 培养方案 · TrainingPlanWindow · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4373:73 · 培养方案 · TrainingPlanWindow · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [446d191e230fde2f2e5a0774a38a70e41d415c6d89ffd735a10dda0c1566ddaf] 培养方案 / 我的 / 课程
 类别：界面：JSX 文本片段 / 界面：表达式分支
@@ -3050,8 +3051,8 @@ app/DufeHubV2.tsx:4369:73 · 培养方案 · TrainingPlanWindow · 界面：JSX 
 建议：
 处理：未决定
 app/DufeHubV2.tsx:3434:60 · 课程 · CatalogPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4373:30 · 培养方案 · TrainingPlanWindow · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6553:43 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4377:30 · 培养方案 · TrainingPlanWindow · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6566:43 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [e91a7e56904ad860347bc74f832de92644e64f2ecdda6227e8ab0d233b3bcd16] 课程
 类别：界面：JSX 文本片段
@@ -3319,7 +3320,8 @@ app/DufeHubV2.tsx:3683:19 · 教务导入 · submit ← AcademicImportDialog · 
 建议：
 处理：未决定
 app/DufeHubV2.tsx:3719:19 · 教务导入 · AcademicImportDialog · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4756:119 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4761:119 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5129:85 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [221e9c7d3af41c640ebe7a6552c1454f154d58c99e9451d6ad3bd09e5e591537] 教务导入
 类别：界面：表达式分支
@@ -3569,83 +3571,104 @@ app/DufeHubV2.tsx:3953:19 · 教务导入 · AcademicImportDialog · 界面：�
 处理：未决定
 app/DufeHubV2.tsx:3955:21 · 教务导入 · AcademicImportDialog · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
+[ac277ee37e035ac24d3b4614f53574b6d1773ae0e4b66fada296cccdde943472] 课表·课程卡
+类别：界面：属性或无障碍标签
+原文：教务导入：${…1}
+建议：
+处理：未决定
+app/DufeHubV2.tsx:3975:88 · 课表·课程卡 · AcademicScheduleCard · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+
 [0ff6ad1909c1e417f3d61101f00796c28961295df789e880f15161609778e436] 课表·课程卡
 类别：界面：属性或无障碍标签
 原文：教务导入 · ${…1}${…2}
 建议：
 处理：未决定
-app/DufeHubV2.tsx:3975:83 · 课表·课程卡 · AcademicScheduleCard · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:3975:121 · 课表·课程卡 · AcademicScheduleCard · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+
+[84f31c195be43668c01f0024c887844000c64338f7f8b30ede11fd9b418ecc12] 课表·课程卡
+类别：界面：属性或无障碍标签
+原文：手动添加：${…1}
+建议：
+处理：未决定
+app/DufeHubV2.tsx:4013:19 · 课表·课程卡 · DraggableScheduleCard · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+
+[3373baa7096da580ddbc1e2ab4d3ace51bd88f4f75b477f155215e18cecbd94a] 课表·课程卡
+类别：界面：属性或无障碍标签
+原文：手动添加 · ${…1}${…2}
+建议：
+处理：未决定
+app/DufeHubV2.tsx:4014:14 · 课表·课程卡 · DraggableScheduleCard · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [279ec9d1f43036ca928d565e804defd3d7686b6cc1c09908cf602ee63055b01a] 课表·课程卡
 类别：界面：属性或无障碍标签
 原文：从课表移除 ${…1}
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4041:21 · 课表·课程卡 · DraggableScheduleCard · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4045:21 · 课表·课程卡 · DraggableScheduleCard · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [6135d4159e8925413f3341383615f2995299a536c2a7e15b74035d6d8593c03d] 我的 / 课表·课程卡
 类别：界面：JSX 文本片段 / 界面：表达式分支
 原文：移除
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4043:9 · 课表·课程卡 · DraggableScheduleCard · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7093:51 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4047:9 · 课表·课程卡 · DraggableScheduleCard · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7106:51 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [c7f7ab9c00145612e6de0f1d9d561b1e7f550be3ff9236dcbd273dfd8c1eb720] 课表·移除课程
 类别：界面：表达式分支
 原文：松手移除
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4058:23 · 课表·移除课程 · ScheduleTrash · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4062:23 · 课表·移除课程 · ScheduleTrash · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [3fb5b553cde7eda41272b56a735975f156ad3e43cd18f5d22bdaf6e7ca9f2ee5] 课表·移除课程
 类别：界面：表达式分支
 原文：拖到这里移除
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4058:32 · 课表·移除课程 · ScheduleTrash · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4062:32 · 课表·移除课程 · ScheduleTrash · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [cbb2675991d908229d1ef053e719e61b63cd3ca3fd22c2fa1b3a4598f816df78] 培养方案
 类别：源码：共享文案候选（待核对引用）
 原文：当前学期未同步
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4192:7 · 培养方案 · TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4196:7 · 培养方案 · TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [f8d9dabc4d7c04c1f384d05b4041719d95943f5fda0eebb78c703c9a5550deba] 培养方案
 类别：源码：共享文案候选（待核对引用）
 原文：待选
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4198:29 · 培养方案 · TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4202:29 · 培养方案 · TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [1bfc59134a00d3eb45e1367b337467fe6af597163edbce7172f89dfa354e4834] 培养方案
 类别：源码：共享文案候选（待核对引用）
 原文：在修
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4227:20 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4231:20 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [f10d352a22b2ddfdb25bcba09487bbe52019daef28316d1dd7a3b62b552c1519] 培养方案
 类别：源码：共享文案候选（待核对引用）
 原文：未修
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4229:18 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4233:18 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [a8b0bd9c65f7fad55d929dcf0af3f2ad39544abf96bf6949c58ab32c875a6f7a] 培养方案
 类别：源码：共享文案候选（待核对引用）
 原文：待确认
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4230:16 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4234:16 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [5def9905e85f8908bca114b95e8cffc22912b563e65c6fdf552b0a58250488aa] 后端与邮件 / 培养方案
 类别：源码：共享文案候选（待核对引用） / 源码：后端候选（未证明可见）
 原文：必修
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4233:17 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4237:17 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:2034:6 · 后端与邮件 · planCourseName · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
 
 [4aa68593661e48d9abad0029a84d8ea3b6ea2503b6c3a55fef9e82d640fb2dc9] 后端与邮件 / 培养方案
@@ -3653,7 +3676,7 @@ services/auth-api/src/academic-access.mjs:2034:6 · 后端与邮件 · planCours
 原文：限选
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4234:16 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4238:16 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:2035:6 · 后端与邮件 · planCourseName · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
 
 [7e5f889a98a4cba32af9c68ea706b39c035458dd43d433a3d93e7073b4944f54] 培养方案
@@ -3661,136 +3684,136 @@ services/auth-api/src/academic-access.mjs:2035:6 · 后端与邮件 · planCours
 原文：选修
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4235:17 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4239:17 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [5639b02db9bdd04000d3a59ec1f7e791855f037dc9ec506a3171d8da8e83dabd] 培养方案
 类别：源码：共享文案候选（待核对引用）
 原文：性质待确认
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4236:16 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4240:16 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [146b072cd8a7e0beaa36ad95435fc5136fa42dcf407b9385e9dac40b259cd27b] 培养方案
 类别：界面：JSX 文本片段
 原文：修读于
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4254:22 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4265:22 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4258:22 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4269:22 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [f28461bb49c8564716309d575f90f72cf15b5c4667e40c2d037434bedb54a01a] 培养方案 / 课表
 类别：源码：共享文案候选（待核对引用） / 界面：JSX 文本片段
 原文：已完成
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4274:19 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5336:23 · 课表 · SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4278:19 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5349:23 · 课表 · SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [0b5ae40220bd95e8c3f38b831c7ccd5ab65949ac620f8a45b00e0b47f4646b6e] 培养方案
 类别：界面：属性或无障碍标签
 原文：选择${…1}的教学班
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4286:21 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4290:21 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [c826f8c6be2bd331ef24e135913249cc554e5f62c8b7c2ffabef5b600b528a61] 培养方案
 类别：界面：属性或无障碍标签
 原文：将${…1}加入${…2}
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4287:21 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4291:21 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [d2ecaff8ae02a98f40aa856abdfffea84042f2166e32e287b8e3c9b0dd81334a] 培养方案
 类别：界面：表达式分支
 原文：${…1} 个班
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4290:40 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4294:40 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [d8ed9e02c595de71d302032f5ba85c2fa927c8c4582c560b6d97001d6350e1dd] 培养方案
 类别：界面：表达式分支
 原文：加入方案
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4290:87 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4294:87 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [d5fe35ed535d748d33437c6650ab0a6c98c84ed450f0bdfa89c79ad933b100b2] 培养方案
 类别：界面：表达式分支
 原文：加入课表
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4290:96 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4294:96 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [b883e1030ca52533f892da215c0afcd74e78623cf43ee920bc2e8332e263938f] 培养方案
 类别：界面：JSX 文本片段
 原文：本学期未开
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4293:58 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4297:58 · 培养方案 · renderPlanCourse ← TrainingPlanWindow · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [79fc2a800f19f70812ca723e6519e39918d58ddd607cd4bc45c2aeda46d4266c] 培养方案
 类别：源码：共享文案候选（待核对引用）
 原文：已修 ${…1} / ${…2}
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4320:11 · 培养方案 · renderCategory ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4324:11 · 培养方案 · renderCategory ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [c3a2208ed865d40e0f2835d7ff5e768411c3a4f082d2702517ba8df83a508d53] 培养方案
 类别：源码：共享文案候选（待核对引用）
 原文：已修 ${…1}
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4322:13 · 培养方案 · renderCategory ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4326:13 · 培养方案 · renderCategory ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [db4e271366eef168d703b8c2bb1831507879a67f0619ef169527b39e1d76e699] 培养方案
 类别：源码：共享文案候选（待核对引用）
 原文：要求 ${…1}
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4324:15 · 培养方案 · renderCategory ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4328:15 · 培养方案 · renderCategory ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [8df61a4dfd27df9128e167454c6871a36eeb9c5af3161fa75ae55acb2b388b31] 培养方案
 类别：源码：共享文案候选（待核对引用）
 原文：学分要求未单列
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4325:15 · 培养方案 · renderCategory ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4329:15 · 培养方案 · renderCategory ← TrainingPlanWindow · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [afba2418d6aec23dc4b24c079b26350d3715faa050fa131943ad0b6962f4255a] 培养方案
 类别：界面：纯符号
 原文：−
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4343:55 · 培养方案 · renderCategory ← TrainingPlanWindow · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4347:55 · 培养方案 · renderCategory ← TrainingPlanWindow · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 
 [a318c24216defe206feeb73ef5be00033fa9c4a74d0b967f6532a26ca5906d3b] 培养方案
 类别：界面：纯符号
 原文：+
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4343:61 · 培养方案 · renderCategory ← TrainingPlanWindow · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4347:61 · 培养方案 · renderCategory ← TrainingPlanWindow · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 
 [29c9fcec55796f9f074f6f2137b73b0a6dc6b0f3a6f55faf4827e7e7c044bf22] 培养方案
 类别：界面：JSX 文本片段
 原文：培养方案 ·
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4364:17 · 培养方案 · TrainingPlanWindow · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4368:17 · 培养方案 · TrainingPlanWindow · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [2a2f96de8283595568bb66e38c2926e8120f890507615dc6e1c85829214c6d99] 培养方案
 类别：界面：JSX 文本片段
 原文：级 ·
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4369:39 · 培养方案 · TrainingPlanWindow · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4373:39 · 培养方案 · TrainingPlanWindow · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [afd4b783536b8297bb2506836727af1ccae7626a7d04e89de7ad402360e0a970] 培养方案 / 学习资料 / 我的 / 教师
 类别：界面：表达式分支
 原文：收起
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4373:23 · 培养方案 · TrainingPlanWindow · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6606:17 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4377:23 · 培养方案 · TrainingPlanWindow · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6619:17 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 app/materials/MaterialsExplorer.tsx:495:59 · 学习资料 · MaterialsExplorer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 app/teachers/TeacherReviewDiscussion.tsx:155:19 · 教师 · TeacherReviewDiscussion · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
@@ -3799,171 +3822,171 @@ app/teachers/TeacherReviewDiscussion.tsx:155:19 · 教师 · TeacherReviewDiscus
 原文：已修学分待学校返回
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4380:39 · 培养方案 · TrainingPlanWindow · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4384:39 · 培养方案 · TrainingPlanWindow · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [33d975af914b1a52199f8a7caabdc0bd378ef5f85c7d20ea6551e6584ed427b9] 培养方案
 类别：界面：表达式分支
 原文：已修学分
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4380:53 · 培养方案 · TrainingPlanWindow · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4384:53 · 培养方案 · TrainingPlanWindow · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [268d6546e069788a475b3d6b81b715ceaccad12ec247db36782dda06f35a9922] 培养方案
 类别：界面：JSX 文本片段
 原文：要求
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4385:13 · 培养方案 · TrainingPlanWindow · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4389:13 · 培养方案 · TrainingPlanWindow · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [dacb7ad40657beec18bf967524268b2bf66d89a87ec015536f6bfbccaa2a6c5f] 培养方案
 类别：界面：属性或无障碍标签
 原文：培养方案学分进度
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4390:62 · 培养方案 · TrainingPlanWindow · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4394:62 · 培养方案 · TrainingPlanWindow · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [0619b8d1550f1c92e1eb2382e91519fbe24a201580ae1b0b93dbd70fd234b08a] 培养方案
 类别：界面：属性或无障碍标签
 原文：筛选培养方案课程
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4404:42 · 培养方案 · TrainingPlanWindow · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4408:42 · 培养方案 · TrainingPlanWindow · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [63f999dc47832c1faf62c6937209924ecf72ad49bb27e3147e29a68d040e9b44] 培养方案
 类别：界面：属性或无障碍标签
 原文：搜索培养方案课程
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4420:26 · 培养方案 · TrainingPlanWindow · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4424:26 · 培养方案 · TrainingPlanWindow · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [cd55ba9d860794769f440d291a79d5b02c5cf76e82e56893e9e3f502d9fb0ded] 培养方案
 类别：界面：属性或无障碍标签
 原文：课程名称或课程号
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4421:27 · 培养方案 · TrainingPlanWindow · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4425:27 · 培养方案 · TrainingPlanWindow · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [80824eb78db6effcc6db1941149f83ffa9e5ab72cb58df3f7f595a672f3c52a8] 培养方案
 类别：界面：JSX 文本片段
 原文：这里暂时没有课程
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4433:25 · 培养方案 · TrainingPlanWindow · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4437:25 · 培养方案 · TrainingPlanWindow · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [084946341c27dba9b7bcbeba7c5208b9efb24efef2fa5af75a7fa1c295719d40] 培养方案
 类别：界面：表达式分支
 原文：本学期课表中的课程没有匹配到培养方案；可以查看待选或全部课程。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4436:23 · 培养方案 · TrainingPlanWindow · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4440:23 · 培养方案 · TrainingPlanWindow · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [b1bd3b03efe56906b26ef68893cf899b83cccb0634901937edf2e414eff37543] 培养方案
 类别：界面：表达式分支
 原文：换一个筛选条件或课程关键词。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4437:23 · 培养方案 · TrainingPlanWindow · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4441:23 · 培养方案 · TrainingPlanWindow · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [caf100780093b28f48c93c84e959099d1d4b603e4c01209de949831d89d6ecc6] 课表
 类别：源码：共享文案候选（待核对引用）
 原文：课表方案 ${…1}
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4692:17 · 课表 · newPlan ← SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4697:17 · 课表 · newPlan ← SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [05ecea9bb74bdd0d829fcf584b98e610195ab2e7dbf7284e1be0dd8f2ed49f12] 课表
 类别：源码：共享文案候选（待核对引用） / 界面：JSX 文本片段 / 界面：表达式分支
 原文：教务课表
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4742:62 · 课表 · exportTimetable ← SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:4776:13 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5034:63 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4747:62 · 课表 · exportTimetable ← SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4781:13 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5039:63 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [632c48c4b066c5905250d6ca46ff81ed9175e53aad1c6481d17d3ddc18dee139] 课表
 类别：界面：纯符号
 原文：${…1} ${…2} · ${…3}
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4756:17 · 课表 · SchedulePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4761:17 · 课表 · SchedulePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 
 [fb9565ba5241f6568923614174d0bc75933048e64c2b969f2b8d77bd3d34dc4e] 课表
 类别：界面：表达式分支
 原文：选课预览，不代表教务选课结果
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4756:100 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4761:100 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [8e700612c5e435af6e94aaad5e844a0c1fa79779fa1315cb5bd2ed86157ba345] 课表
 类别：界面：表达式分支
 原文：还没导入教务课表，也可以手动选课。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4757:45 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4762:45 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [a15685143ac2ef55846004840102364a0367ca3c99148bbd0bdd8ae4fc0567ea] 课表
 类别：界面：JSX 文本片段
 原文：课程中心
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4761:43 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4766:43 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [891c23900f9aebb5c7d0c13314a66a1d5e936810b29f5e85295b3ff6e110c1e2] 课表
 类别：界面：JSX 文本片段
 原文：＋ 添加作业
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4766:13 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4771:13 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [b325ba2e6c90bbfa153fde9d7b4423ef1ae1ce4b308fcfdd4b375c79609f9a3e] 课表
 类别：界面：表达式分支
 原文：修改班级
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4769:30 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4774:30 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [05effa4cda635e7042c35d1d924cda4c1056c6bdd1dd6df618de42685caf2cf0] 课表
 类别：界面：表达式分支
 原文：导入班级课程
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4769:39 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4774:39 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [fd6ffc15dcb10734f47187c3a40cba0229e2d1dc5181e951a47052a7ea3fb0f0] 课表
 类别：界面：表达式分支
 原文：手动选课
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4789:57 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4794:57 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [699447d1886c2770eafa3917b89e855b6b43acfc6fa6b2d0629b76f9e34e721b] 课表
 类别：界面：JSX 文本片段
 原文：＋ 新建方案
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4793:35 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4798:35 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [c578a2599cf934ede159829f0390e8297e99bcee40e413642698574d619fb9af] 课表
 类别：界面：属性或无障碍标签
 原文：关闭找课程
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4799:22 · 课表 · SchedulePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4804:22 · 课表 · SchedulePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [416da2bd22b091e0353ca7e2abe1e3c0f54b6532a5f8ed1c10a3d4f60ea33025] 课表
 类别：界面：JSX 文本片段
 原文：找课程
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4812:19 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4817:19 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [3fd47edce45b3603d4192f61dbf3e51162589b0951042a18d244132ac92e7bb7] 日程编辑 / 管理后台 / 课表
 类别：界面：JSX 文本片段 / 界面：属性或无障碍标签
 原文：关闭
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4813:71 · 课表 · SchedulePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5616:62 · 日程编辑 · CalendarEditor · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4818:71 · 课表 · SchedulePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5629:62 · 日程编辑 · CalendarEditor · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 app/admin/TeacherReviewDesk.tsx:248:77 · 管理后台 · TeacherReviewDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/admin/UserRegistration.tsx:91:72 · 管理后台 · UserRegistration · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
@@ -3972,14 +3995,14 @@ app/admin/UserRegistration.tsx:91:72 · 管理后台 · UserRegistration · 界�
 原文：全校
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4825:17 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4830:17 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [8b6ff498515bcc2ffdefa4f7b2efbe5edfcf8ba146e99308bc72024b52349ba0] 后端与邮件 / 课表
 类别：源码：后端候选（未证明可见） / 界面：JSX 文本片段
 原文：时间
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4843:17 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4848:17 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:966:3 · 后端与邮件 · 顶层 · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:1290:33 · 后端与邮件 · parseTimetableHtml · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:1316:37 · 后端与邮件 · parseTimetableHtml · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
@@ -3991,109 +4014,109 @@ services/auth-api/src/academic-routes.mjs:198:57 · 后端与邮件 · 顶层 ·
 原文：课程、简称或教师…
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4856:29 · 课表 · SchedulePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4861:29 · 课表 · SchedulePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [4453b456abea6cc778c245b9e7c631c9969cbf9abe359dfbb76736a13f37abba] 课表
 类别：界面：属性或无障碍标签
 原文：选择专业
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4880:30 · 课表 · SchedulePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4885:30 · 课表 · SchedulePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [5c553ec3f6db54f0d1eb5bc66d30186617bdf254e17b9f2945ef2f5796324fa8] 课程详情抽屉 / 课表
 类别：界面：JSX 文本片段
 原文：周
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4922:23 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5130:17 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7577:19 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7602:30 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4927:23 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5143:17 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7590:19 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7615:30 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [7a1bfdc6bd900cb1954a31bf20f03d25410cb468dd55c5bddb07a3674f2a737e] 课表
 类别：界面：表达式分支
 原文：全校课程 · ${…1} 个结果
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4944:19 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4949:19 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [a55ec2a4fa9b6ca8336787292153b7aee03af17de326dc6778694a338b1cd634] 课表
 类别：界面：表达式分支
 原文：大${…1}课程 · ${…2} 个结果
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4946:21 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4951:21 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [8200aa805e217be8466411d0c6bbcc3fdfcaa80bdc61ef5aacadbf4a6986c047] 课表
 类别：界面：表达式分支
 原文：周${…1} · ${…2} · ${…3} 个结果
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4947:21 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4952:21 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [31e4b654be966a49ae1d38cc8af4181e5e53634890f8ae3c7ffd7efc1ec7ad17] 课表
 类别：界面：表达式分支
 原文：${…1} 个教学班 · ${…2} 位教师
 建议：
 处理：未决定
-app/DufeHubV2.tsx:4982:31 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:4987:31 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [6a8328d975a81e93b5a13e5a504a0b44805564da3e2167b9de561330a9557c6d] 课表
 类别：界面：属性或无障碍标签
 原文：选择${…1}的教师和教学班
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5000:31 · 课表 · SchedulePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5005:31 · 课表 · SchedulePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [a03b3ab4964eb8df24818dc41e68f46ffb7261a1354492cfe2d8688eec6c68d4] 课表
 类别：界面：属性或无障碍标签
 原文：添加${…1}
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5001:31 · 课表 · SchedulePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5006:31 · 课表 · SchedulePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [1029fedefdf99d95c45d76e1939d5efb41abeff94e690e3c4717c7e79da652ab] 课表
 类别：界面：表达式分支
 原文：选
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5004:50 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5009:50 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [b790fa06d156af4c284cede1658a9f8db53e26e00d6b980dd5769a1ae5513327] 课表
 类别：界面：纯符号
 原文：＋
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5004:56 · 课表 · SchedulePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5210:25 · 课表 · SchedulePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5009:56 · 课表 · SchedulePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5223:25 · 课表 · SchedulePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 
 [d40cb659fe438e1eaa5e5a3bf440ab6410b97f689289158338b43a92b25b1430] 课表
 类别：界面：JSX 文本片段
 原文：没找到课程，换个关键词或条件试试。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5011:41 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5016:41 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [f96fffd9f205fd106fd80dbfc0e3427d1b51ecb99140672c0b932dcf281c9199] 课表
 类别：界面：JSX 文本片段
 原文：再显示 40 门
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5020:17 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5025:17 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [326fee0b9058ce1cd5fb8a851867d08aa847ff7649b012eacb010ef280013637] 课表
 类别：界面：JSX 文本片段
 原文：已显示
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5022:19 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5027:19 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [8a5edab282632443219e051e4ade2d1d5bbc671c781051bf1437897cbdfea0f1] 社区与通知 / 课表
 类别：界面：纯符号
 原文：/
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5022:37 · 课表 · SchedulePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5027:37 · 课表 · SchedulePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/community/CommunityTopicView.tsx:303:83 · 社区与通知 · CommunityTopicView · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 
 [d609b70e9e849789d04ac766ae5ee8f1ac1cb031d859f30929dac417efdf85a8] 课表
@@ -4101,112 +4124,126 @@ app/community/CommunityTopicView.tsx:303:83 · 社区与通知 · CommunityTopic
 原文：选课预览
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5034:54 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5039:54 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [dba655f42d1dfabc62ab9504efbbd8b7636ed93869e6e4c9ca0355b4f6f793e2] 课表
 类别：界面：JSX 文本片段
 原文：含手动课程，不计入今日上课提醒。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5035:59 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5040:59 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [cf87ddf6592e5ac7db8069603d542a5899cbc0a32c46f2926f612dba538b2d52] 课表
 类别：界面：JSX 文本片段
 原文：个课程时段 ·
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5039:42 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5044:42 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [1d5c9a8d7373588e6f92afe97b76509480e0571a68ef6ba07aedbe5594fc928d] 课表
 类别：界面：表达式分支
 原文：${…1} 个冲突
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5040:35 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5045:35 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [622de551d01965fd125fab71d94e135634daf14b9176cbdfa9dbafeca22ef23b] 课表
 类别：界面：表达式分支
 原文：无冲突
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5040:61 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5045:61 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [8029ee789108d21251ad05272b74971e7522a306a55171a4bfa4bd00e3ff6469] 课表
 类别：界面：表达式分支
 原文：＋ 预选课程
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5047:37 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5052:37 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [69dc0db37f4cabcf1a983c25a82d837e602aae75e82aa287103b7558e9e32be2] 课表
 类别：界面：表达式分支
 原文：＋ 添加课程
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5047:48 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5052:48 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [a8b8730c96117e106803a0deaf175425369a5467883c0ae24978598c6ffaf59a] 课表
 类别：界面：表达式分支
 原文：正在生成…
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5054:30 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5059:30 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [2c2b79a000c784d73456c6cfa74cf54e09e59c561e98f1985bb98bc044f49a77] 课表
 类别：界面：表达式分支
 原文：导出图片
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5054:40 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5059:40 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [22742cd9811973c5c364871f6dd965d0ba48826eb23964ab00c22909d51bf363] 课表
 类别：界面：属性或无障碍标签
 原文：切换课表视图
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5061:24 · 课表 · SchedulePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5066:24 · 课表 · SchedulePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [d94daba3160558426f9316688f18c9480399d69a500642a525fa9d96a2dbc21f] 课表
 类别：界面：JSX 文本片段
 原文：一周
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5067:15 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5072:15 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [4cab994c57f770edaefb461fefce9fb18f4a79c3dec7f27afb13e5a6586e312c] 课表
 类别：界面：JSX 文本片段
 原文：近日
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5073:15 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5078:15 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [80d8a9c2df011b7f3a7b1b7b3b9f302aaa8fdfdcbaac9a748f7d6e5ca7ed8d46] 课表
 类别：界面：JSX 文本片段
 原文：这几天没有课或日程
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5113:24 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5118:24 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+
+[9c84f0b15e24e0411278bed04cfc8da0d3067c16e95180268b3643103c4822e7] 课表
+类别：界面：属性或无障碍标签
+原文：课程来源
+建议：
+处理：未决定
+app/DufeHubV2.tsx:5128:67 · 课表 · SchedulePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+
+[ddfe2c796c7eb71b8ac250d3276cd643afce27e4fd23d237f31e16aad09d21b3] 课表
+类别：界面：JSX 文本片段
+原文：手动添加
+建议：
+处理：未决定
+app/DufeHubV2.tsx:5130:83 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [82b6b254e429c8ec89bd6a0023e494eb4e2f6b4ec0ddab70a611239ee4d94566] 课表
 类别：界面：表达式分支
 原文：隐藏空白周末
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5124:29 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5134:29 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [48a9032d060af5dd3a1eb5612a9e5fd8a90494554d78373f7562f82e14801c1b] 课表
 类别：界面：表达式分支
 原文：显示完整七天
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5124:40 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5134:40 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [8950d5568dbb47b09a8efdc781d103950ed9797b49cab20afe10a8e866afc7f3] 主站与共享组件 / 后端与邮件 / 课表
 类别：源码：后端候选（未证明可见） / 界面：JSX 文本片段
 原文：节次
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5127:42 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5138:42 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/RoomWeekSchedule.tsx:128:69 · 主站与共享组件 · RoomWeekSchedule · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:975:3 · 后端与邮件 · 顶层 · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:1294:33 · 后端与邮件 · parseTimetableHtml · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
@@ -4218,57 +4255,57 @@ services/auth-api/src/academic-routes.mjs:200:17 · 后端与邮件 · 顶层 ·
 原文：每周
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5191:69 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5649:42 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5204:69 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5662:42 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [847e6ed17f0c08c505ffb031830607a339cc8d591c3c1361b4f2da8c1c01595c] 课表
 类别：界面：JSX 文本片段
 原文：时间有重叠
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5192:67 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5205:67 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [0a84998275f3b72de470d76e014beae9d36595c24c541dcb7194305ba2b87525] 课表
 类别：界面：属性或无障碍标签
 原文：添加周${…1}第${…2}大节日程
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5208:37 · 课表 · SchedulePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5221:37 · 课表 · SchedulePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [a0c81614d3c8642636e55eb62b159a84e2eb0a3ef6a4ace5550377d5d363b4ef] 课表
 类别：界面：JSX 文本片段
 原文：这张课表还是空的
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5221:18 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5234:18 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [f156232e2bd7333fdb0dc3bc097db69e945f2bf669083cd089defffc28fdd3ee] 课表
 类别：界面：JSX 文本片段
 原文：从“课程”导入教务课表，或点“添加课程”手动选课。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5222:18 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5235:18 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [41fbe2ff47bdf4a01c7ae280547b25d048aed920a0acb84689e7167e8dbc3a1c] 课表
 类别：界面：JSX 文本片段
 原文：课表已导入；考试页未能确认，不能当作没有考试。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5233:20 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5246:20 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [a582e44cb4249e81196fe815cbf190ba6eb866ae496b1d3c4b90d207e7a214c4] 课表
 类别：界面：JSX 文本片段
 原文：去课程更新
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5235:47 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5248:47 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [6320b4a8722a851fb99566e4eac1cfd4b93bc684b3a33d9f5cae37a116b8c734] 后端与邮件 / 管理后台 / 课表
 类别：源码：后端候选（未证明可见） / 界面：JSX 文本片段
 原文：状态
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5288:31 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5301:31 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/admin/ActiveContentDesk.tsx:235:24 · 管理后台 · ActiveContentDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/admin/AdminConsole.tsx:535:56 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:1009:3 · 后端与邮件 · 顶层 · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
@@ -4281,63 +4318,63 @@ services/auth-api/src/academic-routes.mjs:206:18 · 后端与邮件 · 顶层 ·
 原文：已同步
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5289:47 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5302:47 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [7aef8886679f96e3cc4ac375a0b4dd8b17bfdf745ce14464ecdb741060deb932] 课表
 类别：界面：JSX 文本片段
 原文：我的日程
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5301:23 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5314:23 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [9cd0f599640f77b1e328dcff2286719b05a855441bcce1b830b9dac16e5afdb4] 课表
 类别：界面：JSX 文本片段
 原文：活动与作业
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5302:21 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5315:21 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [7b8594a50260384fc0d3d982d88440db87bcde0abd7d9967cb889b061f861e44] 课表
 类别：界面：JSX 文本片段
 原文：＋ 活动
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5309:19 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5322:19 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [8bc6e8d4acd23ac59a89545fd3367b52294c8cf33fa0c0cb3bed739843030136] 课表
 类别：界面：JSX 文本片段
 原文：＋ 作业
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5315:19 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5328:19 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [c86564f9ff7e9746c271ef3051fbf3af5728d7c36a5d2eabd9b5989e1ba01381] 课表
 类别：源码：共享文案候选（待核对引用）
 原文：每周${…1}
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5325:66 · 课表 · SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5338:66 · 课表 · SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [648d9189a7d5d9a4eb67c29e0153d5332383a46635e951b2ec07c8571533ea3a] 课表
 类别：源码：共享文案候选（待核对引用）
 原文：逾期 ${…1} 天
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5338:25 · 课表 · SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5351:25 · 课表 · SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [736b87cf21eeea08c0a6e6076b965de1bc77fa6e717096367b0a192ff8dcafb8] 课表
 类别：源码：共享文案候选（待核对引用）
 原文：${…1} 天后
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5341:27 · 课表 · SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5354:27 · 课表 · SchedulePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [e0534b8a4e46a0cb5601d4da01910450a4ef2ffd6eacdc29c7312dcf7cfe0930] 管理后台 / 课表
 类别：界面：表达式分支
 原文：恢复
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5374:46 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5387:46 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 app/admin/AdminConsole.tsx:582:60 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [f701f834e9f3fc4117074befcc92089e8553b82db59ff257d38d9735de540767] 课表
@@ -4345,77 +4382,77 @@ app/admin/AdminConsole.tsx:582:60 · 管理后台 · AdminConsole · 界面：�
 原文：还没有个人安排
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5415:22 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5428:22 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [081846db8eea0a884d50f1e0631a7def57af9bf5471cda2a058820bd5e10aff1] 课表
 类别：界面：JSX 文本片段
 原文：拖到下方即可移除
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5430:22 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5443:22 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [d59ad85951518a18bc2df3912e8af1a9d99c2b3335108461794ff934cf164a33] 课表
 类别：界面：JSX 文本片段
 原文：导入后可查看待选课程与已修学分
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5450:21 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5463:21 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [f3abc0cec5129a25280dfa0d278ae7bc3621a1b1b69ecc5da6ebfab79061c584] 课表
 类别：界面：JSX 文本片段
 原文：课程已从当前课表移除
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5457:17 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5470:17 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [926a50b98ece2667069d47bd532e8ae1fb23218868a8f289c09937478f717c7a] 课表
 类别：界面：JSX 文本片段
 原文：撤销
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5458:40 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5471:40 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [f55c6a1dd041c6aa06b61cf51b69dbc7a283eca57e7a7e3cce38baed9501660a] 日程编辑
 类别：提示与错误候选
 原文：请选择有效日期和同一天的时间，结束时间须晚于开始时间。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5546:23 · 日程编辑 · save ← CalendarEditor · 提示与错误候选 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5559:23 · 日程编辑 · save ← CalendarEditor · 提示与错误候选 · 静态入口/相对引用可达（非运行时证明）
 
 [72125f368a5cd780315f01a836d94d4d642f3241e02a722bba7ed1fb85f7c1d8] 日程编辑
 类别：界面：表达式分支
 原文：课程任务
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5605:59 · 日程编辑 · CalendarEditor · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5618:59 · 日程编辑 · CalendarEditor · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [a3064785f1dbe487f2bb71bb46fcfbc062e0ff32723cdcbec00072d0d37d29d9] 日程编辑
 类别：界面：表达式分支
 原文：编辑日程
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5609:21 · 日程编辑 · CalendarEditor · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5622:21 · 日程编辑 · CalendarEditor · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [5de0c4bb420eac9dd176a7fd95600009f75dae64f5794471a16cf9e20f7e96b3] 日程编辑
 类别：界面：表达式分支
 原文：编辑作业
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5610:21 · 日程编辑 · CalendarEditor · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5623:21 · 日程编辑 · CalendarEditor · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [2e7979aa942a1ef5dcb78d1c8f2a5e6d7d9ca3ce7011dc1ba625f40dd4111f0f] 日程编辑
 类别：界面：表达式分支
 原文：添加作业
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5613:21 · 日程编辑 · CalendarEditor · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5626:21 · 日程编辑 · CalendarEditor · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [c3405f8c7d9d392aa3e2d073d5793bce795353c5f7ef0d27f3d6c1c8d2832681] 日程编辑 / 社区与通知
 类别：界面：JSX 文本片段 / 界面：属性或无障碍标签
 原文：标题
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5622:17 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5635:17 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/community/CommunityHub.tsx:236:32 · 社区与通知 · CommunityHub · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 app/community/CommunityTopicView.tsx:325:28 · 社区与通知 · CommunityTopicView · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
@@ -4424,56 +4461,56 @@ app/community/CommunityTopicView.tsx:325:28 · 社区与通知 · CommunityTopic
 原文：例如：社团例会
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5629:45 · 日程编辑 · CalendarEditor · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5642:45 · 日程编辑 · CalendarEditor · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [b996b44d53cadb0efcc1c01a83e1f9f67be641ba128286f4607121bdcb6a6cfe] 日程编辑
 类别：界面：属性或无障碍标签
 原文：例如：完成第三章习题
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5629:57 · 日程编辑 · CalendarEditor · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5642:57 · 日程编辑 · CalendarEditor · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [609cf2fdf6ffcc614b99ca051b0611be0705c403db6c8f222e17070726cb0d06] 日程编辑
 类别：界面：JSX 文本片段
 原文：重复
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5645:23 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5658:23 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [ebdc3594be5c41f326904e3473f52cbcdab5b2dff50e7afe427322db4718d562] 日程编辑
 类别：界面：JSX 文本片段
 原文：不重复
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5648:40 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5661:40 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [6a9906c79f26c0ba00e6e0b5b5192dd699c6cc909e2721ad9396f3091dbf7bef] 日程编辑
 类别：界面：JSX 文本片段
 原文：开始时间
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5654:28 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5667:28 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [f50276449943286cc3ba780badf14f87bfdadd1e0919e6fd4aec4e740c00881e] 日程编辑
 类别：界面：JSX 文本片段
 原文：结束时间
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5659:28 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5672:28 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [c84eb2faba7e92249c03e3b8343f8628f9ac443e541a7e00b538d694acd9cb36] 日程编辑
 类别：界面：JSX 文本片段
 原文：暂不支持跨天。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5665:41 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5678:41 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [253ac66fb8e1032b4270f243c922faecd98a1cbe5e3c772707586f94e1a3e09e] 后端与邮件 / 日程编辑
 类别：源码：后端候选（未证明可见） / 界面：JSX 文本片段
 原文：地点
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5668:21 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5681:21 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:968:3 · 后端与邮件 · 顶层 · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:1317:41 · 后端与邮件 · parseTimetableHtml · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:1527:27 · 后端与邮件 · parseExamCards · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
@@ -4486,94 +4523,94 @@ services/auth-api/src/academic-routes.mjs:199:11 · 后端与邮件 · 顶层 ·
 原文：例如：图书馆三楼
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5675:29 · 日程编辑 · CalendarEditor · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5688:29 · 日程编辑 · CalendarEditor · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [070a8016fcc3dffbefd26e4d0c26cf5b7f46590ae9f1b65f0e2636581d05ffef] 日程编辑
 类别：界面：JSX 文本片段
 原文：颜色
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5679:23 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5692:23 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [8c1c5313160cc25816abed5f3d1425fbd6234774a449add89fd4829c220cc9f3] 日程编辑
 类别：界面：属性或无障碍标签
 原文：选择${…1}
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5687:31 · 日程编辑 · CalendarEditor · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5700:31 · 日程编辑 · CalendarEditor · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [8a0f4024558edfe4f6c275920ff90c65ef7c126511b84c173c83b088d5339386] 日程编辑
 类别：源码：共享文案候选（待核对引用）
 原文：朱红
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5687:44 · 日程编辑 · CalendarEditor · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5700:44 · 日程编辑 · CalendarEditor · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [64f787872eb83a7fcd78aabeeb077b5d0737c194f95df080af4db7d189709810] 日程编辑
 类别：源码：共享文案候选（待核对引用）
 原文：炭墨
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5687:56 · 日程编辑 · CalendarEditor · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5700:56 · 日程编辑 · CalendarEditor · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [546f45e1387726477be21b88682130a4d9944ccb9994e6285a15da10b769b6b2] 日程编辑
 类别：源码：共享文案候选（待核对引用）
 原文：松针
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5687:69 · 日程编辑 · CalendarEditor · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5700:69 · 日程编辑 · CalendarEditor · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [45cb69888ebb445165bf4007f8a6f3665441fbda72b9b16c99a3b50e29578b8a] 日程编辑
 类别：源码：共享文案候选（待核对引用）
 原文：金色
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5687:82 · 日程编辑 · CalendarEditor · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5700:82 · 日程编辑 · CalendarEditor · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [79bddd47fe189961065e01e4e05b789b70593e7119e5c5cdcb7de76bed036eef] 日程编辑
 类别：界面：JSX 文本片段
 原文：关联课程
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5695:21 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5708:21 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [b0f19b0ccde8455d7f96186fd1b6c67ac49ca923ebb07fcf4eb4610e10a00e23] 日程编辑
 类别：界面：JSX 文本片段
 原文：不关联课程
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5701:34 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5714:34 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [31802424217f51b030512cf9a6a8392c52e844b367f7e809e581f7391bad229c] 日程编辑
 类别：界面：JSX 文本片段
 原文：截止日期
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5710:21 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5723:21 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [daede9881787abe74c94e686be78a4eabc85a09688433027ea55ac583919bc1e] 日程编辑
 类别：界面：JSX 文本片段
 原文：备注
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5723:17 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5736:17 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [ebdcbdcf9c998d72cb1e76feed6f2be8ded40c3a97ab7cf29257ec405cbb596a] 我的 / 日程编辑
 类别：界面：属性或无障碍标签 / 界面：表达式分支
 原文：选填
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5730:25 · 日程编辑 · CalendarEditor · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6951:29 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5743:25 · 日程编辑 · CalendarEditor · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6964:29 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [2cd0f3be8738a86cede1a1452f874f31d569864bbb00cacd4130990f4610cb5c] 我的 / 教师 / 日程编辑 / 社区与通知 / 管理后台
 类别：界面：JSX 文本片段 / 界面：表达式分支
 原文：取消
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5743:13 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6875:39 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7233:60 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5756:13 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6888:39 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7246:60 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/admin/ActiveContentDesk.tsx:250:99 · 管理后台 · ActiveContentDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/admin/AdminConsole.tsx:658:88 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/admin/ModerationDesk.tsx:272:99 · 管理后台 · ModerationDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
@@ -4589,160 +4626,160 @@ app/teachers/[teacherId]/TeacherDetail.tsx:402:320 · 教师 · TeacherDetail ·
 原文：保存
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5745:33 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6573:17 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5758:33 · 日程编辑 · CalendarEditor · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6586:17 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [fb167f2561e57b3ce2b172095d16889c4ebfc2640482bcaf9cc07ffe9a9df982] 空教室
 类别：源码：共享文案候选（待核对引用）
 原文：下节课 ${…1}
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5846:9 · 空教室 · availableUntil ← RoomsPage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5859:9 · 空教室 · availableUntil ← RoomsPage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [b1d841b978fb524c350a0c4e32ab661ab1742147e1b1a208b96ccc37a6d28c4e] 空教室
 类别：源码：共享文案候选（待核对引用） / 界面：JSX 文本片段
 原文：明天
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5872:86 · 空教室 · RoomsPage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:5969:98 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5885:86 · 空教室 · RoomsPage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5982:98 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [cd18357cb4fb6761dfd270326297071d32f53df1c55c2782e98e083554a44b54] 空教室
 类别：界面：属性或无障碍标签
 原文：查询时间
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5950:63 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5963:63 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [52095cb663d27f5435fc4ffa19025e796be6565c4ba5a832d0ea99c645dad604] 空教室
 类别：界面：JSX 文本片段
 原文：回到当前
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5957:16 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5970:16 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [3de257f61278371d3961f597888fb6bd7ab9a7a7621f7ff83b031596e9e72a8a] 空教室
 类别：界面：属性或无障碍标签
 原文：选择查询日期
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5965:35 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5978:35 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [641b9bedb453516b3b1dec06bdf0d2c97260b3301f2ad74bbd96019ce6a3e5e7] 空教室
 类别：界面：纯符号
 原文：⌄
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5965:129 · 空教室 · RoomsPage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5978:129 · 空教室 · RoomsPage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 
 [5e08d20d8b3fa7aac9cddb54c8ab5d32aba5492449fd5512a3d155b3210ee41c] 空教室
 类别：界面：属性或无障碍标签
 原文：选择时段
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5979:75 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5992:75 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [d0bbb721fef1d1148ef900c6fc9e05ea085988aecb738d626dadbf7013a47980] 空教室
 类别：界面：纯符号
 原文：${…1} · ${…2}
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5981:97 · 空教室 · RoomsPage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5994:97 · 空教室 · RoomsPage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 
 [94667f857573218aa09266d7d27d3e73a694d7ac5a94576c624f7a357ac95370] 空教室
 类别：界面：JSX 文本片段
 原文：这个日期不在当前学期内，暂时无法判断空闲。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5986:62 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:5999:62 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [ae567bdd37d0e08f03eb164602f33a2481aaeba72f2fb6498a754aec80a90f48] 空教室
 类别：界面：属性或无障碍标签
 原文：选择教学楼
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5989:49 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6002:49 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [76d45bc90f86b957fa340ca874c95adeb8418e47c2c3673fda6c77ff7dd8473f] 空教室
 类别：界面：属性或无障碍标签
 原文：${…1}，${…2} 间空闲
 建议：
 处理：未决定
-app/DufeHubV2.tsx:5999:27 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6012:27 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [718886596e15c3f8de1df2ea2105e7681995fb744f49eda008491eb71fdf0cc3] 空教室
 类别：界面：JSX 文本片段
 原文：间空闲
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6007:22 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6020:22 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [fd007c34ea35a7cad29506bc52f1d8b1a2328f5bf2acaa4be4045055fe1c408a] 空教室
 类别：界面：属性或无障碍标签 / 界面：表达式分支
 原文：楼层未标注
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6016:55 · 空教室 · RoomsPage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6040:48 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6029:55 · 空教室 · RoomsPage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6053:48 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [88cf925da181e8934f82d2462216406b90bfee06cf1da02b74669d22f5669798] 空教室
 类别：界面：属性或无障碍标签 / 界面：表达式分支
 原文：${…1} 层
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6016:65 · 空教室 · RoomsPage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6040:58 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6029:65 · 空教室 · RoomsPage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6053:58 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [fbeba3883a5f2cec700dbce3f59a81fc39735b494586b05403fd9b2827773eca] 空教室
 类别：界面：JSX 文本片段
 原文：间可用
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6018:91 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6031:91 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [1531d1dfc073cf0ce9a0d1ec2cfbb6a3575a96ea2bd66fd090536262078d6d2d] 空教室
 类别：界面：属性或无障碍标签
 原文：当前查询时间
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6020:69 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6033:69 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [dae661d17c2dd8f0ac88e0cd5a51cafbac7e963fa28271b8ec3ad76bf4da329a] 空教室
 类别：界面：JSX 文本片段 / 界面：属性或无障碍标签
 原文：空闲
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6025:41 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6071:58 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6038:41 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6084:58 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [f2532adccf8d884f26f46c1d24d7eb6c8648c3bc601bc1ceb03fa3afdba6cd06] 空教室
 类别：界面：属性或无障碍标签
 原文：选择楼层
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6029:52 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6042:52 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [ce3b386bd714e8be554bfb75f680bcff5119a26984be696ceae14fdf61cdb470] 空教室
 类别：界面：JSX 文本片段
 原文：楼层
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6030:17 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6043:17 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [5f6e7532f4a0fe0eef6e690397a0448283e0ecf809f7555127a1f4c2777b3691] 空教室
 类别：界面：属性或无障碍标签
 原文：${…1}，${…2} 间空闲，共 ${…3} 间
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6040:29 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6053:29 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [d2909f1647e7c891a8282759b2eaa961e84620ff04cda7b8b5478cb540d74fa4] 社区与通知 / 空教室 / 管理后台 / 课程详情抽屉
 类别：源码：共享文案候选（待核对引用） / 界面：表达式分支
 原文：其他
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6043:37 · 空教室 · RoomsPage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7769:45 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6056:37 · 空教室 · RoomsPage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7782:45 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 app/admin/ModerationDesk.tsx:42:10 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 app/community/community-api.ts:181:13 · 社区与通知 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
@@ -4751,605 +4788,605 @@ app/community/community-api.ts:181:13 · 社区与通知 · 顶层 · 源码：�
 原文：${…1}F
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6043:44 · 空教室 · RoomsPage · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6056:44 · 空教室 · RoomsPage · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
 
 [dd7c2dc415ef75fa153516009a5cc57612c6a8790f62493936ce84776e0d0061] 空教室
 类别：界面：JSX 文本片段
 原文：楼层入口
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6056:21 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6069:21 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [bfa86c92eb23b4b7afc5c8ad1364a70833db0b489d4df7d09d245787189205eb] 空教室
 类别：界面：JSX 文本片段
 原文：教室区
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6058:21 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6071:21 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [7aadb343a7ed96d06d103c5946f477b7402351a10c164f73e347fe84cd3bafc7] 空教室
 类别：源码：共享文案候选（待核对引用）
 原文：暂无该日期课表
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6066:115 · 空教室 · RoomsPage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6079:115 · 空教室 · RoomsPage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [ba95179aebd28110f52f0ca2ef938bac63f65b2011bd10e961dd6ebde5e01c92] 空教室
 类别：界面：属性或无障碍标签
 原文：${…1}，${…2}${…3}，查看一周课表
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6071:35 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6084:35 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [460b3574e4bdb8ca1d4605109904168e010d6a9b81d9bb6960b28fc14b046c83] 空教室
 类别：界面：属性或无障碍标签
 原文：不可用
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6071:65 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6084:65 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [f2310f42489667e22ed6665352be4923d312030624552ba7df8c1d49ec810952] 空教室
 类别：界面：纯符号
 原文：，${…1}
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6071:84 · 空教室 · RoomsPage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6084:84 · 空教室 · RoomsPage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 
 [c257563166d12f2337501c6748268d62081f13947939cd12c355c0a5de0b652b] 空教室
 类别：界面：JSX 文本片段
 原文：这一层暂无教室。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6081:20 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6094:20 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [7451d0918e8aea40d980c708eaf85bb20bb582a4b4e158eb09f8e81a8f5b7b07] 空教室
 类别：界面：JSX 文本片段
 原文：符合条件
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6088:17 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6101:17 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [b9667c8b7d63fd92a4c745515034d274d7e88965c005bd2e06ea9b016c2a000e] 空教室
 类别：界面：JSX 文本片段
 原文：间教室
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6092:18 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6105:18 · 空教室 · RoomsPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [5344dc8e1554a5b1513cb3a1c8c0adc460eb97ae67d04f4ce7dbd394622d8d44] 空教室
 类别：界面：表达式分支
 原文：第 ${…1} 周 · 
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6096:19 · 空教室 · RoomsPage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6109:19 · 空教室 · RoomsPage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [84dcfec125604570b31df35405e1159e955b9bfe8f3036835daa480e622c47ee] 空教室
 类别：界面：属性或无障碍标签
 原文：常用和最近查看的教室
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6104:49 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6117:49 · 空教室 · RoomsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [4563c57b5143deaa74ff41804744da8ce8af543939c516fd86c809b4334cddd7] 空教室
 类别：界面：表达式分支
 原文：常用
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6105:47 · 空教室 · RoomsPage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6118:47 · 空教室 · RoomsPage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [e0f99a1b5e75b569ae772e71a9f1abc498b88414955ea84eebb4dae2b5e79a51] 空教室
 类别：界面：表达式分支
 原文：最近看过
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6105:54 · 空教室 · RoomsPage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6118:54 · 空教室 · RoomsPage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [2e86ed9edbf9958c69c7cdb1a07fd784634a921b4dc5b09f5d366f44b57e9518] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：只在本机
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6218:13 · 我的 · MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6231:13 · 我的 · MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [58199fbe4adcfe587ab835d319d3db31b2c4d29925ac8c7588e2b3abc189570c] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：登录后可在不同设备继续使用
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6218:21 · 我的 · MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6231:21 · 我的 · MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [01679253dade46b3c642bd7b9c5278668637a012c60e1eb8f0269da2c83e06a5] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：正在同步
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6219:15 · 我的 · MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6232:15 · 我的 · MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [88ab3401ddccd9baf53f2fe5b291c92c75445c15d2f32406b73aa86781106a98] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：刚才的修改正在保存
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6219:23 · 我的 · MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6232:23 · 我的 · MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [37ddd2c24abb85a3ef955e334e4b4774f3aedca9705e77d1e228350a1ca20c80] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：云端已同步
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6221:7 · 我的 · MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6234:7 · 我的 · MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [fb0d5297c049b8a12cf98922280f3a93f4a220090a823be57bb434b4ce1814ce] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：最近同步 ${…1}
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6223:11 · 我的 · MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6236:11 · 我的 · MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [a27cfa61480f48565dc8a9dc031ab283050bd09a77d09035d33ecf846be910d3] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：课表、日程和作业已保存
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6229:11 · 我的 · MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6242:11 · 我的 · MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [4cca8a4406aea9528c0a4eda81f7d800c74d4f21fc94b5bffa60c3746e1a91ca] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：需要确认
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6231:16 · 我的 · MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6244:16 · 我的 · MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [fbf757efe449f10ecd11389b295597752a541fc7fa49d3c5569d9ea13810d2cf] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：同一项内容在两台设备都被修改
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6231:24 · 我的 · MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6244:24 · 我的 · MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [a4a2be7b95de9a5697ddb505124c75af50c8c2b254aeaf4b438bb47ca3269c01] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：暂时离线
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6232:15 · 我的 · MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6245:15 · 我的 · MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [5b904604431a36263f08087fadaa5c1df0736fb14dc3be05141dac0556413664] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：本机修改仍会保留，联网后再同步
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6232:23 · 我的 · MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6245:23 · 我的 · MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [f17d47c309016ea28b577a1b68a98575ff82126e5d3689e847cffb1fdce979db] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：用户名、邮箱或密码不正确。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6286:32 · 我的 · submitCredentials ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6299:32 · 我的 · submitCredentials ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [76fa991029c78d35385ba0f132fc892382177f0512208add4035f002169c48c9] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：请检查注册信息。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6287:49 · 我的 · submitCredentials ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6300:49 · 我的 · submitCredentials ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [f72bfb612a02ac918240755a0cb371fe43dea138188bd24bf66e475e613b273c] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：用户名或邮箱已被使用。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6288:50 · 我的 · submitCredentials ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6301:50 · 我的 · submitCredentials ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [4cc53cafce9b1902ea417661a245336b22c669b7dca4b5bf8253a78f7e43ef82] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：尝试次数过多，请稍后再试。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6289:43 · 我的 · submitCredentials ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6302:43 · 我的 · submitCredentials ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [c25aee470784015f2e2e374ae32672c7aa637e1bf7e8842caf75ceea92aca3ea] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：请求太频繁，请稍后再试。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6290:47 · 我的 · submitCredentials ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6303:47 · 我的 · submitCredentials ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [5b6db3490a3175848fef4b73df876eba5693895ff32c86fc3844fc0037378cf6] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：暂时无法通过邮件找回密码；你的原密码不会被更改。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6292:13 · 我的 · submitCredentials ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6305:13 · 我的 · submitCredentials ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [31d1e2de0aa83a0dabc86d3831cde3ea022503634eb354ab151ecf8764d9edff] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：重置链接已失效，或新密码不符合要求。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6293:35 · 我的 · submitCredentials ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6306:35 · 我的 · submitCredentials ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [9f7cc57aafd9b4948b02854a6cdaca1cc4b3b6740f1ca7442785bb71ac5c1a56] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：暂时无法连接账号服务，请稍后再试。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6296:44 · 我的 · submitCredentials ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6309:44 · 我的 · submitCredentials ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [353051df1380b2fe609dbf0093506d2cb8d3b20d0da6d4361d44b1abfbcba73c] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：已生成一次性重置码，请设置新密码。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6308:33 · 我的 · submitCredentials ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6321:33 · 我的 · submitCredentials ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [3b34bc57b40ae3ed37509331acff222fb64e13fe88b558525267e1423a946c2a] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：如果账号存在，重置邮件会在几分钟内到达。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6311:13 · 我的 · submitCredentials ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6324:13 · 我的 · submitCredentials ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [73408e1be7a9c2fca9cf7dc9ad45b4f928fd85f1bb664f91d1403682a1bde5c2] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：密码已更新，请重新登录。所有旧设备已退出。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6324:31 · 我的 · submitCredentials ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6337:31 · 我的 · submitCredentials ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [6fd7c3b219b487d7c2f167eea3cc5d254980b968dc1436639129e0036212f3f3] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：账号服务暂时离线，本机课表仍可继续使用。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6331:29 · 我的 · submitCredentials ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6344:29 · 我的 · submitCredentials ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [d27fa64b624e3a5184d97343107eba1eefa122eb83a9abd2fca42f2d83ea5e3b] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：这个用户名已被使用。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6359:17 · 我的 · saveAccountProfile ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6372:17 · 我的 · saveAccountProfile ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [7d7c430edf285e794aa51dc2d8fe2efaab2b1b9fcbfe7067b4c61ca8cc6154bf] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：资料暂时无法保存，请稍后再试。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6360:17 · 我的 · saveAccountProfile ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6373:17 · 我的 · saveAccountProfile ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [8ed570709748883b4ad0ed26c04da25728172d8b46c7d104d90d79ccc785c7b0] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：账号资料已保存。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6365:26 · 我的 · saveAccountProfile ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6378:26 · 我的 · saveAccountProfile ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [3183ed0ceaf1457ca151603247a51b575cb25d1833481c4845b4a03a40927101] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：账号服务暂时离线，资料没有更改。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6368:26 · 我的 · saveAccountProfile ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6381:26 · 我的 · saveAccountProfile ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [732ad6dd6fc627dad9b26d757bfe475d4ce2bafc71a51af33ec4fe8e73950e20] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：头像原图不能超过 5MB。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6376:26 · 我的 · uploadAccountAvatar ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6393:29 · 我的 · uploadAccountAvatar ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6389:26 · 我的 · uploadAccountAvatar ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6406:29 · 我的 · uploadAccountAvatar ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [6b2ce6d19b497c3ca96df3375d1021b68ffc40c330bbb69136a527544c1a6930] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：请使用 JPEG、PNG 或 WebP 图片。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6394:36 · 我的 · uploadAccountAvatar ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6407:36 · 我的 · uploadAccountAvatar ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [1e0b26b62b0c79dafc0d272392e764998a1580598d453413668e4054c4ccc02f] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：图片无法识别，或尺寸不符合要求。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6395:27 · 我的 · uploadAccountAvatar ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6408:27 · 我的 · uploadAccountAvatar ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [5240f313206a6dbc3786411ac27b1f2b415101b8acab7bde0fbbdfc60a1a15b2] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：头像修改太频繁，请稍后再试。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6396:39 · 我的 · uploadAccountAvatar ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6409:39 · 我的 · uploadAccountAvatar ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [2d6721a59d61e15425e884d6bc72564e48cbde21fd974b4372eb08eaf3fe03ed] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：头像暂时无法保存，请稍后再试。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6399:44 · 我的 · uploadAccountAvatar ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6412:44 · 我的 · uploadAccountAvatar ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [329db383e8ae20fecb0e897f86e17d5020134123759d2376f134c3d099ee3609] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：头像已更新；原图与定位信息没有保留。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6403:26 · 我的 · uploadAccountAvatar ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6416:26 · 我的 · uploadAccountAvatar ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [d08b295dab657ed1173a25321c87db62fd098e6cfbaef750804798a088876825] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：账号服务暂时离线，头像没有更改。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6406:26 · 我的 · uploadAccountAvatar ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6427:26 · 我的 · deleteAccountAvatar ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6419:26 · 我的 · uploadAccountAvatar ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6440:26 · 我的 · deleteAccountAvatar ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [b766c3ed828e12e6d8020332eaa007dae3b2a8f60c348794b9ab7baebde1af14] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：头像暂时无法删除，请稍后再试。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6421:28 · 我的 · deleteAccountAvatar ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6434:28 · 我的 · deleteAccountAvatar ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [884d0eb0a6cb5b16b5a37341d9d73e31daead762c9de79db3743c6132e93e1cb] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：头像已删除。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6424:26 · 我的 · deleteAccountAvatar ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6437:26 · 我的 · deleteAccountAvatar ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [1965799b3564e9a6449e3ef2529f268cec1d615428c3a7204bd8ba3e0e3e0bb4] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：暂时无法发送验证邮件，请稍后再试。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6449:13 · 我的 · requestEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6462:13 · 我的 · requestEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [500db03bfdd29c1a1c9e59d7a51fb2eb14376d20863da67fbfd0c0f931268b03] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：验证邮件没有发出，请稍后再试。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6451:13 · 我的 · requestEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6464:13 · 我的 · requestEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [484490cb08a494fa874ea19432f84fcb1370659a53e18bfdc3408f5b44371d50] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：验证邮件请求太频繁，请稍后再试。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6453:13 · 我的 · requestEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6466:13 · 我的 · requestEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [2497b616dcd7c15dd8f94414ab9592b12875179e4e8f075d07d9c866ddaca531] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：当前邮箱无法发起验证，请刷新账号资料后重试。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6455:13 · 我的 · requestEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6468:13 · 我的 · requestEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [a4db1bf8cad6b498d379f620e4bcf8d0e1d63114fcd28bdabc60874c3e5b1fea] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：验证请求没有完成，请稍后再试。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6458:44 · 我的 · requestEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6471:44 · 我的 · requestEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [b76dffc758e66082046f33c7acb6721db58b892b5d58cc956d9494c1c5124f93] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：邮箱已经验证。无需重复操作。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6463:28 · 我的 · requestEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6476:28 · 我的 · requestEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [9360ae7c9dd10f55bc58d884e72228f5ab99e6bed598f01707caf4e75f5665f6] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：已生成邮箱验证码，请继续验证。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6467:28 · 我的 · requestEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6480:28 · 我的 · requestEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [32288bfebce17a5491460777ac73de5854a633ae22910f47bbca98f2c158ba81] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：验证邮件已发送，请在 24 小时内完成验证。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6469:28 · 我的 · requestEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6482:28 · 我的 · requestEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [df2d5132cf4914d8ba48b576c370d5f04008ba99ae20feaad4af77d0a4192305] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：账号服务暂时离线，没有发起验证。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6472:26 · 我的 · requestEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6485:26 · 我的 · requestEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [0120ce877e5f1c6419cadb456fca0f3ee012c8f056076e529a7b8794d2cc68fb] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：邮箱验证码无效、已使用或已过期。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6495:15 · 我的 · confirmEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6508:15 · 我的 · confirmEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [66e0f47138846645cba772014e02114eb6901a89b4553c4d8e1b0aaf2dda0f0e] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：邮箱验证没有完成，请稍后再试。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6496:15 · 我的 · confirmEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6509:15 · 我的 · confirmEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [7d6bba093bf6411b4d4f1e4f3f4b2487facb601244076b4255e55e182bed7575] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：邮箱验证完成。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6501:26 · 我的 · confirmEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6514:26 · 我的 · confirmEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [648013a8adcce06878de2e89461efda73aa175101adc4fa26d3d9afc84ce9693] 我的
 类别：源码：共享文案候选（待核对引用）
 原文：账号服务暂时离线，邮箱状态没有更改。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6504:26 · 我的 · confirmEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6517:26 · 我的 · confirmEmailVerification ← MePage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [5c687633f025bb0960b6a22b4746716fafdd36106c6bd8300a5178bff8f3e4e0] 我的
 类别：界面：JSX 文本片段
 原文：课表已保存；请从“课程”重新更新考试安排。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6524:16 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6537:16 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [8060a487aad873fc313b384ae46f4e5d0c7adad9efdabe4f1ece60b2c4f983d5] 我的
 类别：界面：属性或无障碍标签
 原文：我的考试
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6529:70 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6542:70 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [d62711e63c012b7ff11cf2d80b3bd367b3fd852ec8259696d2baa837b6ec475f] 我的
 类别：界面：表达式分支
 原文：查看 ${…1} 场考试
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6538:41 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6551:41 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [3e02ea780026c0d6d991d17eaffae50de17a61764fb69d52908b0a3050771406] 我的
 类别：界面：表达式分支
 原文：查看考试
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6538:76 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6551:76 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [5889348597cfaf24ca5b50e501965f52212947b485922526a1bd452484510a6e] 我的
 类别：界面：属性或无障碍标签
 原文：本学期培养方案课程
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6543:74 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6556:74 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [d6a19d682b8468e2c990c8d99bde40fb95795f26acd265e324cdc5ea76c064ca] 我的
 类别：界面：JSX 文本片段
 原文：本学期培养方案
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6545:19 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6558:19 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [ae98325680fae90ee597b7c22c086f4cefa1e8e760643e27602c8a51b3842284] 我的
 类别：界面：JSX 文本片段
 原文：门培养方案课程在修
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6546:49 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6559:49 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [1fc7bc721b9addb3a68943290f14d4a6d3e1c9d2dc07d907999f74cd0b4c3348] 我的
 类别：界面：表达式分支
 原文：已修 ${…1}，本学期暂未匹配到培养方案课程。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6550:19 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6563:19 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [51fe996e71435b2366c368f0553d6f166658ff978a2c8cb0ec7a4c9a215d8f25] 我的
 类别：界面：属性或无障碍标签
 原文：个人概况
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6556:57 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6569:57 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [411412b2342084c918d135f4b0a20be0221995030d8e4ec2422832c498ba2135] 我的
 类别：界面：JSX 文本片段
 原文：个人档案
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6559:17 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6572:17 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [93b738f7fec416748484f3590a3ce40cb84a9cd533e974110a5e6abff8049982] 我的
 类别：界面：表达式分支
 原文：尚未设置专业
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6560:31 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6573:31 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [7ddbd0a7d5bd066e82d285b483b309a6037a93158003ece84f841cfbaa39a1d0] 我的
 类别：界面：表达式分支
 原文：${…1} 级 · ${…2}
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6563:17 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6576:17 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [80801263b681dd7530cd715d3661f4c46c10dedd432743638da5c7dcbb6fa1de] 我的
 类别：界面：表达式分支
 原文：未选择班级
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6563:81 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6576:81 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [3b8c8e2a3f8345be313739d09255ff68ecb9c6dd2660924d6f3f7ba9b6431feb] 我的
 类别：界面：表达式分支
 原文：设置专业和班级后，可按你的课程排序。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6564:17 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6577:17 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [987e55169db2369e623a3009946d5349eecbb6db161a2e981d199e52c25ff988] 我的
 类别：界面：JSX 文本片段
 原文：课表方案
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6569:17 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6582:17 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [3ee06199ae3f0b1c66bdb629e1b48d10000009cef159ee4b10e4cf4581ca3f76] 我的
 类别：界面：JSX 文本片段
 原文：编辑档案
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6577:35 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6590:35 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [d5f95843e602ce9966ca9a4b846d9e9925b7369851976cb723d14436ff0ee125] 我的
 类别：界面：JSX 文本片段
 原文：账号与同步
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6585:19 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6598:19 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [b8f27f90d943cb4559372900110ea00b263894f91d8c6957299b351bac683ebe] 我的
 类别：界面：表达式分支
 原文：同学
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6588:74 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6601:74 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [69b05310db05c230f509c894bf7c272178f22bcf8c0d349b723366f62136c4e5] 我的
 类别：界面：表达式分支
 原文：正在查看登录状态
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6590:21 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6603:21 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [70222303142ff0654bd4fa6fed63b404b5afdb8754b59efe8a91b8bc8d43ff8b] 我的
 类别：界面：表达式分支
 原文：登录或创建账号
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6591:21 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6604:21 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [e7d04489977ef489690ef90d0b75683f5913db5f6e5fa20d90f3052636d07df8] 我的
 类别：界面：表达式分支
 原文：登录后可在其他设备继续使用。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6596:19 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6609:19 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [41cdc86a77ad7d3c0b8e8138f6e6ae53b721b4786aded23d03d6ce99aec6dae6] 我的
 类别：界面：表达式分支
 原文：管理账号
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6608:19 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6621:19 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [1e2df9c3075ae9e48a96d1013063f777b1728a4c5d08c6d667421587b464e3de] 我的 / 社区与通知
 类别：源码：共享文案候选（待核对引用） / 界面：JSX 文本片段 / 界面：表达式分支
 原文：登录
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6609:19 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6637:21 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6622:19 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6650:21 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/community/CommunityShared.tsx:41:68 · 社区与通知 · CommunityHeader · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [45fd8e04f14da3e8ff5eff5cc5c50e17e21481d4e4a62db95aa9514700d763be] 我的
@@ -5357,66 +5394,66 @@ app/community/CommunityShared.tsx:41:68 · 社区与通知 · CommunityHeader ·
 原文：正在确认这台设备的登录状态…
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6616:16 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6629:16 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [0af325d388982c0a158dab329fed6eba15964f5c231512e20fb75dc9b23deec5] 我的
 类别：界面：JSX 文本片段
 原文：现在的数据只保存在这台设备
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6623:18 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6636:18 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [b8dbf09358bbc32e2576559a045677a928d821bc5899da2632e23d106324caba] 我的
 类别：界面：JSX 文本片段
 原文：清理微信或浏览器缓存前，请先导出课表图片留存。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6624:18 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6637:18 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [dc9aed464cd8994e03cf69b5c86cce5940b9b805399e23bb28ca1bd001974731] 我的
 类别：界面：属性或无障碍标签
 原文：账号操作
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6628:33 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6641:33 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [f48d12cf530a7ffa69d99818186305667f55e7dc1d0d464c047c2013e44ca599] 我的
 类别：界面：JSX 文本片段 / 界面：表达式分支
 原文：创建账号
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6647:21 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6776:27 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6660:21 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6789:27 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [1a3f0617d6de8e52b118615b380a998dcf5b35642b485c26a44d2fc3e87a50ba] 我的
 类别：界面：属性或无障碍标签
 原文：用户名
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6652:38 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6881:36 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6665:38 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6894:36 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [abd6301a55a7311707f5fc7235f63c291bdc3d5f0b54c45319c6d14b685cfd42] 我的
 类别：界面：属性或无障碍标签
 原文：3–24 个字，可用汉字、字母、数字、_ 或 -
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6652:49 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6665:49 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [04857e8d6686704e5a45e374f1912c1ae701604cf8188a70aeb27f1e557ae4c3] 我的
 类别：界面：属性或无障碍标签
 原文：起个名字吧
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6665:37 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6678:37 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [73075237fd0f05f024dfe25d9b5289d70c27b9232a94ddb5dbb43eb0e9292f49] 我的 / 管理后台
 类别：源码：共享文案候选（待核对引用） / 界面：JSX 文本片段 / 界面：属性或无障碍标签
 原文：邮箱
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6670:38 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6937:25 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6683:38 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6950:25 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/admin/AdminConsole.tsx:570:60 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/admin/UserRegistration.tsx:84:32 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
@@ -5425,15 +5462,15 @@ app/admin/UserRegistration.tsx:84:32 · 管理后台 · UserRegistration · 源�
 原文：you@example.com
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6683:37 · 我的 · MePage · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6708:33 · 我的 · MePage · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6696:37 · 我的 · MePage · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6721:33 · 我的 · MePage · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
 
 [70eadbef1274c7f3aaf4f6e2de2ba4bb239917761af02ab21c5f7dcb3f62f774] 我的 / 管理后台
 类别：界面：JSX 文本片段 / 界面：属性或无障碍标签
 原文：用户名或邮箱
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6689:61 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6702:61 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 app/admin/AdminConsole.tsx:516:55 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [69f56f3a0bac7213065e202b754290e5daebd515e96096a13283868e15ecd663] 我的
@@ -5441,51 +5478,51 @@ app/admin/AdminConsole.tsx:516:55 · 管理后台 · AdminConsole · 界面：JS
 原文：账号邮箱
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6689:72 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6702:72 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [781b781f132ecc3f58ad375e7e369c1655c30ed2f7060642e83be04e29984d60] 我的
 类别：界面：属性或无障碍标签
 原文：海边自习室 / you@example.com
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6707:33 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6720:33 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [515e9c7cf7b29c98495b13e5dc94b84d3d2f57a6310bad0cf618ed0ed6488b3b] 我的
 类别：界面：属性或无障碍标签
 原文：新密码
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6716:59 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6729:59 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [a621ab606db2a11f63edc576a729843b8269250dc324206871d90635ac5e531c] 我的
 类别：界面：属性或无障碍标签
 原文：密码
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6716:67 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6729:67 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [7673702e6ff6214482b03571eff30ec645228134c453b9c9b41e2739d6bac8a0] 我的
 类别：界面：属性或无障碍标签
 原文：输入密码
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6738:31 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6751:31 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [304d686d5a3340bebdfab94a3dee0408fc15b8314e0ca5823a5167797566b423] 我的
 类别：界面：属性或无障碍标签
 原文：至少 10 位，包含文字与数字或符号
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6739:31 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6752:31 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [1261d14ad8427ecf9573d83125eee470729e556e037e83e5fc9e86aa05ad7122] 我的 / 管理后台
 类别：源码：共享文案候选（待核对引用） / 界面：JSX 文本片段 / 界面：属性或无障碍标签
 原文：校园账号
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6746:29 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6911:27 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6944:25 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6759:29 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6924:27 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6957:25 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/admin/UserRegistration.tsx:85:32 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [ed3b9f9bd7b05e7497f6161e0b94c1b9c9204316390a58cc3f8a695887387f62] 我的
@@ -5493,112 +5530,112 @@ app/admin/UserRegistration.tsx:85:32 · 管理后台 · UserRegistration · 源�
 原文：选填，不会自动认证身份
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6747:28 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6760:28 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [92e9ae473d29f5d180f6ef960870e155ddd36c92dd1b7d4c9817fb8675dbc3c0] 我的
 类别：界面：属性或无障碍标签
 原文：学号或校园账号
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6760:37 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6773:37 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [b33d611399c4c7068c7be3992b14e7884bd3eed917663f933e4f7676f865ab95] 我的
 类别：界面：表达式分支
 原文：登录并同步
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6774:25 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6787:25 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [abacb1a0c38f7af8f29997b0d4945c21f9332ff3b566c47bc89f04b6dd1647ca] 我的
 类别：界面：表达式分支
 原文：保存新密码
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6778:29 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6791:29 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [5bc3a269057402ac29cfb045abc8f8f1a84c96d05203658e76422b2b28ec4f5d] 我的
 类别：界面：表达式分支
 原文：发送重置邮件
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6779:29 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6792:29 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [06eb15b75f0110f9bc65a6a38e466b9e3cf1da3733aab6a5fc38a281711fb2b8] 我的
 类别：界面：属性或无障碍标签
 原文：找回密码
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6789:29 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6802:29 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [ffab0e712708d0b0fc19766ffe76e098a02724a946a7d317edab132da21033ac] 我的
 类别：界面：属性或无障碍标签
 原文：暂时无法通过邮件找回密码
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6790:29 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6803:29 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [1d02d7f1c5c477357ec70bcab31302f1037d6c7b30184fe680de1f83e02c2b57] 我的
 类别：界面：表达式分支
 原文：忘记密码？
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6798:27 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6811:27 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [fec84e954c63e3f65ba0938edfa6c3e43f07aeeef8a00f67aad70834bbf091a3] 我的
 类别：界面：表达式分支
 原文：暂不支持邮件找回
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6799:27 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6812:27 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [82067c99b7cc6c9b791d076d77efaf0d489bbbe39a957bb098a76853d222fdb4] 我的
 类别：界面：JSX 文本片段
 原文：账号服务正在维护，本机功能不受影响。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6806:17 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6819:17 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [a1c4f040595596ca119d4a608e6e82ffbc95ac70df8a987b745ab572879e5846] 我的
 类别：界面：JSX 文本片段
 原文：微信入口
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6810:21 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6823:21 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [12814eb59372709b3373873775b266502afa3842c293778c3b2844628a5bf50f] 我的
 类别：界面：属性或无障碍标签
 原文：使用微信账号登录
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6816:23 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6829:23 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [c5364ca6c7c4ab30d4abd2d1b25d394a5e514dc9669da49f7ef94be869bc0691] 我的
 类别：界面：属性或无障碍标签
 原文：微信登录暂未开放
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6817:23 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6830:23 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [582964b977d13d380867ad8057b0a99af302f424f8b9c60dd64f7ccd6428ab52] 我的
 类别：界面：表达式分支
 原文：微信登录
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6820:44 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6833:44 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [98c9b122a6cf95547e0f5c57f3991ee6fbaf6708af2d9c0bba6dbed1816f889e] 我的
 类别：界面：表达式分支
 原文：暂未开放
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6820:53 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6833:53 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [adcaa05b4d6645af5663c747e5dca98f15a5221cd1d9a1bb91617e56d85145b7] 我的 / 管理后台
 类别：界面：JSX 文本片段 / 界面：表达式分支
 原文：账号资料
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6831:25 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6844:25 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/admin/UserRegistration.tsx:99:25 · 管理后台 · UserRegistration · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [c3641f8544d7c02f3580b07c0f9887f0c6a27ff5ab1d4a3e29caf197cfc299ae] 我的 / 管理后台
@@ -5606,7 +5643,7 @@ app/admin/UserRegistration.tsx:99:25 · 管理后台 · UserRegistration · 界�
 原文：@
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6833:21 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6846:21 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/admin/AdminConsole.tsx:566:31 · 管理后台 · AdminConsole · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/admin/UserRegistration.tsx:95:114 · 管理后台 · UserRegistration · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 
@@ -5615,7 +5652,7 @@ app/admin/UserRegistration.tsx:95:114 · 管理后台 · UserRegistration · 界
 原文：未设置用户名
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6833:49 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6846:49 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 app/admin/UserRegistration.tsx:95:141 · 管理后台 · UserRegistration · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [3b7e27cb4379da3c65e512641d49c0e37c3cb10d7cb7fb0d257d9e6eebcf9558] 我的
@@ -5623,64 +5660,64 @@ app/admin/UserRegistration.tsx:95:141 · 管理后台 · UserRegistration · 界
 原文：正在处理
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6849:51 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6862:51 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [42ece898483ffce723dc8cc2c069cf2291f709026dd8d21c0d841d838c37c23c] 我的
 类别：界面：表达式分支
 原文：更换头像
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6849:60 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6862:60 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [8f069e1c6314a8f3a2bfc03060ef1397807a30000f2ad5dc2f9047e0078c1daa] 我的
 类别：界面：JSX 文本片段
 原文：删除头像
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6858:23 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6871:23 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [6e7ecbfdeb6ccef74087ba8e553eb4a99b1c78751dd59b0a8991c159cdb5f4bd] 我的
 类别：界面：表达式分支
 原文：编辑资料
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6875:46 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6888:46 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [4587cc06a981e3cd5eb8b805554176b49aa31af0d5f9fe76a727471a9e1215fa] 我的
 类别：界面：属性或无障碍标签
 原文：显示名
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6896:36 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6909:36 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [3c206c43cbc30b7c8435281a1d7e05867d4032922abd854c4764dd69cb196713] 我的
 类别：界面：属性或无障碍标签
 原文：选填，修改后需重新验证
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6912:26 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6925:26 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [c0a70fcb56f02b96d407ae3ac2d38974d48b63777faebd1d5360ba8f11e00c51] 我的
 类别：界面：JSX 文本片段
 原文：保存资料
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6931:21 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6944:21 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [e026c6693dc517e4a600f2bf2c608a8aba4b0526a481a6ec7c93843ede7bdc5a] 我的
 类别：界面：表达式分支
 原文：未绑定
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6938:49 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6951:49 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [0a1b6f1b57f5198eac45f94fbb2dde96dd319815111b7f61b4ad32212732b285] 我的 / 管理后台
 类别：源码：共享文案候选（待核对引用） / 界面：表达式分支
 原文：已验证
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6940:54 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:6948:27 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6953:54 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6961:27 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 app/admin/AdminConsole.tsx:570:84 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 app/admin/AdminConsole.tsx:571:100 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 app/admin/UserRegistration.tsx:84:103 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
@@ -5691,14 +5728,14 @@ app/admin/UserRegistration.tsx:85:121 · 管理后台 · UserRegistration · 源
 原文：待验证
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6940:62 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6953:62 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [7f05190592e57c0eac54c960fc09e6093d941570651d9bd889cf7632eee11247] 我的 / 管理后台
 类别：源码：共享文案候选（待核对引用） / 界面：表达式分支
 原文：未填写
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6945:57 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6958:57 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 app/admin/UserRegistration.tsx:81:72 · 管理后台 · show ← UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [e12ebd0ce0eeeb7d67739ef590a9056fabde62ba86b1ba3c18715ee447fc2a69] 我的
@@ -5706,21 +5743,21 @@ app/admin/UserRegistration.tsx:81:72 · 管理后台 · show ← UserRegistratio
 原文：未验证，不作为学生身份凭据
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6950:29 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6963:29 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [f9294e9ea241b1b585509573fcf870ed46fd8d0d15bc02c6ca84d9483028fff0] 我的
 类别：界面：JSX 文本片段
 原文：加入时间
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6955:25 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6968:25 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [7f98620a54e62e20543848c18505c16da49f7d7a1ec713a37aa4fec8dc84f7ba] 后端与邮件 / 我的
 类别：界面：JSX 文本片段 / 邮件固定模板
 原文：验证邮箱
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6971:26 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6984:26 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/mail-delivery.mjs:74:18 · 后端与邮件 · sendEmailVerification ← createMailDelivery · 邮件固定模板 · 静态入口/相对引用可达（非运行时证明）
 
 [5a6a09d5a8ebfc3046658e6b7ad1563f7e213cf9d3eb434b8de32dea5c90257b] 我的
@@ -5728,175 +5765,175 @@ services/auth-api/src/mail-delivery.mjs:74:18 · 后端与邮件 · sendEmailVer
 原文：验证码仅可使用一次，请勿转发。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6973:25 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6986:25 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [3acdd163e67a08cf6cb3b7d7d6ce8d0a87dfd248bc11bef96e49f91fa109b9e4] 我的
 类别：界面：属性或无障碍标签
 原文：邮箱验证码
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6978:42 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:6991:42 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [80652be50407f6a07621353d1045b06b7a4cd107ba5afa8f2491ed581467e1f2] 我的
 类别：界面：表达式分支
 原文：正在验证
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6995:31 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7008:31 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [95d8f9821ae259a635f271c12999c08c896a4b60c8b7dc3d797758f727801b1d] 我的
 类别：界面：表达式分支
 原文：完成验证
 建议：
 处理：未决定
-app/DufeHubV2.tsx:6996:31 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7009:31 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [3424dd5017ffecbb96e156574a681d166dfe52093aab4d142ef5ddbc46a3b82f] 我的
 类别：界面：表达式分支
 原文：正在生成
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7008:29 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7021:29 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [94d5bba8d2d0484f65878cce1ca99616562a2bdebd3602916678d3a60b8ee872] 我的
 类别：界面：表达式分支
 原文：发送验证邮件
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7009:29 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7022:29 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [98e276adbbcce23efd64d534b6fb0f2d1df6763099ceab69c2aac4d543606199] 我的
 类别：界面：JSX 文本片段
 原文：邮件验证暂未开放
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7012:30 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7025:30 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [4b8914bfe13293436ecd15da3182cebebb71b22d0dfc43c3618be04cd653ed81] 我的
 类别：界面：JSX 文本片段
 原文：这台设备还有未登录时保存的内容
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7025:22 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7038:22 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [79d203ddb0bd95fa716e446cdeaff569306399af66da26e5fe9dfc523f41944e] 我的
 类别：界面：JSX 文本片段
 原文：是否把这些课表、日程和作业导入当前账号？
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7027:21 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7040:21 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [a5dd1930b281e2ca5411ef247840e3d5d6aa338e50d2bf221c55fc2d3d592a6f] 我的
 类别：界面：JSX 文本片段
 原文：导入当前账号
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7032:21 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7045:21 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [d6c4adb0e4e29ac4b62d6c2de2cd8dfcd91f3a98f348501844fe7e090d38fce2] 我的
 类别：界面：JSX 文本片段
 原文：暂不导入
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7035:21 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7048:21 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [bb7208bc9b5d7c04f1236a82a0093a5e33f40423d5ba8d4266f7092c3ba43b62] 我的
 类别：界面：纯符号
 原文：!
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7041:82 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7054:82 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 
 [ad244ea43ed037ef17305189a4c3943d6647904c8f8532f536725494bf841eaf] 我的
 类别：界面：纯符号
 原文：↻
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7041:88 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7054:88 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 
 [7ab7ba3a688d18dcee97db3e61ddbebfcededd11bd626a65bf48b2f26a3bba03] 我的
 类别：界面：JSX 文本片段
 原文：保留本机修改
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7049:21 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7062:21 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [65a6e4594f624b348e19be1d9e990c059d91ce16585403b6fc3f2f4e5e6841d1] 我的
 类别：界面：JSX 文本片段
 原文：使用云端版本
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7052:21 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7065:21 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [cd438f5d0cca898be13529519f22e1382f82d50c52be7fc76c1cd94b73aef647] 我的
 类别：界面：JSX 文本片段
 原文：登录设备
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7061:25 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7074:25 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [7ae502bf53add6e66bc03f95b12301d3b00b819249501141839770eb4209bf91] 我的
 类别：界面：JSX 文本片段
 原文：台设备
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7062:45 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7075:45 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [afa153e26e842e1e86f634cca324bdd4ded487cb204c32b98df9523348c31418] 我的
 类别：界面：JSX 文本片段
 原文：不认识的设备可以立即退出
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7064:24 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7077:24 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [83831c3f910cf940c6612b867eb51568bf88da301e66898f54f50aab5c276358] 我的
 类别：界面：表达式分支
 原文：本
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7069:42 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7082:42 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [74ec94a65d17bf0cb72fae2a3ad9b09567e4fd983c5252b7fcdf1fe1fb7d78d6] 我的
 类别：界面：表达式分支
 原文：端
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7069:48 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7082:48 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [c68978537cf3b65cfe6afb4c4ed0d0773a10fea9552fb0412f9af1b73a0c9be2] 我的
 类别：界面：表达式分支
 原文：当前设备
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7072:43 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7085:43 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [b9086662b1df1f201abb3c367862af46ffb4dd98d9d748e12e9649a3d58f9e0c] 我的
 类别：界面：JSX 文本片段
 原文：在线
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7073:47 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7086:47 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [39a9046f9c8c993d394353430177a86b1124feb9e6d68a4d5e9d3bf0688c278a] 我的
 类别：界面：JSX 文本片段
 原文：最近使用
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7076:25 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7089:25 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [f820413fa2db70773bc0cc6bc6f6752b0707f2aca274c54673957065cde68190] 我的
 类别：界面：表达式分支
 原文：退出此设备
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7093:41 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7106:41 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [87354adb1c31e43dacff951edb563fe5a350b9ebbace4793820ba9b0fb00d42c] 我的 / 管理后台
 类别：界面：JSX 文本片段
 原文：管理后台
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7102:34 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7115:34 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/admin/AdminConsole.tsx:395:17 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [3ab8cc15939f3b5c56d8e0a811acebba7200fdc7a1b8a4450eed2954f6e91255] 我的
@@ -5904,107 +5941,107 @@ app/admin/AdminConsole.tsx:395:17 · 管理后台 · AdminConsole · 界面：JS
 原文：退出登录
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7112:17 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7125:17 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [32b60cb80218c4fd3ad06959ef3f5a0577ac4cc43191dcbeedec65e61d9ab509] 我的
 类别：源码：技术键或匹配词 / 界面：JSX 文本片段 / 界面：属性或无障碍标签
 原文：注销账号
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7114:59 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7229:29 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7236:36 · 我的 · MePage · 源码：技术键或匹配词 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7127:59 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7242:29 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7249:36 · 我的 · MePage · 源码：技术键或匹配词 · 静态入口/相对引用可达（非运行时证明）
 
 [b465df067e074da79d522494b8aea130d0c792aaa1f10def544defbb5685e4a5] 我的
 类别：界面：JSX 文本片段
 原文：看看同学们最近在讨论什么
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7123:14 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7136:14 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [614196895e06b0d80174a707fe0d19249a2da8c5506409dd78d6d7f05f117002] 我的
 类别：界面：JSX 文本片段
 原文：进入 →
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7125:13 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7138:13 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [950e4adbff151b51797aa894551e8e3e7c7f1ba79fbed32113dabb7d942ad295] 我的
 类别：界面：JSX 文本片段
 原文：管理我的社区收藏与屏蔽
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7129:11 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7142:11 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [4bbcca74b57b827cdacdc851f46a5f7e4c823c9ef591413cd8e4886d80a242bc] 我的
 类别：界面：JSX 文本片段
 原文：东财常用
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7135:20 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7148:20 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [72ccac2da6eef4d8b8e52437c1911378c1511cd51fd283d8d70c10b288f03215] 我的
 类别：界面：JSX 文本片段
 原文：学校服务
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7136:16 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7149:16 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [6d11e54f4a66f7abb952ef7ddf3c4ffcfeedb046c12bf2738b8343a21fcd576a] 我的
 类别：界面：JSX 文本片段
 原文：图书馆 · 校园码 · 白果云
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7138:15 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7151:15 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [32beae06ac36079a2644c165a6ced35929fccea2d2ad33d0860a6078d5360024] 我的
 类别：界面：JSX 文本片段
 原文：东财校园码
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7151:18 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7164:18 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [cfb9d2babff13f1b4d08e16b9c92e326a08b81d6ffd53c2cec7a33306ff62f2d] 我的
 类别：界面：英文或数字
 原文：Windows · Chrome / Edge
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7167:20 · 我的 · MePage · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7180:20 · 我的 · MePage · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
 
 [497dabacebf808c7e2942e6441c51a91f1e546e492c2a937cefe61d08f6768e8] 我的
 类别：界面：JSX 文本片段
 原文：白果云插件
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7168:42 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7181:42 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [c94a60c6ca37850bd148b0615f5d9e43164f91c1b4d4abae49e910274675d543] 我的
 类别：界面：JSX 文本片段
 原文：v0.1.0 · ZIP 安装包
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7169:16 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7182:16 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [977e3f799fd8ec774ad0938464fcd186c72511fc179a3d186d80408333fb89cd] 我的
 类别：界面：属性或无障碍标签
 原文：下载白果云插件 ZIP
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7171:99 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7184:99 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [5146bf3b6777050c1d8b2f634db7fa266752c216b7f350a2e0ff20ecc739c078] 我的
 类别：界面：JSX 文本片段
 原文：下载插件
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7172:13 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7185:13 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [07a2abcd3189716d1244a78a540ed819ae1f8704fabfcb8b0aacef2f9a115070] 主站与共享组件 / 我的
 类别：界面：纯符号
 原文：↓
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7172:43 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7185:43 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/competitions/[slug]/page.tsx:48:124 · 主站与共享组件 · CompetitionPage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 
 [0aa86734f6db027b707210a332645ab1a1e90c16d34b862744eccc838af0d259] 我的
@@ -6012,29 +6049,29 @@ app/competitions/[slug]/page.tsx:48:124 · 主站与共享组件 · CompetitionP
 原文：怎么安装
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7176:20 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7189:20 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [c9e820ffe1f64b69b0d4e59f7da4abeee66fefae83007dd697ad2b4e0c8b3bb7] 我的
 类别：界面：JSX 文本片段
 原文：下载后，解压
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7178:17 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7191:17 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [b91aac32306b7396f714f3b5ea9aad5acb598e89f2e9b255ad52269e2689de31] 我的
 类别：界面：英文或数字
 原文：DUFE-Ginkgo-Downloader-v0.1.0.zip
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7178:30 · 我的 · MePage · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7191:30 · 我的 · MePage · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
 
 [eb0d5884569b398e475b89e77a068c6c575a0064ff6a72fafc173102c4cfcd57] 我的 / 法律与账号注销 / 管理后台
 类别：界面：纯符号
 原文：。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7178:70 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7179:103 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7191:70 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7192:103 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/admin/UserRegistration.tsx:116:121 · 管理后台 · UserRegistration · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/terms/page.tsx:54:65 · 法律与账号注销 · TermsPage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 
@@ -6043,134 +6080,134 @@ app/terms/page.tsx:54:65 · 法律与账号注销 · TermsPage · 界面：纯�
 原文：在电脑浏览器的地址栏输入
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7179:17 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7192:17 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [c0ae15d785f5343cd50ab12f25ee9c3c614590f73dc68d2c3e237efa3f073c2e] 我的
 类别：界面：英文或数字
 原文：chrome://extensions
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7179:36 · 我的 · MePage · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7192:36 · 我的 · MePage · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
 
 [f6aaa462b87f8138f6fa1b0b291cc5c631b27845d87db5d4d84b444b681c8830] 我的
 类别：界面：JSX 文本片段
 原文：；Edge 用户输入
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7179:62 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7192:62 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [1a0e3fcc4fa3c4839dac2622bbc0082a491048b0412093e04df57875334361cd] 我的
 类别：界面：英文或数字
 原文：edge://extensions
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7179:79 · 我的 · MePage · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7192:79 · 我的 · MePage · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
 
 [45d985758ea8722e4d41a77bb1f4d9cb5d31536a212bb368ecfcf0b36883fef6] 我的
 类别：界面：JSX 文本片段
 原文：开启“开发者模式”，点击“加载已解压的扩展程序”。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7180:17 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7193:17 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [7ca969e214c4feade888e850c931a4ed8ca80ae538cbc6f410338f7d99a0e1b0] 我的
 类别：界面：JSX 文本片段
 原文：选择解压后的
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7181:17 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7194:17 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [a55034a0b41c4c2d06f2ac4cac240bc4ad757c54930b9420c449d681cb86577b] 我的
 类别：界面：英文或数字
 原文：DUFE-Ginkgo-Downloader-v0.1.0
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7181:30 · 我的 · MePage · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7194:30 · 我的 · MePage · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
 
 [3264d15108721f02de9d804996e07bdcf32c5312bdd57adf37fb998fef25fe6d] 我的
 类别：界面：JSX 文本片段
 原文：文件夹。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7181:67 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7194:67 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [ab533951e7ff177ac07be640025af0aecaa563933039d956f23ce8bf51d445a6] 我的
 类别：界面：JSX 文本片段
 原文：登录白果云，打开课程或章节页面即可使用。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7182:17 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7195:17 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [37ae30cff72da10dd9b936bb8676d25c5318cafbcf165368a4b66408c051a361] 我的
 类别：界面：JSX 文本片段
 原文：本机数据由你控制
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7191:15 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7204:15 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [da7ce5fb22e9ac9cfd4f99283063411b73cf813db4e50e7fd35c78ed7bd3d3d8] 我的
 类别：界面：JSX 文本片段
 原文：清除后，这台设备上的专业、课表、日程和作业会被移除；已登录账号的云端内容不受影响。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7194:11 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7207:11 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [46247ea929aafdc9b66b4266594f19794449ee22033f83ef75f761fd4a634c02] 我的
 类别：界面：属性或无障碍标签
 原文：确认清除这台设备上的专业、课表、日程和作业吗？
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7198:25 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7211:25 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [345e7efdd36a584c4213059a5d42115f7a5cea253c3e79afd5bae7fd60da698e] 我的
 类别：界面：JSX 文本片段
 原文：清除本机数据
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7202:11 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7215:11 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [a9035b02279301ce7478cf46930d57726bcac1ec30fd68e5614c35024ff4e92a] 我的
 类别：界面：JSX 文本片段
 原文：不可撤销
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7217:19 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7230:19 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [4739f641349f227b5e2e597ce36de7ae440381bcde0823b515f686dd4e02b8c9] 我的
 类别：界面：JSX 文本片段
 原文：注销东财之影账号
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7218:43 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7231:43 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [a794a3534392756bb7280a1312909f00d3de4249ad744a07531d1b04174aa9c8] 我的
 类别：界面：JSX 文本片段
 原文：所有设备都会退出，云端课表、日程、作业和偏好将永久删除。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7220:15 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7233:15 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [c79d4422a8304f7e64405a6038e2d3b0af5f590505c030a8bb0528cefb6e2ba5] 我的
 类别：界面：JSX 文本片段
 原文：输入“注销账号”继续
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7223:21 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7236:21 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [1c35a03138a60f18ce2f66450f7f88f15b4e660ec46e31f5e38c5e9565408758] 我的
 类别：界面：JSX 文本片段
 原文：确认注销
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7248:17 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7261:17 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [cba1ec75f4ca2162a80da5a8ebe16af41fc4cf0aad8bb9769354dc80a1e63d89] 全站搜索 / 学习资料 / 教师 / 社区与通知
 类别：源码：共享文案候选（待核对引用） / 界面：属性或无障碍标签 / 界面：表达式分支
 原文：资料
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7277:18 · 全站搜索 · SearchCommand · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7329:25 · 全站搜索 · SearchCommand · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7290:18 · 全站搜索 · SearchCommand · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7342:25 · 全站搜索 · SearchCommand · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 app/community/CommunityShared.tsx:39:38 · 社区与通知 · CommunityHeader · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 app/materials/MaterialsExplorer.tsx:459:40 · 学习资料 · MaterialsExplorer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 app/materials/[materialId]/page.tsx:71:40 · 学习资料 · MaterialDetailPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
@@ -6184,8 +6221,8 @@ app/teachers/[teacherId]/TeacherDetail.tsx:324:212 · 教师 · TeacherDetail ·
 原文：教师
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7279:17 · 全站搜索 · SearchCommand · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7333:29 · 全站搜索 · SearchCommand · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7292:17 · 全站搜索 · SearchCommand · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7346:29 · 全站搜索 · SearchCommand · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 app/materials/MaterialsExplorer.tsx:458:39 · 学习资料 · MaterialsExplorer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 app/materials/MaterialsExplorer.tsx:510:28 · 学习资料 · MaterialsExplorer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 app/materials/[materialId]/page.tsx:70:39 · 学习资料 · MaterialDetailPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
@@ -6204,8 +6241,8 @@ services/auth-api/src/academic-routes.mjs:198:27 · 后端与邮件 · 顶层 ·
 原文：教室
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7280:14 · 全站搜索 · SearchCommand · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7334:29 · 全站搜索 · SearchCommand · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7293:14 · 全站搜索 · SearchCommand · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7347:29 · 全站搜索 · SearchCommand · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:986:3 · 后端与邮件 · 顶层 · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:1324:37 · 后端与邮件 · parseTimetableHtml · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:1647:53 · 后端与邮件 · parseExamHtml · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
@@ -6216,99 +6253,99 @@ services/auth-api/src/academic-routes.mjs:202:9 · 后端与邮件 · 顶层 · 
 原文：搜索课程、资料、教师或教室
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7302:24 · 全站搜索 · SearchCommand · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7315:24 · 全站搜索 · SearchCommand · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [3cc3d0cd12bddf90e09d20b1488ef8cd5c589606a5e937b6c225ed1c09a1e582] 全站搜索
 类别：界面：属性或无障碍标签
 原文：搜索课程、资料、教师或教室…
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7307:25 · 全站搜索 · SearchCommand · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7320:25 · 全站搜索 · SearchCommand · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [ed2a3ca4b516db031cc43dd348d2814ea04b96328e491c29c34b2db1bc5b35e7] 全站搜索
 类别：界面：属性或无障碍标签
 原文：关闭全站搜索
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7309:48 · 全站搜索 · SearchCommand · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7322:48 · 全站搜索 · SearchCommand · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [c5b7d0ec4f6976293bbbbbed43c8f538d66f22a8d8871d4178527e4388614c33] 全站搜索
 类别：界面：英文或数字
 原文：ESC
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7309:57 · 全站搜索 · SearchCommand · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7322:57 · 全站搜索 · SearchCommand · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
 
 [6f579d7669ac75ed4b7e15b2d1165a40d8ba2f0a14943eb2f9a8a4a500ae1750] 全站搜索
 类别：界面：JSX 文本片段
 原文：没搜到
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7345:25 · 全站搜索 · SearchCommand · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7358:25 · 全站搜索 · SearchCommand · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [da14b6f4e835914a736d990f945ceb9044e70d3cae89a61fb3830bf0ef5667de] 全站搜索
 类别：界面：JSX 文本片段
 原文：试试课程简称、课程号、教师姓名或教室。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7347:19 · 全站搜索 · SearchCommand · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7360:19 · 全站搜索 · SearchCommand · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [bceca4e8a4ef282aa3fd1d45e46947d51cf94ad693d7a6b0cbef4c259c57b560] 全站搜索
 类别：界面：JSX 文本片段
 原文：试着搜
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7353:21 · 全站搜索 · SearchCommand · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7366:21 · 全站搜索 · SearchCommand · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [72ab0a806918b87c4e800302da7c06781f6b2b9262819326f9e1e50ffcaac4b7] 全站搜索
 类别：界面：JSX 文本片段 / 界面：属性或无障碍标签
 原文：笃行楼
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7356:47 · 全站搜索 · SearchCommand · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7356:55 · 全站搜索 · SearchCommand · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7369:47 · 全站搜索 · SearchCommand · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7369:55 · 全站搜索 · SearchCommand · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [b1f992c185c5a0e288c3d21d45f47eb83713bc60befd9de68b88b8bd6462f9fe] 全站搜索
 类别：界面：JSX 文本片段
 原文：↑↓ 浏览
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7361:17 · 全站搜索 · SearchCommand · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7374:17 · 全站搜索 · SearchCommand · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [9d6d07c286e24f6bd84452bad4096b3d0a7754e8965bffd9600cc1bb815b37f8] 全站搜索
 类别：界面：JSX 文本片段
 原文：Enter 打开
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7362:17 · 全站搜索 · SearchCommand · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7375:17 · 全站搜索 · SearchCommand · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [839c95298f72a033eacb359a5344cdf9c59c1d640622dec5594cb7c43742a8e1] 全站搜索
 类别：界面：JSX 文本片段
 原文：Ctrl / ⌘ K 唤起
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7363:17 · 全站搜索 · SearchCommand · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7376:17 · 全站搜索 · SearchCommand · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [2dc6408c6893d889df5b3d08c1498a720dd092a5a8d87327f8566e115e4c4b00] 课程详情抽屉
 类别：界面：JSX 文本片段
 原文：选择教学班
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7540:46 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7553:46 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [ea5a3c805167aa49cecc6822ed4214a86d637d389483571be957f9e44190cdcb] 课程详情抽屉
 类别：界面：JSX 文本片段
 原文：个教学班 ·
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7542:35 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7555:35 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [974d5a56e962e61f853bcd064d3442dae1e2e84301992ec6da38feb1f1ca97d6] 教师 / 课程详情抽屉
 类别：界面：JSX 文本片段
 原文：位教师
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7544:17 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7557:17 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/teachers/TeacherExplorer.tsx:218:66 · 教师 · TeacherExplorer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [92dc5480368898c9650184f7cd386904070c325633a19be567625223cd83e016] 课程详情抽屉
@@ -6316,28 +6353,28 @@ app/teachers/TeacherExplorer.tsx:218:66 · 教师 · TeacherExplorer · 界面�
 原文：搜索教学班
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7550:26 · 课程详情抽屉 · CourseDrawer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7563:26 · 课程详情抽屉 · CourseDrawer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [0075c8e1ef5676cddbfccae05585a5c380fa93438fd4c062e358e7251f5ffcae] 课程详情抽屉
 类别：界面：属性或无障碍标签
 原文：搜教师、班级或教室…
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7555:27 · 课程详情抽屉 · CourseDrawer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7568:27 · 课程详情抽屉 · CourseDrawer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [268fde0dd1fb164c866ad06694894d5dc3de992ffe38880d3840ef8fe5493f10] 课程详情抽屉
 类别：界面：属性或无障碍标签
 原文：按教师筛选
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7560:26 · 课程详情抽屉 · CourseDrawer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7573:26 · 课程详情抽屉 · CourseDrawer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [2fb1040862a939400c977cb384d5fd4b8cd0c035093187cd8de84e1d2515e38b] 学习资料 / 课程详情抽屉
 类别：界面：JSX 文本片段
 原文：全部教师
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7562:35 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7575:35 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/materials/MaterialsExplorer.tsx:512:32 · 学习资料 · MaterialsExplorer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [26b5612413f623f1ae48836af23b762a527799c94f207b564d8f89cc1cce4239] 课程详情抽屉
@@ -6345,85 +6382,85 @@ app/materials/MaterialsExplorer.tsx:512:32 · 学习资料 · MaterialsExplorer 
 原文：按星期筛选
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7572:26 · 课程详情抽屉 · CourseDrawer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7585:26 · 课程详情抽屉 · CourseDrawer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [a2e82ddad4bf29aafb256b2e5a1cc00980bea72a180ee97e8941f9664815d501] 课程详情抽屉
 类别：界面：JSX 文本片段
 原文：全部星期
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7574:33 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7587:33 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [1a0e5a34d73d3acca0055b482fc3e970f1a992d802063357224d9cdbcb43848f] 课程详情抽屉
 类别：界面：属性或无障碍标签
 原文：按节次筛选
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7584:26 · 课程详情抽屉 · CourseDrawer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7597:26 · 课程详情抽屉 · CourseDrawer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [2af8b9e83cbecccc2ae0e85b0f4e667f6ae29e466d76c38a6e038e82d806b5a7] 课程详情抽屉
 类别：界面：JSX 文本片段
 原文：全部节次
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7586:33 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7599:33 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [af50a0fe2a50a3d15556402bca1851972ab7e544877f8404070f044ba8a33285] 课程详情抽屉
 类别：界面：JSX 文本片段
 原文：第
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7589:19 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7602:21 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7602:19 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7615:21 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [af30d010944dc57b5a50f645d32df1d534f4ae2110103d49bc0cb50143e49711] 课程详情抽屉
 类别：界面：JSX 文本片段
 原文：大节
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7589:28 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7602:28 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [be953fe878cc2689419670503e00b5504f1c11c7c6492ed305c709daa949e14d] 课程详情抽屉
 类别：界面：属性或无障碍标签
 原文：按周次筛选
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7596:26 · 课程详情抽屉 · CourseDrawer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7609:26 · 课程详情抽屉 · CourseDrawer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [08378882b420f7a7898a312b46384f569cdb2c573cc875b91336cf48b12be765] 课程详情抽屉
 类别：界面：JSX 文本片段
 原文：全部周次
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7598:33 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7611:33 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [e03e379c79d4fe36904327004646f0e5ba81e5bee9834a9f9dfd773a3d525e7e] 课程详情抽屉
 类别：界面：属性或无障碍标签
 原文：按地点筛选
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7610:26 · 课程详情抽屉 · CourseDrawer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7623:26 · 课程详情抽屉 · CourseDrawer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [472d151925781a84900e20f8ab61d4876fe61a3c2cfbf88832c34900650c4e1a] 课程详情抽屉
 类别：界面：JSX 文本片段
 原文：全部地点
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7612:35 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7625:35 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [bbd39cdc5d0f8695d515ef5a6977b03f5afd97232eeed60c5776817275dfb8b7] 课程详情抽屉
 类别：界面：属性或无障碍标签
 原文：按冲突筛选
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7626:26 · 课程详情抽屉 · CourseDrawer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7639:26 · 课程详情抽屉 · CourseDrawer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [0a379c1e7398fba103b2fa178c36a72d900973d46441ae1e9be739c4eba2a038] 管理后台 / 课程详情抽屉
 类别：界面：JSX 文本片段
 原文：全部状态
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7628:35 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7641:35 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/admin/AdminConsole.tsx:537:40 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [d24ae7f09399ec3654a07aeb1bfd5e3a8ceb16c4f5b7d5c5807aa973d1bae66c] 课程详情抽屉
@@ -6431,140 +6468,140 @@ app/admin/AdminConsole.tsx:537:40 · 管理后台 · AdminConsole · 界面：JS
 原文：只看不冲突
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7629:41 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7642:41 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [b10a1d89c4072b1032acad932c8b60e83d753bbd8b34d178afad0be803711e9c] 课程详情抽屉
 类别：界面：JSX 文本片段
 原文：只看冲突
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7630:40 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7643:40 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [0ccc285138ce0754dd998debfe27f25f88cdcad16ad51ad3c184b0220b23725b] 课程详情抽屉
 类别：界面：JSX 文本片段
 原文：找到
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7634:19 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7647:19 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [47e53dc13d8437914d90e55278344b3e9604c81758cc1c4fd7c0761fa7f279a2] 课程详情抽屉
 类别：界面：JSX 文本片段
 原文：个教学班
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7634:48 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7647:48 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [d62e64a05006ecbdf86ce7b3e19b97e32622e5d59001d340362b2c2e0af80c8c] 课程详情抽屉
 类别：界面：JSX 文本片段
 原文：清空筛选
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7653:17 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7666:17 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [94c3d8774b9b70e186e2117f9a6b592429c8cee896ae3fbb82ed1e383665655e] 课程详情抽屉
 类别：界面：表达式分支
 原文：与当前课表冲突
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7681:47 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7694:47 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [51b362e458a74e4ccb542d0a7e7cb027ac0f398c43fe73ef08dc7b543314276f] 课程详情抽屉
 类别：界面：表达式分支
 原文：与课表不冲突
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7681:59 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7694:59 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [5bd26d7a104a26470aebffce3b432d779caef6e1ee12f00cacd1244715d1d96f] 课程详情抽屉
 类别：界面：表达式分支
 原文：班级未标注
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7685:46 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7698:46 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [815fd761a2977b69168a1fd989e12c6a926ddd90b34a56e196984c48f80e075c] 课程详情抽屉
 类别：界面：表达式分支
 原文：已选作比较
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7704:37 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7717:37 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [08724c3c6e5c65e44fb85d7d2836ac32738925472f3a0c87f483de951efe70b5] 课程详情抽屉
 类别：界面：表达式分支
 原文：加入比较
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7704:47 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7717:47 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [889839915c3f4b8da43889be3c455496945c601ae38e669873f688c736486949] 课程详情抽屉
 类别：界面：表达式分支
 原文：已添加
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7716:34 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7729:34 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [e9d400aebdf55440e29f3f93b7f7947005da625834a41e0bc40cd9e77c05bb0a] 课程详情抽屉
 类别：界面：表达式分支
 原文：加入${…1}
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7716:42 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7729:42 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [9a78e70d167935f55be33138269e56c2586b4d7d6ae20f1c19d2cfc36c8b4477] 课程详情抽屉
 类别：界面：JSX 文本片段
 原文：没找到合适的教学班，少选一个条件试试。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7723:42 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7736:42 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [074b70e9a571c7524dc800a2d8629246887e4560ca632299bf0563b747891b20] 课程详情抽屉
 类别：界面：JSX 文本片段
 原文：教材与学习资料
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7734:48 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7747:48 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [02fd4ea6be567cad376b3f3e007db696c21d693f323025be16ac365f1e044b32] 课程详情抽屉
 类别：界面：表达式分支
 原文：正在读取资料…
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7737:23 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7750:23 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [72950799be5f19ad961b78b985d1ba4daa16663548cb55179eefb0fb75bba3ec] 课程详情抽屉
 类别：界面：表达式分支
 原文：资料清单暂不可用
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7739:25 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7752:25 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [69b6f279b0a9bb3c56a6c7870b002b183ba68e1086f05256048ba93b659e1407] 课程详情抽屉
 类别：界面：表达式分支
 原文：${…1} 份资料 · 原件可下载
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7740:25 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7753:25 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [2ef9ec3c7095d7021c01604b50c48ceb3d14157d506d763a74857016b833e381] 课程详情抽屉
 类别：界面：JSX 文本片段
 原文：资料清单没有加载成功。关闭课程后重新打开即可再试。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7746:17 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7759:17 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [18f888fde31b8008fdb1420dc63e703c9bf0d454066c01aadd9ec31fd2aa5f4c] 课程详情抽屉
 类别：界面：JSX 文本片段
 原文：教材信息
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7751:23 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7764:23 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [13d61fea9f1749051d111b55aec36b315ea6729576e78b3cb29c5e17d7da2d2f] 学习资料 / 课程详情抽屉
 类别：界面：JSX 文本片段
 原文：预览
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7776:29 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7789:29 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/materials/MaterialsExplorer.tsx:640:111 · 学习资料 · MaterialsExplorer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [4673a2306165612576462979eee34149329ab42aad9b580e726a1fae1ce7ab64] 学习资料 / 课程详情抽屉
@@ -6572,7 +6609,7 @@ app/materials/MaterialsExplorer.tsx:640:111 · 学习资料 · MaterialsExplorer
 原文：下载
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7780:27 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7793:27 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/materials/MaterialsExplorer.tsx:641:63 · 学习资料 · MaterialsExplorer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [31e5b7b3c816d3285f081035a104f2a8037fab15ab71dd285fd0f5df3d4d5496] 课程详情抽屉
@@ -6580,22 +6617,22 @@ app/materials/MaterialsExplorer.tsx:641:63 · 学习资料 · MaterialsExplorer 
 原文：教学班比较
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7792:64 · 课程详情抽屉 · CourseDrawer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-app/DufeHubV2.tsx:7795:23 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7805:64 · 课程详情抽屉 · CourseDrawer · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7808:23 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [edad28e324f8260224998a268de18b1a43c04be6e0b324100ee14b2dc49a3196] 课程详情抽屉
 类别：界面：英文或数字
 原文：/ 4
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7796:46 · 课程详情抽屉 · CourseDrawer · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7809:46 · 课程详情抽屉 · CourseDrawer · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
 
 [1ef3de06b32e521bd52421e0fcc282ff33c8d4866268bf79e26831e4382f3ce1] 教师 / 课程详情抽屉
 类别：界面：JSX 文本片段
 原文：清空
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7798:57 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7811:57 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/teachers/TeacherExplorer.tsx:195:101 · 教师 · TeacherExplorer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [45fb956103636ea6d68e4ce2355e9aca1178355363c50655481e2943ee211673] 课程详情抽屉
@@ -6603,119 +6640,119 @@ app/teachers/TeacherExplorer.tsx:195:101 · 教师 · TeacherExplorer · 界面�
 原文：冲突
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7806:43 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7819:43 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [4d99c976beb8827ecac5f4238a3c31790ec19a3249692f93517085c501d427dc] 课程详情抽屉
 类别：界面：表达式分支
 原文：可用
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7806:50 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7819:50 · 课程详情抽屉 · CourseDrawer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [d6c42840bd855101004f5aa596e67d619afd4c651781233eda34e12811f04bee] 课程详情抽屉
 类别：界面：JSX 文本片段
 原文：选择此班
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7832:23 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7845:23 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [28394684598425b2f1de38d7d52cc2dd67376dd84c11c578ce440c5470e8b90f] 首次设置
 类别：界面：属性或无障碍标签
 原文：建立个人档案
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7914:20 · 首次设置 · Onboarding · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7927:20 · 首次设置 · Onboarding · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [1ba27fbae96d285df91b04b553a988048050cc2ce095723c62b333e3b7546177] 首次设置
 类别：界面：JSX 文本片段
 原文：01 年级
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7921:55 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7934:55 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [e8b622e62450fbed82aff933ddecf6577cac69fcfb083780a0675e9e202b66e1] 首次设置
 类别：界面：JSX 文本片段
 原文：02 学院与专业
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7923:55 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7936:55 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [b64e21588c54a12656631b057f56732769f995e7bad02310ae4187a288510fdf] 首次设置
 类别：界面：JSX 文本片段
 原文：03 班级
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7925:55 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7938:55 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [7d70e7d761d08e5e9c42790d03f01dc14630c5a95ebabbd12950230dc6b978ef] 首次设置
 类别：界面：JSX 文本片段
 原文：去课程中心导入教务课表，或按班级手动设置。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7930:17 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7943:17 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [dc083adb4abcd42386c3e8a0d6cf93ba51f91ff34936da14e9d24ac6f6376f04] 首次设置
 类别：界面：表达式分支
 原文：新生
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7953:23 · 首次设置 · Onboarding · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7966:23 · 首次设置 · Onboarding · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [2f1e2fbf243b56eda72f248a2a7e5a571dd094c5e27f897970b6fc59fece76b7] 首次设置
 类别：界面：表达式分支
 原文：当前大${…1}
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7954:23 · 首次设置 · Onboarding · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:7967:23 · 首次设置 · Onboarding · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [c6497249757040bb64892157563a497be6a089d06c747309e7e7158193aee2f7] 首次设置
 类别：界面：JSX 文本片段
 原文：请先选择学院
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7987:20 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:8000:20 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [ed392757de53be74ebfdcd91451dab2f8ede5fa3497524ded0b370521210df56] 首次设置
 类别：界面：JSX 文本片段
 原文：班级（可跳过）
 建议：
 处理：未决定
-app/DufeHubV2.tsx:7994:20 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:8007:20 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [7df06f1ca3c15375c8d9d516c6142ec6f09dd363282264eed46348508f5aae8a] 首次设置
 类别：界面：JSX 文本片段
 原文：没有匹配班级。跳过后可自行选择教学班。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:8006:20 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:8019:20 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [61851e5a8134216be58435a2ca5d5a2c4d88c23a4546fc69feeb3f12126c56b3] 首次设置
 类别：界面：表达式分支
 原文：导入 ${…1} 的课程
 建议：
 处理：未决定
-app/DufeHubV2.tsx:8010:28 · 首次设置 · Onboarding · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:8023:28 · 首次设置 · Onboarding · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [c8550237ba701f64dbb384f5bfbda44b82f45b2eb72280e9de1432f6ea4ccb30] 首次设置
 类别：界面：表达式分支
 原文：保存设置
 建议：
 处理：未决定
-app/DufeHubV2.tsx:8010:52 · 首次设置 · Onboarding · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:8023:52 · 首次设置 · Onboarding · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [cabdb276b055bd8a83a96d8b15659b2cb572b72db84f99e50387f90b11622f3f] 首次设置
 类别：界面：JSX 文本片段
 原文：← 上一步
 建议：
 处理：未决定
-app/DufeHubV2.tsx:8019:13 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:8032:13 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [9240e968b50af4faeeea6ab6dd1eeb5fc9e56cf93afcb68dc5c9c01d576a019e] 首次设置
 类别：界面：JSX 文本片段
 原文：设置会保存在当前设备，可随时清除。
 建议：
 处理：未决定
-app/DufeHubV2.tsx:8021:17 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/DufeHubV2.tsx:8034:17 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [b1e4e44276b63415d374f2aaf6f8882fe1c773c8abc9d0bc51c838860c7701fc] 法律与账号注销
 类别：法律与帮助
@@ -6849,42 +6886,42 @@ app/RoomWeekSchedule.tsx:136:60 · 主站与共享组件 · RoomWeekSchedule · 
 原文：${…1}${…2}，${…3}
 建议：
 处理：未决定
-app/RoomWeekSchedule.tsx:157:37 · 主站与共享组件 · RoomWeekSchedule · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/RoomWeekSchedule.tsx:159:37 · 主站与共享组件 · RoomWeekSchedule · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 
 [e0ad6bad3841b0769cd7cfe701bbeb8e01dc2f1c7f411dd94d15dbd1d656253e] 主站与共享组件
 类别：界面：属性或无障碍标签
 原文：${…1} 条课程
 建议：
 处理：未决定
-app/RoomWeekSchedule.tsx:157:85 · 主站与共享组件 · RoomWeekSchedule · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/RoomWeekSchedule.tsx:159:85 · 主站与共享组件 · RoomWeekSchedule · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [54c5c3e8ddae37fa9db4c0325b4ef9acf51af582ed3f28643e93df425684ff39] 主站与共享组件
 类别：界面：属性或无障碍标签
 原文：无课程
 建议：
 处理：未决定
-app/RoomWeekSchedule.tsx:157:115 · 主站与共享组件 · RoomWeekSchedule · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/RoomWeekSchedule.tsx:159:115 · 主站与共享组件 · RoomWeekSchedule · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [8366bca4bf9ef0b4586b67998d11cc5bdb01a1ade2ab7bccff1ede7944c89351] 主站与共享组件
 类别：界面：表达式分支
 原文：课程名称未提供
 建议：
 处理：未决定
-app/RoomWeekSchedule.tsx:162:56 · 主站与共享组件 · RoomWeekSchedule · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/RoomWeekSchedule.tsx:164:56 · 主站与共享组件 · RoomWeekSchedule · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [7092d9e57f6b9f4617a8e721cf4e32ebaa229625dc00ef8d2d4a88394492d4f5] 主站与共享组件
 类别：界面：表达式分支
 原文：教师未提供
 建议：
 处理：未决定
-app/RoomWeekSchedule.tsx:163:56 · 主站与共享组件 · RoomWeekSchedule · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/RoomWeekSchedule.tsx:165:56 · 主站与共享组件 · RoomWeekSchedule · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [c33379d64326d136f07882cd6247e8cd0c79521463dd5df16e2a7257879ce114] 主站与共享组件
 类别：界面：JSX 文本片段
 原文：仅反映已收录课程，不代表教室开放或预约状态。
 建议：
 处理：未决定
-app/RoomWeekSchedule.tsx:181:9 · 主站与共享组件 · RoomWeekSchedule · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/RoomWeekSchedule.tsx:183:9 · 主站与共享组件 · RoomWeekSchedule · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [1986994f30573b23c82224fc3a7537ae33cb2d0421f288a024600e9f94b72a56] 主站与共享组件
 类别：界面：表达式分支

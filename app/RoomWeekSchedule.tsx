@@ -142,7 +142,9 @@ export default function RoomWeekSchedule({
                 <div className={styles.periodRow} key={period.block} role="row">
                   <header role="rowheader">
                     <strong>{period.short}</strong>
-                    <small>{period.time}</small>
+                    <small>{period.time.split(/([–-])/).map((part, index) => (
+                      index % 2 === 0 ? <span className={styles.clock} key={index}>{part}</span> : part
+                    ))}</small>
                   </header>
                   {visibleWeekdays.map(({ label, weekday }) => {
                     const cellLessons = sortedLessons.filter(

@@ -37,6 +37,14 @@ const render = (props = {}) => renderToStaticMarkup(createElement(RoomWeekSchedu
 const headers = (html) => [...html.matchAll(/role="columnheader">(周.)/g)].map((match) => match[1]);
 const workdays = ["周一", "周二", "周三", "周四", "周五"];
 
+test("period clocks remain intact at narrow widths without changing time text", () => {
+  for (const separator of ["–", "-"]) {
+    const time = `08:00${separator}09:35`;
+    const html = render({ periods: [{ block: 1, short: "1-2节", time }] });
+    assert.ok(html.includes(`<span class="clock">08:00</span>${separator}<span class="clock">09:35</span>`));
+  }
+});
+
 test("room timetable defaults to five days, including an entirely empty week", () => {
   const html = render();
   assert.deepEqual(headers(html), workdays);

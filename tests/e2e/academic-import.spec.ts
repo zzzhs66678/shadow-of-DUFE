@@ -148,6 +148,7 @@ test("old selections reconcile with imports without deleting stored plans; timet
   await expect(page.locator(".academic-schedule-card")).toHaveCount(1);
   await expect(page.locator(".draggable-schedule")).toHaveCount(0);
   const card = page.locator(".academic-schedule-card");
+  await expect(card).toHaveAttribute("aria-label", `教务导入：${manual.title}`);
   await expect(card.getByText(manual.teacher, { exact: true })).toBeVisible();
   await expect(card.getByText(`${manual.building}${manual.room}`, { exact: true })).toBeVisible();
   expect(await card.locator("small").first().evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
@@ -193,6 +194,13 @@ test("official timetable excludes preselected courses; planning preserves them w
   await page.getByRole("button", { name: /手动选课/ }).click();
   await expect(page.locator(".draggable-schedule")).toHaveCount(1);
   await expect(page.locator(".draggable-schedule strong")).toHaveText(manual.title);
+  await expect(page.locator(".draggable-schedule")).toHaveAttribute("aria-label", `手动添加：${manual.title}`);
+  await expect(page.locator('.academic-schedule-card[aria-label^="教务导入："]')).toHaveCount(2);
+  const sourceColors = await page.evaluate(() => [".academic-schedule-card", ".draggable-schedule"].map(selector => getComputedStyle(document.querySelector(selector)!).backgroundColor));
+  expect(sourceColors[0]).not.toBe(sourceColors[1]);
+  await expect(page.getByLabel("课程来源", { exact: true })).toContainText("教务导入");
+  await expect(page.getByLabel("课程来源", { exact: true })).toContainText("手动添加");
+  await expect(page.locator(".draggable-schedule .schedule-card-remove")).toBeVisible();
   await expect(page.getByText("含手动课程，不计入今日上课提醒。", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "今天", exact: true }).click();
   await expect(page.locator(".today-page").getByText(manual.title, { exact: true })).toHaveCount(0);

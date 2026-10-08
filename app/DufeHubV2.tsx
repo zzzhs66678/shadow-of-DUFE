@@ -3972,7 +3972,7 @@ function AcademicImportDialog({
 
 function AcademicScheduleCard({ schedule }: { schedule: Schedule }) {
   return (
-    <article className={`academic-schedule-card ${scheduleStyles.lesson}`} title={`教务导入 · ${schedule.building}${schedule.room}`}>
+    <article className={`academic-schedule-card ${scheduleStyles.lesson}`} aria-label={`教务导入：${schedule.title}`} title={`教务导入 · ${schedule.building}${schedule.room}`}>
       <strong>{schedule.title}</strong>
       <small className={scheduleStyles.room}>{schedule.building.split(" · ").at(-1)}{schedule.room}</small>
       {schedule.teacher && <span className={scheduleStyles.teacher}>{schedule.teacher}</span>}
@@ -3996,6 +3996,7 @@ function DraggableScheduleCard({
     attributes,
     listeners,
     setNodeRef,
+    setActivatorNodeRef,
     transform,
     isDragging,
   } = useDraggable({ id: `schedule:${schedule.id}` });
@@ -4009,11 +4010,14 @@ function DraggableScheduleCard({
       ref={setNodeRef}
       style={style}
       className={`draggable-schedule ${scheduleStyles.lesson} ${isDragging ? "dragging" : ""}`}
-      {...attributes}
+      aria-label={`手动添加：${schedule.title}`}
+      title={`手动添加 · ${schedule.building}${schedule.room}`}
     >
       <button
         className="schedule-card-main"
+        ref={setActivatorNodeRef}
         onClick={onOpen}
+        {...attributes}
         {...listeners}
       >
         <strong>{schedule.title}</strong>
@@ -4512,6 +4516,7 @@ function SchedulePage({
     "agenda" | "week"
   >("week");
   const [showFullWeek, setShowFullWeek] = useState(false);
+  const todayWeekday = weekdayNumber(new Date());
   const visibleWeekdays = [1, 2, 3, 4, 5, 6, 7].filter((day) =>
     day <= 5 || showFullWeek || activeSchedules.some((item) => item.weekday === day) ||
     saved.activities.some((item) => activityOccursOn(item, eventWeekDate(day))),
@@ -4747,7 +4752,7 @@ function SchedulePage({
     }
   }
   return (
-    <div className="page-wrap schedule-page clean-workspace">
+    <div className={`page-wrap schedule-page clean-workspace ${scheduleStyles.workspace}`}>
       <header className="workspace-heading">
         <div>
           <h1>我的课表</h1>
@@ -5119,14 +5124,22 @@ function SchedulePage({
           <div
             className={`week-overview-scroll ${mobileScheduleView === "week" ? "mobile-active" : ""}`}
           >
+          <div className={scheduleStyles.gridTools}>
+          <div className={scheduleStyles.sourceLegend} aria-label="课程来源">
+            <span><i className={scheduleStyles.officialSwatch} aria-hidden="true" />教务导入</span>
+            <span><i className={scheduleStyles.manualSwatch} aria-hidden="true" />手动添加</span>
+          </div>
           <button type="button" className={scheduleStyles.weekToggle} data-export-ignore="true"
             aria-pressed={showFullWeek} onClick={() => setShowFullWeek((value) => !value)}>
             {showFullWeek ? "隐藏空白周末" : "显示完整七天"}
           </button>
+          </div>
           <div className={`week-grid ${scheduleStyles.grid}`} style={{ gridTemplateColumns: `28px repeat(${visibleWeekdays.length}, minmax(0, 1fr))` }}>
             <div className="grid-corner">节次</div>
             {visibleWeekdays.map((day) => (
-              <div className="day-head" key={day}>
+              <div className="day-head" key={day}
+                aria-current={day === todayWeekday ? "date" : undefined}
+                title={day === todayWeekday ? "今天" : undefined}>
                 周{weekdayShort[day - 1]}
               </div>
             ))}
