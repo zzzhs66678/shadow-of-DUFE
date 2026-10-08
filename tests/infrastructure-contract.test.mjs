@@ -558,9 +558,9 @@ test("administrator console is private, elevated, and auditable by design", asyn
   assert.match(console, /\/api\/admin\/elevation/);
   assert.match(console, /expectedStatus: target\.status/);
   assert.match(console, /reason\.trim\(\)\.length < 8/);
-  assert.match(console, /验证码不会写入日志/);
+  assert.match(console, /setMfaCode\(""\)/);
   assert.match(console, /既有会话已撤销/);
-  assert.match(styles, /prefers-reduced-motion: reduce/);
+  assert.doesNotMatch(styles, /(?:animation|transition):/);
   assert.doesNotMatch(console, /dangerouslySetInnerHTML/);
 });
 
@@ -684,7 +684,7 @@ test("administrator announcements are immutable, idempotent, bounded, and audita
   assert.match(store, /users\.status = 'active'/);
   assert.match(store, /'announcement:' \|\| \$1::uuid::text/);
   assert.match(store, /admin\.community\.announcement_published/);
-  assert.match(console, /预览投递/);
+  assert.match(console, /预览公告/);
   assert.match(console, /全部活跃账号/);
   assert.doesNotMatch(console, /dangerouslySetInnerHTML/);
 });

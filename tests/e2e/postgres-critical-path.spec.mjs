@@ -583,7 +583,7 @@ test("users and an administrator complete the release browser path", async ({
       .click();
     await expect(caseDialog).toBeHidden();
     await expect(
-      administrator.getByText("治理动作已写入审计，案件已经结案。"),
+      finalModerationDesk.getByText("处理完成。", { exact: true }),
     ).toBeVisible();
 
     await owner.goto(topicPath);
