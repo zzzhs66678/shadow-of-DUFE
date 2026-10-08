@@ -105,7 +105,7 @@ app/DufeHubV2.tsx:672:54 · 共享函数·Wordmark · Wordmark · 界面：属�
 建议：
 处理：未决定
 app/DufeHub.tsx:115:17 · 主站与共享组件 · Wordmark · 源码：未找到入口引用 / 界面：英文或数字 · 源码待确认：未找到入口引用
-app/admin/AdminConsole.tsx:424:14 · 管理后台 · AdminConsole · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:391:14 · 管理后台 · AdminConsole · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
 
 [68d0766ae14980daddb49ef3d11191e6bc9bf22c5193df8fd5349177b37ed62f] 主站与共享组件
 类别：源码：未找到入口引用 / 界面：英文或数字
@@ -264,7 +264,7 @@ app/DufeHub.tsx:337:29 · 主站与共享组件 · DufeHubApp · 源码：未找
 处理：未决定
 app/DufeHub.tsx:340:37 · 主站与共享组件 · DufeHubApp · 源码：未找到入口引用 / 界面：JSX 文本片段 · 源码待确认：未找到入口引用
 app/admin/ActiveContentDesk.tsx:201:19 · 管理后台 · ActiveContentDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:637:85 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:526:85 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [88d72ece7cf767373367a4a7764f0ad813572791acbf1e3df0a0fac71311ee36] 主站与共享组件
 类别：源码：未找到入口引用 / 界面：JSX 文本片段 / 源码：未找到入口引用 / 界面：属性或无障碍标签
@@ -293,7 +293,6 @@ app/DufeHubV2.tsx:4057:10 · 课表·移除课程 · ScheduleTrash · 界面：�
 app/DufeHubV2.tsx:5617:13 · 日程编辑 · CalendarEditor · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:7523:57 · 课程详情抽屉 · CourseDrawer · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/admin/ActiveContentDesk.tsx:232:231 · 管理后台 · ActiveContentDesk · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:730:86 · 管理后台 · AdminConsole · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/admin/ModerationDesk.tsx:253:254 · 管理后台 · ModerationDesk · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/admin/TeacherReviewDesk.tsx:223:99 · 管理后台 · TeacherReviewDesk · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/community/CommunityShared.tsx:251:55 · 社区与通知 · NotificationsPanel · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
@@ -305,8 +304,8 @@ app/community/CommunityShared.tsx:251:55 · 社区与通知 · NotificationsPane
 处理：未决定
 app/DufeHub.tsx:352:43 · 主站与共享组件 · DufeHubApp · 源码：未找到入口引用 / 界面：JSX 文本片段 · 源码待确认：未找到入口引用
 
-[349b21c03d6ab0fed963e30902ca06b9fb051c821ef582963bfc0a6bfd7795f3] 主站与共享组件 / 后端与邮件 / 课程 / 课表 / 首次设置
-类别：源码：后端候选（未证明可见） / 源码：未找到入口引用 / 界面：JSX 文本片段 / 界面：JSX 文本片段
+[349b21c03d6ab0fed963e30902ca06b9fb051c821ef582963bfc0a6bfd7795f3] 主站与共享组件 / 后端与邮件 / 管理后台 / 课程 / 课表 / 首次设置
+类别：源码：共享文案候选（待核对引用） / 源码：后端候选（未证明可见） / 源码：未找到入口引用 / 界面：JSX 文本片段 / 界面：JSX 文本片段
 原文：专业
 建议：
 处理：未决定
@@ -314,6 +313,7 @@ app/DufeHub.tsx:357:53 · 主站与共享组件 · DufeHubApp · 源码：未找
 app/DufeHubV2.tsx:3357:21 · 课程 · CatalogPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:4834:17 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:7975:22 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:85:235 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:1957:41 · 后端与邮件 · parseTrainingPlanProfile · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
 
 [60db1afb402244837613dfca0f9abb4af4fdf7029a82bf833c9be339aa9ba8fa] 主站与共享组件 / 主站壳层与账号交互 / 今日 / 全站搜索 / 共享函数·inflateCourseCore / 后端与邮件 / 学习资料 / 教师 / 课程 / 课表
@@ -377,12 +377,12 @@ app/DufeHubV2.tsx:7769:51 · 课程详情抽屉 · CourseDrawer · 界面：纯�
 app/TeachingSectionLinks.tsx:49:61 · 主站与共享组件 · TeachingSectionLinks · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/admin/ActiveContentDesk.tsx:221:62 · 管理后台 · ActiveContentDesk · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/admin/ActiveContentDesk.tsx:221:83 · 管理后台 · ActiveContentDesk · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:655:57 · 管理后台 · AdminConsole · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:734:55 · 管理后台 · AdminConsole · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:566:57 · 管理后台 · AdminConsole · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/admin/ModerationDesk.tsx:243:79 · 管理后台 · ModerationDesk · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/admin/ModerationDesk.tsx:255:57 · 管理后台 · ModerationDesk · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/admin/TeacherReviewDesk.tsx:208:56 · 管理后台 · TeacherReviewDesk · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/admin/TeacherReviewDesk.tsx:208:171 · 管理后台 · TeacherReviewDesk · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:96:67 · 管理后台 · UserRegistration · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/community/CommunityProfileView.tsx:115:69 · 社区与通知 · CommunityProfileView · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/community/CommunityShared.tsx:265:75 · 社区与通知 · NotificationsPanel · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/materials/[materialId]/page.tsx:80:64 · 学习资料 · MaterialDetailPage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
@@ -546,7 +546,7 @@ app/DufeHubV2.tsx:7158:18 · 我的 · MePage · 界面：JSX 文本片段 · �
 处理：未决定
 app/DufeHub.tsx:424:20 · 主站与共享组件 · DufeHubApp · 源码：未找到入口引用 / 界面：JSX 文本片段 · 源码待确认：未找到入口引用
 
-[ca29edb4680a64bc14bf4cf0d03860419a2754c2d5a9765c5fd8357cf7f4219c] 主站与共享组件 / 今日 / 全站搜索 / 我的
+[ca29edb4680a64bc14bf4cf0d03860419a2754c2d5a9765c5fd8357cf7f4219c] 主站与共享组件 / 今日 / 全站搜索 / 我的 / 管理后台
 类别：源码：未找到入口引用 / 界面：纯符号 / 界面：纯符号
 原文：↗
 建议：
@@ -560,6 +560,7 @@ app/DufeHubV2.tsx:7146:17 · 我的 · MePage · 界面：纯符号 · 静态入
 app/DufeHubV2.tsx:7153:17 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:7160:17 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:7340:22 · 全站搜索 · SearchCommand · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:117:249 · 管理后台 · UserRegistration · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/competitions/[slug]/page.tsx:36:76 · 主站与共享组件 · CompetitionPage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 
 [c2061d17f006552d05fa3ffb030397dcef5aaa098957bd4aab3064fc241b664d] 主站与共享组件
@@ -758,7 +759,7 @@ app/DufeHub.tsx:519:51 · 主站与共享组件 · DufeHubApp · 源码：未找
 处理：未决定
 app/DufeHub.tsx:527:15 · 主站与共享组件 · DufeHubApp · 源码：未找到入口引用 / 界面：JSX 文本片段 · 源码待确认：未找到入口引用
 
-[bda050585a00f0f6cb502350559d75532ae3b244c9498b996e7c5df2d98dfc8d] 主站与共享组件 / 培养方案 / 我的
+[bda050585a00f0f6cb502350559d75532ae3b244c9498b996e7c5df2d98dfc8d] 主站与共享组件 / 培养方案 / 我的 / 管理后台
 类别：源码：未找到入口引用 / 界面：纯符号 / 界面：纯符号
 原文：—
 建议：
@@ -768,6 +769,7 @@ app/DufeHub.tsx:528:54 · 主站与共享组件 · DufeHubApp · 源码：未找
 app/DufeHubV2.tsx:4378:45 · 培养方案 · TrainingPlanWindow · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:6961:27 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/RoomWeekSchedule.tsx:168:81 · 主站与共享组件 · RoomWeekSchedule · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:501:204 · 管理后台 · AdminConsole · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 
 [2f744fe588fccbe9143783a07b2b2161bc420010cfe87687471132a803711850] 主站与共享组件
 类别：源码：未找到入口引用 / 界面：JSX 文本片段
@@ -1226,7 +1228,7 @@ app/DufeHubV2.tsx:671:42 · 共享函数·Wordmark · Wordmark · 界面：属�
 app/DufeHubV2.tsx:1783:17 · 主站壳层与账号交互 · HubApp · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/LegalPage.tsx:19:11 · 法律与账号注销 · LegalPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
 app/PublicMasthead.tsx:30:12 · 主站与共享组件 · PublicMasthead · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:425:17 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:392:17 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/competitions/CompetitionNavigation.tsx:13:41 · 主站与共享组件 · CompetitionNavigation · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/layout.tsx:14:20 · 主站与共享组件 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 app/layout.tsx:15:21 · 主站与共享组件 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
@@ -2704,12 +2706,13 @@ app/materials/MaterialsExplorer.tsx:465:72 · 学习资料 · MaterialsExplorer 
 app/materials/MaterialsExplorer.tsx:466:28 · 学习资料 · MaterialsExplorer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/page.tsx:35:35 · 主站与共享组件 · Home · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
-[21bd738e0d7191a79734e976e49d15bafeb3f3385ae69620e52984d7da0e8c40] 课程
+[21bd738e0d7191a79734e976e49d15bafeb3f3385ae69620e52984d7da0e8c40] 管理后台 / 课程
 类别：界面：JSX 文本片段
 原文：正在加载…
 建议：
 处理：未决定
 app/DufeHubV2.tsx:3150:77 · 课程 · CatalogPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:114:48 · 管理后台 · UserRegistration · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [ad89d550345443f48d85ef3dadc4a2b8b469168111e63fbd9867bea3ecddd340] 课程
 类别：界面：JSX 文本片段
@@ -2952,13 +2955,14 @@ app/DufeHubV2.tsx:3329:18 · 课程 · CatalogPage · 界面：JSX 文本片段 
 app/DufeHubV2.tsx:3332:62 · 课程 · CatalogPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [33a172fee29a530195f64e66aa4fddf025edb95e52fc1459b0c224c40d19272d] 教师 / 管理后台 / 课程 / 首次设置
-类别：界面：JSX 文本片段
+类别：源码：共享文案候选（待核对引用） / 界面：JSX 文本片段
 原文：学院
 建议：
 处理：未决定
 app/DufeHubV2.tsx:3341:21 · 课程 · CatalogPage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:7963:22 · 首次设置 · Onboarding · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/admin/TeacherReviewDesk.tsx:226:24 · 管理后台 · TeacherReviewDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:85:190 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 app/teachers/TeacherExplorer.tsx:224:40 · 教师 · TeacherExplorer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [c0e2a53fb74c92a30c331cb54c47ce8f74c3b1879731c476942caed342417185] 教师 / 课程
@@ -3961,6 +3965,7 @@ app/DufeHubV2.tsx:4812:19 · 课表 · SchedulePage · 界面：JSX 文本片段
 app/DufeHubV2.tsx:4813:71 · 课表 · SchedulePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:5616:62 · 日程编辑 · CalendarEditor · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 app/admin/TeacherReviewDesk.tsx:248:77 · 管理后台 · TeacherReviewDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:91:72 · 管理后台 · UserRegistration · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [6a8cc9063fbb2fe7ddb3b19ca50c738bca7fab862da8762c3d17772ee4443fa6] 课表
 类别：界面：JSX 文本片段
@@ -4265,7 +4270,7 @@ app/DufeHubV2.tsx:5235:47 · 课表 · SchedulePage · 界面：JSX 文本片段
 处理：未决定
 app/DufeHubV2.tsx:5288:31 · 课表 · SchedulePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/admin/ActiveContentDesk.tsx:235:24 · 管理后台 · ActiveContentDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:624:56 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:535:56 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:1009:3 · 后端与邮件 · 顶层 · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:1557:57 · 后端与邮件 · parseExamCards · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
 services/auth-api/src/academic-access.mjs:1655:47 · 后端与邮件 · parseExamHtml · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
@@ -4333,7 +4338,7 @@ app/DufeHubV2.tsx:5341:27 · 课表 · SchedulePage · 源码：共享文案候�
 建议：
 处理：未决定
 app/DufeHubV2.tsx:5374:46 · 课表 · SchedulePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:673:60 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:582:60 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [f701f834e9f3fc4117074befcc92089e8553b82db59ff257d38d9735de540767] 课表
 类别：界面：JSX 文本片段
@@ -4570,7 +4575,7 @@ app/DufeHubV2.tsx:5743:13 · 日程编辑 · CalendarEditor · 界面：JSX 文�
 app/DufeHubV2.tsx:6875:39 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:7233:60 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/admin/ActiveContentDesk.tsx:250:99 · 管理后台 · ActiveContentDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:718:88 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:658:88 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/admin/ModerationDesk.tsx:272:99 · 管理后台 · ModerationDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/community/CommunityShared.tsx:152:73 · 社区与通知 · ReportDialog · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/community/CommunityTopicView.tsx:324:91 · 社区与通知 · CommunityTopicView · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
@@ -5406,13 +5411,14 @@ app/DufeHubV2.tsx:6652:49 · 我的 · MePage · 界面：属性或无障碍标�
 app/DufeHubV2.tsx:6665:37 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [73075237fd0f05f024dfe25d9b5289d70c27b9232a94ddb5dbb43eb0e9292f49] 我的 / 管理后台
-类别：界面：JSX 文本片段 / 界面：属性或无障碍标签
+类别：源码：共享文案候选（待核对引用） / 界面：JSX 文本片段 / 界面：属性或无障碍标签
 原文：邮箱
 建议：
 处理：未决定
 app/DufeHubV2.tsx:6670:38 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:6937:25 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:659:60 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:570:60 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:84:32 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [53e6cdc30765aade0129f85e5aeb50124b1d3f5bb9a70373be31e4eb328371e0] 我的
 类别：界面：英文或数字
@@ -5428,7 +5434,7 @@ app/DufeHubV2.tsx:6708:33 · 我的 · MePage · 界面：英文或数字 · 静
 建议：
 处理：未决定
 app/DufeHubV2.tsx:6689:61 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:607:55 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:516:55 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [69f56f3a0bac7213065e202b754290e5daebd515e96096a13283868e15ecd663] 我的
 类别：界面：属性或无障碍标签
@@ -5472,14 +5478,15 @@ app/DufeHubV2.tsx:6738:31 · 我的 · MePage · 界面：属性或无障碍标�
 处理：未决定
 app/DufeHubV2.tsx:6739:31 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
-[1261d14ad8427ecf9573d83125eee470729e556e037e83e5fc9e86aa05ad7122] 我的
-类别：界面：JSX 文本片段 / 界面：属性或无障碍标签
+[1261d14ad8427ecf9573d83125eee470729e556e037e83e5fc9e86aa05ad7122] 我的 / 管理后台
+类别：源码：共享文案候选（待核对引用） / 界面：JSX 文本片段 / 界面：属性或无障碍标签
 原文：校园账号
 建议：
 处理：未决定
 app/DufeHubV2.tsx:6746:29 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:6911:27 · 我的 · MePage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:6944:25 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:85:32 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [ed3b9f9bd7b05e7497f6161e0b94c1b9c9204316390a58cc3f8a695887387f62] 我的
 类别：界面：属性或无障碍标签
@@ -5586,12 +5593,13 @@ app/DufeHubV2.tsx:6820:44 · 我的 · MePage · 界面：表达式分支 · 静
 处理：未决定
 app/DufeHubV2.tsx:6820:53 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
-[adcaa05b4d6645af5663c747e5dca98f15a5221cd1d9a1bb91617e56d85145b7] 我的
-类别：界面：JSX 文本片段
+[adcaa05b4d6645af5663c747e5dca98f15a5221cd1d9a1bb91617e56d85145b7] 我的 / 管理后台
+类别：界面：JSX 文本片段 / 界面：表达式分支
 原文：账号资料
 建议：
 处理：未决定
 app/DufeHubV2.tsx:6831:25 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:99:25 · 管理后台 · UserRegistration · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [c3641f8544d7c02f3580b07c0f9887f0c6a27ff5ab1d4a3e29caf197cfc299ae] 我的 / 管理后台
 类别：界面：纯符号
@@ -5599,15 +5607,16 @@ app/DufeHubV2.tsx:6831:25 · 我的 · MePage · 界面：JSX 文本片段 · �
 建议：
 处理：未决定
 app/DufeHubV2.tsx:6833:21 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:655:31 · 管理后台 · AdminConsole · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:734:20 · 管理后台 · AdminConsole · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:566:31 · 管理后台 · AdminConsole · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:95:114 · 管理后台 · UserRegistration · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 
-[53ad31917ee4bc69a5730613b7a7835d15536e1415aacdf2f63141df2902d79e] 我的
+[53ad31917ee4bc69a5730613b7a7835d15536e1415aacdf2f63141df2902d79e] 我的 / 管理后台
 类别：界面：表达式分支
 原文：未设置用户名
 建议：
 处理：未决定
 app/DufeHubV2.tsx:6833:49 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:95:141 · 管理后台 · UserRegistration · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [3b7e27cb4379da3c65e512641d49c0e37c3cb10d7cb7fb0d257d9e6eebcf9558] 我的
 类别：界面：表达式分支
@@ -5666,14 +5675,16 @@ app/DufeHubV2.tsx:6931:21 · 我的 · MePage · 界面：JSX 文本片段 · �
 app/DufeHubV2.tsx:6938:49 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [0a1b6f1b57f5198eac45f94fbb2dde96dd319815111b7f61b4ad32212732b285] 我的 / 管理后台
-类别：界面：表达式分支
+类别：源码：共享文案候选（待核对引用） / 界面：表达式分支
 原文：已验证
 建议：
 处理：未决定
 app/DufeHubV2.tsx:6940:54 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:6948:27 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:659:84 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:660:100 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:570:84 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:571:100 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:84:103 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:85:121 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [76a2e875d985af8414a2bc969bee004dbb8bc10ba93a169d9fb38e6fa4d6a541] 我的
 类别：界面：表达式分支
@@ -5682,12 +5693,13 @@ app/admin/AdminConsole.tsx:660:100 · 管理后台 · AdminConsole · 界面：�
 处理：未决定
 app/DufeHubV2.tsx:6940:62 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
-[7f05190592e57c0eac54c960fc09e6093d941570651d9bd889cf7632eee11247] 我的
-类别：界面：表达式分支
+[7f05190592e57c0eac54c960fc09e6093d941570651d9bd889cf7632eee11247] 我的 / 管理后台
+类别：源码：共享文案候选（待核对引用） / 界面：表达式分支
 原文：未填写
 建议：
 处理：未决定
 app/DufeHubV2.tsx:6945:57 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:81:72 · 管理后台 · show ← UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [e12ebd0ce0eeeb7d67739ef590a9056fabde62ba86b1ba3c18715ee447fc2a69] 我的
 类别：界面：表达式分支
@@ -5879,12 +5891,13 @@ app/DufeHubV2.tsx:7076:25 · 我的 · MePage · 界面：JSX 文本片段 · �
 处理：未决定
 app/DufeHubV2.tsx:7093:41 · 我的 · MePage · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
-[87354adb1c31e43dacff951edb563fe5a350b9ebbace4793820ba9b0fb00d42c] 我的
+[87354adb1c31e43dacff951edb563fe5a350b9ebbace4793820ba9b0fb00d42c] 我的 / 管理后台
 类别：界面：JSX 文本片段
 原文：管理后台
 建议：
 处理：未决定
 app/DufeHubV2.tsx:7102:34 · 我的 · MePage · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:395:17 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [3ab8cc15939f3b5c56d8e0a811acebba7200fdc7a1b8a4450eed2954f6e91255] 我的
 类别：界面：JSX 文本片段
@@ -6022,7 +6035,7 @@ app/DufeHubV2.tsx:7178:30 · 我的 · MePage · 界面：英文或数字 · 静
 处理：未决定
 app/DufeHubV2.tsx:7178:70 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/DufeHubV2.tsx:7179:103 · 我的 · MePage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:747:119 · 管理后台 · AdminConsole · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:116:121 · 管理后台 · UserRegistration · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 app/terms/page.tsx:54:65 · 法律与账号注销 · TermsPage · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
 
 [91098650f86955594131e5106cdfca086e7c9e70dfd5a60ebb3445544a3a9cd8] 我的
@@ -6411,7 +6424,7 @@ app/DufeHubV2.tsx:7626:26 · 课程详情抽屉 · CourseDrawer · 界面：属�
 建议：
 处理：未决定
 app/DufeHubV2.tsx:7628:35 · 课程详情抽屉 · CourseDrawer · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:626:40 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:537:40 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [d24ae7f09399ec3654a07aeb1bfd5e3a8ceb16c4f5b7d5c5807aa973d1bae66c] 课程详情抽屉
 类别：界面：JSX 文本片段
@@ -6980,7 +6993,7 @@ app/account/delete/page.tsx:21:17 · 法律与账号注销 · DeleteAccountPage 
 建议：
 处理：未决定
 app/account/delete/page.tsx:22:11 · 法律与账号注销 · DeleteAccountPage · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
-app/privacy/page.tsx:87:44 · 法律与账号注销 · PrivacyPage · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
+app/privacy/page.tsx:90:44 · 法律与账号注销 · PrivacyPage · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
 app/terms/page.tsx:54:44 · 法律与账号注销 · TermsPage · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
 
 [c503252b0c1087f063f4b339f10ac89d20be51aa6b2f9bcfb8f751b0eab61ffd] 法律与账号注销
@@ -7174,33 +7187,21 @@ app/admin/ModerationDesk.tsx:167:44 · 管理后台 · openCase ← ModerationDe
 app/admin/ModerationDesk.tsx:205:43 · 管理后台 · applyAction ← ModerationDesk · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 app/admin/TeacherReviewDesk.tsx:163:82 · 管理后台 · moderate ← TeacherReviewDesk · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
-[03c3b8eef726ad0161aeaf72108a61c6c8e88b636fc0d74d041f0c982ea860e5] 管理后台
+[d6387f430840ac9343923371e103a3bd860c03bb7a34c6fc6350eaf1261ad27a] 管理后台
 类别：源码：共享文案候选（待核对引用）
-原文：处置已生效，并已写入案件记录与管理员审计。
+原文：处理完成。
 建议：
 处理：未决定
 app/admin/ActiveContentDesk.tsx:176:11 · 管理后台 · applyAction ← ActiveContentDesk · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/ModerationDesk.tsx:208:13 · 管理后台 · applyAction ← ModerationDesk · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
-[212649547b7bd1ff888810488845e11c08c33732db00c057ecbaf1d5517e35c0] 管理后台
-类别：界面：JSX 文本片段
-原文：主动巡查
+[27fd86a38eb645f04492f0143b5ae2e317bd8224b2e75fd29cefff645f7dcd7a] 管理后台
+类别：界面：JSX 文本片段 / 界面：表达式分支
+原文：主题与回复
 建议：
 处理：未决定
-app/admin/ActiveContentDesk.tsx:192:20 · 管理后台 · ActiveContentDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[8f4818babec9ce477e31ba85f2fd36b5bc46fcce7423dfd93d5d0a33da213778] 管理后台
-类别：界面：JSX 文本片段
-原文：公开内容值守
-建议：
-处理：未决定
-app/admin/ActiveContentDesk.tsx:192:61 · 管理后台 · ActiveContentDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[d35f41ea6f65710553a937bdbf18102d3e680fe6cdc5adf22448278ac6731a9c] 管理后台
-类别：界面：JSX 文本片段
-原文：无需等待举报即可检索主题与回复；任何处置仍须先建案，并写入两套不可变审计。
-建议：
-处理：未决定
-app/admin/ActiveContentDesk.tsx:192:75 · 管理后台 · ActiveContentDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/ActiveContentDesk.tsx:192:44 · 管理后台 · ActiveContentDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:612:52 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [ea8671368cce66d26084dbfb65cabb644dc7468ddeee863f871a103db82cef0b] 管理后台
 类别：界面：属性或无障碍标签
@@ -7217,9 +7218,10 @@ app/admin/ActiveContentDesk.tsx:193:25 · 管理后台 · ActiveContentDesk · �
 app/admin/ActiveContentDesk.tsx:194:84 · 管理后台 · ActiveContentDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/admin/ActiveContentDesk.tsx:221:49 · 管理后台 · ActiveContentDesk · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 app/admin/ActiveContentDesk.tsx:234:64 · 管理后台 · ActiveContentDesk · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:740:169 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:747:107 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:752:114 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:99:45 · 管理后台 · UserRegistration · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:113:155 · 管理后台 · UserRegistration · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:116:109 · 管理后台 · UserRegistration · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:117:241 · 管理后台 · UserRegistration · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 app/community/CommunityProfileView.tsx:126:42 · 社区与通知 · CommunityProfileView · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 app/community/CommunityProfileView.tsx:129:109 · 社区与通知 · CommunityProfileView · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/community/CommunityProfileView.tsx:136:122 · 社区与通知 · CommunityProfileView · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
@@ -7233,8 +7235,9 @@ app/community/CommunityProfileView.tsx:138:88 · 社区与通知 · CommunityPro
 app/admin/ActiveContentDesk.tsx:195:88 · 管理后台 · ActiveContentDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/admin/ActiveContentDesk.tsx:221:56 · 管理后台 · ActiveContentDesk · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 app/admin/ActiveContentDesk.tsx:234:71 · 管理后台 · ActiveContentDesk · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:741:173 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:747:114 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:99:65 · 管理后台 · UserRegistration · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:113:162 · 管理后台 · UserRegistration · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:116:116 · 管理后台 · UserRegistration · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 app/community/CommunityProfileView.tsx:126:49 · 社区与通知 · CommunityProfileView · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 app/community/CommunityProfileView.tsx:130:113 · 社区与通知 · CommunityProfileView · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/community/CommunityProfileView.tsx:136:129 · 社区与通知 · CommunityProfileView · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
@@ -7282,21 +7285,23 @@ app/admin/ActiveContentDesk.tsx:235:78 · 管理后台 · ActiveContentDesk · �
 处理：未决定
 app/admin/ActiveContentDesk.tsx:210:84 · 管理后台 · ActiveContentDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
-[8dc457ef5eb113335f41b693d716cd47479d5c0e10657657a04b7b2d9d77d0f5] 管理后台
-类别：界面：JSX 文本片段
-原文：内容目录没有加载成功。举报队列不受影响。
+[a868635670fa58febeb7e1d9c3eeb4944f5fb8267cd77d44c7c0f04d7b7e022c] 管理后台
+类别：提示与错误候选 / 界面：JSX 文本片段
+原文：内容加载失败。
 建议：
 处理：未决定
 app/admin/ActiveContentDesk.tsx:211:81 · 管理后台 · ActiveContentDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:71:103 · 管理后台 · UserRegistration · 提示与错误候选 · 静态入口/相对引用可达（非运行时证明）
 
 [b8784c8dd5636ff231b121892144e4a3977d5b874f21934c53f850cde7bac0ea] 学习资料 / 教师 / 管理后台
 类别：界面：JSX 文本片段 / 界面：表达式分支
 原文：重试
 建议：
 处理：未决定
-app/admin/ActiveContentDesk.tsx:211:144 · 管理后台 · ActiveContentDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/admin/ModerationDesk.tsx:233:154 · 管理后台 · ModerationDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/admin/TeacherReviewDesk.tsx:198:157 · 管理后台 · TeacherReviewDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/ActiveContentDesk.tsx:211:131 · 管理后台 · ActiveContentDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/ModerationDesk.tsx:233:140 · 管理后台 · ModerationDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/TeacherReviewDesk.tsx:198:140 · 管理后台 · TeacherReviewDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:115:113 · 管理后台 · UserRegistration · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 app/materials/MaterialsExplorer.tsx:657:59 · 学习资料 · MaterialsExplorer · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 app/teachers/TeacherReviewDiscussion.tsx:163:122 · 教师 · TeacherReviewDiscussion · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
@@ -7314,12 +7319,14 @@ app/admin/ActiveContentDesk.tsx:212:90 · 管理后台 · ActiveContentDesk · �
 处理：未决定
 app/admin/ActiveContentDesk.tsx:221:128 · 管理后台 · ActiveContentDesk · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
-[10276379d0171e3455b0be2faacebea3b9b2ce3af42f7e1e95d696c6dc9305da] 管理后台
-类别：界面：JSX 文本片段
-原文：继续读取内容
+[af90a08fec8ee28d12d8496998e7a87b617cb3469cd8d5f2c32b5b3acaecd9e2] 管理后台
+类别：界面：JSX 文本片段 / 界面：表达式分支
+原文：加载更多
 建议：
 处理：未决定
 app/admin/ActiveContentDesk.tsx:227:132 · 管理后台 · ActiveContentDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:588:172 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:118:118 · 管理后台 · UserRegistration · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [d50f17deeccc3663e8f6f2f5732f7f77398c6c53686edd91f980eff25cbe46a9] 管理后台
 类别：界面：表达式分支
@@ -7414,112 +7421,119 @@ app/admin/ActiveContentDesk.tsx:250:288 · 管理后台 · ActiveContentDesk · 
 原文：管理员完成二次验证
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:96:30 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:76:30 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [0d59137f80fd40f047a3cebae4b3fbeeb585a7a35a4b763e3631ac7779ddd8a6] 管理后台
 类别：源码：共享文案候选（待核对引用）
 原文：用户状态已变更
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:97:32 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:77:32 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+
+[01da2a251b6c1163556adec22ac662de99389a268f8d3c2596dea0faf3d5ed25] 管理后台
+类别：源码：共享文案候选（待核对引用）
+原文：已查看用户注册资料
+建议：
+处理：未决定
+app/admin/AdminConsole.tsx:78:37 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [2aefc842859230f20fb1bf10af8b690a88a6688d007538c5e72d6f45a15095b6] 管理后台
 类别：源码：共享文案候选（待核对引用）
 原文：管理员权限已建立
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:98:30 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:79:30 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [e26730fd5ade4ca694221a06a8d922d11a77ec7db06d81b547633ef8c54fec4b] 管理后台
 类别：源码：共享文案候选（待核对引用）
 原文：管理员验证器已轮换
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:99:24 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:80:24 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [95e993e13638abf4d2f21d698ac52cd93cc38ebe580736f95f0b22a4602f9c65] 管理后台
 类别：源码：共享文案候选（待核对引用）
 原文：社区举报已入案
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:100:34 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:81:34 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [b60b8d3f8ddd457f1a8b288925dac330977b35da1feedeb9fb1ea576950803c0] 管理后台
 类别：源码：共享文案候选（待核对引用）
 原文：社区内容已隐藏
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:101:27 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:82:27 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [e07f5732207f5a160712e116a843d680a84edcd17275592df331855f9113d980] 管理后台
 类别：源码：共享文案候选（待核对引用）
 原文：社区内容已恢复
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:102:30 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:83:30 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [9c1fa3f8701481fc2db7f93f2c7968dd2a8f8f41f4c9ae4e9e63adb9569071ab] 管理后台
 类别：源码：共享文案候选（待核对引用）
 原文：社区内容已删除
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:103:29 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:84:29 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [a8ede1d8ad347ed9d42c7188ed5a267b08bfccce7d0515eee40e66305bed7a06] 管理后台
 类别：源码：共享文案候选（待核对引用）
 原文：社区账号已警告
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:104:27 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:85:27 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [9d845cf45a2669498395630bf3d0702d2acdafdc76d3809282e6334cf3d59844] 管理后台
 类别：源码：共享文案候选（待核对引用）
 原文：社区账号已限时停发
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:105:30 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:86:30 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [c44ad4df45a9bb4a0e47743107c5bca7b45f974a08ab703deb5b41daa8e7c3f0] 管理后台
 类别：源码：共享文案候选（待核对引用）
 原文：社区账号已封禁
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:106:26 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:87:26 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [d0ae85deaf22510407e3ff09007ad774d8aaf0d97e4db24fccf3aa3a8e1f9eb8] 管理后台
 类别：源码：共享文案候选（待核对引用）
 原文：社区账号制裁已解除
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:107:28 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:88:28 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [b2bca067dfb3f614c9beb6ed9feeb743470255885208b3edeba9d2ee82d57b26] 管理后台
 类别：源码：共享文案候选（待核对引用）
 原文：社区举报已驳回
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:108:30 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:89:30 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [38aa98bf47ede8cd4e6ca0dd18f240e73d7976f64692ebef6ed02e392fb0571c] 管理后台
 类别：源码：共享文案候选（待核对引用）
 原文：系统公告已发布
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:109:45 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:90:45 · 管理后台 · 顶层 · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [5594f4797ae55d1a203f79ecc95cfb9b4b378cfe1c81fff06373b0ced6f88471] 管理后台
 类别：源码：共享文案候选（待核对引用）
 原文：从未
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:134:22 · 管理后台 · formatDate · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:115:22 · 管理后台 · formatDate · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [664939a1fa2ef75573f985fdab762c4be41d0c8897a62db56faf0396b2763dfd] 社区与通知 / 管理后台
 类别：源码：共享文案候选（待核对引用）
 原文：时间未知
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:136:44 · 管理后台 · formatDate · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:117:44 · 管理后台 · formatDate · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 app/community/community-api.ts:159:44 · 社区与通知 · formatCommunityTime · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [59048f9d45346eaffc5aa1d8f24edfeadbb3ace56f5c4aba5f7d45160ca7870d] 管理后台
@@ -7527,140 +7541,126 @@ app/community/community-api.ts:159:44 · 社区与通知 · formatCommunityTime 
 原文：验证码无效、已使用或已过期。请等待新验证码后重试。
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:151:14 · 管理后台 · errorMessage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:132:14 · 管理后台 · errorMessage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [c3aac8b30ff943ea767eeff7fe76f9555dfee7c9d77a68952be6bd7cb298de85] 管理后台
 类别：源码：共享文案候选（待核对引用）
 原文：尝试次数过多，请一分钟后再试。
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:153:14 · 管理后台 · errorMessage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:134:14 · 管理后台 · errorMessage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [e7e16b8a74f39da499c54f98b38d7de6ca99ede10bee139326debf9d2aaf4920] 管理后台
 类别：源码：共享文案候选（待核对引用）
 原文：本次值守凭证已失效，请重新验证。
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:155:14 · 管理后台 · errorMessage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:136:14 · 管理后台 · errorMessage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [756d42df59aeb839e65db0611c4b3a26bbd0bfa47e216ddeb5216da656764ba3] 管理后台
 类别：源码：共享文案候选（待核对引用）
 原文：不能停用当前正在值守的管理员账号。
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:157:14 · 管理后台 · errorMessage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:138:14 · 管理后台 · errorMessage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [13b912835e7e4b986fc0eb11bb085e276376bc4bbd143d79649f599b7f0390c8] 管理后台
 类别：源码：共享文案候选（待核对引用）
 原文：这名用户的状态刚刚发生变化，列表已刷新。
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:159:14 · 管理后台 · errorMessage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:140:14 · 管理后台 · errorMessage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [1d0f717b6274e9ae71e4c9d659b8545fd3bd2c7c1e84992a3dd4cea0c080ea14] 管理后台
 类别：源码：共享文案候选（待核对引用）
 原文：请填写至少 8 个字的处置原因。
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:161:14 · 管理后台 · errorMessage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:142:14 · 管理后台 · errorMessage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [64bfb1d2becefe1de9e8a9699dcafe3c634421c7b07268174a6a2dd238db60f2] 管理后台
 类别：源码：共享文案候选（待核对引用）
 原文：请求没有完成。请检查网络后重试。
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:163:14 · 管理后台 · errorMessage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:144:14 · 管理后台 · errorMessage · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [696ea1bd3f6f62ac62018f803a9d69e50c94c80e6cd5e91e4b5c480f66179ad2] 管理后台
 类别：源码：共享文案候选（待核对引用）
 原文：注册起日不能晚于注册止日，请调整日期后再查找。
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:347:19 · 管理后台 · searchUsers ← AdminConsole · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:314:19 · 管理后台 · searchUsers ← AdminConsole · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [17cf56a80a22fafa478334ea461581ebf6f6e2170ff1717cdb801ff7fd80365a] 管理后台
 类别：源码：共享文案候选（待核对引用）
 原文：账号已停用，既有会话已撤销。
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:385:43 · 管理后台 · changeStatus ← AdminConsole · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:352:43 · 管理后台 · changeStatus ← AdminConsole · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [58d22f85c726ed6424cbf20664a773b88191c17101a3b77d6b1f83139ae1db19] 管理后台
 类别：源码：共享文案候选（待核对引用）
 原文：账号已恢复，可重新登录。历史会话不会恢复。
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:385:62 · 管理后台 · changeStatus ← AdminConsole · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:352:62 · 管理后台 · changeStatus ← AdminConsole · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [be5b1dcb4e590d19476860a367c46a687d4414b9e628b7974b8a8edb4412c8c2] 管理后台
 类别：界面：属性或无障碍标签
 原文：返回东财之影
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:423:63 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-
-[84067cb957255a375dc1ad43dc774e9aa23e2948e246caeff3ce4652314c9240] 管理后台
-类别：界面：JSX 文本片段
-原文：PRIVATE · 值守台
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:428:17 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[71fa6bc9f64e50323f21c8bc0b9fd45b98a4ed3d941d86a9dadefd23b5a7771d] 管理后台
-类别：界面：JSX 文本片段
-原文：每一次高权限操作，都必须留下原因和可核对的记录。
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:429:14 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:390:63 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [3e99b40c4d396dde49e6ed5aecc822e83489cf115c2c05ddb207f59713959d03] 管理后台
 类别：界面：JSX 文本片段
 原文：守
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:435:38 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:402:38 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
-[f266560d96b5a0d71b9a150d802e957f7c9cbf255c8ff8196d4b913370ce6ae6] 管理后台
+[d64c3ea83396681a9bae27e944f7ae79a996ed25d8c4872f352e6e6317cc3887] 管理后台
 类别：界面：JSX 文本片段
-原文：正在核对值守身份
+原文：正在验证身份
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:436:17 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:403:17 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [084700c83146761cf759f77400b2f485aa580e189e060c187abe2a121358b429] 管理后台
 类别：界面：属性或无障碍标签
 原文：未
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:443:16 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:410:16 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [6eb1b64e260a2dd37fe6f29040e86b9b948e6c67525d351195f27a30520919f6] 管理后台
 类别：界面：属性或无障碍标签
 原文：需要登录
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:444:19 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:411:19 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
-[e75f759046b1b3cfa98c0fc032866fd0319b95b50ea94a23eb4a67207c5bebba] 管理后台
+[3d1e77800bc803c10909b343e192a85b19ddee38617e8f1317fac46839e7bc7d] 管理后台
 类别：界面：属性或无障碍标签
-原文：先回到“我的”完成登录
+原文：请先登录管理员账号
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:445:17 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:412:17 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
-[f145a9c544e794745dc7062e799597ef826b0527506fd0771b434daba4709766] 管理后台
+[3925162d8a2cfc8535aca5d90be0bf9c41b6844eb902ce4a68cfde9efe2c0bcf] 管理后台
 类别：界面：属性或无障碍标签
-原文：值守台不会创建或猜测管理员身份。登录后，系统仍会要求一次独立的双重验证。
+原文：登录后需输入动态验证码。
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:446:16 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:413:16 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [b668ee457f4dbdfaaeb099ffa1aad5a0529386ee500f7583ad38524809aed835] 主站与共享组件 / 管理后台
 类别：界面：属性或无障碍标签
 原文：返回我的
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:448:23 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:415:23 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 app/competitions/page.tsx:17:72 · 主站与共享组件 · CompetitionsPage · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [cd44dff0840669529a4c4dc1dd9d5438c5900b442caebcb4def8b6b8e72beb28] 管理后台
@@ -7668,600 +7668,583 @@ app/competitions/page.tsx:17:72 · 主站与共享组件 · CompetitionsPage · 
 原文：止
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:454:16 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:421:16 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [5e3c8a262b617b452a730087b4752ecdafd70a0c732f407c40f5a54a895d8c01] 管理后台
 类别：界面：属性或无障碍标签
 原文：权限不足
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:455:19 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:422:19 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
-[10f60d73532c24fd42c6d2e0a5038d9ab97efd589ee019370d04e7d614e987c4] 管理后台
+[0cd549f59a6a6deda0d11770c1935fdce31bf456d142cc06206788c0f741397e] 管理后台
 类别：界面：属性或无障碍标签
-原文：这个入口只对值守人员开放
+原文：仅管理员可访问
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:456:17 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:423:17 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
-[eac58bcbdccef1464a883ccffecad407be8b104fa1e63dd37e823a54095f7a8e] 管理后台
+[98cb8cbda522c07f03d5a73bd97441e0d56c368e2e83fd02cda5a1e4a2512d62] 管理后台
 类别：界面：属性或无障碍标签
-原文：你的账号可以继续正常使用课表、资料和校园服务；管理员信息不会被查询或展示。
+原文：请切换到管理员账号。
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:457:16 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:424:16 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [d66f4359dae37110800e78bee282c2c6eed06365b26eddb0b0c3f7598081c8ca] 管理后台
 类别：界面：属性或无障碍标签
 原文：返回首页
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:459:23 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:470:23 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:426:23 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:437:23 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [4f62f920d67e4daac5bfe83b46a19e8171de23ec1b1caa84ee6a9ec071ad3724] 管理后台
 类别：界面：属性或无障碍标签
 原文：锁
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:465:16 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:432:16 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [7dadfc03058574ec50bcc362eb1c0206d31e31cfc80c20bcbc3c560923509110] 管理后台
 类别：界面：属性或无障碍标签
 原文：验证器未配置
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:466:19 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:433:19 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [5357ed9333bdfe75fec851caa6cf07668d8db3b29649e7497aae2db895829455] 管理后台
 类别：界面：属性或无障碍标签
 原文：管理员账号尚未完成安全初始化
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:467:17 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:434:17 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [1cae9cfa409f16013dab03b4fb6873009e478806b75c434202bcd35d379b2857] 管理后台
 类别：界面：属性或无障碍标签
 原文：请在服务器终端运行管理员初始化命令。验证密钥和恢复码只会显示一次，不会通过网页传递。
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:468:16 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:435:16 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [df9ac46e7b5a28a6562e8c32bfb260e9023dd05b5efbcb2ee3d4f7a72971d6bb] 管理后台
 类别：界面：属性或无障碍标签
 原文：断
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:476:16 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:443:16 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [2d9d6090cc9fd98e04f294d640415aac2946c398638cd4eb8717d9f825d93aec] 管理后台
 类别：界面：属性或无障碍标签
 原文：暂时不可用
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:477:19 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:444:19 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
-[9d938388cd716e1a5d72c9e4eacd627ab005b2497e9604bed807b12f5f4d7df5] 管理后台
+[c579038c5ec3c3b8a348aefd08edd21a34e607dad6eb113e54e76662885ab035] 管理后台
 类别：界面：属性或无障碍标签
-原文：值守台没有完成连接
+原文：暂时无法连接
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:478:17 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:445:17 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
-[9c7d3f93eaffdb5a17df64f3415fd6b6697372eaecf0ddf701dc821872dfe81d] 管理后台
+[6d33ef026eed18ca3d565d5508c638e6f0127dcdd6f44365e76f07a7120f6a94] 管理后台
 类别：界面：属性或无障碍标签
-原文：没有执行任何管理操作。请检查网络或服务状态后重新核对。
+原文：请检查网络后重试。
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:479:16 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:446:16 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [710b1958f2ab42a69a3bb3cdae989261020e1507b6c53007cdeb4c19f9d1fe6a] 管理后台
 类别：界面：属性或无障碍标签
 原文：重新核对
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:480:23 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:447:23 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
-[ad5bc3c93df74deeb8cbfa3e128591f880d19da2002ca16e31767659ece2c4cb] 管理后台
-类别：界面：英文或数字
-原文：SECOND FACTOR
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:491:19 · 管理后台 · AdminConsole · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
-
-[9a8f7610d0b44fe5b6791da6c60710d1c35f54fd0d5f42150d969004f037fd90] 管理后台
+[c3ea79993952703da61d79000b2d5f3954babfe29463c77db9ff6d6ca99f1323] 管理后台
 类别：界面：JSX 文本片段
-原文：值守之前，
+原文：管理员验证
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:492:39 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:458:19 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
-[5083cbf5cdc2ff7d6daf9f2bd83817a219858ccd0c553183cb641de9bdf99b55] 管理后台
+[36fc206409742b7fc1eacacef60a03bd48e115865850b34d00376ed9d019ee17] 管理后台
 类别：界面：JSX 文本片段
-原文：再确认一次是你。
+原文：验证身份
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:492:50 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:459:39 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
-[9af9cd1fc2e1dd52ba6f71c77f237fba0ebfcc8ba4cdf48fd07acd2dc5cbc57e] 管理后台
+[dfe0c6beff889008a435ebbae0a765e57e5bc78b16ae73c1ca58ef85da6bf28e] 管理后台
 类别：界面：JSX 文本片段
-原文：输入验证器中的 6 位动态码，或使用一枚尚未使用的恢复码。验证通过后，本次值守权限只在当前登录设备短暂有效。
+原文：输入认证器的 6 位动态码，或一次性恢复码。
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:493:16 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[42e37033b168ca2333a628c78c005210d787e99c0804374880f2c8621c5b79b8] 管理后台
-类别：界面：JSX 文本片段
-原文：基础登录
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:495:24 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[d56a511f498f7e734563da6418ee613b2a808fb6eac047f8877e3e94f22293eb] 管理后台
-类别：界面：JSX 文本片段
-原文：已确认
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:495:37 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:496:38 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[83984bbfedf9bf6f09c3a83d52355d5f098b4b9d393b9422c2b5654032e8ac88] 管理后台
-类别：界面：JSX 文本片段
-原文：管理员角色
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:496:24 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[2df74ded0ffa190ab9c1935365aa0b245c8ea55e07b9d708e138ee41ca9a12b8] 管理后台
-类别：界面：JSX 文本片段
-原文：短时值守
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:497:24 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[007e2fc3b26d3551f4e75280e01db7493b5721d363e4db577826733eabbd58ec] 管理后台
-类别：界面：JSX 文本片段
-原文：等待验证
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:497:37 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:460:16 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [728c89f4ae0bd4d7e2b033d5cec23e0f7d435d98cd5b72f4a7a16020c59303fc] 管理后台
 类别：界面：JSX 文本片段
 原文：验
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:501:40 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:464:40 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [57b8a6c3df714a556e1c475be8466b11df25262e2325b6fb93534a473084869a] 管理后台
 类别：界面：JSX 文本片段
 原文：动态码或恢复码
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:502:45 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:465:45 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [8c4d49f2dab5510089d900c7afde346388d29ba544032d589b0ed1517d5c8450] 管理后台
 类别：界面：表达式分支
 原文：正在核对
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:516:39 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:479:39 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
-[a0e280685c2a3bdc79afabba7473980cd81391949bf77f00d946529a9f0a2095] 管理后台
+[f9a019ab332917f49a98f385f4aa478c050553af0613dfb2e1a0c5fbe4cdae29] 管理后台
 类别：界面：表达式分支
-原文：开始值守
+原文：进入后台
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:516:48 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:479:48 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
-[c78bb56cd62e488dff77250c3766a755086260b1b3b41c83a755dbcd9fd12bff] 管理后台
+[f9b00e11aedae0a5eab13dce3bea3b95de959addaefd65b23ec5d496d85f6fc4] 管理后台
 类别：界面：JSX 文本片段
-原文：验证码不会写入日志；恢复码使用一次后立即失效。
+原文：恢复码仅可使用一次。
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:519:20 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:482:20 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
-[afabfcd21a1b24adb65f18e882791a1e51bbd4653756541d2f8a0efbffb1b091] 管理后台
-类别：界面：英文或数字
-原文：ON DUTY
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:528:21 · 管理后台 · AdminConsole · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
-
-[33f3e339b754d7a2ad036a82c29ba48ff8131228b7d1d739b1d791b883f91537] 管理后台
+[bb6d995724f49a72e190cd17111e072c28d740557b2f87c1c954c219c400b5b0] 管理后台
 类别：界面：JSX 文本片段
-原文：今日值守簿
+原文：管理
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:529:19 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:490:51 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
-[549e3b7944ea0ba294158ae67aef9be7859414833d51275c3b73aff676bfd9d0] 管理后台
-类别：界面：JSX 文本片段
-原文：只处理有明确依据的异常。
+[865c52403ca150b1f922cdb202fc28a1bc32f49c467793cac377c10ee08625ee] 管理后台
+类别：界面：属性或无障碍标签
+原文：管理功能
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:530:18 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:491:29 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
-[452c29f0b3b3c80e6a9a42559bdb352282dfbde7c3ac778f0db89e07479628a1] 管理后台
-类别：界面：JSX 文本片段
-原文：短时权限有效至
+[0d0e1a86b3aa787709b00329fcd32b5baf036c87067c8d6c27a466675cb6b355] 管理后台
+类别：界面：表达式分支
+原文：用户
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:534:21 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:492:27 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
-[f73e3c307355cbe01a5b355bfa40b0dfb3b20ae8a3427523315399a2cf50fe99] 管理后台
-类别：界面：JSX 文本片段
-原文：结束值守
+[2b2a9c236b4bbaac02bc1da7ab51e4d9e7da01a3b94f89bc3b88707e6fac1a36] 管理后台
+类别：界面：表达式分支
+原文：内容审核
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:536:70 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:492:45 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:500:50 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+
+[4b6ded8a7f181397121cbfa64c684d5d183160a83cfd03b01dfa434337fc08e0] 社区与通知 / 管理后台
+类别：界面：JSX 文本片段 / 界面：属性或无障碍标签 / 界面：表达式分支
+原文：通知
+建议：
+处理：未决定
+app/admin/AdminConsole.tsx:492:66 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/community/CommunityShared.tsx:44:16 · 社区与通知 · CommunityHeader · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/community/CommunityShared.tsx:250:45 · 社区与通知 · NotificationsPanel · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+
+[b2db0d03bb7d08cad8258b4a75edb6dd199c43f739d626368cee507aa543f37e] 管理后台
+类别：界面：JSX 文本片段 / 界面：表达式分支
+原文：操作记录
+建议：
+处理：未决定
+app/admin/AdminConsole.tsx:492:83 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:500:82 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:621:50 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+
+[546c3a5fd80655e2d1a0eba72ddc23e83f63897f375638fcc772310eaf743c2e] 管理后台
+类别：界面：JSX 文本片段
+原文：返回网站 ↗
+建议：
+处理：未决定
+app/admin/AdminConsole.tsx:496:28 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+
+[fbf413d429bd168ae1c66617c5347ab252c84c618f7c5d0ce4e509806666d405] 管理后台
+类别：界面：表达式分支
+原文：用户管理
+建议：
+处理：未决定
+app/admin/AdminConsole.tsx:500:34 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+
+[e02926784fcedb91269acad23261faca824f875bdaee47d685dfc4b5b3154d4c] 管理后台
+类别：界面：表达式分支
+原文：通知公告
+建议：
+处理：未决定
+app/admin/AdminConsole.tsx:500:67 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+
+[af1edd580780a5776255f7f44cc40c5e6604d30d6055ba3f96b2657ebee75166] 管理后台
+类别：界面：JSX 文本片段
+原文：验证有效至
+建议：
+处理：未决定
+app/admin/AdminConsole.tsx:501:57 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+
+[667fa76ba34657d30f68a994587e6ed9af992b7d51ec83a8174b06e536af5be6] 管理后台
+类别：界面：JSX 文本片段
+原文：退出管理
+建议：
+处理：未决定
+app/admin/AdminConsole.tsx:501:270 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [e9d8545e358b6552fdf31f2c26cb68416e455dbc36b04af6b671c4a38b804c8d] 管理后台
 类别：界面：属性或无障碍标签
 原文：账号概况
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:540:57 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:505:61 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
-[9541f9abb3e8a44cdba36d060a092ab92a976b38a4526e940b2e7d9a53118ec7] 管理后台
+[f36e03a27ae04b3646e0d807eb96ed98f704904f17170446e22a0fdd3e7fd1fe] 管理后台
 类别：界面：JSX 文本片段
-原文：在册账号
+原文：注册用户
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:542:21 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[2e0f6bf6b3a3c55298ad46be6663c7c8c493e8b5ab33093d5a5a4ddf387c4d51] 管理后台
-类别：界面：JSX 文本片段
-原文：个账号当前可正常登录
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:544:41 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[a8c3698b5b8c485d8bd403c226a3dc594cd3196b8229ebc02338bab31a7bea44] 管理后台
-类别：界面：JSX 文本片段 / 界面：表达式分支
-原文：已停用
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:547:21 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:626:112 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:668:88 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-
-[c4ec0a8ef5d449ae315511430481ed1ca39971ae78ff42b8a07cceac837808bf] 管理后台
-类别：界面：JSX 文本片段
-原文：需要复核后才可恢复
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:549:18 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[72e5f9137420705afd160bea0e3e1025250ab3d0c2aa7cc0c031ff41cf9e5a52] 管理后台
-类别：界面：JSX 文本片段
-原文：邮箱验证
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:552:21 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[bbf3f11cb5b43e700273a78d12de55e4a7eab741ed2abf13787a4d2dc832b8ec] 管理后台
-类别：界面：纯符号
-原文：%
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:553:45 · 管理后台 · AdminConsole · 界面：纯符号 · 静态入口/相对引用可达（非运行时证明）
-
-[bf91aa907a16d36ef932c2f3840b589ffe37dbe78a26e5a44094344d30a3baa8] 管理后台
-类别：界面：JSX 文本片段
-原文：人已完成验证
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:554:44 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[e19796712f1cf0de97d54a6617d8e8fc4f451b195268cd9f149129c90bb959f0] 管理后台
-类别：界面：JSX 文本片段 / 界面：表达式分支
-原文：管理员
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:557:21 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:620:145 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:661:54 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-
-[e9f11a3a386da0c64a073edd947f98c352c1e5e89d925f268e7d394f2f63c374] 管理后台
-类别：界面：JSX 文本片段
-原文：高权限账号应保持最少
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:559:18 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[c915e80e682ba398ec8cdebb887bae31d96cc0ffac32053e228b0744902fd335] 管理后台
-类别：界面：英文或数字
-原文：30 DAYS
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:565:26 · 管理后台 · AdminConsole · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
-
-[e55903efb901688a268a2dcff21257d96481be3a296c2fa64262cf45e51d1adb] 管理后台
-类别：界面：JSX 文本片段
-原文：最近 30 天注册人数
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:565:80 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[0272205ddf94af5ef2c065dfeb54c5acddee4e24ffa9e8d276d337543ebab09d] 管理后台
-类别：界面：JSX 文本片段
-原文：按上海日期记录最近 30 天真实注册量；柱高只帮助比较，人数以文字为准。
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:566:18 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[3f7b8472437834ea54abc2423511e13dd97211ca3956cc13d7954c45514b92d8] 管理后台
-类别：界面：属性或无障碍标签
-原文：最近 30 天新增用户趋势
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:568:28 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-
-[50f5d65d57290f7542201743eb314ab3440188a934e8ee36a4b4b41933c840f0] 管理后台
-类别：界面：JSX 文本片段
-原文：人
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:573:61 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[d99893f67ab48510e2c3a0efce850c6a887e349b71aaae90eb224c7e124bcfb0] 管理后台
-类别：界面：JSX 文本片段
-原文：账号名册
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:604:28 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[89393b99f70d9e81c3fe7efd6ae5f5b55fcaf68f41949e78ea62cf077d96c8a1] 管理后台
-类别：界面：JSX 文本片段
-原文：查找与处置
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:604:66 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[9bb60eb1ee0786cb27ee096651fe4735d8d8deb21573a6d9b30c8ecb143b3136] 管理后台
-类别：界面：属性或无障碍标签
-原文：输入账号线索
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:613:35 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-
-[c47b54e84e79d77fcdfe73e00633b201671bffd0700ef8052faae4a19bfaae77] 管理后台
-类别：界面：JSX 文本片段
-原文：角色
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:618:54 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[2878fe586472028e59c5c4c20257acd9012e78947a01b3e89df3c065cf239e91] 管理后台
-类别：界面：JSX 文本片段
-原文：全部角色
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:620:40 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[13a58ec2074e014ae64e5c360193b1d2d32a594a78713f22b0984d510e281eb9] 管理后台
-类别：界面：JSX 文本片段 / 界面：表达式分支
-原文：学生
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:620:74 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:661:98 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-
-[408f226a328738e06e181a1cadc19559fb8ac66f44a1bda584eb1fdc90724f0c] 管理后台
-类别：界面：JSX 文本片段 / 界面：表达式分支
-原文：审核员
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:620:111 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:661:90 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:506:28 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:513:49 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [296de0e31f8c22d9343c1f07f7fcd2e88a425d769cb0c88d8b24cc865f2c0685] 管理后台
 类别：界面：JSX 文本片段 / 界面：表达式分支
 原文：正常
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:626:76 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:668:81 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:507:28 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:537:76 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:579:81 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:96:53 · 管理后台 · UserRegistration · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
-[ceb0795f5dc186bbabc41c6ea6485a0906e50d3df65eea4f36ea809c89ac7e24] 管理后台
-类别：界面：JSX 文本片段
-原文：注册起日
+[a8c3698b5b8c485d8bd403c226a3dc594cd3196b8229ebc02338bab31a7bea44] 管理后台
+类别：界面：JSX 文本片段 / 界面：表达式分支
+原文：已停用
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:630:54 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:508:28 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:537:112 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:579:88 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:96:60 · 管理后台 · UserRegistration · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
-[36ec747be3cc5e63a553f13f6f50572626bb85acdc8a07ca05147ef020bde62b] 管理后台
+[763166908683eff08769088f8079b5f54d2e3c137cdb6b2a836b1a2df61a5fa0] 管理后台
 类别：界面：JSX 文本片段
-原文：注册止日
+原文：邮箱已验证
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:634:52 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:509:28 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+
+[741becbff9052eb31e4be4434ef1aad70eccfa1c7bbcdcc7c53ef7f0d74477e4] 管理后台
+类别：界面：JSX 文本片段
+原文：个已加载账号
+建议：
+处理：未决定
+app/admin/AdminConsole.tsx:513:79 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+
+[5645a9f7777cc3367fb19f6a5d93dbc787ae89282301a5cbe826c8b00b959f0b] 管理后台
+类别：界面：属性或无障碍标签
+原文：搜索用户名或邮箱
+建议：
+处理：未决定
+app/admin/AdminConsole.tsx:522:35 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [a1afd9da1c3999a1d22c636d9c4ab1980fe88cd32720e081b9d7cb2b8d1c4a8c] 管理后台
 类别：界面：表达式分支
 原文：查找中
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:637:77 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:526:77 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
-[55ff77a4289ca2a2a57b586dbd7e35c01d702aad9a9b592d3f4697de382e5e7a] 管理后台
+[dbdccc3594d67854196b88d92c6e6b099a4a671bd460867d96fb148123d6d34b] 管理后台
 类别：界面：JSX 文本片段
-原文：当前名册已按检索条件筛选
+原文：更多筛选
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:642:19 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:527:68 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+
+[c47b54e84e79d77fcdfe73e00633b201671bffd0700ef8052faae4a19bfaae77] 管理后台
+类别：界面：JSX 文本片段
+原文：角色
+建议：
+处理：未决定
+app/admin/AdminConsole.tsx:529:54 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+
+[2878fe586472028e59c5c4c20257acd9012e78947a01b3e89df3c065cf239e91] 管理后台
+类别：界面：JSX 文本片段
+原文：全部角色
+建议：
+处理：未决定
+app/admin/AdminConsole.tsx:531:40 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+
+[13a58ec2074e014ae64e5c360193b1d2d32a594a78713f22b0984d510e281eb9] 管理后台
+类别：界面：JSX 文本片段 / 界面：表达式分支
+原文：学生
+建议：
+处理：未决定
+app/admin/AdminConsole.tsx:531:74 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:572:98 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+
+[408f226a328738e06e181a1cadc19559fb8ac66f44a1bda584eb1fdc90724f0c] 管理后台
+类别：界面：JSX 文本片段 / 界面：表达式分支
+原文：审核员
+建议：
+处理：未决定
+app/admin/AdminConsole.tsx:531:111 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:572:90 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:96:146 · 管理后台 · UserRegistration · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+
+[e19796712f1cf0de97d54a6617d8e8fc4f451b195268cd9f149129c90bb959f0] 管理后台
+类别：界面：JSX 文本片段 / 界面：表达式分支
+原文：管理员
+建议：
+处理：未决定
+app/admin/AdminConsole.tsx:531:145 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:572:54 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:96:102 · 管理后台 · UserRegistration · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+
+[ceb0795f5dc186bbabc41c6ea6485a0906e50d3df65eea4f36ea809c89ac7e24] 管理后台
+类别：界面：JSX 文本片段
+原文：注册起日
+建议：
+处理：未决定
+app/admin/AdminConsole.tsx:541:54 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+
+[36ec747be3cc5e63a553f13f6f50572626bb85acdc8a07ca05147ef020bde62b] 管理后台
+类别：界面：JSX 文本片段
+原文：注册止日
+建议：
+处理：未决定
+app/admin/AdminConsole.tsx:545:52 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+
+[be94ed39813550f385f8e5d305b90fd9eea1b7ee01024a0b49f90f7ae7e64861] 管理后台
+类别：界面：JSX 文本片段
+原文：已筛选
+建议：
+处理：未决定
+app/admin/AdminConsole.tsx:553:19 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [55f1033fab69984267136ea40166c5b9c59286af0d1de3ca8e98300816fd2337] 管理后台
 类别：界面：JSX 文本片段
 原文：清除全部
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:643:151 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:554:151 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
-[9fb67736b5ae47e5401b44bcb1b10a02ffaa67bf4413a929d8b40a027e3b4639] 管理后台
+[def2b44250331c759c3175ccf1d25c577d62cc47735ea866efbf5f8a0bcc9853] 管理后台
 类别：界面：JSX 文本片段
-原文：没有找到符合条件的账号。换一个用户名或邮箱再试。
+原文：没有匹配的用户。
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:648:47 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:559:47 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [c4ba6cb05c0c88ba3fa6e459b9a31909e420fd2974ecad8adee71e858744f4c5] 管理后台
 类别：界面：表达式分支
 原文：未设置昵称
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:654:66 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:565:66 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:95:98 · 管理后台 · UserRegistration · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [2f5f1d6fbfb061ed02def5f4a3a151303da034681e38179744c7d1b1401f1caf] 管理后台
 类别：界面：表达式分支
 原文：未设置
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:655:50 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:734:48 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:566:50 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [5232279787ceda0b075097a439c6e77cca3e20c5f8ccee6ecba54e85a5d4a622] 管理后台
 类别：界面：表达式分支
 原文：未绑定邮箱
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:655:80 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:566:80 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [555ee27e0ac34f513af30aa7fda8edea48fca2686adb450fe6e5d67270e89bb3] 管理后台
-类别：界面：表达式分支
+类别：源码：共享文案候选（待核对引用） / 界面：表达式分支
 原文：未验证
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:659:92 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:660:108 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:570:92 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:571:108 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:84:111 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:85:129 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
 [c4d678ef6e371279eb1fbd06fca1c7cf06b7b6e0565c1e9b9fccda5b48f12451] 管理后台
 类别：界面：JSX 文本片段
 原文：学号
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:660:68 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:571:68 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [c4fb62202bad55cf8faf95b549a17217d80365a1b6ff14046afed5818028624a] 管理后台
 类别：界面：JSX 文本片段
 原文：注册
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:664:29 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:575:29 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [c85b3a16f0c811af72b5635f2cc0655555283824fe7137c34ff8efc840f20742] 管理后台
-类别：界面：JSX 文本片段
+类别：源码：共享文案候选（待核对引用） / 界面：JSX 文本片段
 原文：最近登录
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:665:29 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:576:29 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:86:72 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
-[5273b6c8edf9febabc20f4048ece5e98646e36fc01e394f6f92030228a83fba8] 管理后台
+[b871bfd1fec43c8cf505d43f32fd6d6e78d1cb4f9a61ea990c72a07b09f2aaef] 管理后台
 类别：界面：JSX 文本片段
-原文：查看公开资料
+原文：查看资料
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:670:25 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:580:78 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [4e6fd0e28c55860b8905d8edaf15be0440060a4361975031f797469ca43142b5] 管理后台
 类别：界面：表达式分支
 原文：停用
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:673:53 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:582:53 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
-[c3e58c786d1f16ab9753510cd26df7b647486e3be92b44d9518c681748d90674] 管理后台
+[f020e4630a54d32202cdf29b31ef512f0630bb5e3f9da09390c2213d1e79178b] 社区与通知 / 管理后台
 类别：界面：表达式分支
-原文：正在续读
+原文：正在加载
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:679:163 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/admin/AdminConsole.tsx:757:233 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:588:163 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/community/CommunityHub.tsx:275:180 · 社区与通知 · CommunityHub · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/community/CommunityProfileView.tsx:160:168 · 社区与通知 · CommunityProfileView · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/community/CommunityShared.tsx:271:258 · 社区与通知 · NotificationsPanel · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
-[ef6c9dbd0b349896e9c32ac8c293e6f473396b6a46f184bef9708f7d28207689] 管理后台
-类别：界面：表达式分支
-原文：继续读取名册
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:679:172 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-
-[7dd251bbda9c41bb364597d8a240e1824f62460234907abc4473e28ec3b95b69] 管理后台
-类别：界面：英文或数字
-原文：AUDIT
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:683:29 · 管理后台 · AdminConsole · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
-
-[0a8c240c812a6e74c1678775082ea484a7b64ccf71278738d78ab16f67185928] 管理后台
+[b600a7638817a8765984233491a935a0aa3f2985f9f0fbe7976053fc20764104] 管理后台
 类别：界面：JSX 文本片段
-原文：管理员审计记录
+原文：注册趋势 · 最近 30 天
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:683:68 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:591:68 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+
+[c5f1c28c0d5f061dec6631d3442e2da51bc2547491746a5d31f93d4db9417cd2] 管理后台
+类别：界面：JSX 文本片段
+原文：最近 30 天
+建议：
+处理：未决定
+app/admin/AdminConsole.tsx:594:60 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+
+[3f7b8472437834ea54abc2423511e13dd97211ca3956cc13d7954c45514b92d8] 管理后台
+类别：界面：属性或无障碍标签
+原文：最近 30 天新增用户趋势
+建议：
+处理：未决定
+app/admin/AdminConsole.tsx:597:28 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+
+[50f5d65d57290f7542201743eb314ab3440188a934e8ee36a4b4b41933c840f0] 管理后台
+类别：界面：JSX 文本片段
+原文：人
+建议：
+处理：未决定
+app/admin/AdminConsole.tsx:602:61 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+
+[e42a2c66143c9405aaf139c0ed0979262d7a91c68ac428cfad0a4f432e1083ad] 管理后台
+类别：界面：属性或无障碍标签
+原文：审核分类
+建议：
+处理：未决定
+app/admin/AdminConsole.tsx:611:60 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+
+[7d1c563ef4bd97d7ff6b1d3b3c810674839b39af88beb1c3b80ee4d7aaa83942] 管理后台
+类别：界面：JSX 文本片段 / 界面：表达式分支
+原文：举报处理
+建议：
+处理：未决定
+app/admin/AdminConsole.tsx:612:31 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/ModerationDesk.tsx:224:40 · 管理后台 · ModerationDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+
+[56225203f32d24e0dd2518f638b274cf8569f579550628ed9d5b415ca451286e] 教师 / 管理后台
+类别：界面：JSX 文本片段 / 界面：属性或无障碍标签 / 界面：表达式分支
+原文：历史评价
+建议：
+处理：未决定
+app/admin/AdminConsole.tsx:612:74 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/TeacherReviewDesk.tsx:186:46 · 管理后台 · TeacherReviewDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/teachers/[teacherId]/TeacherDetail.tsx:357:67 · 教师 · TeacherDetail · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/teachers/[teacherId]/TeacherDetail.tsx:363:138 · 教师 · TeacherDetail · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+
+[ac9dd4852a6bdcd81dbf75ae978bf0dad786efec1b41c9eb927639d46e58437f] 管理后台
+类别：界面：JSX 文本片段
+原文：最近 50 条
+建议：
+处理：未决定
+app/admin/AdminConsole.tsx:621:65 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [b9bafaf51598adf9abb371f49888a0da66a7b1fd537fb9acf04a5dc69823f2e2] 管理后台
 类别：界面：JSX 文本片段
 原文：还没有管理操作记录。
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:686:48 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:624:48 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [bb2efd9fb1a8eb6bbe2ffb9fa77a19a742f2a325c99b68cef9e1337bdc2d9b7c] 管理后台
 类别：界面：表达式分支
 原文：对象 ${…1}…
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:691:42 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:629:42 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [62fc821643ce63c3b0c4a4682a8e0c692d5141e2b0395950669881eb9f228c9a] 管理后台
 类别：界面：表达式分支
 原文：系统级操作
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:691:80 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:629:80 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [1b99cd4e1852618967f57a4e00cde876301c4826e41a6874ed22cb3be206ddbb] 管理后台
 类别：界面：表达式分支
 原文：停用账号
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:711:49 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:651:49 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [81c940d08dc40c5a83bdb4f4630a6d791fa30c7c90660f5ed93b7162b14d1fc1] 管理后台
 类别：界面：表达式分支
 原文：恢复账号
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:711:58 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:651:58 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [f4373acdc085c65fe6e3014ee1a595071da4d23e4b29a1a59a668a9ee68e5edf] 管理后台
 类别：界面：表达式分支
 原文：这名用户
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:712:83 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:652:83 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [445f4209988aa0408697d50ee1cedc1f307c0b29c0e31392c52b40984107b5e0] 管理后台
 类别：界面：表达式分支
 原文：停用后，这名用户的所有登录与管理员短时权限都会立即撤销。
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:713:46 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:653:46 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [0b617a914bdcd7cd4f098875da03c98f8360a5cef5fa98ff93618f2f2b9f3cf3] 管理后台
 类别：界面：表达式分支
 原文：恢复后可以重新登录，但过去的会话不会重新生效。
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:713:79 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:653:79 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [8cb85bf825eef7453eced0e7b557379bec7a74c13ee39f72d97df5a34f0d7832] 管理后台
 类别：界面：属性或无障碍标签
 原文：处置原因（至少 8 个字）
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:714:30 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:654:30 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 app/admin/ModerationDesk.tsx:268:34 · 管理后台 · ModerationDesk · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
 [0be6eb012ebbf6d01c54035bdfacb59954d927af4f48640fb5e039090c75d094] 管理后台
@@ -8269,122 +8252,21 @@ app/admin/ModerationDesk.tsx:268:34 · 管理后台 · ModerationDesk · 界面�
 原文：正在写入记录
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:719:84 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:659:84 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [b6c82c2d564b1ea73938a1f240a2bd829c87e22bb29748cdd628c9b0d3a0c5d7] 管理后台
 类别：界面：表达式分支
 原文：确认停用
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:719:124 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:659:124 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [51e44d56ec9021f8a4f62670721514d59ccaf9e1f5aa9708ddbe06b1b945cc82] 管理后台
 类别：界面：表达式分支
 原文：确认恢复
 建议：
 处理：未决定
-app/admin/AdminConsole.tsx:719:133 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-
-[f00dc23c87febf04fefccec34ddd36840f475217eee889d6863b0a7db4937642] 管理后台
-类别：界面：英文或数字
-原文：PUBLIC RECORD
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:729:26 · 管理后台 · AdminConsole · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
-
-[3026d618c5a731010aad4a3e56153d0489f8f58bd71d6ec7caa706d77ed6d30a] 管理后台
-类别：界面：表达式分支
-原文：公开资料
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:729:169 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-
-[7e2bf94909639355f3d643f6417fa906257e067a3b21274b6eb0e8ed18d21ae5] 管理后台
-类别：界面：属性或无障碍标签
-原文：关闭公开资料
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:730:77 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-
-[20a8f1c092383bdf653f77e7127015e2d52802d1c7d8bae4e071d3f4653c7321] 管理后台
-类别：界面：表达式分支
-原文：账号正常
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:734:101 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-
-[4a3a19ac1dc8a146ace3dfaa60e2c185cdf681a82433e3ec10f5f9d1318e5e80] 管理后台
-类别：界面：表达式分支
-原文：账号已停用
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:734:110 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-
-[5641e91567c4ef5382492c9abb73e3d820f70e58c24c38e4f39c3281ee87207c] 管理后台
-类别：界面：JSX 文本片段
-原文：· 加入于
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:734:119 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[9a0e7d724f5e4044c16266d8e24861fbc364308aea7247c375153d516cb5fb9a] 社区与通知 / 管理后台
-类别：界面：JSX 文本片段 / 界面：表达式分支
-原文：公开主题
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:736:28 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/community/CommunityProfileView.tsx:117:24 · 社区与通知 · CommunityProfileView · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/community/CommunityTopicView.tsx:307:68 · 社区与通知 · CommunityTopicView · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-
-[f330d6372b4875668db24b8641152144eb099d5f220b276cb2521d2b43c6e3f7] 社区与通知 / 管理后台
-类别：界面：JSX 文本片段
-原文：公开回复
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:737:28 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/community/CommunityProfileView.tsx:118:24 · 社区与通知 · CommunityProfileView · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[accfb132816dd6b184087174bfc191b629ebe97182d0d694d7c8844cf666b841] 管理后台
-类别：界面：属性或无障碍标签
-原文：公开资料类型
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:739:33 · 管理后台 · AdminConsole · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-
-[80aab0bd15311c18e63f63a6b594c2a0ba6ac6b3f367c2e0a018c507b2f4ff50] 管理后台
-类别：界面：JSX 文本片段
-原文：正在读取公开资料…
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:745:88 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[14d34de4542e916634573f66d582374a7325df08feed1809b50a881277a4a178] 管理后台
-类别：界面：JSX 文本片段
-原文：公开资料没有读取成功。可以关闭后重试。
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:746:57 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[29e5ccdd3b62fb3e051cc1a8e1b5817a1fe4e0d983a7fc340773002850bc7d0c] 管理后台
-类别：界面：JSX 文本片段
-原文：这名用户暂无公开
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:747:72 · 管理后台 · AdminConsole · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[838cf3d1dd87c8f4497813ff003949fd0849bc6fd9f7499acd750058df3a96fa] 管理后台
-类别：界面：表达式分支
-原文：回复于《${…1}》
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:752:88 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-
-[21db45de80a47197d744cfeab58d2cff2ccdb362bc03399639cf2f6747e58dba] 管理后台
-类别：界面：表达式分支
-原文：继续读取公开记录
-建议：
-处理：未决定
-app/admin/AdminConsole.tsx:757:242 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AdminConsole.tsx:659:133 · 管理后台 · AdminConsole · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [77c6ef68b7173a4162158919214372e80f4f8afbc2d4024a97b6b572da5b33a4] 管理后台
 类别：源码：共享文案候选（待核对引用）
@@ -8442,13 +8324,6 @@ app/admin/AnnouncementDesk.tsx:168:49 · 管理后台 · publish ← Announcemen
 处理：未决定
 app/admin/AnnouncementDesk.tsx:168:56 · 管理后台 · publish ← AnnouncementDesk · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
-[8f726e57e34e905aa1e412fd2da7c298cb777098f182c545f0fea6af858a2f07] 管理后台
-类别：界面：英文或数字
-原文：BROADCAST
-建议：
-处理：未决定
-app/admin/AnnouncementDesk.tsx:187:17 · 管理后台 · AnnouncementDesk · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
-
 [8526b404861e9ef8e6bef38a651462871d2cac05f184e889d7ec313bd52f0930] 管理后台
 类别：界面：JSX 文本片段
 原文：系统公告
@@ -8456,19 +8331,12 @@ app/admin/AnnouncementDesk.tsx:187:17 · 管理后台 · AnnouncementDesk · 界
 处理：未决定
 app/admin/AnnouncementDesk.tsx:188:45 · 管理后台 · AnnouncementDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
-[58c49ea535976d66fa839125e592c0d7ae144016bed8f7018ff6afb809e923ce] 管理后台
+[249f7e292a7037ec71fa68cbf18f832befddec6d3958bb0773ddc508e6e36052] 管理后台
 类别：界面：JSX 文本片段
-原文：面向全部活跃账号发送站内通知。每次发布都会永久保留公告主记录与值守审计。
+原文：发送给全部活跃账号。
 建议：
 处理：未决定
 app/admin/AnnouncementDesk.tsx:189:14 · 管理后台 · AnnouncementDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[3d63a19c3c60eb3ed465a46e1dae26ba0fb949bd69b5a15c8baf7276cd90421d] 管理后台
-类别：界面：JSX 文本片段
-原文：全站 · 活跃账号
-建议：
-处理：未决定
-app/admin/AnnouncementDesk.tsx:191:12 · 管理后台 · AnnouncementDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [53180192a5f00af6801a62b7898a8bf2f50c1dc7c78cd3508334f58be3f8d40e] 管理后台
 类别：界面：属性或无障碍标签
@@ -8498,16 +8366,16 @@ app/admin/AnnouncementDesk.tsx:206:28 · 管理后台 · AnnouncementDesk · 界
 处理：未决定
 app/admin/AnnouncementDesk.tsx:212:27 · 管理后台 · AnnouncementDesk · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
-[02e4a24609c172b0f4acfb1a746e3653a35e450b678f207c4e067c8427f55578] 管理后台
+[bb985c66b68946680af42828a22bb6418564995a6971755ea91f56a16bcdaf58] 管理后台
 类别：界面：属性或无障碍标签
-原文：点击后的站内路径
+原文：跳转链接（站内）
 建议：
 处理：未决定
 app/admin/AnnouncementDesk.tsx:215:28 · 管理后台 · AnnouncementDesk · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
-[631454ef6df1508bd4edc19b3712f3a48d167cf370198124225530f1d28c1ccc] 管理后台
+[ebd6164c40f40b5c8f3cef654a9114904dc3a3f0debb1c0b2ae8b859877946d3] 管理后台
 类别：界面：JSX 文本片段
-原文：预览投递
+原文：预览公告
 建议：
 处理：未决定
 app/admin/AnnouncementDesk.tsx:225:13 · 管理后台 · AnnouncementDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
@@ -8519,9 +8387,9 @@ app/admin/AnnouncementDesk.tsx:225:13 · 管理后台 · AnnouncementDesk · 界
 处理：未决定
 app/admin/AnnouncementDesk.tsx:229:66 · 管理后台 · AnnouncementDesk · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
 
-[40ae1784c16d85d7deb7d19c88455af547f4ef0d3dc9acc7936431c2e6be9498] 管理后台
+[d334724d6b2fa32e48d1ab0c53a20632978106c4ef33e25fd95e71f9d0addd95] 管理后台
 类别：界面：JSX 文本片段
-原文：最近投递
+原文：已发布
 建议：
 处理：未决定
 app/admin/AnnouncementDesk.tsx:230:15 · 管理后台 · AnnouncementDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
@@ -8582,19 +8450,22 @@ app/admin/AnnouncementDesk.tsx:264:24 · 管理后台 · AnnouncementDesk · 界
 处理：未决定
 app/admin/AnnouncementDesk.tsx:268:82 · 管理后台 · AnnouncementDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
-[39e9672ade70963f7fa9c9cd441beb576fe03bfe1083f385ecbd39e902581af6] 管理后台
+[34a13c0e5aa22a79d77d9a299bc894f6841dc0908517e82f3d28894546d07cc9] 教师 / 社区与通知 / 管理后台
 类别：界面：表达式分支
-原文：正在原子投递
+原文：正在发布
 建议：
 处理：未决定
 app/admin/AnnouncementDesk.tsx:269:59 · 管理后台 · AnnouncementDesk · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/community/CommunityHub.tsx:240:120 · 社区与通知 · CommunityHub · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/community/CommunityTopicView.tsx:340:135 · 社区与通知 · CommunityTopicView · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/teachers/TeacherReviewDiscussion.tsx:199:96 · 教师 · TeacherReviewDiscussion · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [c8f73143f3b8a93448d36425ae80147926e2c97af42db80830d0e3f65048201b] 管理后台
 类别：界面：表达式分支
 原文：确认发布
 建议：
 处理：未决定
-app/admin/AnnouncementDesk.tsx:269:70 · 管理后台 · AnnouncementDesk · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+app/admin/AnnouncementDesk.tsx:269:68 · 管理后台 · AnnouncementDesk · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [0e3016282d7de681bca3c89f6a92eacfcbdc7acaa2e01cc0b5a088fe86e820b2] 社区与通知 / 管理后台
 类别：源码：共享文案候选（待核对引用）
@@ -8772,41 +8643,12 @@ app/admin/ModerationDesk.tsx:182:19 · 管理后台 · applyAction ← Moderatio
 处理：未决定
 app/admin/ModerationDesk.tsx:205:11 · 管理后台 · applyAction ← ModerationDesk · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
-[ff0c5df5e3aed35fc90ed0f2cedf5edc980ba7e0c6ddc1ce21d0b6bfa6fe212a] 管理后台
+[ef9893e3b245fb9bb631b8dfed0069ef2f9ecf2e786f27e6223e39bb744d3c5e] 管理后台
 类别：源码：共享文案候选（待核对引用）
-原文：动作已写入审计，案件仍在审核中，可继续恢复、删除或解封。
+原文：操作已保存，可继续审核。
 建议：
 处理：未决定
 app/admin/ModerationDesk.tsx:207:13 · 管理后台 · applyAction ← ModerationDesk · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-
-[9792a6a74c31cee5daf7f0f16e7a74ccecc6fa08deef9811dcfeba44e5d8e128] 管理后台
-类别：源码：共享文案候选（待核对引用）
-原文：治理动作已写入审计，案件已经结案。
-建议：
-处理：未决定
-app/admin/ModerationDesk.tsx:208:13 · 管理后台 · applyAction ← ModerationDesk · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-
-[791b4cc3f33fdbe5f8e707a892825fb05116ab4ead1460cd2f2d08fa61c1ef6d] 管理后台
-类别：界面：JSX 文本片段 / 界面：表达式分支
-原文：社区举报
-建议：
-处理：未决定
-app/admin/ModerationDesk.tsx:224:20 · 管理后台 · ModerationDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/admin/ModerationDesk.tsx:253:147 · 管理后台 · ModerationDesk · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-
-[d928659a478e4b519399df255a81d83a219f996ac71a44fcf14b503d998f2d0c] 管理后台
-类别：界面：JSX 文本片段
-原文：举报案卷
-建议：
-处理：未决定
-app/admin/ModerationDesk.tsx:224:57 · 管理后台 · ModerationDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[972913c0b078bf49585ced43054ce64411c71557d3e17b76f912a76b6bbff9fb] 管理后台
-类别：界面：JSX 文本片段
-原文：先核对提交时保存的证据，再入案和处置。每一步都会写入两套不可变审计。
-建议：
-处理：未决定
-app/admin/ModerationDesk.tsx:224:69 · 管理后台 · ModerationDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [f5ed5a7fcc052105dfb3a0a8caaf1c4fee37f03275ff57f49ea2acf693308269] 管理后台
 类别：界面：JSX 文本片段 / 界面：表达式分支
@@ -8831,16 +8673,16 @@ app/admin/ModerationDesk.tsx:240:87 · 管理后台 · ModerationDesk · 界面�
 处理：未决定
 app/admin/ModerationDesk.tsx:232:84 · 管理后台 · ModerationDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
-[e30476dfde4a8f454c9e354c21effd87793a280ef7d21904dcd1c44f5b469922] 管理后台
+[9fd6dd22fac7f0aa03dab6436e7433108975703b8a6e521839648c20e62b4094] 管理后台
 类别：界面：JSX 文本片段
-原文：举报队列没有加载成功。账号值守区不受影响。
+原文：举报加载失败。
 建议：
 处理：未决定
 app/admin/ModerationDesk.tsx:233:81 · 管理后台 · ModerationDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
-[d17710cd90d489c15e55ffc5dcbf2807a2fd8534fb01026c32af9095eda5ee7b] 管理后台
+[28750a499425d64cd6a4fa4539b90d414fff9ea0307ff45a5de3ea8bd5eaa122] 管理后台
 类别：界面：JSX 文本片段
-原文：当前队列为空。新的举报会按提交时间进入这里。
+原文：暂无待处理举报。
 建议：
 处理：未决定
 app/admin/ModerationDesk.tsx:234:92 · 管理后台 · ModerationDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
@@ -8886,6 +8728,13 @@ app/admin/ModerationDesk.tsx:253:51 · 管理后台 · ModerationDesk · 界面�
 建议：
 处理：未决定
 app/admin/ModerationDesk.tsx:253:61 · 管理后台 · ModerationDesk · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+
+[791b4cc3f33fdbe5f8e707a892825fb05116ab4ead1460cd2f2d08fa61c1ef6d] 管理后台
+类别：界面：表达式分支
+原文：社区举报
+建议：
+处理：未决定
+app/admin/ModerationDesk.tsx:253:147 · 管理后台 · ModerationDesk · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [ced79578207dddee7c2cbf005cd9cb8a99652102677a1180c44488b3de9af146] 管理后台
 类别：界面：属性或无障碍标签
@@ -9084,39 +8933,23 @@ app/admin/TeacherReviewDesk.tsx:163:39 · 管理后台 · moderate ← TeacherRe
 处理：未决定
 app/admin/TeacherReviewDesk.tsx:163:49 · 管理后台 · moderate ← TeacherReviewDesk · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
-[7104c1fe16639379fa321111a934b8b5e8dcfbcce26ad67257c8ae3e617354f1] 管理后台
+[f51d3ebd6b60593cb6742f96411703343740cb76a4845cd0495b20838551324c] 管理后台
 类别：源码：共享文案候选（待核对引用）
-原文：历史评价已作为“历史整理内容”公开，并写入审计。
+原文：已公开为历史评价。
 建议：
 处理：未决定
 app/admin/TeacherReviewDesk.tsx:165:13 · 管理后台 · moderate ← TeacherReviewDesk · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
-[354c98512a8dc3712d838d5cb7f7c62a0ca6b79e174367500462c2ca17028c27] 管理后台
+[c1a6de5dfbb09996c215f481273a8505c6b4c013fd2702ca1a7e1287649a2f78] 管理后台
 类别：源码：共享文案候选（待核对引用）
-原文：候选已拒绝且不会公开，决定已写入审计。
+原文：已拒绝公开。
 建议：
 处理：未决定
 app/admin/TeacherReviewDesk.tsx:166:13 · 管理后台 · moderate ← TeacherReviewDesk · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
 
-[56225203f32d24e0dd2518f638b274cf8569f579550628ed9d5b415ca451286e] 教师 / 管理后台
-类别：界面：JSX 文本片段 / 界面：属性或无障碍标签
-原文：历史评价
-建议：
-处理：未决定
-app/admin/TeacherReviewDesk.tsx:185:17 · 管理后台 · TeacherReviewDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/teachers/[teacherId]/TeacherDetail.tsx:357:67 · 教师 · TeacherDetail · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-app/teachers/[teacherId]/TeacherDetail.tsx:363:138 · 教师 · TeacherDetail · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-
-[a56f7a1d24be4bc32748b615a9ce412c6e4fb432d7050e7d2ee33aec7085d66c] 管理后台
+[9b4bd055ad044da0b2430a8c3586ea9b00f55a8b836fa4b3e122d8ac4d9c23d2] 管理后台
 类别：界面：JSX 文本片段
-原文：教师评价复核
-建议：
-处理：未决定
-app/admin/TeacherReviewDesk.tsx:186:46 · 管理后台 · TeacherReviewDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[6fd3653dced6efbcb31488f6b209812b385f6f9da0f8eff0b78f797f2a85511f] 管理后台
-类别：界面：JSX 文本片段
-原文：候选正文已经过自动脱敏，但只有人工核对后才能公开；决定不可覆盖，并会进入管理员审计。
+原文：核对后公开，审核决定不可撤回。
 建议：
 处理：未决定
 app/admin/TeacherReviewDesk.tsx:187:14 · 管理后台 · TeacherReviewDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
@@ -9135,12 +8968,13 @@ app/admin/TeacherReviewDesk.tsx:189:62 · 管理后台 · TeacherReviewDesk · �
 处理：未决定
 app/admin/TeacherReviewDesk.tsx:197:84 · 管理后台 · TeacherReviewDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
-[6ae308166b641383dab89f5153ba820fb8b8edb264cae97e22446d67dc1053bd] 管理后台
+[8b8550faa4b68b040e28eb8c3fd2d4bca7ac67001377bf6298990772fb202c8c] 教师 / 管理后台
 类别：界面：JSX 文本片段
-原文：教师评价候选没有加载成功。其他值守功能不受影响。
+原文：评价加载失败。
 建议：
 处理：未决定
 app/admin/TeacherReviewDesk.tsx:198:81 · 管理后台 · TeacherReviewDesk · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/teachers/[teacherId]/TeacherDetail.tsx:353:91 · 教师 · TeacherDetail · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [966e44baa3965684ba8411427d1440ecd6db3336ad7523346b25ffd2c0364884] 管理后台
 类别：界面：JSX 文本片段
@@ -9275,6 +9109,220 @@ app/admin/TeacherReviewDesk.tsx:249:163 · 管理后台 · TeacherReviewDesk · 
 建议：
 处理：未决定
 app/admin/TeacherReviewDesk.tsx:249:172 · 管理后台 · TeacherReviewDesk · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+
+[6e85b2747e0df73d561988f08b21648604424c284b81df0926f425dc07fda8dc] 管理后台
+类别：提示与错误候选
+原文：账号已不存在。
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:46:69 · 管理后台 · UserRegistration · 提示与错误候选 · 静态入口/相对引用可达（非运行时证明）
+
+[592b3633377547dda0df4607b25961800e03ac1ebd104d0f3bea1a5293855dbb] 管理后台
+类别：提示与错误候选
+原文：资料暂时无法读取，请关闭后重试。
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:46:81 · 管理后台 · UserRegistration · 提示与错误候选 · 静态入口/相对引用可达（非运行时证明）
+
+[709dfeafe67a60a8bb94199eb64c20bb7d14044ea50f124740248d3d81e2d5b4] 管理后台
+类别：提示与错误候选
+原文：资料暂时无法读取。
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:50:95 · 管理后台 · UserRegistration · 提示与错误候选 · 静态入口/相对引用可达（非运行时证明）
+
+[37dc412997f56494318c452e70064ff4f001f619f4fb8a8682c962c792de8e01] 管理后台
+类别：提示与错误候选
+原文：内容加载失败，请重试。
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:67:43 · 管理后台 · UserRegistration · 提示与错误候选 · 静态入口/相对引用可达（非运行时证明）
+
+[46ca86da52b3db5c41d1b8996959bc8a9e7100d5af3a4d69d74049dfe3771979] 管理后台
+类别：源码：共享文案候选（待核对引用）
+原文：暂无记录
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:82:104 · 管理后台 · date ← UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+
+[323a881ebd474ae0373e9226963df8d27e73fce94a3e728aab51a4a82c5efe0b] 管理后台
+类别：源码：共享文案候选（待核对引用） / 源码：技术键或匹配词
+原文：联系方式
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:84:14 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:103:24 · 管理后台 · UserRegistration · 源码：技术键或匹配词 · 静态入口/相对引用可达（非运行时证明）
+
+[00801dbda74f3c28047cb3ecf8c582bc68eec9855f7f7a442590b7e7927eb208] 管理后台
+类别：源码：共享文案候选（待核对引用）
+原文：邮箱状态
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:84:66 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+
+[e46f0efefd9665db41ec875c14c48981eb1873ff0c81c701f388cf892d5b0948] 管理后台
+类别：源码：共享文案候选（待核对引用） / 源码：技术键或匹配词
+原文：校园资料
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:85:14 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:109:24 · 管理后台 · UserRegistration · 源码：技术键或匹配词 · 静态入口/相对引用可达（非运行时证明）
+
+[dd6e37acf45a23584e29ccf0df2794843f7da9f40dcc5f754bfaebc488e892e4] 管理后台
+类别：源码：共享文案候选（待核对引用）
+原文：学号状态
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:85:76 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+
+[df5bc54580e6981a9a8a21f5eaa1418f7e181dec86713b09c1a2b16662d75343] 管理后台
+类别：源码：共享文案候选（待核对引用）
+原文：入学年份
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:85:138 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+
+[d46e95e81219840cf8b9dc5797e3b96789f85c00824e71ecf5872aab0050dd4e] 管理后台
+类别：源码：共享文案候选（待核对引用）
+原文：班级
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:85:280 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+
+[80beaef5351fb9833eb00a0d3f89666951f48f6456dab9e70943bedb2ea2a1b8] 管理后台
+类别：源码：共享文案候选（待核对引用）
+原文：账号记录
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:86:14 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+
+[4adc34616f3c900b6e51f7ed64d498474e83d26673d09471ff82a7ba8aea41d6] 管理后台
+类别：源码：共享文案候选（待核对引用）
+原文：注册时间
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:86:32 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+
+[e17ab77c6e45577fead183ed5427d543f8a9e0ec993fed31103d545d53bb7a48] 管理后台
+类别：源码：共享文案候选（待核对引用）
+原文：资料同步
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:86:114 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+
+[ac5ec1acb8e324fe05ee44dac11b515db0699152c64a877c949681b931375264] 管理后台
+类别：源码：共享文案候选（待核对引用）
+原文：注册方式
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:86:163 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+
+[7ab72a4c541f63faa00bec8e1dba698f6d782c7018a800c8712eff5cb49ba1b5] 管理后台
+类别：源码：共享文案候选（待核对引用）
+原文：邮箱注册
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:86:217 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+
+[e37441c86c5020cf3e980b2bd3eec9f09aa6cbb0ce5aaabb7e2a0724d7ea70e7] 管理后台
+类别：源码：共享文案候选（待核对引用）
+原文：第三方登录
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:86:267 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+
+[d2ff54dc6e3f4ef3d94c2096af83678056e931ff1f9523b0ff2d4f857e8826f2] 管理后台
+类别：界面：JSX 文本片段
+原文：用户资料
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:91:21 · 管理后台 · UserRegistration · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/admin/UserRegistration.tsx:121:73 · 管理后台 · UserRegistration · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+
+[86b6d0d63062ba81715ba82376104aa54f47edb20d8b5e8ddf399e04a57a7468] 教师 / 管理后台
+类别：界面：JSX 文本片段 / 界面：表达式分支
+原文：正在读取…
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:92:79 · 管理后台 · UserRegistration · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/teachers/[teacherId]/TeacherDetail.tsx:371:49 · 教师 · TeacherDetail · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+
+[f6a2faaac200e75d97f710db3252def5c3000f41a03c86008520e0ba8ba06643] 管理后台
+类别：界面：表达式分支
+原文：普通用户
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:96:154 · 管理后台 · UserRegistration · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+
+[a0d55006a091f41d00f3c865c811d132c545bbde7e788c3c17e8c9e19205f865] 管理后台
+类别：界面：属性或无障碍标签
+原文：用户资料分类
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:98:49 · 管理后台 · UserRegistration · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
+
+[a165c2facf2efcef7d33277a937df51ffcd4e25dd1921ec8b20c5c6bc99eca88] 管理后台
+类别：界面：表达式分支
+原文：邮箱已复制
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:105:94 · 管理后台 · UserRegistration · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+
+[2f86cf751d40a4d61e242a1badfcd659e2b41e3ab9b7e6610814a1ed857db869] 管理后台
+类别：源码：共享文案候选（待核对引用）
+原文：请长按邮箱复制。
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:106:38 · 管理后台 · UserRegistration · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
+
+[52ba56654e2fa1a05830eed4381fc1eca83fe706ad891bd86e755e43b261a70a] 管理后台
+类别：界面：JSX 文本片段
+原文：复制邮箱
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:107:18 · 管理后台 · UserRegistration · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+
+[fe0b02770f5225c4bbb0368fa1b839eef15165ddadb36911de7f7a150c16ed7b] 管理后台
+类别：界面：JSX 文本片段
+原文：用邮件应用联系
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:107:92 · 管理后台 · UserRegistration · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+
+[626a81698c6bb9d8d537334073f92209d3c19a28499d18136bb51656d2a72f44] 管理后台
+类别：界面：JSX 文本片段
+原文：尚未同步校园资料。
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:109:86 · 管理后台 · UserRegistration · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+
+[d898d18cf8dad451c5300d77af50bfffe90b8956a78b00644e9c508fe14a120f] 管理后台
+类别：界面：表达式分支
+原文：资料访问已记录
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:111:66 · 管理后台 · UserRegistration · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+
+[fa3e29fd09d24486fad449dbc6b864b53b900d265ec2cb6d0d463899e8c18fc5] 管理后台
+类别：界面：JSX 文本片段
+原文：条公开
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:113:132 · 管理后台 · UserRegistration · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+
+[c132d7dcd6c50f0c867db7acb1846b18a469774e3ef994b1a4867ca47ea0eb17] 管理后台
+类别：界面：JSX 文本片段
+原文：暂无公开
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:116:85 · 管理后台 · UserRegistration · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+
+[fca797acaa0a42331af7527e348893fd82d798f019a7b682879759a327c0d34e] 管理后台
+类别：界面：表达式分支
+原文：回复于 ${…1}
+建议：
+处理：未决定
+app/admin/UserRegistration.tsx:117:215 · 管理后台 · UserRegistration · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [f80a743bbc26e2e4ad68b55d4576eae0fff83f454c260b6a7be544c550db6c4e] 管理后台
 类别：源码：共享文案候选（待核对引用）
@@ -9466,15 +9514,6 @@ app/community/CommunityHub.tsx:239:198 · 社区与通知 · CommunityHub · 界
 处理：未决定
 app/community/CommunityHub.tsx:239:239 · 社区与通知 · CommunityHub · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
-[34a13c0e5aa22a79d77d9a299bc894f6841dc0908517e82f3d28894546d07cc9] 教师 / 社区与通知
-类别：界面：表达式分支
-原文：正在发布
-建议：
-处理：未决定
-app/community/CommunityHub.tsx:240:120 · 社区与通知 · CommunityHub · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/community/CommunityTopicView.tsx:340:135 · 社区与通知 · CommunityTopicView · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/teachers/TeacherReviewDiscussion.tsx:199:96 · 教师 · TeacherReviewDiscussion · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-
 [91019a29fff26464f85c5168ec76c6e8152778855ae91d74581af3c9a2d1495f] 社区与通知
 类别：界面：JSX 文本片段
 原文：已屏蔽该用户，其内容将不再显示。
@@ -9623,15 +9662,6 @@ app/community/CommunityHub.tsx:267:217 · 社区与通知 · CommunityHub · 界
 处理：未决定
 app/community/CommunityHub.tsx:268:199 · 社区与通知 · CommunityHub · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
-[f020e4630a54d32202cdf29b31ef512f0630bb5e3f9da09390c2213d1e79178b] 社区与通知
-类别：界面：表达式分支
-原文：正在加载
-建议：
-处理：未决定
-app/community/CommunityHub.tsx:275:180 · 社区与通知 · CommunityHub · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/community/CommunityProfileView.tsx:160:168 · 社区与通知 · CommunityProfileView · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-app/community/CommunityShared.tsx:271:258 · 社区与通知 · NotificationsPanel · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
-
 [48d2a09fd8861cd2f176e402901ebca77bd17b66a84a4483508776461b16d554] 社区与通知
 类别：界面：表达式分支
 原文：加载更多主题
@@ -9696,6 +9726,21 @@ app/community/saved/CommunitySavedView.tsx:152:188 · 社区与通知 · Communi
 建议：
 处理：未决定
 app/community/CommunityProfileView.tsx:115:61 · 社区与通知 · CommunityProfileView · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+
+[9a0e7d724f5e4044c16266d8e24861fbc364308aea7247c375153d516cb5fb9a] 社区与通知
+类别：界面：JSX 文本片段 / 界面：表达式分支
+原文：公开主题
+建议：
+处理：未决定
+app/community/CommunityProfileView.tsx:117:24 · 社区与通知 · CommunityProfileView · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
+app/community/CommunityTopicView.tsx:307:68 · 社区与通知 · CommunityTopicView · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
+
+[f330d6372b4875668db24b8641152144eb099d5f220b276cb2521d2b43c6e3f7] 社区与通知
+类别：界面：JSX 文本片段
+原文：公开回复
+建议：
+处理：未决定
+app/community/CommunityProfileView.tsx:118:24 · 社区与通知 · CommunityProfileView · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [1c5c7347f9bbe4b6393e972eb8731feadbf0dc96477ac8a124c3735a20cb2474] 社区与通知
 类别：界面：JSX 文本片段
@@ -9832,14 +9877,6 @@ app/community/CommunityShared.tsx:37:38 · 社区与通知 · CommunityHeader ·
 建议：
 处理：未决定
 app/community/CommunityShared.tsx:38:74 · 社区与通知 · CommunityHeader · 源码：共享文案候选（待核对引用） · 静态入口/相对引用可达（非运行时证明）
-
-[4b6ded8a7f181397121cbfa64c684d5d183160a83cfd03b01dfa434337fc08e0] 社区与通知
-类别：界面：JSX 文本片段 / 界面：属性或无障碍标签
-原文：通知
-建议：
-处理：未决定
-app/community/CommunityShared.tsx:44:16 · 社区与通知 · CommunityHeader · 界面：属性或无障碍标签 · 静态入口/相对引用可达（非运行时证明）
-app/community/CommunityShared.tsx:250:45 · 社区与通知 · NotificationsPanel · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
 [51ff3dc64c8cf978a83e6314a8649a5902437f3c32837bc70ac70c6456d18f3e] 社区与通知
 类别：界面：属性或无障碍标签
@@ -11498,82 +11535,89 @@ app/privacy/page.tsx:54:11 · 法律与账号注销 · PrivacyPage · 法律与�
 处理：未决定
 app/privacy/page.tsx:56:9 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
 
+[c57028bdcd5aedc83206a69f06ca1839fe82d78b7ba0e22af1a2dd97bb3bbfed] 法律与账号注销
+类别：法律与帮助
+原文：为处理账号问题和发送必要的服务通知，完成二次验证的管理员可以查看注册邮箱、用户名、昵称、头像、选填校园账号及已同步的入学年份、学院、专业和班级。每次查看均记录管理审计；密码、验证码和登录凭据不会在管理后台展示。
+建议：
+处理：未决定
+app/privacy/page.tsx:60:9 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
+
 [610a97ad69d3c384f18cf321fe3e124880fcf97f105b3237bf4e7ea48ad9e829] 法律与账号注销
 类别：法律与帮助
 原文：三、Cookie 与本地存储
 建议：
 处理：未决定
-app/privacy/page.tsx:59:11 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
+app/privacy/page.tsx:62:11 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
 
 [2ab61543c99cace3e1ae92d5cc8641b27341d8ee51a45774e7281a5afa229da7] 法律与账号注销
 类别：法律与帮助
 原文：主站登录 Cookie 和小影内测 Cookie 均仅服务器可读并只通过 HTTPS 发送。小影 Cookie 只用于
 建议：
 处理：未决定
-app/privacy/page.tsx:61:9 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
+app/privacy/page.tsx:64:9 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
 
 [1b5daeeac96b1c194505e250dc639dc2057d2ca8acd882348eea74f414e20056] 法律与账号注销
 类别：界面：英文或数字
 原文：/campus-lab
 建议：
 处理：未决定
-app/privacy/page.tsx:62:32 · 法律与账号注销 · PrivacyPage · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
+app/privacy/page.tsx:65:32 · 法律与账号注销 · PrivacyPage · 界面：英文或数字 · 静态入口/相对引用可达（非运行时证明）
 
 [ddce7454d5557100b87472b6e149240599bd5ca1521167bebd846b6a730fcc81] 法律与账号注销
 类别：法律与帮助
 原文：路径。游客数据和界面偏好保存在浏览器本地；清理浏览器数据会删除尚未同步的本机内容。
 建议：
 处理：未决定
-app/privacy/page.tsx:63:9 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
+app/privacy/page.tsx:66:9 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
 
 [2902497d71125a78b23aba12cab38fcb6a17cbc31c1469cc44d0c9aaab4e2bb5] 法律与账号注销
 类别：法律与帮助
 原文：四、共享与第三方服务
 建议：
 处理：未决定
-app/privacy/page.tsx:66:11 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
+app/privacy/page.tsx:69:11 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
 
 [c96ea45e377e78cda13b3122b1f0b782fe2dd2957f35ce60660db1476fb0f8b4] 法律与账号注销
 类别：法律与帮助
 原文：除法律法规要求、处理安全事件或完成用户主动选择的功能外，本站不会向第三方提供个人信息。连接教务时，用户输入的凭据只会发送给东北财经大学 VPN 与教务系统以完成用户发起的登录；跳转到东北财经大学、白果云、我去图书馆或其他网站后，信息处理适用相应服务自己的规则。本站目前没有第三方广告、跨站画像或分析 Cookie。
 建议：
 处理：未决定
-app/privacy/page.tsx:68:9 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
+app/privacy/page.tsx:71:9 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
 
 [bc0bb0acb8713b1c300a541ed132e83a30031318f94535cf549f77a35b3afa98] 法律与账号注销
 类别：法律与帮助
 原文：五、保存与安全
 建议：
 处理：未决定
-app/privacy/page.tsx:71:11 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
+app/privacy/page.tsx:74:11 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
 
 [1bc4687a697d77f2f70170709a98acc43b467ec31b23235aae00d5eef1e0cb8a] 法律与账号注销
 类别：法律与帮助
 原文：账号数据保存在中国境内服务器。本站使用 HTTPS、权限隔离、会话令牌哈希、敏感授权加密和操作审计。登录会话最长 30 天；OAuth 过期事务保留 1 天；同步请求记录保留 30 天；未使用的密码重置码最长 30 分钟有效；软删除记录和撤销设备最多保留 180 天。断开小影的第三方连接或删除模型密钥时，对应密文立即删除。账号注销后，个人内容会删除或匿名化；依法需要保留的安全记录会隔离保存并按期清理。
 建议：
 处理：未决定
-app/privacy/page.tsx:73:9 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
+app/privacy/page.tsx:76:9 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
 
 [e967373e2e804b33077f37b4f6facb3c6325376530ffcc0206101f4a4f4ed800] 法律与账号注销
 类别：法律与帮助
 原文：六、用户权利
 建议：
 处理：未决定
-app/privacy/page.tsx:79:11 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
+app/privacy/page.tsx:82:11 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
 
 [cc7c6b23c9e1069d8fe0d2ff595aff0fbba6082917b2d8951fd86db1cd8add5b] 法律与账号注销
 类别：法律与帮助
 原文：用户可以查看、修改或导出自己的课表与日程，退出设备会话，撤销第三方连接、清除本机数据并申请注销账号。小影内测用户还可以在“我的”页直接删除全部小影数据。如需查阅、更正、复制或删除其他个人信息，可通过下方邮箱联系。
 建议：
 处理：未决定
-app/privacy/page.tsx:81:9 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
+app/privacy/page.tsx:84:9 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
 
 [6d9e123b77a6de1150d7ff95d444ad786680bb3097c75f33f837dfe0e91d9af4] 法律与账号注销
 类别：法律与帮助
 原文：七、联系我们
 建议：
 处理：未决定
-app/privacy/page.tsx:84:11 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
+app/privacy/page.tsx:87:11 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
 app/terms/page.tsx:51:11 · 法律与账号注销 · TermsPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
 
 [ac03c4bc7d7ace4af9028ca5357b0c0895dd353dfe870be06398e235a304e2b5] 法律与账号注销
@@ -11581,28 +11625,28 @@ app/terms/page.tsx:51:11 · 法律与账号注销 · TermsPage · 法律与帮�
 原文：隐私与账号问题请发送邮件至
 建议：
 处理：未决定
-app/privacy/page.tsx:86:9 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
+app/privacy/page.tsx:89:9 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
 
 [e23cfdf40c812ae1a18f90a6df1c311a6fd091af306c0d0213dd81b0d4692647] 法律与账号注销
 类别：法律与帮助
 原文：。我们会在核实身份后尽快处理。
 建议：
 处理：未决定
-app/privacy/page.tsx:87:65 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
+app/privacy/page.tsx:90:65 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
 
 [0fced3a836fd13d1942ecb96ff265022864d88cfb30df00211db72bffc26d429] 法律与账号注销
 类别：法律与帮助
 原文：八、未成年人
 建议：
 处理：未决定
-app/privacy/page.tsx:90:11 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
+app/privacy/page.tsx:93:11 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
 
 [c9004b9ec0b7a56344529bf4ca73565f8e7fc7de2c6861f0479e96df3624ebcd] 法律与账号注销
 类别：法律与帮助
 原文：未满十八周岁的用户应在监护人指导下使用本站。若发现未经监护人同意处理了未成年人的个人信息，可通过上述邮箱联系我们删除。
 建议：
 处理：未决定
-app/privacy/page.tsx:92:9 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
+app/privacy/page.tsx:95:9 · 法律与账号注销 · PrivacyPage · 法律与帮助 · 静态入口/相对引用可达（非运行时证明）
 
 [1273c66ca1ec0211219e2050a0049b3e6c51551c947d2f0e825f006998b4bba2] 主站与共享组件
 类别：界面：纯符号
@@ -12088,13 +12132,6 @@ app/teachers/[teacherId]/TeacherDetail.tsx:349:63 · 教师 · TeacherDetail · 
 处理：未决定
 app/teachers/[teacherId]/TeacherDetail.tsx:352:94 · 教师 · TeacherDetail · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
 
-[8b8550faa4b68b040e28eb8c3fd2d4bca7ac67001377bf6298990772fb202c8c] 教师
-类别：界面：JSX 文本片段
-原文：评价加载失败。
-建议：
-处理：未决定
-app/teachers/[teacherId]/TeacherDetail.tsx:353:91 · 教师 · TeacherDetail · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
 [99bb7a29471f4a09508b26d545c65e8325798a71e4a63f01a098c6aad0a8f9bc] 教师
 类别：界面：表达式分支
 原文：没有找到包含“${…1}”的公开评价。
@@ -12115,13 +12152,6 @@ app/teachers/[teacherId]/TeacherDetail.tsx:365:130 · 教师 · TeacherDetail ·
 建议：
 处理：未决定
 app/teachers/[teacherId]/TeacherDetail.tsx:369:63 · 教师 · TeacherDetail · 界面：JSX 文本片段 · 静态入口/相对引用可达（非运行时证明）
-
-[86b6d0d63062ba81715ba82376104aa54f47edb20d8b5e8ddf399e04a57a7468] 教师
-类别：界面：表达式分支
-原文：正在读取…
-建议：
-处理：未决定
-app/teachers/[teacherId]/TeacherDetail.tsx:371:49 · 教师 · TeacherDetail · 界面：表达式分支 · 静态入口/相对引用可达（非运行时证明）
 
 [48878eaf8580f523dc8f796c7c0fbabf6c91ddd3bcf600029bbac383ea646cf7] 教师
 类别：界面：表达式分支
@@ -13492,9 +13522,9 @@ services/auth-api/src/credentials.mjs:176:44 · 后端与邮件 · validateProfi
 原文：网页设备
 建议：
 处理：未决定
-services/auth-api/src/db.mjs:46:16 · 后端与邮件 · claimAnonymousDevice · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
-services/auth-api/src/db.mjs:366:22 · 后端与邮件 · consumeOAuthAndCreateSession ← createAuthStore · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
-services/auth-api/src/db.mjs:1941:29 · 后端与邮件 · listUserDevices ← createAuthStore · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
+services/auth-api/src/db.mjs:47:16 · 后端与邮件 · claimAnonymousDevice · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
+services/auth-api/src/db.mjs:368:22 · 后端与邮件 · consumeOAuthAndCreateSession ← createAuthStore · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
+services/auth-api/src/db.mjs:1943:29 · 后端与邮件 · listUserDevices ← createAuthStore · 源码：后端候选（未证明可见） · 静态入口/相对引用可达（非运行时证明）
 
 [bd1d25e12e1542ff46bd4d78a009d273fb0eb26563331b8cc2c911dde7f6e7c1] 后端与邮件
 类别：邮件固定模板

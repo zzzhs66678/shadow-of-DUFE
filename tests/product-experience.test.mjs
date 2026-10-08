@@ -250,38 +250,27 @@ test("administrator can actively review topics and replies through the audited c
   assert.match(activeContentSource, /\/api\/admin\/community\/content\?/);
   assert.match(activeContentSource, /\/api\/admin\/community\/content\/\$\{selected\.type\}\/\$\{selected\.id\}\/case/);
   assert.match(activeContentSource, /\/api\/admin\/community\/cases\/\$\{selected\.caseId\}\/actions/);
-  assert.match(activeContentSource, /无需等待举报/u);
+  assert.match(activeContentSource, /主题与回复/u);
   assert.match(activeContentSource, /在公开页面核对上下文/u);
   assert.doesNotMatch(activeContentSource, /dangerouslySetInnerHTML/);
   assert.match(adminStyles, /\.contentFilters button[\s\S]*min-height:\s*44px/);
 });
 
-test("administrator account governance exposes trends, precise filters, and public-only records", () => {
+test("administrator account governance exposes trends, precise filters, and unified user details", () => {
   assert.match(adminSource, /registrationTrend:\s*Array<\{ date: string; count: number \}>/);
   assert.match(adminSource, /aria-label="最近 30 天新增用户趋势"/u);
   assert.match(adminSource, /\/api\/admin\/users\?\$\{userFilterSearch/);
   for (const field of ["query", "role", "status", "registeredFrom", "registeredTo"]) {
     assert.match(adminSource, new RegExp(`name="${field}"`));
   }
-  assert.match(adminSource, /继续读取名册/u);
-  assert.match(adminSource, /查看公开资料/u);
-  assert.match(adminSource, /\/public-profile\?kind=\$\{kind\}&limit=10/);
-  assert.match(adminSource, /aria-label="公开资料类型"/u);
-  assert.match(adminSource, /aria-pressed=\{publicKind === "topics"\}/);
-  assert.match(adminSource, /aria-pressed=\{publicKind === "comments"\}/);
-  assert.match(adminSource, /useModalFocus<HTMLElement>/);
-  assert.match(adminSource, /ref=\{profileDialogRef\}/);
-  assert.match(adminSource, /role="dialog"[\s\S]*aria-modal="true"[\s\S]*aria-labelledby="admin-public-profile-title"/);
-  assert.match(adminSource, /aria-label="关闭公开资料"/u);
-  assert.doesNotMatch(adminSource, /publicProfile\.(?:email|emailMasked|role|lastLoginAt)/);
-
+  assert.match(adminSource, /加载更多/u);
+  assert.match(adminSource, /查看资料/u);
+  assert.match(adminSource, /<UserRegistration/);
+  assert.match(adminSource, /aria-label="管理功能"/u);
+  assert.match(adminSource, /aria-label="审核分类"/u);
   assert.match(adminStyles, /\.registrationTrend ol[\s\S]*grid-template-columns:\s*repeat\(30,/);
-  assert.match(adminStyles, /\.userBook (?:input,\s*)?[\s\S]*?select[\s\S]*?min-height:\s*44px/);
   assert.match(adminStyles, /\.userBook form > button[\s\S]*?min-height:\s*44px/);
-  assert.match(adminStyles, /\.publicProfileSheet > header button[\s\S]*?height:\s*44px[\s\S]*?width:\s*44px/);
-  assert.match(adminStyles, /\.publicProfileSheet nav button[\s\S]*?min-height:\s*44px/);
-  assert.match(adminStyles, /@media \(max-width:\s*720px\)[\s\S]*?\.userBook form \{[\s\S]*?grid-template-columns:\s*1fr 1fr/);
-  assert.match(adminStyles, /@media \(max-width:\s*720px\)[\s\S]*?\.publicProfileSheet \{[\s\S]*?max-height:\s*92dvh/);
+
 });
 
 test("today page keeps the one-glance command deck", () => {
@@ -312,7 +301,7 @@ test("the daily workspace defers non-critical materials until idle or demand", (
   assert.match(hubSource, /fetch\("\/data\/resource-manifest\.json"\)/);
   assert.match(component, /资料清单没有加载成功。关闭课程后重新打开即可再试。/);
 
-  assert.match(adminStyles, /\.gateForm input:focus-visible/);
+  assert.match(adminStyles, /\.shell :is\(button, a, input, select, textarea, summary\):focus-visible/);
   assert.match(communityStyles, /\.replyComposer textarea:focus-visible/);
   assert.match(materialsStyles, /\.searchField input:focus-visible/);
   assert.doesNotMatch(adminStyles, /\.gateForm input:focus(?!-visible)/);

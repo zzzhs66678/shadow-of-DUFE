@@ -162,8 +162,8 @@ export function TeacherReviewDesk({
       setFeedback(refreshFailures.length
         ? `${decision === "approve" ? "评价已公开" : "候选已拒绝"}，但${refreshFailures.join("和")}刷新失败；请勿重复操作。`
         : decision === "approve"
-          ? "历史评价已作为“历史整理内容”公开，并写入审计。"
-          : "候选已拒绝且不会公开，决定已写入审计。");
+          ? "已公开为历史评价。"
+          : "已拒绝公开。");
     } catch (error) {
       setFeedback(errorMessage(error));
       if ((error as ApiError).code === "admin_mfa_required") {
@@ -182,9 +182,9 @@ export function TeacherReviewDesk({
     <section className={styles.moderationDesk} aria-labelledby="teacher-review-desk-title">
       <header>
         <div>
-          <span>历史评价</span>
-          <h2 id="teacher-review-desk-title">教师评价复核</h2>
-          <p>候选正文已经过自动脱敏，但只有人工核对后才能公开；决定不可覆盖，并会进入管理员审计。</p>
+
+          <h2 id="teacher-review-desk-title">历史评价</h2>
+          <p>核对后公开，审核决定不可撤回。</p>
         </div>
         <nav className={styles.teacherReviewTabs} aria-label="教师评价候选状态">
           {(Object.keys(statusLabels) as CandidateStatus[]).map((item) => (
@@ -195,7 +195,7 @@ export function TeacherReviewDesk({
 
       {feedback && <p className={styles.moderationFeedback} role="status">{feedback}</p>}
       {status === "loading" && <p className={styles.moderationState} role="status">正在读取教师评价候选…</p>}
-      {status === "error" && <p className={styles.moderationState} role="alert">教师评价候选没有加载成功。其他值守功能不受影响。<button onClick={() => void loadQueue(queueStatus)}>重试</button></p>}
+      {status === "error" && <p className={styles.moderationState} role="alert">评价加载失败。<button onClick={() => void loadQueue(queueStatus)}>重试</button></p>}
       {status === "ready" && candidates.length === 0 && <p className={styles.moderationState}>当前没有{statusLabels[queueStatus]}的候选。</p>}
       {status === "ready" && candidates.length > 0 && (
         <ol className={styles.reportQueue}>

@@ -95,6 +95,11 @@ function createAdminStore() {
       return sensitiveCalls;
     },
     async health() {},
+    async getAdminUserRegistration(input) {
+      adminInputs.push(input);
+      if (input.targetUserId !== userId) return null;
+      return { id: userId, email: target.email, schoolAccount: "20260001" };
+    },
     async getActiveSession(hash) {
       return sessions.get(hash) ?? null;
     },
@@ -1119,4 +1124,29 @@ test("system announcement publishing has an independent persistent-ready rate li
       },
     },
   );
+});
+
+test("registration endpoint enforces login, role, MFA, origin and bound actor before revealing full contact details", async () => {
+  await withAdminServer(async ({ baseUrl, store }) => {
+    const url = `${baseUrl}/api/admin/users/${userId}/registration`;
+    const post = (cookie, origin = "https://dufesh.cn") => fetch(url, { method: "POST", headers: { Origin: origin, ...(cookie ? { Cookie: cookie } : {}) } });
+    assert.equal((await post()).status, 401);
+    assert.equal((await post(baseCookie(store.tokens.userToken))).status, 403);
+    assert.equal((await post(baseCookie(store.tokens.adminTokenOne))).status, 403);
+    assert.equal(store.adminInputs.length, 0);
+    const cookie = await elevatedCookie(baseUrl, store);
+    assert.equal((await post(cookie, "https://other.example")).status, 403);
+    assert.equal((await fetch(url, { headers: { Cookie: cookie } })).status, 405);
+    assert.equal(store.adminInputs.length, 0);
+    const response = await post(cookie);
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("cache-control"), /no-store/);
+    assert.equal((await response.json()).registration.email, "student@example.com");
+    assert.equal(store.adminInputs[0].actorUserId, adminId);
+    assert.equal(store.adminInputs[0].actorSessionId, "admin-session-1");
+    assert.ok(store.adminInputs[0].actorElevationTokenHash);
+    assert.equal((await fetch(`${url}?extra=1`, { method: "POST", headers: { Cookie: cookie, Origin: "https://dufesh.cn" } })).status, 400);
+    store.getAdminUserRegistration = async () => { const error = new Error("revoked"); error.code = "AUTH_ADMIN_FORBIDDEN"; throw error; };
+    assert.equal((await post(cookie)).status, 403);
+  });
 });

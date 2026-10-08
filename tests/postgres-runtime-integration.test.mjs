@@ -1463,6 +1463,18 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
     const overviewResponse = await fetch(`${baseUrl}/api/admin/overview`, {
       headers: { Cookie: elevatedAdminCookie },
     });
+    const registrationResponse = await fetch(`${baseUrl}/api/admin/users/${owner.body.user.id}/registration`, {
+      method: "POST", headers: { ...requestHeaders, Cookie: elevatedAdminCookie }, body: "{}",
+    });
+    assert.equal(registrationResponse.status, 200);
+    const registration = (await registrationResponse.json()).registration;
+    assert.equal(registration.id, owner.body.user.id);
+    assert.match(registration.email, /@/u);
+    assert.equal("passwordHash" in registration, false);
+    const registrationAudit = await fetch(`${baseUrl}/api/admin/audit`, {
+      headers: { Cookie: elevatedAdminCookie },
+    });
+    assert.equal((await registrationAudit.json()).events.some(event => event.action === "admin.user.registration_viewed" && event.targetId === owner.body.user.id), true);
     const overviewBody = await overviewResponse.json();
     assert.equal(overviewResponse.status, 200);
     assert.equal(overviewBody.overview.registrationTrend.length, 30);
