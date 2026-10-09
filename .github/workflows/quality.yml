@@ -232,7 +232,7 @@ jobs:
           MIGRATIONS_DIR="$GITHUB_WORKSPACE/ops/postgres/migrations" sh ops/postgres/run-migrations.sh
           MIGRATIONS_DIR="$GITHUB_WORKSPACE/ops/postgres/migrations" sh ops/postgres/run-migrations.sh
       - name: Verify PostgreSQL roles and real auth/community flows
-        run: node --test tests/postgres-runtime-integration.test.mjs
+        run: node --test tests/postgres-runtime-integration.test.mjs tests/postgres-product-extensions.test.mjs
       - name: Install Chromium for authenticated browser checks
         run: npx playwright install --with-deps chromium
       - name: Run the PostgreSQL-backed browser critical path

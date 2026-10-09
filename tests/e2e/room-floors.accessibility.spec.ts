@@ -57,6 +57,8 @@ test("global room search opens the exact room without leaving a hidden floor fil
   await expect(page.getByRole("heading", { name: /之远楼.*1010/ })).toBeVisible();
   await page.getByRole("button", { name: /返回空教室/ }).click();
   const floors = page.getByRole("navigation", { name: "选择楼层" });
+  await expect(page).toHaveURL(/room-floor=10/);
+  expect(new URL(page.url()).searchParams.get("room-building")).toBe("之远楼");
   await expect(floors.getByRole("button", { name: /^10 层，/ })).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".floor-rooms-v5 button strong")).toHaveText(["1010", "1014", "1015"]);
   await floors.getByRole("button", { name: /^1 层，/ }).click();

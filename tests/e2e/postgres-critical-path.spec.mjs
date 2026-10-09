@@ -385,25 +385,29 @@ test("users and an administrator complete the release browser path", async ({
     const topicTitle = `PG17 浏览器闭环 ${Date.now().toString(36)}`;
     const topicBody = "这条主题由第一名真实注册用户通过页面发布。";
     await owner.goto("/community");
-    await owner
-      .getByRole("button", { name: "发布主题", exact: true })
-      .first()
-      .click();
-    const composer = owner.locator("form").filter({ hasText: "发布主题" });
-    await composer.getByLabel("标题").fill(topicTitle);
-    await composer.getByLabel("正文").fill(topicBody);
-    await composer.getByRole("button", { name: "发布主题" }).click();
-    await expect(owner).toHaveURL(/\/community\/topics\/[0-9a-f-]{36}$/u);
+    const composer = owner.getByRole("form", { name: "发布帖子", exact: true });
+    await composer.locator("summary").filter({ hasText: "添加标题" }).click();
+    await composer.getByLabel("帖子标题（选填）", { exact: true }).fill(topicTitle);
+    await composer.getByLabel("帖子正文", { exact: true }).fill(topicBody);
+    await composer.getByRole("button", { name: "发布", exact: true }).click();
+    await expect(owner).toHaveURL(/\/community\/topics\/[0-9a-f-]{36}\?from=latest$/u);
     await expect(owner.getByRole("heading", { name: topicTitle })).toBeVisible();
     const topicPath = new URL(owner.url()).pathname;
     expect(topicPath).toMatch(/^\/community\/topics\/[0-9a-f-]{36}$/u);
 
     await replier.goto(topicPath);
     const replyBody = "第二名真实注册用户通过页面补充了这条回复。";
-    await replier.getByLabel("加入讨论").fill(replyBody);
-    await replier.getByRole("button", { name: "发布回复" }).click();
+    const replyComposer = replier.locator("form").filter({
+      has: replier.getByLabel("说说你的想法", { exact: true }),
+    });
+    await replyComposer.getByLabel("说说你的想法", { exact: true }).fill(replyBody);
+    await replyComposer.getByRole("button", { name: "回复", exact: true }).click();
     await expect(replier.getByText(replyBody)).toBeVisible();
-    await replier.getByRole("button", { name: "举报主题" }).click();
+    const topicMenu = replier.locator("details").filter({
+      has: replier.locator('summary[aria-label="帖子更多操作"]'),
+    });
+    await topicMenu.locator("summary").click();
+    await topicMenu.getByRole("button", { name: "举报帖子", exact: true }).click();
     const report = replier.getByRole("dialog", {
       name: `举报“${topicTitle}”`,
     });
@@ -587,7 +591,7 @@ test("users and an administrator complete the release browser path", async ({
     ).toBeVisible();
 
     await owner.goto(topicPath);
-    await expect(owner.getByText("这段讨论已经不可见")).toBeVisible();
+    await expect(owner.getByText("帖子暂不可见", { exact: true })).toBeVisible();
   } finally {
     await Promise.allSettled([
       ownerContext.close(),

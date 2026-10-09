@@ -1745,12 +1745,15 @@ function HubApp({ data: initialData }: { data: SiteData }) {
     setSelectedCourse(course);
   }
 
-  function changeRoom(key: string) {
+  function changeRoom(key: string, destination?: { building: string; floor: string }) {
     if (!key && window.history.state?.hubLayer === "room" && window.history.state?.hubParent) {
       window.history.back();
       return;
     }
-    const parent = roomContextUrl(window.location.href, { building, date, block, floor: roomFloorChoice, term });
+    const parent = roomContextUrl(window.location.href, {
+      building: destination?.building ?? building, date, block,
+      floor: destination?.floor ?? roomFloorChoice, term,
+    });
     window.history.replaceState(window.history.state, "", localHref(parent));
     const url = new URL(parent);
     url.searchParams.delete("course");
@@ -1759,6 +1762,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
       url.searchParams.set("view", "rooms");
       url.searchParams.set("room", key);
       url.searchParams.set("room-building", key.split("|")[0]);
+      url.searchParams.set("room-floor", roomFloor(key.split("|")[1]));
       pushDiscovery(url, "room");
     } else {
       url.searchParams.delete("room");
@@ -1833,7 +1837,9 @@ function HubApp({ data: initialData }: { data: SiteData }) {
     if (item.room && item.building) {
       go("rooms");
       setBuilding(item.building);
-      changeRoom(`${item.building}|${item.room}`);
+      const floor = roomFloor(item.room);
+      setRoomFloorChoice(floor);
+      changeRoom(`${item.building}|${item.room}`, { building: item.building, floor });
     }
   }
 
