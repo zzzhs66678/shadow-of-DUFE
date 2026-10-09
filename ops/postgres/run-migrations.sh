@@ -223,6 +223,10 @@ SELECT format(
     :'runtime_user'
 ) \gexec
 SELECT format(
+    'REVOKE UPDATE, DELETE, TRUNCATE ON material_bookmark_events, data_feedback_actions FROM %I',
+    :'runtime_user'
+) \gexec
+SELECT format(
     'REVOKE UPDATE, DELETE, TRUNCATE ON community_moderation_actions FROM %I',
     :'runtime_user'
 ) \gexec

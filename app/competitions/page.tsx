@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { competitions, competitionPath } from "./catalog";
+import { competitions, competitionPath, type Competition } from "./catalog";
 import styles from "./competitions.module.css";
 import { StudyDoodle } from "./StudyDoodle";
 import { CompetitionNavigation } from "./CompetitionNavigation";
@@ -12,6 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default function CompetitionsPage() {
+  const categories: Competition["category"][] = ["数学", "英语", "创意设计"];
   return (
     <>
       <CompetitionNavigation href="/?view=me#competitions-entry" label="返回我的" />
@@ -21,18 +22,33 @@ export default function CompetitionsPage() {
         </div>
         <StudyDoodle className={styles.heroArt} />
       </header>
-      <div className={styles.list}>
-        {competitions.map(item => (
-          <Link className={styles.item} data-subject={item.category} href={competitionPath(item.slug)} key={item.slug}>
-            <StudyDoodle kind={item.category} className={styles.itemArt} />
-            <div className={styles.itemCopy}>
-              <span className={styles.category}>{item.category}</span>
-              <h2>{item.title}</h2>
-              <p>学校通知{item.resources.length > 0 && " · 试题下载"}</p>
-            </div>
-            <span className={styles.arrow} aria-hidden="true">→</span>
-          </Link>
-        ))}
+      <p className={styles.archiveNote}>通知保留原发布日期，报名安排请以学校原文为准。</p>
+      <div className={styles.groups}>
+        {categories.map(category => {
+          const items = competitions.filter(item => item.category === category);
+          return (
+            <section className={styles.subject} aria-labelledby={`subject-${category}`} key={category}>
+              <div className={styles.subjectHeading}>
+                <h2 id={`subject-${category}`} className={styles.subjectTitle}>{category}</h2>
+                <span className={styles.subjectCount}>{items.length} 项</span>
+              </div>
+              <ul className={styles.list}>
+                {items.map(item => (
+                  <li key={item.slug}>
+                    <Link className={styles.item} data-subject={item.category} href={competitionPath(item.slug)}>
+                      <div className={styles.itemCopy}>
+                        <h3>{item.title}</h3>
+                        <p>学校通知 · <time dateTime={item.notice.publishedAt}>{item.notice.publishedAt}</time></p>
+                      </div>
+                      {item.resources.length > 0 && <span className={styles.resourceTag}>试题下载</span>}
+                      <span className={styles.arrow} aria-hidden="true">→</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          );
+        })}
       </div>
     </>
   );

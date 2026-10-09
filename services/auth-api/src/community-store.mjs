@@ -26,6 +26,8 @@ function mapTopic(row) {
     liked: Boolean(row.viewer_liked),
     bookmarked: Boolean(row.viewer_bookmarked),
     createdAt: iso(row.created_at),
+    lastReplyAt: iso(row.last_reply_at),
+    latestActivityAt: iso(row.last_reply_at ?? row.created_at),
     updatedAt: iso(row.updated_at),
     editedAt: iso(row.edited_at),
   };
@@ -740,7 +742,30 @@ function notificationResult(row) {
   };
 }
 
-const topicSelect = `
+// Reply activity is viewer-specific, not a denormalized/global bump timestamp.
+// Match comment-body visibility: a hidden root remains a tombstone, but its
+// independently published children remain visible and count as replies.
+const visibleReplyWhere = `comments.status = 'published'
+  AND NOT EXISTS (
+    SELECT 1 FROM community_user_blocks AS reply_blocks
+    WHERE (reply_blocks.blocker_user_id = $1::uuid AND reply_blocks.blocked_user_id = comments.author_user_id)
+       OR (reply_blocks.blocked_user_id = $1::uuid AND reply_blocks.blocker_user_id = comments.author_user_id)
+  )`;
+
+const publicTopicWhere = `topics.status = 'published' AND topics.visibility = 'public'
+  AND NOT EXISTS (
+    SELECT 1 FROM community_user_blocks AS topic_blocks
+    WHERE (topic_blocks.blocker_user_id = $1::uuid AND topic_blocks.blocked_user_id = topics.author_user_id)
+       OR (topic_blocks.blocked_user_id = $1::uuid AND topic_blocks.blocker_user_id = topics.author_user_id)
+  )`;
+
+// pg's Date parser drops PostgreSQL microseconds. Cursor keys must not pass
+// through JS Date, even though the display fields intentionally use ISO millis.
+const cursorTimestamp = (expression) =>
+  `to_char(${expression} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
+
+function selectTopics(replyCutoff = null) {
+  return `
   SELECT
     topics.id,
     topics.author_user_id,
@@ -750,6 +775,7 @@ const topicSelect = `
     topics.visibility,
     topics.version,
     topics.created_at,
+    ${cursorTimestamp("topics.created_at")} AS created_at_cursor,
     topics.updated_at,
     topics.edited_at,
     authors.username AS author_username,
@@ -768,7 +794,8 @@ const topicSelect = `
         AND blocks.blocked_user_id = $1::uuid
     ) AS viewer_blocked_by_author,
     (SELECT count(*) FROM community_topic_likes AS likes WHERE likes.topic_id = topics.id) AS like_count,
-    (SELECT count(*) FROM community_comments AS comments WHERE comments.topic_id = topics.id AND comments.status <> 'deleted') AS comment_count,
+    reply_activity.comment_count,
+    reply_activity.last_reply_at,
     EXISTS (
       SELECT 1 FROM community_topic_likes AS viewer_likes
       WHERE viewer_likes.topic_id = topics.id
@@ -781,7 +808,16 @@ const topicSelect = `
     ) AS viewer_bookmarked
   FROM community_topics AS topics
   LEFT JOIN app_users AS authors ON authors.id = topics.author_user_id
+  LEFT JOIN LATERAL (
+    SELECT count(*) AS comment_count, max(comments.created_at) AS last_reply_at
+    FROM community_comments AS comments
+    WHERE comments.topic_id = topics.id AND ${visibleReplyWhere}
+      ${replyCutoff ? `AND comments.created_at <= ${replyCutoff}` : ""}
+  ) AS reply_activity ON true
 `;
+}
+
+const topicSelect = selectTopics();
 
 export function createCommunityStore(pool) {
   return {
@@ -1226,6 +1262,64 @@ export function createCommunityStore(pool) {
       limit = 20,
       sort = "latest",
     }) {
+      if (sort === "replied") {
+        const cutoff = "COALESCE($2::timestamptz, statement_timestamp())";
+        const result = await pool.query(
+          `WITH candidates AS MATERIALIZED (
+             SELECT topics.id, COALESCE(activity.created_at, topics.created_at) AS activity_at
+             FROM community_topics AS topics
+             LEFT JOIN LATERAL (
+               SELECT comments.created_at
+               FROM community_comments AS comments
+               WHERE comments.topic_id = topics.id AND ${visibleReplyWhere}
+                 AND comments.created_at <= ${cutoff}
+               ORDER BY comments.created_at DESC, comments.id DESC
+               LIMIT 1
+             ) AS activity ON true
+             WHERE ${publicTopicWhere} AND topics.created_at <= ${cutoff}
+           ), feed_state AS (
+             SELECT md5(COALESCE($1::text, 'anonymous') || ':' || COALESCE(
+               string_agg(id::text || ':' || ${cursorTimestamp("activity_at")}, ',' ORDER BY id), ''
+             )) AS revision FROM candidates
+           )
+           SELECT visible_topics.*, feed_state.revision,
+                  ${cursorTimestamp(cutoff)} AS ranked_at_cursor,
+                  ${cursorTimestamp("page.activity_at")} AS activity_at_cursor
+           FROM feed_state
+           LEFT JOIN LATERAL (
+             SELECT candidates.id, candidates.activity_at
+             FROM candidates
+             WHERE ($3::timestamptz IS NULL OR
+               (candidates.activity_at, candidates.id) < ($3::timestamptz, $4::uuid))
+               AND ($5::text IS NULL OR feed_state.revision = $5)
+             ORDER BY candidates.activity_at DESC, candidates.id DESC
+             LIMIT $6
+           ) AS page ON true
+           LEFT JOIN LATERAL (
+             ${selectTopics(cutoff)} WHERE topics.id = page.id
+           ) AS visible_topics ON true
+           ORDER BY page.activity_at DESC, page.id DESC`,
+          [viewerUserId, cursor?.rankedAt ?? null, cursor?.activityAt ?? null,
+            cursor?.id ?? null, cursor?.revision ?? null, limit + 1],
+        );
+        // New replies are excluded by the snapshot cutoff. Moderation/blocks can
+        // move old rows backwards; reject that continuation instead of repeating
+        // posts or retaining a now-invisible reply's rank. No historical content
+        // or blocked user's timestamp is returned on this path.
+        if (cursor && result.rows[0]?.revision !== cursor.revision) {
+          throw communityError("COMMUNITY_CURSOR_STALE");
+        }
+        const available = result.rows.filter((row) => row.id);
+        const rows = available.slice(0, limit);
+        const last = rows.at(-1);
+        return {
+          items: rows.map(mapTopic),
+          nextCursor: available.length > limit && last
+            ? { v: 1, sort, id: String(last.id), activityAt: last.activity_at_cursor,
+                rankedAt: last.ranked_at_cursor, revision: last.revision }
+            : null,
+        };
+      }
       if (sort === "hot") {
         const rankedAt = cursor?.rankedAt ?? new Date().toISOString();
         const result = await pool.query(
@@ -1241,7 +1335,7 @@ export function createCommunityStore(pool) {
                  (SELECT count(*) * 3
                   FROM community_comments AS comments
                   WHERE comments.topic_id = topics.id
-                    AND comments.status = 'published'
+                    AND ${visibleReplyWhere}
                     AND comments.created_at <= $2::timestamptz) +
                  CASE
                    WHEN topics.created_at >= $2::timestamptz - interval '14 days'
@@ -1298,8 +1392,10 @@ export function createCommunityStore(pool) {
           items: rows.map(mapTopic),
           nextCursor: hasMore && last
             ? {
+                v: 1,
+                sort: "hot",
                 id: String(last.id),
-                createdAt: iso(last.created_at),
+                createdAt: last.created_at_cursor ?? iso(last.created_at),
                 rankedAt: iso(last.ranked_at),
                 score: String(last.hot_score),
               }
@@ -1334,7 +1430,7 @@ export function createCommunityStore(pool) {
       return {
         items: rows.map(mapTopic),
         nextCursor: hasMore && last
-          ? { createdAt: iso(last.created_at), id: String(last.id) }
+          ? { v: 1, sort: "latest", createdAt: last.created_at_cursor ?? iso(last.created_at), id: String(last.id) }
           : null,
       };
     },
@@ -1459,7 +1555,7 @@ export function createCommunityStore(pool) {
           `INSERT INTO community_topics (
              author_user_id, title, body, visibility
            ) VALUES ($1::uuid, $2, $3, $4)
-           RETURNING id, status, visibility, version, created_at, updated_at`,
+           RETURNING id, title, status, visibility, version, created_at, updated_at`,
           [userId, title, body, visibility],
         );
         await insertMentionNotifications(client, {
@@ -1467,7 +1563,7 @@ export function createCommunityStore(pool) {
           topicId: result.rows[0].id,
           body,
         });
-        return mutationTopic(result.rows[0]);
+        return { ...mutationTopic(result.rows[0]), title: result.rows[0].title };
       });
     },
 

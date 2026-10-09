@@ -32,10 +32,10 @@ export function CommunityHeader({
 }) {
   return (
     <PublicMasthead
-      navigationLabel="校园回廊导航"
+      navigationLabel="东财墙导航"
       items={[
-        { href: "/community", label: "回廊", current: current === "community" },
-        ...(session?.authenticated ? [{ href: "/community/saved", label: "我的存档", current: current === "saved" }] : []),
+        { href: "/community", label: "东财墙", current: current === "community" },
+        ...(session?.authenticated ? [{ href: "/community/saved", label: "收藏", current: current === "saved" }] : []),
         { href: "/materials", label: "资料", showOnMobile: false },
         { href: "/?view=schedule", label: "课表", showOnMobile: false },
         ...(!session?.authenticated ? [{ href: "/?view=me", label: "登录" }] : []),

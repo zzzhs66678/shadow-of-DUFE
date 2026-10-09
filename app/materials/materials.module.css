@@ -313,7 +313,40 @@
 
 .resultCopy > a:focus-visible { color: var(--red); outline: 2px solid var(--red); outline-offset: 5px; }
 .resultCopy small { display: block; margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
-.quickActions { display: flex; gap: 7px; }
+.quickActions { display: flex; flex-wrap: wrap; gap: 7px; }
+.bookmarkButton,
+.bookmarkTabs button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 44px;
+  padding: 7px 12px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  font: inherit;
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.bookmarkButton[aria-pressed="true"],
+.bookmarkTabs button[aria-pressed="true"] { color: var(--red); border-color: var(--red); }
+.bookmarkButton:disabled { cursor: wait; opacity: 0.65; }
+.bookmarkButton:focus-visible,
+.bookmarkTabs button:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+.bookmarkTabs { display: flex; gap: 8px; margin-bottom: 10px; }
+.bookmarkFeedback:empty { display: none; }
+.bookmarkFeedback { color: var(--muted); font-size: 13px; }
+.bookmarkDetail { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 20px; }
+.bookmarkDetail > a { color: var(--red); }
+.bookmarkDetail p { flex-basis: 100%; margin: 0; color: var(--muted); font-size: 13px; }
+.savedMaterials > p { color: var(--muted); font-size: 13px; }
+.savedMaterials article { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+.savedMaterials article > div { display: grid; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
+.savedMaterials article > .bookmarkButton { flex-shrink: 0; }
+.savedMaterials article a { color: var(--ink); }
+.savedMaterials small { color: var(--muted); }
 .quickActions a {
   display: grid;
   place-items: center;

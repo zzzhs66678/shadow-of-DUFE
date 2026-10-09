@@ -8,6 +8,12 @@ import {
   type PersonalCourseContext,
 } from "../personal-course-context";
 import { PublicMasthead } from "../PublicMasthead";
+import { safeCourseReturn, withCourseReturn } from "../discovery-navigation";
+import { useCourseReturn } from "../CourseReturnLink";
+import { matchesMaterialFilters, scoreMaterialSearch } from "./materials-search";
+import { useMaterialBookmarks } from "./use-material-bookmarks";
+import { MaterialBookmarkButton } from "./MaterialBookmarkControls";
+import { MaterialBookmarksPanel } from "./MaterialBookmarksPanel";
 import styles from "./materials.module.css";
 
 type Material = {
@@ -106,6 +112,7 @@ export type MaterialSearchState = {
   tag?: string;
   term?: string;
   year?: string;
+  saved?: string;
 };
 
 export function MaterialsExplorer({
@@ -117,8 +124,10 @@ export function MaterialsExplorer({
   embedded?: boolean;
   onSearchChange?: (search: MaterialSearchState) => void;
 }) {
+  const courseReturn = useCourseReturn();
+  const bookmarks = useMaterialBookmarks();
   const [search, setSearch] = useState(initialSearch);
-  const { q: query = "", course = "", teacher = "", type = "", tag = "", term = "", year = "" } = search;
+  const { q: query = "", course = "", teacher = "", type = "", tag = "", term = "", year = "", saved = "" } = search;
   const [result, setResult] = useState<SearchResponse | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [loadingMore, setLoadingMore] = useState(false);
@@ -158,9 +167,10 @@ export function MaterialsExplorer({
     if (tag) params.set("tag", tag);
     if (term) params.set("term", term);
     if (year) params.set("year", year);
+    if (saved === "1") params.set("saved", "1");
     params.set("limit", "24");
     return params;
-  }, [course, query, tag, teacher, term, type, year]);
+  }, [course, query, tag, teacher, term, type, year, saved]);
 
   useEffect(() => {
     onSearchChangeRef.current = onSearchChange;
@@ -233,6 +243,8 @@ export function MaterialsExplorer({
 
         if (!embedded) {
           const visibleParams = new URLSearchParams(requestParams);
+          const returnTo = safeCourseReturn(new URLSearchParams(window.location.search).get("returnTo"));
+          if (returnTo) visibleParams.set("returnTo", returnTo);
           visibleParams.delete("limit");
           const nextUrl = visibleParams.size
             ? `/materials?${visibleParams}`
@@ -287,45 +299,15 @@ export function MaterialsExplorer({
   const rankedItems = useMemo(() => {
     const items = result?.items ?? [];
     if (ranking === "all") return items;
-    const needle = normalizeMatch(query);
-    const matchesFilters = (material: Material) => {
-      const searchText = normalizeMatch([
-        material.name,
-        material.courseTitle,
-        ...material.courseIds,
-        ...material.teachers,
-        ...material.tags,
-        material.category,
-        material.kind,
-        material.extension,
-      ].join(" "));
-      const equals = (left: string, right: string) =>
-        normalizeMatch(left) === normalizeMatch(right);
-      return (
-        (!needle || searchText.includes(needle)) &&
-        (!course || equals(material.courseTitle, course) || material.courseIds.some((id) => equals(id, course))) &&
-        (!teacher || material.teachers.some((name) => equals(name, teacher))) &&
-        (!type || equals(material.kind, type)) &&
-        (!tag || material.tags.some((item) => equals(item, tag))) &&
-        (!term || material.terms.some((item) => equals(item, term))) &&
-        (!year || material.years.includes(Number(year)))
-      );
-    };
+    const matchesFilters = (material: Material) =>
+      matchesMaterialFilters(material, { query, course, teacher, type, tag, term, year });
     const personalItems = (personalCatalog ?? []).filter(
       (material) => materialRelation(material) !== "other" && matchesFilters(material),
     );
     const sourceItems = [...personalItems, ...items].filter(
       (material, index, all) => all.findIndex((item) => item.id === material.id) === index,
     );
-    const relevance = (material: Material) => {
-      if (!needle) return 0;
-      const name = normalizeMatch(material.name);
-      const courseTitle = normalizeMatch(material.courseTitle);
-      if (name === needle || courseTitle === needle) return 4;
-      if (name.startsWith(needle) || courseTitle.startsWith(needle)) return 3;
-      if (name.includes(needle) || courseTitle.includes(needle)) return 2;
-      return 1;
-    };
+    const relevance = (material: Material) => scoreMaterialSearch(material, query.trim().slice(0, 80));
     return sourceItems
       .map((material, index) => ({ material, index }))
       .sort((left, right) => {
@@ -357,7 +339,7 @@ export function MaterialsExplorer({
       invalidateRequests();
       setStatus("loading");
       setLoadingMore(false);
-      setSearch({});
+      setSearch((current) => current.saved === "1" ? { saved: "1" } : {});
     }
     inputRef.current?.focus();
   }
@@ -405,7 +387,7 @@ export function MaterialsExplorer({
   const filters = result?.filters ?? emptyFilters;
 
   function handleSearchKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    const count = status === "ready" ? rankedItems.length : 0;
+    const count = status === "ready" && saved !== "1" ? rankedItems.length : 0;
     if (event.key === "ArrowDown" && count) {
       event.preventDefault();
       const next = activeIndex >= 0 ? activeIndex : 0;
@@ -549,6 +531,12 @@ export function MaterialsExplorer({
         </aside>
 
         <div className={styles.resultsPanel}>
+          <div className={styles.bookmarkTabs} role="group" aria-label="资料范围">
+            <button aria-pressed={saved !== "1"} onClick={() => changeSearch("saved", "")}>全部</button>
+            <button aria-pressed={saved === "1"} onClick={() => { changeSearch("saved", "1"); void bookmarks.refresh(); }}>已收藏</button>
+          </div>
+          <p className={styles.bookmarkFeedback} role="status">{bookmarks.feedback}</p>
+          {saved === "1" ? <MaterialBookmarksPanel bookmarks={bookmarks} filters={{ query, course, teacher, type, tag, term, year }} /> : <>
           <header className={styles.resultHeader}>
             <div>
               <span>资料索引</span>
@@ -624,7 +612,7 @@ export function MaterialsExplorer({
                       <Link
                         ref={(node) => { resultRefs.current[index] = node; }}
                         id={`${embedded ? `${instanceId}-` : ""}material-result-${index}`}
-                        href={`/materials/${encodeURIComponent(material.id)}`}
+                        href={withCourseReturn(`/materials/${encodeURIComponent(material.id)}`, courseReturn ?? undefined)}
                         onFocus={() => setActiveIndex(index)}
                         onKeyDown={(event) => handleResultKeyDown(index, event)}
                       >
@@ -637,6 +625,7 @@ export function MaterialsExplorer({
                       </small>
                     </div>
                     <div className={styles.quickActions}>
+                      <MaterialBookmarkButton materialId={material.id} bookmarks={bookmarks} />
                       {material.previewable && <a href={material.previewUrl} target="_blank" rel="noreferrer">预览</a>}
                       <a href={material.downloadUrl} download>下载</a>
                     </div>
@@ -658,6 +647,7 @@ export function MaterialsExplorer({
               </button>
             </div>
           )}
+          </>}
         </div>
       </section>
     </Root>

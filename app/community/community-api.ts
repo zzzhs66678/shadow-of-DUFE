@@ -20,6 +20,7 @@ export type CommunityTopic = {
   createdAt: string;
   updatedAt: string;
   editedAt: string | null;
+  lastReplyAt?: string | null;
 };
 
 export type CommunityComment = {
@@ -127,6 +128,10 @@ export async function communityRequest<T>(
 export function communityErrorMessage(error: unknown) {
   const apiError = error as CommunityApiError;
   switch (apiError.code) {
+    case "community_account_changed":
+      return "登录账号已变化，请刷新后再操作。草稿仍保留在原账号下。";
+    case "invalid_community_body":
+      return "内容不符合要求，请检查字数和可见范围。";
     case "authentication_required":
       return "登录后才能完成这项操作。";
     case "community_posting_forbidden":

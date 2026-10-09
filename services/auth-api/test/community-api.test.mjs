@@ -51,14 +51,25 @@ function createCommunityStore() {
         items: [{ id: topicId, title: "选课之后，你会怎样整理一周？" }],
         nextCursor: input.sort === "hot"
           ? {
+              v: 1,
+              sort: "hot",
               id: nextTopicId,
               createdAt: "2026-08-09T08:00:00.000Z",
               rankedAt: "2026-08-11T08:00:00.000Z",
               score: "17",
             }
-          : {
+          : input.sort === "replied" ? {
+              v: 1,
+              sort: "replied",
               id: nextTopicId,
-              createdAt: "2026-08-09T08:00:00.000Z",
+              activityAt: "2026-08-10T08:00:00.000001Z",
+              rankedAt: "2026-08-11T08:00:00.000002Z",
+              revision: "a".repeat(32),
+            } : {
+              v: 1,
+              sort: "latest",
+              id: nextTopicId,
+              createdAt: "2026-08-09T08:00:00.000001Z",
             },
       };
     },
@@ -122,7 +133,7 @@ function createCommunityStore() {
     },
     async createCommunityTopic(input) {
       calls.push(["createCommunityTopic", structuredClone(input)]);
-      return { id: topicId, status: "published", version: 1 };
+      return { id: topicId, title: input.title, status: "published", version: 1 };
     },
     async updateCommunityTopic(input) {
       calls.push(["updateCommunityTopic", structuredClone(input)]);
@@ -298,6 +309,103 @@ test("topic list is public and authenticated viewers receive scoped state", asyn
       "17",
     );
   });
+});
+
+test("timeline cursors retain exact sort keys and cannot cross latest/replied/hot", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    for (const sort of ["latest", "replied", "hot"]) {
+      const response = await fetch(`${baseUrl}/api/community/topics?sort=${sort}&limit=1`);
+      assert.equal(response.status, 200);
+      const { nextCursor } = await response.json();
+      const decoded = __test.decodeTopicCursor(nextCursor, sort);
+      assert.equal(decoded.sort, sort);
+      assert.equal(decoded.v, 1);
+      for (const otherSort of ["latest", "replied", "hot"].filter((other) => other !== sort)) {
+        assert.equal(__test.decodeTopicCursor(nextCursor, otherSort), false);
+        const invalid = await fetch(`${baseUrl}/api/community/topics?sort=${otherSort}&cursor=${nextCursor}`);
+        assert.equal(invalid.status, 400);
+      }
+      const continued = await fetch(`${baseUrl}/api/community/topics?sort=${sort}&cursor=${nextCursor}`);
+      assert.equal(continued.status, 200);
+      assert.deepEqual(store.calls.at(-1)[1].cursor, decoded);
+    }
+    const valid = {
+      v: 1, sort: "replied", id: topicId, revision: "a".repeat(32),
+      activityAt: "2026-08-10T08:00:00.000001Z", rankedAt: "2026-08-11T08:00:00.000002Z",
+    };
+    for (const patch of [
+      { v: 2 }, { sort: "latest" }, { id: "x" }, { revision: "" }, { extra: true },
+      { activityAt: "2026-08-10T08:00:00.000Z" }, { activityAt: "2026-02-30T08:00:00.000001Z" },
+      { activityAt: "2026-08-12T08:00:00.000001Z" }, { rankedAt: "infinity" },
+    ]) {
+      assert.equal(__test.decodeTopicCursor(__test.encodeCursor({ ...valid, ...patch }), "replied"), false);
+    }
+    assert.equal(__test.decodeTopicCursor("a".repeat(513), "replied"), false);
+    for (const query of ["sort=latest&sort=replied", "limit=1&limit=2", "unknown=true", "cursor=&cursor="]) {
+      assert.equal((await fetch(`${baseUrl}/api/community/topics?${query}`)).status, 400);
+    }
+    store.listCommunityTopics = async () => { throw Object.assign(new Error("stale"), { code: "COMMUNITY_CURSOR_STALE" }); };
+    const stale = await fetch(`${baseUrl}/api/community/topics?sort=replied&cursor=${__test.encodeCursor(valid)}`);
+    assert.equal(stale.status, 409);
+    assert.deepEqual(await stale.json(), { error: "community_cursor_stale" });
+    assert.equal(stale.headers.get("Cache-Control"), "no-store, private");
+  });
+});
+
+test("a stale author header cannot publish another account's draft", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    const headers = { "Content-Type": "application/json", Origin: "https://dufesh.cn",
+      Cookie: `${sessionCookie}=${store.sessionToken}`, "X-Community-Owner": otherUserId };
+    const denied = await fetch(`${baseUrl}/api/community/topics`, {
+      method: "POST", headers, body: JSON.stringify({ body: "旧账号草稿" }),
+    });
+    assert.equal(denied.status, 409);
+    assert.equal((await denied.json()).error, "community_account_changed");
+    assert.equal(store.calls.some(([name]) => name === "createCommunityTopic"), false);
+    const allowed = await fetch(`${baseUrl}/api/community/topics`, {
+      method: "POST", headers: { ...headers, "X-Community-Owner": userId }, body: JSON.stringify({ body: "当前账号草稿" }),
+    });
+    assert.equal(allowed.status, 201);
+    assert.equal(store.calls.at(-1)[1].userId, userId);
+  });
+});
+
+test("body-first topic API derives title, rejects invisible spam, and retains posting guards", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    const headers = { "Content-Type": "application/json", Origin: "https://dufesh.cn",
+      Cookie: `${sessionCookie}=${store.sessionToken}` };
+    for (const title of [undefined, ""]) {
+      const response = await fetch(`${baseUrl}/api/community/topics`, {
+        method: "POST", headers, body: JSON.stringify({ title, body: "好", visibility: "public" }),
+      });
+      assert.equal(response.status, 201);
+      assert.equal((await response.json()).topic.title, "好");
+      assert.deepEqual(store.calls.at(-1)[1], { userId, title: "好", body: "好", visibility: "public" });
+    }
+    for (const body of [{ title: "短", body: "好" }, { title: "", body: "\u200b" },
+      { title: "", body: "好", status: "published" }, { title: "", body: "好", visibility: "private" }]) {
+      const response = await fetch(`${baseUrl}/api/community/topics`, {
+        method: "POST", headers, body: JSON.stringify(body),
+      });
+      assert.equal(response.status, 400);
+    }
+    store.createCommunityTopic = async () => { throw Object.assign(new Error("sanctioned"), { code: "COMMUNITY_POSTING_FORBIDDEN" }); };
+    const sanctioned = await fetch(`${baseUrl}/api/community/topics`, {
+      method: "POST", headers, body: JSON.stringify({ title: "", body: "好" }),
+    });
+    assert.equal(sanctioned.status, 403);
+  });
+  const deny = { consume: () => false };
+  await withServer(async ({ baseUrl, store }) => {
+    const response = await fetch(`${baseUrl}/api/community/topics`, {
+      method: "POST", headers: { "Content-Type": "application/json", Origin: "https://dufesh.cn",
+        Cookie: `${sessionCookie}=${store.sessionToken}` }, body: JSON.stringify({ title: "", body: "好" }),
+    });
+    assert.equal(response.status, 429);
+    assert.equal(response.headers.get("Retry-After"), "30");
+    assert.equal(store.calls.length, 0);
+  }, { rateLimiters: { read: { consume: () => true }, write: { consume: () => true },
+    communityWrite: deny, communityWriteIp: deny } });
 });
 
 test("public user profiles expose only published paginated community content", async () => {

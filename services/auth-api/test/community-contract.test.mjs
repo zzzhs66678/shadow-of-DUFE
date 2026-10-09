@@ -11,6 +11,30 @@ import {
 
 const commentId = "00000000-0000-4000-8000-000000000031";
 
+test("body-first posts derive bounded Unicode titles while explicit titles retain the old minimum", () => {
+  for (const title of [undefined, "", " \t "]) {
+    assert.deepEqual(validateTopicCreate({ title, body: " 好 " }), {
+      title: "好", body: "好", visibility: "public",
+    });
+  }
+  assert.equal(validateTopicCreate({ body: "😀" }).title, "😀");
+  assert.equal(validateTopicCreate({ body: "\u200b\n  第一行\n第二行" }).title, "第一行");
+  assert.equal(validateTopicCreate({ body: "ＡＢＣＤ\r\n第二行", visibility: "unlisted" }).title, "ABCD");
+  for (const title of ["好", "三个字", "😀😀", null, 123, "\u200b".repeat(4)]) {
+    assert.equal(validateTopicCreate({ title, body: "有效正文" }), null);
+  }
+  for (const body of ["", " \n\t", "\u200b\u200d\u2060", "\u0301", "\u2800", "\u3164", "\ud800", "\u0085"]) {
+    assert.equal(validateTopicCreate({ title: "这是标题", body }), null, JSON.stringify(body));
+  }
+  const long = validateTopicCreate({ body: "字".repeat(119) + "😀正文" });
+  assert.equal(long.title, "字".repeat(119));
+  assert.equal(validateTopicCreate({ body: "😀".repeat(61) }).title, "😀".repeat(60));
+  assert.equal(validateTopicCreate({ body: "\u0301".repeat(121) + "好" }).title, "好");
+  assert.equal(validateTopicUpdate({ title: "", body: "好", version: 1 }), null);
+  assert.equal(validateTopicUpdate({ body: "好", version: 1 }).title, undefined);
+  assert.equal(validateTopicCreate({ body: "好", lastReplyAt: "2026-01-01" }), null);
+});
+
 test("community topic input is normalized, bounded, and rejects mass assignment", () => {
   assert.deepEqual(
     validateTopicCreate({

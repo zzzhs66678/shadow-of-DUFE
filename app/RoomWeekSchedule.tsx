@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import styles from "./room-week-schedule.module.css";
 
 export type RoomWeekLesson = {
@@ -24,6 +24,8 @@ export type RoomWeekScheduleProps = {
   favorite: boolean;
   onBack: () => void;
   onToggleFavorite: () => void;
+  onLesson?: (id: string) => void;
+  feedbackAction?: ReactNode;
   /** Only this room's meetings active in the selected teaching week. */
   lessons: RoomWeekLesson[];
 };
@@ -40,6 +42,8 @@ export default function RoomWeekSchedule({
   favorite,
   onBack,
   onToggleFavorite,
+  onLesson,
+  feedbackAction,
   lessons,
 }: RoomWeekScheduleProps) {
   const [showFullWeek, setShowFullWeek] = useState(false);
@@ -75,6 +79,7 @@ export default function RoomWeekSchedule({
         <button type="button" onClick={onToggleFavorite}>
           {favorite ? "★ 已收藏" : "☆ 设为常用"}
         </button>
+        {feedbackAction}
       </div>
       <header className={styles.heading}>
         <div>
@@ -161,9 +166,21 @@ export default function RoomWeekSchedule({
                         {cellLessons.length ? (
                           cellLessons.map((lesson) => (
                             <article className={styles.lesson} key={lesson.id}>
+                              {onLesson ? <button
+                                type="button"
+                                id={`room-lesson-${lesson.id}`}
+                                className={styles.lessonLink}
+                                aria-label={`查看${lesson.title}的教学班，${lesson.teacher}`}
+                                onClick={() => onLesson(lesson.id)}
+                              >
+                                <strong>{lesson.title || "课程名称未提供"}</strong>
+                                <span>{lesson.teacher || "教师未提供"}</span>
+                                <small>{lesson.timeText || period.time}</small>
+                              </button> : <>
                               <strong>{lesson.title || "课程名称未提供"}</strong>
                               <span>{lesson.teacher || "教师未提供"}</span>
                               <small>{lesson.timeText || period.time}</small>
+                              </>}
                             </article>
                           ))
                         ) : (

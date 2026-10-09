@@ -6,6 +6,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import postcss from "postcss";
 import ts from "typescript";
+import * as discoveryNavigation from "../app/discovery-navigation.ts";
 
 const require = createRequire(import.meta.url);
 const source = readFileSync(new URL("../app/teachers/TeacherExplorer.tsx", import.meta.url), "utf8");
@@ -18,6 +19,8 @@ new Function("require", "module", "exports", compiled)(
   (name) => {
     if (name.endsWith(".css")) return { __esModule: true, default: new Proxy({}, { get: (_, key) => key }) };
     if (name === "../personal-course-context") return { loadPersonalCourseContext: async () => null };
+    if (name === "../discovery-navigation") return discoveryNavigation;
+    if (name === "../CourseReturnLink") return { useCourseReturn: () => null };
     if (name === "../PublicMasthead") return {
       PublicMasthead: ({ navigationLabel }) => createElement("nav", { "aria-label": navigationLabel }),
     };
@@ -88,7 +91,9 @@ test("only standalone mode owns history while all result links and pagination ke
   assert.match(history?.body ?? "", /^\(\) => \{\s*if \(embedded\) return;/);
   assert.equal(history?.dependencies, "[embedded, requestQuery, college]");
   assert.equal((source.match(/window\.history\.replaceState/g) ?? []).length, 1);
-  assert.match(source, /<Link key=\{teacher\.id\} href=\{`\/teachers\/\$\{teacher\.id\}`\}/);
+  assert.match(source, /<Link key=\{teacher\.id\} href=\{withCourseReturn\(`\/teachers\/\$\{teacher\.id\}`, courseReturn \?\? undefined\)\}/);
+  assert.match(history.body, /safeCourseReturn/);
+  assert.equal(discoveryNavigation.withCourseReturn("/teachers/exact-uuid"), "/teachers/exact-uuid");
   assert.match(source, /new Set\(current\.map\(\(teacher\) => teacher\.id\)\)/);
   for (const control of ["本学期教师", "返回学院索引", "重新读取学院", "重新读取更多教师"]) {
     assert.ok(source.includes(control));

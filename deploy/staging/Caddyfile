@@ -40,6 +40,11 @@
 		reverse_proxy auth-api:3100
 	}
 
+	@material_bookmarks path /api/material-bookmarks /api/material-bookmarks/*
+	handle @material_bookmarks {
+		reverse_proxy auth-api:3100
+	}
+
 	@teacher_api path /api/teachers /api/teachers/*
 	handle @teacher_api {
 		reverse_proxy auth-api:3100

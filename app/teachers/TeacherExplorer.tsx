@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { loadPersonalCourseContext, type PersonalCourseContext } from "../personal-course-context";
 import { PublicMasthead } from "../PublicMasthead";
+import { safeCourseReturn, withCourseReturn } from "../discovery-navigation";
+import { useCourseReturn } from "../CourseReturnLink";
 import styles from "./teachers.module.css";
 
 type TeacherSummary = {
@@ -25,6 +27,7 @@ type TeacherExplorerProps = {
 };
 
 export function TeacherExplorer({ initialQuery = "", initialCollege = "", embedded = false, onSearchChange }: TeacherExplorerProps) {
+  const courseReturn = useCourseReturn();
   const [query, setQuery] = useState(initialQuery);
   const [college, setCollege] = useState(initialCollege.normalize("NFKC").trim().toLocaleLowerCase("zh-CN"));
   const [colleges, setColleges] = useState<College[]>([]);
@@ -59,6 +62,8 @@ export function TeacherExplorer({ initialQuery = "", initialCollege = "", embedd
   useEffect(() => {
     if (embedded) return;
     const locationParams = new URLSearchParams();
+    const returnTo = safeCourseReturn(new URLSearchParams(window.location.search).get("returnTo"));
+    if (returnTo) locationParams.set("returnTo", returnTo);
     if (requestQuery) locationParams.set("q", requestQuery);
     if (college) locationParams.set("college", college);
     window.history.replaceState(null, "", `/teachers${locationParams.size ? `?${locationParams}` : ""}`);
@@ -232,7 +237,7 @@ export function TeacherExplorer({ initialQuery = "", initialCollege = "", embedd
           {status === "error" && <div className={styles.state} role="alert"><b>教师档案加载失败。</b><p>搜索词与学院已保留。</p><button type="button" onClick={() => setRevision((value) => value + 1)}>重新读取</button></div>}
           {status === "ready" && items.length === 0 && <p className={styles.inlineEmpty}>没有找到对应教师。试试完整姓名或切换学院，同名记录不会自动合并。</p>}
           <div className={styles.teacherList} aria-busy={status === "loading"}>
-            {items.map((teacher) => <Link key={teacher.id} href={`/teachers/${teacher.id}`}>
+            {items.map((teacher) => <Link key={teacher.id} href={withCourseReturn(`/teachers/${teacher.id}`, courseReturn ?? undefined)}>
               <div><h3>{teacher.displayName}</h3><small>{teacher.collegeName}</small></div>
               <span className={styles.teacherReviewCount}>{teacher.reviewCount ? `${teacher.reviewCount} 条评价` : "暂无评价"}</span>
               <span className={styles.openLabel}>阅读评价 →</span>

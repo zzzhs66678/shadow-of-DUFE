@@ -104,7 +104,7 @@ export function CommunitySavedView() {
     try {
       await communityRequest(`/api/community/users/${item.user.id}/block`, { method: "DELETE" });
       setBlocks((current) => current.filter((candidate) => candidate.user.id !== item.user.id));
-      setFeedback(`已解除对“${authorName(item.user)}”的屏蔽。之后的新内容会重新出现在回廊中。`);
+      setFeedback(`已取消屏蔽 ${authorName(item.user)}。`);
     } catch (error) {
       setFeedback(communityErrorMessage(error));
     } finally {
@@ -119,7 +119,7 @@ export function CommunitySavedView() {
       <CommunityHeader session={session} unread={unread} onOpenNotifications={() => setNotificationsOpen(true)} current="saved" />
       <section className={styles.savedHero}>
         <span>只对你可见</span>
-        <h1>我的社区存档</h1>
+        <h1>我的收藏</h1>
       </section>
       <section className={styles.savedWorkspace} id="community-saved" aria-labelledby="saved-title">
         <header>
@@ -133,7 +133,7 @@ export function CommunitySavedView() {
         {state === "anonymous" && <div className={styles.savedState}><b>登录后查看社区存档</b><Link href="/?view=me">去登录</Link></div>}
         {state === "error" && <div className={styles.savedState} role="alert"><b>存档加载失败</b><p>检查网络后重试。</p><button onClick={() => void load(tab)}>重新读取</button></div>}
         {state === "loading" && <div className={styles.savedState} role="status"><b>正在加载存档…</b></div>}
-        {empty && <div className={styles.savedState}><b>{tab === "bookmarks" ? "还没有收藏主题" : "没有已屏蔽账号"}</b><Link href="/community">返回校园回廊</Link></div>}
+        {empty && <div className={styles.savedState}><b>{tab === "bookmarks" ? "还没有收藏帖子" : "没有已屏蔽账号"}</b><Link href="/community">返回东财墙</Link></div>}
         {state === "ready" && tab === "bookmarks" && bookmarks.length > 0 && (
           <ol className={styles.savedList}>
             {bookmarks.map((item) => <li key={item.topicId}>
@@ -149,7 +149,7 @@ export function CommunitySavedView() {
           <ol className={styles.savedList}>
             {blocks.map((item) => <li key={item.user.id}>
               <time>{formatCommunityTime(item.blockedAt)}</time>
-              <div><div className={styles.blockedIdentity}><i aria-hidden="true">{authorName(item.user).slice(0, 1)}</i><span><h3>{authorName(item.user)}</h3><small>{item.user.username ? `@${item.user.username}` : "账号"}</small></span></div><p>你不会在回廊、回复和通知中看到这个账号的新内容。</p><button disabled={busy === `block:${item.user.id}`} onClick={() => void unblock(item)}>{busy === `block:${item.user.id}` ? "正在解除" : "解除屏蔽"}</button></div>
+              <div><div className={styles.blockedIdentity}><i aria-hidden="true">{authorName(item.user).slice(0, 1)}</i><span><h3>{authorName(item.user)}</h3><small>{item.user.username ? `@${item.user.username}` : "账号"}</small></span></div><p>不会再看到这个账号的帖子、回复和通知。</p><button disabled={busy === `block:${item.user.id}`} onClick={() => void unblock(item)}>{busy === `block:${item.user.id}` ? "正在解除" : "解除屏蔽"}</button></div>
             </li>)}
           </ol>
         )}

@@ -1,41 +1,11 @@
 import manifest from "../../public/data/resource-manifest.json" with { type: "json" };
+import { matchesMaterialFilters, scoreMaterialSearch } from "./materials-search.ts";
 
 const DEFAULT_LIMIT = 24;
 const MAX_LIMIT = 60;
 
-function normalize(value) {
-  return String(value ?? "")
-    .normalize("NFKC")
-    .toLocaleLowerCase("zh-CN")
-    .replace(/[\s·._()（）【】\[\]《》<>/\\-]+/g, "");
-}
-
 function cleanFilter(value, maxLength = 80) {
   return String(value ?? "").trim().slice(0, maxLength);
-}
-
-function includesNormalized(values, expected) {
-  if (!expected) return true;
-  const needle = normalize(expected);
-  return values.some((value) => normalize(value) === needle);
-}
-
-function materialSearchText(material) {
-  return normalize(
-    [
-      material.name,
-      material.courseTitle,
-      ...(material.courseIds ?? []),
-      ...(material.teachers ?? []),
-      ...(material.tags ?? []),
-      material.category,
-      material.kind,
-      material.extension,
-      material.description,
-      ...(material.terms ?? []),
-      ...(material.years ?? []),
-    ].join(" "),
-  );
 }
 
 const materials = Object.freeze(
@@ -47,7 +17,6 @@ const materials = Object.freeze(
       terms: Object.freeze([...(material.terms ?? [])]),
       years: Object.freeze([...(material.years ?? [])]),
       tags: Object.freeze([...(material.tags ?? [])]),
-      searchText: materialSearchText(material),
     }),
   ),
 );
@@ -100,38 +69,17 @@ export function searchMaterials(input = {}) {
   const offset = Number.isFinite(requestedOffset)
     ? Math.max(requestedOffset, 0)
     : 0;
-  const needle = normalize(query);
-
   const matches = materials
-    .filter((material) => !needle || material.searchText.includes(needle))
-    .filter(
-      (material) =>
-        !course ||
-        normalize(material.courseTitle) === normalize(course) ||
-        material.courseIds.some((courseId) => normalize(courseId) === normalize(course)),
-    )
-    .filter((material) => includesNormalized(material.teachers, teacher))
-    .filter((material) => !type || normalize(material.kind) === normalize(type))
-    .filter((material) => includesNormalized(material.tags, tag))
-    .filter((material) => includesNormalized(material.terms, term))
-    .filter(
-      (material) => !Number.isFinite(year) || material.years.includes(year),
-    )
+    .filter((material) => matchesMaterialFilters(material, { query, course, teacher, type, tag, term, year }))
+    .map((material) => ({ material, score: scoreMaterialSearch(material, query) }))
     .sort((a, b) => {
-      if (needle) {
-        const aName = normalize(a.name);
-        const bName = normalize(b.name);
-        const aCourse = normalize(a.courseTitle);
-        const bCourse = normalize(b.courseTitle);
-        const aScore = aName === needle ? 0 : aName.includes(needle) ? 1 : aCourse === needle ? 2 : 3;
-        const bScore = bName === needle ? 0 : bName.includes(needle) ? 1 : bCourse === needle ? 2 : 3;
-        if (aScore !== bScore) return aScore - bScore;
-      }
       return (
-        a.courseTitle.localeCompare(b.courseTitle, "zh-CN") ||
-        a.name.localeCompare(b.name, "zh-CN")
+        b.score - a.score ||
+        a.material.courseTitle.localeCompare(b.material.courseTitle, "zh-CN") ||
+        a.material.name.localeCompare(b.material.name, "zh-CN") ||
+        a.material.id.localeCompare(b.material.id)
       );
-    });
+    }).map(({ material }) => material);
 
   return {
     items: matches.slice(offset, offset + limit).map(publicMaterial),

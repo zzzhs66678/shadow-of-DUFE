@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { CommunityTopicView } from "../../CommunityTopicView";
 
 export const metadata: Metadata = {
-  title: "回廊主题",
-  description: "查看并参与东财校园回廊中的讨论。",
+  title: "东财墙 · 帖子",
+  description: "看看同学们在聊什么。",
   robots: { index: false, follow: false },
 };
 

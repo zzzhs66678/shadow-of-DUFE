@@ -72,9 +72,9 @@ function encodeCursor(cursor) {
   return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
 }
 
-function parseCursor(value) {
+function parseCursor(value, maxLength = 256) {
   if (value === null || value === "") return null;
-  if (value.length > 256 || !/^[A-Za-z0-9_-]+$/u.test(value)) return false;
+  if (value.length > maxLength || !/^[A-Za-z0-9_-]+$/u.test(value)) return false;
   try {
     return JSON.parse(Buffer.from(value, "base64url").toString("utf8"));
   } catch {
@@ -104,13 +104,32 @@ function hasOnlyQueryKeys(searchParams, allowed) {
 }
 
 function decodeTopicCursor(value, sort) {
-  if (sort === "latest") return decodeCursor(value);
-  const parsed = parseCursor(value);
+  const parsed = parseCursor(value, 512);
   if (parsed === null || parsed === false) return parsed;
+  if (sort === "latest") {
+    // Accept old latest links, but never reinterpret a tagged cursor's sort.
+    if (parsed.v === undefined) return decodeCursor(value);
+    if (Object.keys(parsed).sort().join("|") !== "createdAt|id|sort|v" ||
+        parsed.v !== 1 || parsed.sort !== sort || !isCommunityUuid(parsed.id) ||
+        !isCursorTimestamp(parsed.createdAt)) return false;
+    return parsed;
+  }
+  if (sort === "replied") {
+    if (Object.keys(parsed).sort().join("|") !== "activityAt|id|rankedAt|revision|sort|v" ||
+        parsed.v !== 1 || parsed.sort !== sort || !isCommunityUuid(parsed.id) ||
+        !isCursorTimestamp(parsed.activityAt) || !isCursorTimestamp(parsed.rankedAt) ||
+        parsed.activityAt > parsed.rankedAt ||
+        typeof parsed.revision !== "string" || !/^[0-9a-f]{32}$/u.test(parsed.revision)) return false;
+    return parsed;
+  }
+  if (sort !== "hot") return false;
   if (
     !parsed ||
     typeof parsed !== "object" ||
-    Object.keys(parsed).sort().join("|") !== "createdAt|id|rankedAt|score" ||
+    (parsed.v === undefined
+      ? Object.keys(parsed).sort().join("|") !== "createdAt|id|rankedAt|score"
+      : Object.keys(parsed).sort().join("|") !== "createdAt|id|rankedAt|score|sort|v" ||
+        parsed.v !== 1 || parsed.sort !== "hot") ||
     !UUID_PATTERN.test(parsed.id) ||
     typeof parsed.createdAt !== "string" ||
     !Number.isFinite(Date.parse(parsed.createdAt)) ||
@@ -122,11 +141,20 @@ function decodeTopicCursor(value, sort) {
     return false;
   }
   return {
+    ...(parsed.v === 1 ? { v: 1, sort: "hot" } : {}),
     id: parsed.id,
-    createdAt: new Date(parsed.createdAt).toISOString(),
+    createdAt: isCursorTimestamp(parsed.createdAt) ? parsed.createdAt : new Date(parsed.createdAt).toISOString(),
     rankedAt: new Date(parsed.rankedAt).toISOString(),
     score: parsed.score,
   };
+}
+
+function isCursorTimestamp(value) {
+  // Preserve microseconds rather than silently rounding keyset boundaries.
+  return typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/u.test(value) &&
+    Number.isFinite(Date.parse(value)) &&
+    new Date(value).toISOString() === value.replace(/(\.\d{3})\d{3}Z$/u, "$1Z");
 }
 
 async function optionalSession(request, store, config) {
@@ -209,6 +237,14 @@ export function createCommunityRequestHandler({ store, config, rateLimiters }) {
     }
     const session = await optionalSession(request, store, config);
     const viewerUserId = session?.userId ?? null;
+
+    // Compare the tab's known author with the actual session. This header never
+    // selects an account or grants access, and older clients remain compatible.
+    if (isWrite && session && request.headers["x-community-owner"] !== undefined &&
+        request.headers["x-community-owner"] !== String(session.userId)) {
+      sendJson(response, 409, { error: "community_account_changed" });
+      return true;
+    }
 
     async function writeAccess(limiterName = "communityWrite") {
       if (!session) {
@@ -443,9 +479,13 @@ export function createCommunityRequestHandler({ store, config, rateLimiters }) {
         methodNotAllowed(response, "GET, POST");
         return true;
       }
+      if (!hasOnlyQueryKeys(url.searchParams, new Set(["limit", "cursor", "sort"]))) {
+        sendJson(response, 400, { error: "invalid_community_query" });
+        return true;
+      }
       const limit = pageLimit(url.searchParams.get("limit"));
       const sort = url.searchParams.get("sort") ?? "latest";
-      if (!["latest", "hot"].includes(sort)) {
+      if (!["latest", "replied", "hot"].includes(sort)) {
         sendJson(response, 400, { error: "invalid_community_query" });
         return true;
       }
@@ -454,12 +494,14 @@ export function createCommunityRequestHandler({ store, config, rateLimiters }) {
         sendJson(response, 400, { error: "invalid_community_query" });
         return true;
       }
-      const result = await store.listCommunityTopics({
-        viewerUserId,
-        cursor,
-        limit,
-        sort,
-      });
+      let result;
+      try {
+        result = await store.listCommunityTopics({ viewerUserId, cursor, limit, sort });
+      } catch (error) {
+        if (error?.code !== "COMMUNITY_CURSOR_STALE") throw error;
+        sendJson(response, 409, { error: "community_cursor_stale" });
+        return true;
+      }
       sendJson(response, 200, {
         items: result.items,
         nextCursor: encodeCursor(result.nextCursor),

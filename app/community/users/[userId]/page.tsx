@@ -3,7 +3,7 @@ import { CommunityProfileView } from "../../CommunityProfileView";
 
 export const metadata: Metadata = {
   title: "社区公开档案",
-  description: "查看东财之影校园回廊用户主动公开的主题与回复。",
+  description: "查看东财墙用户公开的帖子与回复。",
   robots: { index: false, follow: false },
 };
 

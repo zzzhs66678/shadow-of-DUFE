@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type MouseEvent } from "react";
+import { withCourseReturn } from "./discovery-navigation";
 import {
   isCourseCatalogId,
   resolveTeacherScheduleHref,
@@ -16,6 +17,7 @@ export function TeacherRecordLink({
   label,
   courseId,
   destination = "reviews",
+  returnTo,
 }: {
   catalogId: string;
   scheduleId: string;
@@ -24,9 +26,10 @@ export function TeacherRecordLink({
   label?: string;
   courseId?: string;
   destination?: "reviews" | "teaching";
+  returnTo?: string;
 }) {
   const [resolving, setResolving] = useState(false);
-  const fallbackHref = teacherSearchHref(teacherName);
+  const fallbackHref = withCourseReturn(teacherSearchHref(teacherName), returnTo);
 
   async function openTeacher(event: MouseEvent<HTMLAnchorElement>) {
     event.stopPropagation();
@@ -54,7 +57,7 @@ export function TeacherRecordLink({
         fetcher: window.fetch.bind(window),
         signal: controller.signal,
       });
-      window.location.assign(destination === "teaching" ? teacherTeachingHref(href, courseId) : href);
+      window.location.assign(withCourseReturn(destination === "teaching" ? teacherTeachingHref(href, courseId) : href, returnTo));
     } catch {
       window.location.assign(fallbackHref);
     } finally {

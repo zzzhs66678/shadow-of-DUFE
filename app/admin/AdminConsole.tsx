@@ -493,6 +493,7 @@ export function AdminConsole() {
                 <button key={key} aria-pressed={workspace === key} onClick={() => navigate(key)}>{label}</button>
               ))}
             </nav>
+            <Link href="/admin/data-feedback">数据反馈</Link>
             <Link href="/">返回网站 ↗</Link>
           </aside>
           <div className={styles.workspaceBody}>

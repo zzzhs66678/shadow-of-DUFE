@@ -18,7 +18,7 @@ export function CompetitionsGateway() {
   return (
     <section className={styles.gateway} id="competitions-entry" aria-labelledby="competitions-entry-title">
       <Link ref={entryRef} className={styles.gatewayLink} href="/competitions" aria-label="查看学科考试及竞赛">
-        <StudyDoodle className={styles.gatewayArt} />
+        <span className={styles.gatewayStamp} aria-hidden="true"><StudyDoodle className={styles.gatewayArt} /></span>
         <div className={styles.gatewayCopy}>
           <h2 id="competitions-entry-title">学科考试及竞赛</h2>
           <p>学校通知 · 备考资料</p>

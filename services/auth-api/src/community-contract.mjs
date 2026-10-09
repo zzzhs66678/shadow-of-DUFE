@@ -9,13 +9,18 @@ function hasOnlyKeys(value, allowed) {
   return Object.keys(value).every((key) => allowed.has(key));
 }
 
+function hasVisibleText(value) {
+  return value.replace(/[\s\p{Default_Ignorable_Code_Point}\p{Mark}\u2800]/gu, "").length > 0;
+}
+
 function normalizeTitle(value) {
   if (typeof value !== "string") return null;
   const normalized = value.normalize("NFKC").replace(/\s+/gu, " ").trim();
   if (
-    normalized.length < 4 ||
+    [...normalized].length < 4 ||
     normalized.length > 120 ||
-    /[\u0000-\u001f\u007f]/u.test(normalized)
+    !hasVisibleText(normalized) ||
+    /[\u0000-\u001f\u007f-\u009f\p{Surrogate}]/u.test(normalized)
   ) {
     return null;
   }
@@ -31,11 +36,27 @@ function normalizeBody(value, maxLength) {
   if (
     normalized.length < 1 ||
     normalized.length > maxLength ||
-    /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(normalized)
+    !hasVisibleText(normalized) ||
+    /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\p{Surrogate}]/u.test(normalized)
   ) {
     return null;
   }
   return normalized;
+}
+
+function titleFromBody(body) {
+  // 0027 permits a 1-character derived title without padding or replacing old
+  // titles. Keep it plain text, omit invisible formatting, and preserve Unicode.
+  const firstLine = body.split(/\n|\u2028|\u2029/u).find(hasVisibleText)
+    .replace(/\p{Default_Ignorable_Code_Point}/gu, "")
+    .replace(/\s+/gu, " ").trim()
+    .replace(/^[\p{Mark}\u2800 ]+/u, "");
+  let title = "";
+  for (const character of firstLine) {
+    if (title.length + character.length > 120) break;
+    title += character;
+  }
+  return title.trim();
 }
 
 function normalizeOptionalDetail(value) {
@@ -59,8 +80,10 @@ export function validateTopicCreate(value) {
   ) {
     return null;
   }
-  const title = normalizeTitle(value.title);
   const body = normalizeBody(value.body, 5_000);
+  const omittedTitle = value.title === undefined ||
+    (typeof value.title === "string" && value.title.normalize("NFKC").trim() === "");
+  const title = omittedTitle && body ? titleFromBody(body) : normalizeTitle(value.title);
   const visibility = value.visibility ?? "public";
   if (!title || !body || !["public", "unlisted"].includes(visibility)) {
     return null;

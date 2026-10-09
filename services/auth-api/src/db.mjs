@@ -2,6 +2,8 @@ import pg from "pg";
 import { createAdminUserDetailsStore } from "./admin-user-details.mjs";
 import { createPersonalStore } from "./personal-store.mjs";
 import { createCommunityStore } from "./community-store.mjs";
+import { createMaterialBookmarkStore } from "./material-bookmarks-store.mjs";
+import { createDataFeedbackStore } from "./data-feedback-store.mjs";
 import { createTeacherReviewStore } from "./teacher-review-store.mjs";
 import { createTeacherStore } from "./teacher-store.mjs";
 
@@ -96,6 +98,8 @@ export function createAuthStore(pool) {
   return {
     ...personalStore,
     ...communityStore,
+    ...createMaterialBookmarkStore(pool),
+    ...createDataFeedbackStore(pool),
     ...teacherReviewStore,
     ...teacherStore,
     ...createAdminUserDetailsStore(pool),

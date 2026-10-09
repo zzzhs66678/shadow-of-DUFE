@@ -30,10 +30,52 @@ test("material search and detail routes stay independent from course selection",
   );
   assert.equal(searchResponse.status, 200);
   const search = await searchResponse.json();
-  assert.equal(search.total, 1);
+  // Abbreviation search can also find non-contiguous words in other file
+  // names. Keep the exact-name result first without freezing the broad count.
+  assert.ok(search.total >= 1);
+  assert.equal(search.limit, 10);
+  assert.equal(search.offset, 0);
+  assert.equal(search.items.length, Math.min(search.total, search.limit));
   assert.equal(search.items[0].name, "高数下.pdf");
   assert.ok(search.items.every((item) => item.id && item.downloadUrl));
   assert.ok(search.items.every((item) => !("sectionId" in item)));
+
+  const courseSearch = new URLSearchParams({ q: "高数", course: "高等数学（下）", limit: "10" });
+  const filteredResponse = await render(`/api/materials?${courseSearch}`);
+  assert.equal(filteredResponse.status, 200);
+  const filtered = await filteredResponse.json();
+  assert.equal(filtered.total, 1, "an explicit course filter still excludes other abbreviated matches");
+  assert.equal(filtered.items[0].id, search.items[0].id);
+
+  // Verify the actual route forwards all filter dimensions, not just q/course.
+  const material = filtered.items[0];
+  const filters = { course: material.courseTitle, teacher: material.teachers[0],
+    type: material.kind, tag: material.tags[0], term: material.terms[0], year: String(material.years[0]) };
+  const combined = new URLSearchParams({ q: "高数", ...filters, limit: "10" });
+  const combinedResponse = await render(`/api/materials?${combined}`);
+  assert.equal(combinedResponse.status, 200);
+  assert.deepEqual((await combinedResponse.json()).items.map((item) => item.id), [material.id]);
+  for (const key of Object.keys(filters)) {
+    const mismatched = new URLSearchParams(combined);
+    mismatched.set(key, key === "year" ? "9999" : "__no_matching_material__");
+    const response = await render(`/api/materials?${mismatched}`);
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).total, 0, `${key} must not be ignored`);
+  }
+  const pagedIds = [];
+  for (let offset = 0; offset < search.items.length; offset += 1) {
+    const response = await render(`/api/materials?${new URLSearchParams({ q: "高数", limit: "1", offset: String(offset) })}`);
+    assert.equal(response.status, 200);
+    const page = await response.json();
+    assert.equal(page.total, search.total);
+    assert.equal(page.offset, offset);
+    assert.equal(page.limit, 1);
+    assert.equal(page.hasMore, offset + 1 < search.total);
+    assert.equal(page.items.length, 1);
+    pagedIds.push(page.items[0].id);
+  }
+  assert.deepEqual(pagedIds, search.items.map((item) => item.id));
+  assert.equal(new Set(pagedIds).size, pagedIds.length);
 
   const materialId = search.items[0].id;
   const detailApi = await render(`/api/materials/${materialId}`);
@@ -144,12 +186,18 @@ test("community list and topic routes render independent readable shells", async
   const list = await render("/community");
   assert.equal(list.status, 200);
   const listHtml = await list.text();
-  assert.match(listHtml, /<title>校园回廊｜东财之影<\/title>/i);
-  assert.match(listHtml, /<h1 id="community-title">校园回廊<\/h1>/);
+  assert.match(listHtml, /<title>东财墙｜东财之影<\/title>/i);
+  assert.match(listHtml, /<h1 id="community-title">东财墙<\/h1>/);
   assert.doesNotMatch(listHtml, /让有用的话|按时间追新/);
-  assert.match(listHtml, /主题排序方式/);
-  assert.match(listHtml, />最新<\/button>/);
-  assert.match(listHtml, />热议<\/button>/);
+  const sortNavigation = listHtml.match(/<nav\b[^>]*aria-label="帖子排序方式"[^>]*>([\s\S]*?)<\/nav>/)?.[1];
+  assert.ok(sortNavigation, "sort controls remain named and readable before hydration");
+  assert.match(sortNavigation, /<button\b[^>]*aria-pressed="true"[^>]*>最新发布<\/button>/);
+  assert.match(sortNavigation, /<button\b[^>]*aria-pressed="false"[^>]*>最新回复<\/button>/);
+  assert.doesNotMatch(sortNavigation, /热议/);
+  assert.equal((sortNavigation.match(/<button\b/g) ?? []).length, 2);
+  assert.match(listHtml, /aria-label="最新发布的帖子"/);
+  assert.match(listHtml, /正在加载帖子/);
+  assert.match(listHtml, /href="\/\?view=me"[^>]*>登录发帖<\/a>/);
   assert.match(listHtml, /href="\/materials"/);
   assert.doesNotMatch(listHtml, /积分榜|用户等级/);
 
@@ -158,6 +206,7 @@ test("community list and topic routes render independent readable shells", async
   );
   assert.equal(detail.status, 200);
   const detailHtml = await detail.text();
+  assert.match(detailHtml, /<title>东财墙 · 帖子｜东财之影<\/title>/);
   assert.match(detailHtml, /正在加载讨论/);
   assert.match(detailHtml, /href="\/community"/);
 

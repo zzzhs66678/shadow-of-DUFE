@@ -70,6 +70,26 @@ const communityHubSource = await readFile(
   new URL("../app/community/CommunityHub.tsx", import.meta.url),
   "utf8",
 );
+const wallComposerSource = await readFile(
+  new URL("../app/community/WallComposer.tsx", import.meta.url),
+  "utf8",
+);
+const wallPrimitivesSource = await readFile(
+  new URL("../app/community/WallPrimitives.tsx", import.meta.url),
+  "utf8",
+);
+const communityApiSource = await readFile(
+  new URL("../app/community/community-api.ts", import.meta.url),
+  "utf8",
+);
+const materialSearchSource = await readFile(
+  new URL("../app/materials/materials-search.ts", import.meta.url),
+  "utf8",
+);
+const materialCatalogSource = await readFile(
+  new URL("../app/materials/materials-catalog.mjs", import.meta.url),
+  "utf8",
+);
 const communitySource = await readFile(
   new URL("../app/community/CommunityShared.tsx", import.meta.url),
   "utf8",
@@ -221,6 +241,14 @@ test("teacher and material discovery use scoped course context without hiding sc
   assert.match(materialsSource, /materialRelation\(material\) !== "other"/);
   assert.match(materialsSource, /\.slice\(0, items\.length\)/);
   assert.match(materialsSource, /params\.set\("offset"/);
+  // Both server results and personally ranked additions must use the same
+  // abbreviation matcher and every active filter, without guessing identities.
+  assert.match(materialSearchSource, /import \{ scoreCourseSearch, searchText \} from "\.\.\/course-search\.ts"/);
+  for (const source of [materialsSource, materialCatalogSource]) {
+    assert.match(source, /import \{ matchesMaterialFilters, scoreMaterialSearch \}/);
+    assert.match(source, /matchesMaterialFilters\(material, \{ query, course, teacher, type, tag, term, year \}\)/);
+    assert.match(source, /scoreMaterialSearch\(material, query/);
+  }
   assert.match(materialsStyles, /\.rankSwitch button\[aria-pressed="true"\]/);
   assert.match(materialsStyles, /\.loadMore/);
   assert.match(personalCourseContextSource, /userPersonalScope\(session\.user\.id\)/);
@@ -302,7 +330,12 @@ test("the daily workspace defers non-critical materials until idle or demand", (
   assert.match(component, /资料清单没有加载成功。关闭课程后重新打开即可再试。/);
 
   assert.match(adminStyles, /\.shell :is\(button, a, input, select, textarea, summary\):focus-visible/);
-  assert.match(communityStyles, /\.replyComposer textarea:focus-visible/);
+  const wallFocus = communityStyles.match(/\.page :is\(([^)]+)\):focus-visible\s*\{([^}]+)\}/);
+  assert.ok(wallFocus, "the wall's shared focus rule also covers reply/composer textareas");
+  assert.deepEqual(wallFocus[1].split(",").map((selector) => selector.trim()).sort(),
+    ["a", "button", "input", "select", "summary", "textarea"]);
+  assert.match(wallFocus[2], /outline:\s*2px solid var\(--red\)/);
+  assert.match(wallFocus[2], /outline-offset:\s*3px/);
   assert.match(materialsStyles, /\.searchField input:focus-visible/);
   assert.doesNotMatch(adminStyles, /\.gateForm input:focus(?!-visible)/);
   assert.doesNotMatch(communityStyles, /\.replyComposer textarea:focus(?!-visible)/);
@@ -316,7 +349,10 @@ test("the active visual system shares one paper ink and cinnabar palette", () =>
   assert.match(productStyles, /--ds-accent: var\(--dufe-red\)/);
   assert.match(redAccessStyles, /--journal-red: var\(--dufe-red\)/);
   assert.match(materialsStyles, /--red: var\(--dufe-red\)/);
-  assert.match(communityStyles, /--red: var\(--dufe-red\)/);
+  assert.match(globalStyles, /--dufe-red-deep:/);
+  for (const token of ["paper", "ink", "red"]) {
+    assert.match(communityStyles, new RegExp(`--${token}:\\s*var\\(--dufe-${token}(?:-deep)?(?:,\\s*#[a-f0-9]+)?\\)`, "i"));
+  }
   assert.match(adminStyles, /--admin-red: var\(--dufe-red\)/);
   assert.doesNotMatch(globalStyles, /#426a9d/i);
 });
@@ -404,7 +440,7 @@ test("editorial forms share one paper-and-ink field primitive", () => {
   assert.match(formFieldStyles, /--dufe-red/);
   assert.match(formFieldStyles, /prefers-reduced-motion:\s*reduce/);
 
-  for (const source of [component, communityHubSource, communitySource, communityTopicSource, teacherDetailSource, materialsSource, adminSource, moderationSource]) {
+  for (const source of [component, communitySource, communityTopicSource, teacherDetailSource, materialsSource, adminSource, moderationSource]) {
     assert.match(source, /import \{ FormField \}/);
     assert.match(source, /<FormField/);
   }
@@ -418,6 +454,45 @@ test("editorial forms share one paper-and-ink field primitive", () => {
   assert.match(component, /className="credential-field"/);
   assert.match(component, /className="profile-field"/);
   assert.match(component, /className="verification-field"/);
+});
+
+test("the body-first wall composer retains accessible labels, optional title and account-scoped drafts", () => {
+  assert.match(communityHubSource, /import \{ WallComposer \} from "\.\/WallComposer"/);
+  assert.match(communityHubSource, /session\?\.authenticated && session\.user \? <WallComposer key=\{session\.user\.id\}/);
+  assert.match(wallComposerSource, /<form[^>]*aria-label="发布帖子"[^>]*onSubmit=\{publish\}/);
+  assert.match(wallComposerSource, /htmlFor="wall-body">帖子正文<\/label>/);
+  assert.match(wallComposerSource, /htmlFor="wall-title">帖子标题（选填）<\/label>/);
+  const bodyInput = wallComposerSource.match(/<textarea\b[\s\S]*?\/>/)?.[0];
+  const titleInput = wallComposerSource.match(/<input\b[\s\S]*?\/>/)?.[0];
+  assert.ok(bodyInput && titleInput, "composer retains both body and optional title controls");
+  assert.match(bodyInput, /id="wall-body"[\s\S]*name="body"[\s\S]*maxLength=\{5000\}[\s\S]*required/);
+  assert.doesNotMatch(bodyInput, /minLength=\{(?:[2-9]|\d{2,})\}/, "one-character posts must remain possible");
+  assert.match(titleInput, /id="wall-title"[\s\S]*name="title"[\s\S]*maxLength=\{120\}/);
+  assert.doesNotMatch(titleInput, /\brequired\b/);
+  assert.match(wallComposerSource, /draft\.title\.normalize\("NFKC"\)/);
+  assert.match(wallComposerSource, /title && Array\.from\(title\)\.length < 4/);
+  assert.match(wallComposerSource, /bodyRef\.current\?\.focus\(\)/);
+  assert.match(wallComposerSource, /getElementById\("wall-title"\)\?\.focus\(\)/);
+  assert.match(wallComposerSource, /aria-label="可见范围"[\s\S]*value="public"[\s\S]*value="unlisted"/);
+  assert.match(wallComposerSource, /communityRequest[\s\S]*"\/api\/community\/topics"[\s\S]*method: "POST"[\s\S]*JSON\.stringify\(draft\)/);
+  assert.match(wallComposerSource, /dufe:wall-draft:\$\{author\.id\}/);
+  assert.match(wallComposerSource, /sessionStorage\.removeItem\(key\)/);
+  assert.match(wallComposerSource, /submitting\.current/);
+  const bodyHeights = [...communityStyles.matchAll(/\.composer > textarea\s*\{[^}]*min-height:\s*(\d+)px/g)];
+  assert.ok(bodyHeights.length > 0 && bodyHeights.every((match) => Number(match[1]) >= 44),
+    "the social composer still has an accessible text-entry target");
+});
+
+test("wall post primitives retain distinct titles, visible bodies and keyboard menu dismissal", () => {
+  assert.match(wallPrimitivesSource, /export function hasDistinctTitle/);
+  assert.match(wallPrimitivesSource, /!topic\.body\.trim\(\)\.startsWith\(title\)/);
+  assert.match(communityHubSource, /hasDistinctTitle\(topic\) && <h2>\{topic\.title\}<\/h2>/);
+  assert.match(communityHubSource, /<p>\{topic\.body\}<\/p>/);
+  assert.match(communityTopicSource, /hasDistinctTitle\(topic\)/);
+  assert.match(wallPrimitivesSource, /<summary aria-label=\{label\}/);
+  assert.match(wallPrimitivesSource, /event\.key === "Escape"[\s\S]*ref\.current\.open = false[\s\S]*querySelector\("summary"\)\?\.focus\(\)/);
+  assert.match(wallPrimitivesSource, /onBlur=[\s\S]*contains\(event\.relatedTarget/);
+  assert.match(wallPrimitivesSource, /<svg[^>]*aria-hidden="true"/);
 });
 
 test("personal activities default to cinnabar while legacy blue renders as charcoal", () => {
@@ -503,8 +578,9 @@ test("discussion threads can be folded without deleting or reclassifying content
   assert.match(communityTopicSource, /collapsedThreadIds/);
   assert.match(communityTopicSource, /aria-expanded="false"/);
   assert.match(communityTopicSource, /aria-controls={`community-thread-\${root\.id}`}/);
-  assert.match(communityTopicSource, />收起本章</u);
-  assert.match(communityTopicSource, /展开本章/);
+  assert.match(communityTopicSource, /aria-expanded="true" aria-controls=\{collapseControls\} onClick=\{onCollapse\}>收起回复</u);
+  assert.match(communityTopicSource, /展开回复/);
+  assert.match(communityTopicSource, /id={`community-thread-\${root\.id}`} hidden=\{collapsedThreadIds\.has\(root\.id\)\}/);
   assert.match(communityStyles, /\.threadContent\[hidden\]/);
   assert.doesNotMatch(communityTopicSource, /localStorage/);
 });
@@ -513,7 +589,12 @@ test("community topics share through the system sheet with a copy fallback", () 
   assert.match(communityTopicSource, /navigator\.share/);
   assert.match(communityTopicSource, /navigator\.clipboard\.writeText/);
   assert.match(communityTopicSource, /document\.execCommand\("copy"\)/);
-  assert.match(communityTopicSource, />分享链接<\/button>/u);
+  assert.match(communityTopicSource, /onClick=\{\(\) => void shareTopic\(\)\} aria-label="分享帖子"><WallIcon name="share"/u);
+  assert.match(communityTopicSource, /\(error as Error\)\.name === "AbortError"/);
+  assert.match(wallPrimitivesSource, /navigator\.share\(\{ title, url \}\)/);
+  assert.match(wallPrimitivesSource, /navigator\.clipboard\.writeText\(url\)/);
+  assert.match(communityHubSource, /shareWallPost\(topic\.id, topic\.title\)/);
+  assert.match(communityHubSource, /aria-label="分享帖子" onClick=\{\(\) => void share\(topic\)\}/);
 });
 
 test("community authors lead to privacy-bounded public activity profiles", () => {
@@ -521,30 +602,47 @@ test("community authors lead to privacy-bounded public activity profiles", () =>
   assert.match(communityProfileSource, /kind=\${requestedKind}&limit=20/);
   assert.match(communityProfileSource, /公开主题/);
   assert.match(communityProfileSource, /公开回复/);
-  assert.match(communityProfileSource, /私人资料不会在这里显示/);
+  assert.match(communityProfileSource, /未公开、已删除或仅链接可见的内容不会出现在个人主页/);
+  assert.match(communityApiSource, /export type CommunityPublicProfile = CommunityAuthor & \{\s*joinedAt: string;\s*topicCount: number;\s*commentCount: number;\s*\};/);
+  assert.doesNotMatch(communityProfileSource, /profile\.(?:email|schoolAccount|sessions|bookmarks|blocks|password)/);
+  assert.match(communityProfileSource, /status === 404[\s\S]*setProfile\(null\)[\s\S]*setItems\(\[\]\)[\s\S]*setNextCursor\(null\)/);
   assert.match(communityStyles, /\.profileTabs button\[aria-pressed="true"\]/);
-  assert.match(communityStyles, /@media \(max-width: 680px\)[\s\S]*?\.profileRecords li/);
+  assert.match(communityStyles, /@media \(max-width: 760px\)[\s\S]*?\.profileWorkspace > header[^}]*flex-direction:\s*column/);
+  assert.match(communityStyles, /\.profileRecords, \.savedList\s*\{[^}]*list-style:\s*none/);
+  assert.doesNotMatch(communityStyles, /\.profileRecords[^{}]*\{[^}]*grid-template-columns/);
 });
 
-test("community exposes real latest and snapshot-bounded hot sorting", () => {
+test("community exposes server-sorted latest/replied timelines with isolated cursors", () => {
   const selectSortSource = communityHubSource.slice(
     communityHubSource.indexOf("function selectSort"),
     communityHubSource.indexOf("const openNotifications"),
   );
-  assert.match(communityHubSource, /type FeedSort = "latest" \| "hot"/);
+  assert.match(communityHubSource, /type FeedSort = "latest" \| "replied"/);
   assert.match(communityHubSource, /sort=\${requestedSort}&limit=20/);
-  assert.match(communityHubSource, /aria-label="主题排序方式"/);
-  assert.match(communityHubSource, /aria-pressed={sort === "hot"}/);
-  assert.match(communityHubSource, /热议综合赞同、回复与近两周的发布时间排序/);
+  assert.match(communityHubSource, /aria-label="帖子排序方式"/);
+  for (const [sort, label] of [["latest", "最新发布"], ["replied", "最新回复"]]) {
+    assert.ok(communityHubSource.includes(`aria-pressed={sort === "${sort}"} onClick={() => selectSort("${sort}")}>${label}</button>`));
+  }
+  assert.doesNotMatch(communityHubSource, /selectSort\("hot"\)|>热议<|\.sort\(/);
+  assert.match(communityHubSource, /sort === "replied" && topic\.lastReplyAt/);
+  assert.match(communityHubSource, /dateTime=\{topic\.lastReplyAt\}/);
+  assert.match(selectSortSource, /setSort\(nextSort\);\s*setTopics\(\[\]\);\s*setNextCursor\(null\);\s*void loadTopics\(nextSort\)/);
+  assert.match(selectSortSource, /url\.searchParams\.set\("sort", nextSort\)/);
+  assert.match(selectSortSource, /window\.history\.pushState/);
+  assert.match(communityHubSource, /addEventListener\("popstate", readLocation\)/);
+  assert.match(communityHubSource, /requestId !== requestSequence\.current/);
+  assert.match(communityHubSource, /payload\.items\.filter\(\(item\) => !current\.some\(\(old\) => old\.id === item\.id\)\)/);
+  assert.match(communityHubSource, /community_cursor_stale[\s\S]*setTopics\(\[\]\);\s*setNextCursor\(null\);\s*await requestTopics\(requestedSort\)/);
   assert.ok(
     selectSortSource.indexOf("setSort(nextSort)") <
       selectSortSource.indexOf("void loadTopics(nextSort)"),
   );
   assert.match(communityStyles, /\.feedSort button\[aria-pressed="true"\]/);
-  assert.match(
-    communityStyles,
-    /@media \(max-width: 680px\)[\s\S]*?\.feedSort button \{ min-height: 44px;/,
-  );
+  // The base 52px target is inherited on phones; it no longer needs a 44px
+  // mobile-only override. Check every explicit height, not an obsolete breakpoint.
+  const sortHeights = [...communityStyles.matchAll(/\.feedSort button\s*\{[^}]*min-height:\s*(\d+)px/g)];
+  assert.ok(sortHeights.length > 0);
+  assert.ok(sortHeights.every((match) => Number(match[1]) >= 44));
 });
 
 test("personal page explains local data, cloud sync, devices, and account control", () => {

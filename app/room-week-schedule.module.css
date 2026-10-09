@@ -230,6 +230,22 @@
   white-space: normal;
 }
 
+.lessonLink {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.lessonLink:hover strong { color: #a62126; }
+.lessonLink:focus-visible { outline: 2px solid #a62126; outline-offset: 2px; }
+
 .lesson strong {
   font-size: 13px;
   line-height: 1.45;

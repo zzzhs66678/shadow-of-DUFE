@@ -29,18 +29,19 @@ export default async function CompetitionPage({ params }: PageProps) {
       <section aria-labelledby="notice-title" className={styles.section}>
         <h2 id="notice-title">学校通知</h2>
         <a className={styles.notice} href={item.notice.url} target="_blank" rel="noopener noreferrer">
-          <div>
+          <div className={styles.noticeCopy}>
             <h3>{item.notice.title}</h3>
-            <p>东北财经大学教务处 · <time dateTime={item.notice.publishedAt}>{item.notice.publishedAt}</time></p>
+            <p>东北财经大学教务处 · 发布于 <time dateTime={item.notice.publishedAt}>{item.notice.publishedAt}</time></p>
           </div>
           <span className={styles.noticeAction}>查看原文 <i aria-hidden="true">↗</i></span>
         </a>
+        <p className={styles.noticeNote}>这是原始通知，当前报名安排请以学校原文为准。</p>
       </section>
       <section aria-labelledby="resources-title" className={styles.section}>
         <h2 id="resources-title">备考资料</h2>
         {item.resources.length ? item.resources.map(resource => (
           <div className={styles.resource} key={resource.href}>
-            <div>
+            <div className={styles.resourceCopy}>
               <span className={styles.fileType}>ZIP · {(resource.sizeBytes / 1024 / 1024).toFixed(2)} MB</span>
               <h3>{resource.name}</h3>
               <p>{resource.description}</p>

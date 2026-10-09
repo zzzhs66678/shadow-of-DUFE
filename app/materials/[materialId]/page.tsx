@@ -2,12 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MaterialAvailability } from "../MaterialAvailability";
+import { MaterialDetailBookmark } from "../MaterialBookmarkControls";
+import { DataFeedback } from "../../DataFeedback";
 import { PublicMasthead } from "../../PublicMasthead";
 import styles from "../materials.module.css";
 import { getMaterialById } from "../materials-catalog.mjs";
 
 type PageProps = { params: Promise<{ materialId: string }> };
 type MaterialDetail = {
+  id: string;
   name: string;
   courseTitle: string;
   kind: string;
@@ -88,6 +91,8 @@ export default async function MaterialDetailPage({ params }: PageProps) {
             <div><dt>站内收录</dt><dd>{catalogDate(material.catalogedAt)}<small>收录时间不等同于原文件发布时间。</small></dd></div>
           </dl>
           <MaterialAvailability downloadUrl={material.downloadUrl} previewUrl={material.previewUrl} previewable={material.previewable} />
+          <MaterialDetailBookmark materialId={material.id} />
+          <DataFeedback target={{ type: "material", materialId: material.id }} />
         </div>
         <aside className={styles.detailAside}>
           <span>资料标签</span>

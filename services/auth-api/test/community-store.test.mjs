@@ -68,6 +68,8 @@ test("community store uses bounded keyset pagination and maps viewer state", asy
   assert.equal(result.items[0].liked, true);
   assert.equal(result.items[0].author.displayName, "东财同学");
   assert.deepEqual(result.nextCursor, {
+    v: 1,
+    sort: "latest",
     id: "00000000-0000-4000-8000-000000000022",
     createdAt: "2026-08-09T07:00:00.000Z",
   });
@@ -192,6 +194,8 @@ test("community hot feed ranks real engagement against one bounded snapshot", as
 
   assert.equal(result.items.length, 2);
   assert.deepEqual(result.nextCursor, {
+    v: 1,
+    sort: "hot",
     id: "00000000-0000-4000-8000-000000000022",
     createdAt: "2026-08-09T07:00:00.000Z",
     rankedAt,

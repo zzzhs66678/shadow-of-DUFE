@@ -36,17 +36,24 @@ import {
   type PersonalSyncState,
 } from "./personal-sync";
 import { FormField } from "./FormField";
+import { DataFeedback } from "./DataFeedback";
 import { useModalFocus } from "./use-modal-focus";
 import { activityTimes, activityTimeLabel, activityTimesOverlap, activityStart, activityBlock, activityOccursOn, activityListOrder, clockMinutes, eventWeekDate, validEventTimes, validEventDate } from "./personal-events";
 import { TeacherRecordLink } from "./TeacherRecordLink";
 import { TeachingSectionLinks } from "./TeachingSectionLinks";
 import { authoritativeSchedules, isSameScheduledMeeting, mergePersonalSchedules, scheduledMeetingsOverlap as schedulesOverlap } from "./schedule-reconciliation";
 import { academicCourseOptions } from "./academic-course-options";
+import { calendarDraftChanged } from "./calendar-draft";
+import { scheduleConflictDetails } from "./schedule-conflicts";
+import { summarizeAcademicChanges, type AcademicImportBaseline, type AcademicChangeSummary } from "./academic-change-summary";
+import { AcademicChangeReview, ScheduleConflictReview } from "./HubChangeDetails";
 import scheduleStyles from "./personal-timetable.module.css";
 import academicStyles from "./academic-windows.module.css";
 import courseStyles from "./course-center.module.css";
 import { courseWorkspaceTabs, type CourseWorkspaceTab } from "./course-workspace";
 import { useCourseWorkspace } from "./use-course-workspace";
+import { scoreCourseSearch } from "./course-search";
+import { discoveryKeys, localHref, pushDiscovery, readDiscovery, restoreDiscoveryPosition, roomContextUrl } from "./discovery-navigation";
 import homeStyles from "./home-workspace.module.css";
 import meStyles from "./my-page.module.css";
 import { CompetitionsGateway } from "./competitions/CompetitionsGateway";
@@ -336,14 +343,6 @@ const campusLinks = {
 } as const;
 const weekdayLabels = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 const weekdayShort = ["一", "二", "三", "四", "五", "六", "日"];
-const courseAliases: Record<string, string[]> = {
-  中级财务会计: ["中财"],
-  宏观经济学: ["宏经"],
-  微观经济学: ["微经"],
-  高等数学: ["高数"],
-  概率论与数理统计: ["概统", "概率论"],
-  线性代数: ["线代"],
-};
 const emptySavedState: SavedState = {
   profile: null,
   skipped: false,
@@ -649,13 +648,6 @@ function weekdayNumber(date: Date) {
 function courseMark(title: string) {
   const clean = title.replace(/[（(].*?[）)]/g, "").replace(/[“”"《》]/g, "");
   return clean.slice(0, 2).toUpperCase();
-}
-
-function aliasesForCourse(course: Course) {
-  const title = normalize(course.title);
-  return Object.entries(courseAliases)
-    .filter(([canonical]) => title.includes(normalize(canonical)))
-    .flatMap(([, aliases]) => aliases);
 }
 
 function viewFromLocation(): View {
@@ -1083,17 +1075,29 @@ function HubApp({ data: initialData }: { data: SiteData }) {
     wechatAvailable: false,
   });
   const [authRevision, setAuthRevision] = useState(0);
+  useEffect(() => {
+    window.dispatchEvent(new Event("dufesh:auth-changed"));
+  }, [account.status, account.user?.id]);
   const [accountDevices, setAccountDevices] = useState<AccountDevice[]>([]);
   const [onboarding, setOnboarding] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [creatorsOpen, setCreatorsOpen] = useState(false);
-  const [academicImportOpen, setAcademicImportOpen] = useState(false);
+  const personalOwner = `${personalScope.kind === "user" ? personalScope.userId : "anonymous"}:${account.user?.id ?? "anonymous"}`;
+  const personalOwnerRef = useRef(personalOwner);
+  const [academicImportOwner, setAcademicImportOwner] = useState("");
+  const academicImportOpen = academicImportOwner === personalOwner;
+  const setAcademicImportOpen = (open: boolean) => setAcademicImportOwner(open ? personalOwner : "");
+  const [academicUpdates, setAcademicUpdates] = useState<{
+    owner: string; schoolAccount: string; baselines: Record<string, AcademicImportBaseline>;
+    summary: AcademicChangeSummary | null;
+  } | null>(null);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [materialsStatus, setMaterialsStatus] =
     useState<MaterialsLoadStatus>("idle");
   const [query, setQuery] = useState("");
   const [searchKind, setSearchKind] = useState<SearchKind>("all");
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [selectedMeetingId, setSelectedMeetingId] = useState("");
   const [college, setCollege] = useState("");
   const [majorId, setMajorId] = useState("");
   const [year, setYear] = useState(0);
@@ -1101,14 +1105,29 @@ function HubApp({ data: initialData }: { data: SiteData }) {
   const [date, setDate] = useState(todayISO);
   const [block, setBlock] = useState(currentBlock);
   const [selectedRoom, setSelectedRoom] = useState("");
+  const [roomFloorChoice, setRoomFloorChoice] = useState("");
   const [coursePoolQuery, setCoursePoolQuery] = useState("");
-  const [calendarEditor, setCalendarEditor] =
-    useState<CalendarEditorRequest | null>(null);
+  const [calendarSession, setCalendarSession] =
+    useState<{ owner: string; request: CalendarEditorRequest } | null>(null);
+  const calendarEditor = calendarSession?.owner === personalOwner ? calendarSession.request : null;
+  const setCalendarEditor = (request: CalendarEditorRequest | null) =>
+    setCalendarSession(request ? { owner: personalOwner, request } : null);
   const savedRef = useRef(saved);
   const termRef = useRef(term);
   const syncQueueRef = useRef<Promise<void>>(Promise.resolve());
   const materialsRequestRef = useRef<Promise<void> | null>(null);
   const [addFeedback, setAddFeedback] = useState("");
+
+  useEffect(() => {
+    personalOwnerRef.current = personalOwner;
+    // Hidden immediately by the owner guards above; discard rather than resurrect
+    // a previous account's open editor/summary if this account switches back later.
+    queueMicrotask(() => {
+      setCalendarSession((current) => current?.owner === personalOwner ? current : null);
+      setAcademicUpdates((current) => current?.owner === personalOwner ? current : null);
+      setAcademicImportOwner((current) => current === personalOwner ? current : "");
+    });
+  }, [personalOwner]);
 
   const loadFullData = useCallback(() => {
     if (fullDataRequestRef.current) return fullDataRequestRef.current;
@@ -1243,14 +1262,26 @@ function HubApp({ data: initialData }: { data: SiteData }) {
   function applyAcademicImport(result: {
     snapshot: AcademicSnapshot;
     trainingPlan: AcademicTrainingPlan | null;
+    schoolAccount: string;
     warning?: AcademicImportWarning;
     warnings?: AcademicImportWarning[];
   }) {
+    if (personalOwnerRef.current !== personalOwner) return;
     const { snapshot, trainingPlan, warning } = result;
     const importWarnings = [...new Set([
       ...(result.warnings ?? []),
       ...(warning ? [warning] : []),
     ])];
+    setAcademicUpdates((current) => {
+      const sameAccount = current?.owner === personalOwner && current.schoolAccount === result.schoolAccount;
+      const baselines = sameAccount ? current.baselines : {};
+      const key = JSON.stringify([snapshot.id, snapshot.academicYear, snapshot.term]);
+      const baseline: AcademicImportBaseline = { owner: personalOwner, schoolAccount: result.schoolAccount,
+        snapshot, trainingPlan, warnings: importWarnings };
+      const summary = summarizeAcademicChanges(baselines[key] ?? null, baseline);
+      return { owner: personalOwner, schoolAccount: result.schoolAccount, baselines: { ...baselines, [key]: baseline },
+        summary: summary?.changes.length ? summary : sameAccount ? current.summary : null };
+    });
     const previousSnapshot = saved.academicSnapshots.find(
       (item) => item.id === snapshot.id,
     );
@@ -1530,11 +1561,33 @@ function HubApp({ data: initialData }: { data: SiteData }) {
   useEffect(() => {
     const syncView = () => {
       setView(viewFromLocation());
-      setSelectedRoom("");
+      const state = readDiscovery(window.location.search);
+      setSelectedRoom(state.room);
+      setSelectedCourse(courses.get(state.course) ?? null);
+      setSelectedMeetingId(state.meeting);
+      if (state.building && data.buildings.includes(state.building)) setBuilding(state.building);
+      if (state.date && validEventDate(state.date)) setDate(state.date);
+      if (state.block) setBlock(state.block);
+      setRoomFloorChoice(state.floor);
+      if (state.room) setTerm(state.term);
     };
+    const restore = () => { syncView(); restoreDiscoveryPosition(); };
     syncView();
-    window.addEventListener("popstate", syncView);
-    return () => window.removeEventListener("popstate", syncView);
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, [courses, data.buildings]);
+
+  const closeCourse = useCallback(() => {
+    if (window.history.state?.hubLayer === "course" && window.history.state?.hubParent) {
+      window.history.back();
+    } else {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("course");
+      url.searchParams.delete("meeting");
+      window.history.replaceState(window.history.state, "", localHref(url));
+      setSelectedCourse(null);
+      setSelectedMeetingId("");
+    }
   }, []);
 
   useEffect(() => {
@@ -1553,14 +1606,14 @@ function HubApp({ data: initialData }: { data: SiteData }) {
         event.preventDefault();
         setCommandOpen(true);
       }
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && !event.defaultPrevented) {
         setCommandOpen(false);
-        setSelectedCourse(null);
+        if (new URLSearchParams(window.location.search).has("course")) closeCourse();
       }
     }
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
-  }, []);
+  }, [closeCourse]);
 
   const searchItems = useMemo(() => {
     const needle = normalize(query);
@@ -1598,26 +1651,9 @@ function HubApp({ data: initialData }: { data: SiteData }) {
       });
     }
     for (const course of data.courses) {
-      const title = normalize(course.title);
-      const aliases = aliasesForCourse(course).map(normalize);
-      const haystack = normalize(
-        [
-          course.title,
-          course.id,
-          course.college,
-          ...course.teachers,
-          ...aliases,
-        ].join(" "),
-      );
-      if (!haystack.includes(needle)) continue;
-      const score =
-        title === needle
-          ? 0
-          : aliases.includes(needle)
-            ? 1
-            : title.includes(needle)
-              ? 2
-              : 3;
+      const relevance = scoreCourseSearch(course, query);
+      if (relevance < 0) continue;
+      const score = (1000 - relevance) / 250;
       items.push({
         key: `course-${course.id}`,
         kind: "course",
@@ -1683,8 +1719,11 @@ function HubApp({ data: initialData }: { data: SiteData }) {
 
   function go(next: View) {
     setSelectedRoom("");
+    setSelectedCourse(null);
+    setSelectedMeetingId("");
     setView(next);
     const url = new URL(window.location.href);
+    discoveryKeys.forEach((key) => url.searchParams.delete(key));
     if (next === "home") url.searchParams.delete("view");
     else url.searchParams.set("view", next);
     window.history.pushState({ view: next }, "", `${url.pathname}${url.search}${url.hash}`);
@@ -1694,6 +1733,38 @@ function HubApp({ data: initialData }: { data: SiteData }) {
         ? "auto"
         : "smooth",
     });
+  }
+
+  function openCourse(course: Course, meetingId = "") {
+    const url = new URL(window.location.href);
+    url.searchParams.set("course", course.id);
+    if (meetingId) url.searchParams.set("meeting", meetingId);
+    else url.searchParams.delete("meeting");
+    pushDiscovery(url, "course");
+    setSelectedMeetingId(meetingId);
+    setSelectedCourse(course);
+  }
+
+  function changeRoom(key: string) {
+    if (!key && window.history.state?.hubLayer === "room" && window.history.state?.hubParent) {
+      window.history.back();
+      return;
+    }
+    const parent = roomContextUrl(window.location.href, { building, date, block, floor: roomFloorChoice, term });
+    window.history.replaceState(window.history.state, "", localHref(parent));
+    const url = new URL(parent);
+    url.searchParams.delete("course");
+    url.searchParams.delete("meeting");
+    if (key) {
+      url.searchParams.set("view", "rooms");
+      url.searchParams.set("room", key);
+      url.searchParams.set("room-building", key.split("|")[0]);
+      pushDiscovery(url, "room");
+    } else {
+      url.searchParams.delete("room");
+      window.history.replaceState({}, "", localHref(url));
+    }
+    setSelectedRoom(key);
   }
 
   function updateActivePlan(transform: (ids: string[]) => string[]) {
@@ -1752,7 +1823,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
       return;
     }
     if (item.course) {
-      setSelectedCourse(item.course);
+      openCourse(item.course);
       return;
     }
     if (item.teacher) {
@@ -1762,7 +1833,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
     if (item.room && item.building) {
       go("rooms");
       setBuilding(item.building);
-      setSelectedRoom(`${item.building}|${item.room}`);
+      changeRoom(`${item.building}|${item.room}`);
     }
   }
 
@@ -1850,6 +1921,10 @@ function HubApp({ data: initialData }: { data: SiteData }) {
         <ExamRail exams={upcomingExams} onOpen={() => go("schedule")} />
       )}
 
+      {academicUpdates?.owner === personalOwner && academicUpdates.summary && (
+        <AcademicChangeReview summary={academicUpdates.summary} />
+      )}
+
       {view === "home" && (
         <HomePage
           data={data}
@@ -1876,6 +1951,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           onDeleteCalendar={(kind, id) => {
             const activity = saved.activities.find((item) => item.id === id);
             if (kind === "activity" && !window.confirm(`删除日程“${activity?.title ?? ""}”？${activity?.repeat !== "none" ? "这会删除每周重复的整项日程。" : ""}`)) return;
+            if (kind === "assignment" && !window.confirm(`删除作业“${saved.assignments.find((item) => item.id === id)?.title ?? ""}”？`)) return;
             setSaved((state) => ({
               ...state,
               activities:
@@ -1926,7 +2002,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           activeSchedules={activeSchedules}
           academicSnapshot={academicSnapshot}
           trainingPlan={saved.trainingPlan}
-          onCourse={setSelectedCourse}
+          onCourse={openCourse}
           onAcademicImport={() => setAcademicImportOpen(true)}
         />
       )}
@@ -1946,7 +2022,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           courses={courses}
           query={coursePoolQuery}
           setQuery={setCoursePoolQuery}
-          onCourse={setSelectedCourse}
+          onCourse={openCourse}
           onAdd={addSchedule}
           onRemove={(id) =>
             updateActivePlan((ids) => ids.filter((item) => item !== id))
@@ -1967,7 +2043,14 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           block={block}
           setBlock={setBlock}
           selectedRoom={selectedRoom}
-          setSelectedRoom={setSelectedRoom}
+          setSelectedRoom={changeRoom}
+          floorChoice={roomFloorChoice}
+          setFloorChoice={setRoomFloorChoice}
+          onLesson={(id) => {
+            const meeting = schedules.get(id);
+            const course = meeting && courses.get(meeting.courseId);
+            if (meeting && course) openCourse(course, meeting.id);
+          }}
           saved={saved}
           setSaved={setSaved}
         />
@@ -2210,7 +2293,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
       {selectedCourse && fullDataStatus !== "ready" && (
         <div
           className="modal-backdrop drawer-backdrop"
-          onMouseDown={() => setSelectedCourse(null)}
+          onMouseDown={closeCourse}
         >
           <aside
             className="course-drawer"
@@ -2222,7 +2305,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
             <header>
               <span>课程号 {selectedCourse.id}</span>
               <button
-                onClick={() => setSelectedCourse(null)}
+                onClick={closeCourse}
                 aria-label="关闭课程详情"
               >
                 ×
@@ -2248,6 +2331,9 @@ function HubApp({ data: initialData }: { data: SiteData }) {
       )}
       {selectedCourse && fullDataStatus === "ready" && (
         <CourseDrawer
+          key={`${selectedCourse.id}:${selectedMeetingId}`}
+          selectedMeetingId={selectedMeetingId}
+          fromRoom={Boolean(selectedRoom)}
           catalogId={data.catalogId}
           course={selectedCourse}
           materials={materials.filter(
@@ -2262,11 +2348,12 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           activeSchedules={planningSchedules}
           addTarget={academicSnapshot ? "选课方案" : "课表"}
           onAddMany={addSchedules}
-          onClose={() => setSelectedCourse(null)}
+          onClose={closeCourse}
         />
       )}
       {calendarEditor && (
         <CalendarEditor
+          key={personalOwner}
           request={calendarEditor}
           saved={saved}
           setSaved={setSaved}
@@ -2920,7 +3007,7 @@ function HomePage({
 
       <a className="today-community-note" href="/community">
         <span>课间有空再看</span>
-        <b>校园回廊</b>
+        <b>东财墙</b>
         <em>同学们的讨论 →</em>
       </a>
 
@@ -2970,7 +3057,6 @@ function CatalogPage({
     setPlanOpen(false);
     workspace.update({ tab }, true);
   };
-  const normalizedQuery = normalize(query);
   const collegeMajors = data.majors.filter(
     (item) => !college || item.college === college,
   );
@@ -3017,22 +3103,7 @@ function CatalogPage({
     return matches?.length === 1 ? matches[0] : undefined;
   };
   const courseSearchScore = (course: Course) => {
-    if (!normalizedQuery) return 0;
-    const title = normalize(course.title);
-    const id = normalize(course.id);
-    const aliases = (courseAliases[course.title] ?? []).map(normalize);
-    if (title === normalizedQuery || id === normalizedQuery) return 400;
-    if (title.startsWith(normalizedQuery) || id.startsWith(normalizedQuery)) {
-      return 300;
-    }
-    if (
-      title.includes(normalizedQuery) ||
-      id.includes(normalizedQuery) ||
-      aliases.some((alias) => alias.includes(normalizedQuery))
-    ) {
-      return 200;
-    }
-    return -1;
+    return scoreCourseSearch(course, query);
   };
   const catalogItems = data.courses
     .filter((course) => {
@@ -3071,13 +3142,6 @@ function CatalogPage({
       schedule,
     ]);
   }
-  const planCourses = (trainingPlan?.courses ?? []).filter((course) => {
-    if (!normalizedQuery) return true;
-    return (
-      normalize(course.courseName).includes(normalizedQuery) ||
-      normalize(course.courseCode).includes(normalizedQuery)
-    );
-  });
   const currentPlanCourseCount = (trainingPlan?.courses ?? []).filter((course) =>
     academicCourseCodes.has(normalizeCourseCode(course.courseCode)),
   ).length;
@@ -3200,55 +3264,18 @@ function CatalogPage({
         />
       </label>
 
-      {planOpen ? (
-        <section className={courseStyles.results} aria-labelledby="plan-course-title">
-          <header className={courseStyles.resultsHeader}>
-            <div>
-              <span>培养方案</span>
-              <h2 id="plan-course-title">{trainingPlan?.planName}</h2>
-            </div>
-            <strong>{planCourses.length} 门</strong>
-          </header>
-          <div className={courseStyles.courseRows}>
-            {planCourses.map((planCourse) => {
-              const catalogCourse = uniqueCatalogCourse(planCourse.courseCode);
-              const isCurrent = academicCourseCodes.has(
-                normalizeCourseCode(planCourse.courseCode),
-              );
-              const status = isCurrent
-                ? "本学期"
-                : planCourse.completionStatus === "passed"
-                  ? "已修"
-                  : planCourse.completionStatus === "in_progress"
-                    ? "修读中"
-                    : planCourse.completionStatus === "failed"
-                      ? "未通过"
-                      : "待修";
-              return (
-                <article key={`${planCourse.categoryCode}-${planCourse.courseCode}`}>
-                  <i aria-hidden="true">{courseMark(planCourse.courseName)}</i>
-                  <div>
-                    <span>{planCourse.categoryName || "培养方案课程"}</span>
-                    <strong>{planCourse.courseName}</strong>
-                    <p>
-                      {planCourse.courseCode} · {formatPlanCredits(planCourse.credits)}
-                      {planCourse.completedTerm ? ` · ${planCourse.completedTerm}` : ""}
-                    </p>
-                  </div>
-                  <b data-current={isCurrent || undefined}>{status}</b>
-                  {catalogCourse ? (
-                    <button onClick={() => onCourse(catalogCourse)}>课程详情</button>
-                  ) : (
-                    <small>课程库暂未收录</small>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-          {!planCourses.length && (
-            <p className={courseStyles.empty}>没有找到对应的培养方案课程。</p>
-          )}
-        </section>
+      {planOpen && trainingPlan ? (
+        <TrainingPlanWindow
+          key={trainingPlan.planNumber}
+          trainingPlan={trainingPlan}
+          academicSnapshot={academicSnapshot}
+          coursesByCode={new Map([...catalogMatchesByCode].filter(([, matches]) => matches.length === 1).map(([code, matches]) => [code, matches[0]]))}
+          offeringsByCourse={new Map()}
+          activeAcademicCourseCodes={academicCourseCodes}
+          onCourse={onCourse}
+          searchQuery={query}
+          initialFilter="all"
+        />
       ) : mode === "mine" ? (
         <section className={courseStyles.results} aria-labelledby="my-course-title">
           <header className={courseStyles.resultsHeader}>
@@ -3264,9 +3291,7 @@ function CatalogPage({
             {(academicSnapshot?.sections ?? [])
               .filter(
                 (section) =>
-                  !normalizedQuery ||
-                  normalize(section.courseName).includes(normalizedQuery) ||
-                  normalize(section.courseCode).includes(normalizedQuery),
+                  scoreCourseSearch({ id: section.courseCode, title: section.courseName, teachers: section.teachers }, query) >= 0,
               )
               .map((section) => {
                 const catalogCourse = uniqueCatalogCourse(section.courseCode);
@@ -3296,13 +3321,7 @@ function CatalogPage({
             {[...manualCourseGroups.entries()]
               .filter(([, meetings]) => {
                 const course = courses.get(meetings[0]?.courseId);
-                return (
-                  !normalizedQuery ||
-                  normalize(course?.title ?? meetings[0]?.title ?? "").includes(
-                    normalizedQuery,
-                  ) ||
-                  normalize(meetings[0]?.courseId ?? "").includes(normalizedQuery)
-                );
+                return scoreCourseSearch(course ?? { id: meetings[0]?.courseId ?? "", title: meetings[0]?.title ?? "" }, query) >= 0;
               })
               .map(([courseId, meetings]) => {
                 const course = courses.get(courseId);
@@ -3525,6 +3544,7 @@ function AcademicImportDialog({
   onImported: (result: {
     snapshot: AcademicSnapshot;
     trainingPlan: AcademicTrainingPlan | null;
+    schoolAccount: string;
     warning?: AcademicImportWarning;
     warnings?: AcademicImportWarning[];
   }) => void;
@@ -3670,6 +3690,7 @@ function AcademicImportDialog({
         onImported({
           snapshot: result.snapshot,
           trainingPlan: result.trainingPlan,
+          schoolAccount: username.trim(),
           warning: result.warning,
           warnings: result.warnings,
         });
@@ -3678,6 +3699,7 @@ function AcademicImportDialog({
       onImported({
         snapshot: result.snapshot,
         trainingPlan: result.trainingPlan,
+        schoolAccount: username.trim(),
       });
     } catch {
       setFeedback("网络连接中断，教务密码没有保存，请重新尝试。");
@@ -4074,6 +4096,8 @@ function TrainingPlanWindow({
   activeAcademicCourseCodes,
   onCourse,
   onAdd,
+  searchQuery,
+  initialFilter,
 }: {
   trainingPlan: AcademicTrainingPlan;
   academicSnapshot?: AcademicSnapshot;
@@ -4081,16 +4105,19 @@ function TrainingPlanWindow({
   offeringsByCourse: Map<string, Schedule[]>;
   activeAcademicCourseCodes: Set<string>;
   onCourse: (course: Course) => void;
-  onAdd: (id: string) => void;
+  onAdd?: (id: string) => void;
+  searchQuery?: string;
+  initialFilter?: TrainingPlanFilter;
 }) {
   const rootCategoryCodes = trainingPlan.categories
-    .filter((category) => !category.parentCode)
+    .filter((category) => !category.parentCode && !/通识|公共选修|全校选修/.test(category.name))
     .map((category) => category.code);
   const [expanded, setExpanded] = useState(true);
   const [filter, setFilter] = useState<TrainingPlanFilter>(() =>
-    activeAcademicCourseCodes.size ? "current" : "pending",
+    initialFilter ?? (activeAcademicCourseCodes.size ? "current" : "pending"),
   );
-  const [planQuery, setPlanQuery] = useState("");
+  const [localPlanQuery, setPlanQuery] = useState("");
+  const planQuery = searchQuery ?? localPlanQuery;
   const [openCategoryCodes, setOpenCategoryCodes] = useState<Set<string>>(
     () => new Set(rootCategoryCodes.slice(0, 1)),
   );
@@ -4126,12 +4153,7 @@ function TrainingPlanWindow({
         (filter === "pending" && !current && !completed);
       return (
         matchesFilter &&
-        (!needle ||
-          normalize(
-            [course.courseCode, course.courseName, course.categoryName].join(
-              " ",
-            ),
-          ).includes(needle))
+        (!needle || scoreCourseSearch({ id: course.courseCode, title: course.courseName }, planQuery) >= 0 || normalize(course.categoryName).includes(needle))
       );
     });
   }, [activeAcademicCourseCodes, filter, planQuery, trainingPlan.courses]);
@@ -4276,7 +4298,7 @@ function TrainingPlanWindow({
             <span>本学期</span>
           ) : status === "passed" ? (
             <span>已完成</span>
-          ) : offerings.length && catalogCourse ? (
+          ) : offerings.length && catalogCourse && onAdd ? (
             <button
               onClick={() => {
                 if (sectionIds.length > 1) {
@@ -4417,13 +4439,13 @@ function TrainingPlanWindow({
                 </button>
               ))}
             </div>
-            <input
+            {searchQuery === undefined && <input
               type="search"
               value={planQuery}
               onChange={(event) => setPlanQuery(event.target.value)}
               aria-label="搜索培养方案课程"
               placeholder="课程名称或课程号"
-            />
+            />}
           </div>
           <div className={academicStyles.planIndex}>
             {categoryTree.roots.some(
@@ -4578,7 +4600,6 @@ function SchedulePage({
   function resetFinderWindow() {
     setVisibleWindow({ key: "", limit: 40 });
   }
-  const needle = normalize(query);
   const activeAcademicCourseCodes = useMemo(
     () =>
       new Set(
@@ -4591,16 +4612,8 @@ function SchedulePage({
   const searchPool = data.courses.filter(
     (course) =>
       course.terms.includes(term) &&
-      (!needle ||
-        normalize(
-          [
-            course.title,
-            course.id,
-            ...course.teachers,
-            ...aliasesForCourse(course),
-          ].join(" "),
-        ).includes(needle)),
-  );
+      scoreCourseSearch(course, query) >= 0,
+  ).sort((left, right) => scoreCourseSearch(right, query) - scoreCourseSearch(left, query));
   const majorCourseIds = new Set(
     data.majorCourses
       .filter(
@@ -5513,7 +5526,6 @@ function CalendarEditor({
       request.kind === "activity" ? request.date ?? (request.weekday ? eventWeekDate(request.weekday) : todayISO()) : todayISO()));
   const [repeat, setRepeat] = useState<"none" | "weekly">(activity?.repeat ?? (activity ? "weekly" : "none"));
   const [eventError, setEventError] = useState("");
-  const dialogRef = useModalFocus<HTMLFormElement>(true, onClose);
   const [location, setLocation] = useState(activity?.location ?? "");
   const [color, setColor] = useState<PersonalActivity["color"]>(
     activity?.color ?? "red",
@@ -5533,9 +5545,32 @@ function CalendarEditor({
   const [notes, setNotes] = useState(
     activity?.notes ?? assignment?.notes ?? "",
   );
+  const draft: Record<string, string | number> = request.kind === "activity"
+    ? { title, notes, startTime, endTime, eventDate, repeat, location, color }
+    : { title, notes, courseId, dueDate };
+  const [initialDraft] = useState(draft);
+  const dirty = calendarDraftChanged(initialDraft, draft);
+  const completedRef = useRef(false);
+  function requestClose() {
+    if (dirty && !window.confirm("还有未保存的内容，放弃修改并关闭？")) return;
+    completedRef.current = true;
+    onClose();
+  }
+  const dialogRef = useModalFocus<HTMLFormElement>(true, requestClose);
+  useEffect(() => {
+    if (!dirty) return;
+    const protectDraft = (event: BeforeUnloadEvent) => {
+      if (completedRef.current) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", protectDraft);
+    return () => window.removeEventListener("beforeunload", protectDraft);
+  }, [dirty]);
 
   function remove() {
     if (request.kind === "activity" && !window.confirm(`删除日程“${activity?.title ?? title}”？${repeat === "weekly" ? "这会删除每周重复的整项日程。" : ""}`)) return;
+    if (request.kind === "assignment" && !window.confirm(`删除作业“${assignment?.title ?? title}”？`)) return;
     setSaved((state) => ({
       ...state,
       activities:
@@ -5547,6 +5582,7 @@ function CalendarEditor({
           ? state.assignments.filter((item) => item.id !== request.id)
           : state.assignments,
     }));
+    completedRef.current = true;
     onClose();
   }
 
@@ -5599,11 +5635,12 @@ function CalendarEditor({
           : [...state.assignments, next],
       }));
     }
+    completedRef.current = true;
     onClose();
   }
 
   return (
-    <div className="modal-backdrop calendar-editor-backdrop" onMouseDown={onClose}>
+    <div className="modal-backdrop calendar-editor-backdrop" onMouseDown={requestClose}>
       <form
         ref={dialogRef}
         className="calendar-editor"
@@ -5626,7 +5663,7 @@ function CalendarEditor({
                   : "添加作业"}
             </h2>
           </div>
-          <button type="button" onClick={onClose} aria-label="关闭">
+          <button type="button" onClick={requestClose} aria-label="关闭">
             ×
           </button>
         </header>
@@ -5752,7 +5789,7 @@ function CalendarEditor({
             </button>
           )}
           <span />
-          <button type="button" onClick={onClose}>
+          <button type="button" onClick={requestClose}>
             取消
           </button>
           <button type="submit">保存</button>
@@ -5773,6 +5810,9 @@ function RoomsPage({
   setBlock,
   selectedRoom,
   setSelectedRoom,
+  floorChoice,
+  setFloorChoice,
+  onLesson,
   saved,
   setSaved,
 }: {
@@ -5786,10 +5826,12 @@ function RoomsPage({
   setBlock: (v: number) => void;
   selectedRoom: string;
   setSelectedRoom: (v: string) => void;
+  floorChoice: string;
+  setFloorChoice: (value: string) => void;
+  onLesson: (id: string) => void;
   saved: SavedState;
   setSaved: React.Dispatch<React.SetStateAction<SavedState>>;
 }) {
-  const [floorChoice, setFloorChoice] = useState("");
   const roomListScrollRef = useRef(0);
   const roomDatePickerRef = useRef<HTMLDetailsElement>(null);
   const selectedDate = new Date(`${date}T12:00:00`);
@@ -5946,7 +5988,9 @@ function RoomsPage({
           periods={data.periods}
           favorite={saved.favoriteRooms.includes(selectedRoomInfo.key)}
           onBack={closeRoomSchedule}
+          onLesson={onLesson}
           onToggleFavorite={() => toggleFavorite(selectedRoomInfo.key)}
+          feedbackAction={<DataFeedback target={{ type: "room", room: selectedRoomInfo.key }} />}
           lessons={(schedulesByRoom.get(selectedRoomInfo.key) ?? [])
             .filter(activeThisWeek)
             .map((item) => ({
@@ -6080,6 +6124,7 @@ function RoomsPage({
                   return (
                     <button
                       key={room}
+                      id={`room-tile-${key}`}
                       className={`${available ? "free" : "busy"} ${saved.favoriteRooms.includes(key) ? "favorite" : ""}`}
                       aria-label={`${room}，${available ? "空闲" : "不可用"}${roomNote ? `，${roomNote}` : ""}，查看一周课表`}
                       style={{ "--room-order": index } as CSSProperties}
@@ -7132,16 +7177,17 @@ function MePage({
       <a className="community-corridor-entry" href="/community">
         <i aria-hidden="true" />
         <span>
-          <small>校园回廊</small>
+          <small>东财墙</small>
           <b>看看同学们最近在讨论什么</b>
         </span>
         <em>进入 →</em>
       </a>
       {account.status === "authenticated" && (
         <a className="community-personal-entry" href="/community/saved">
-          管理我的社区收藏与屏蔽 <span aria-hidden="true">→</span>
+          东财墙收藏与屏蔽 <span aria-hidden="true">→</span>
         </a>
       )}
+      {account.status === "authenticated" && <a className="community-personal-entry" href="/feedback">我的反馈 <span aria-hidden="true">→</span></a>}
       <details className={`campus-gateway ${meStyles.campusDetails}`}>
         <summary>
           <span>
@@ -7391,6 +7437,8 @@ function CourseDrawer({
   addTarget,
   onAddMany,
   onClose,
+  selectedMeetingId = "",
+  fromRoom = false,
 }: {
   catalogId: string;
   course: Course;
@@ -7402,7 +7450,12 @@ function CourseDrawer({
   addTarget: "课表" | "选课方案";
   onAddMany: (ids: string[], label?: string) => void;
   onClose: () => void;
+  selectedMeetingId?: string;
+  fromRoom?: boolean;
 }) {
+  const drawerRef = useModalFocus<HTMLElement>(true, onClose);
+  const returnTo = typeof window === "undefined" ? undefined : localHref(new URL(window.location.href));
+  const [showOtherSections, setShowOtherSections] = useState(!selectedMeetingId);
   const [sectionQuery, setSectionQuery] = useState("");
   const [teacherFilter, setTeacherFilter] = useState("all");
   const [weekdayFilter, setWeekdayFilter] = useState(0);
@@ -7413,13 +7466,6 @@ function CourseDrawer({
     "all" | "available" | "conflict"
   >("all");
   const [compareIds, setCompareIds] = useState<string[]>([]);
-  useEffect(() => {
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [onClose]);
   const sectionMap = new Map<string, Schedule[]>();
   for (const offering of offerings) {
     const sectionKey =
@@ -7430,18 +7476,17 @@ function CourseDrawer({
     sectionMap.set(sectionKey, section);
   }
   const sections = [...sectionMap.entries()]
-    .map(([id, meetings]) => ({
-      id,
-      meetings: meetings.sort(
-        (a, b) => a.weekday - b.weekday || a.block - b.block,
-      ),
-      conflict: meetings.some((meeting) =>
-        activeSchedules.some(
-          (active) =>
-            active.id !== meeting.id && !isSameScheduledMeeting(meeting, active) && schedulesOverlap(meeting, active),
+    .map(([id, meetings]) => {
+      const conflicts = scheduleConflictDetails(meetings, activeSchedules);
+      return {
+        id,
+        meetings: meetings.sort(
+          (a, b) => a.weekday - b.weekday || a.block - b.block,
         ),
-      ),
-    }))
+        conflict: conflicts.length > 0,
+        conflicts,
+      };
+    })
     .sort((a, b) => {
       const firstA = a.meetings[0];
       const firstB = b.meetings[0];
@@ -7459,7 +7504,9 @@ function CourseDrawer({
     ),
   ].sort((a, b) => a.localeCompare(b, "zh-CN"));
   const sectionNeedle = normalize(sectionQuery);
+  const focusedSection = sections.find((section) => section.meetings.some((meeting) => meeting.id === selectedMeetingId));
   const filteredSections = sections.filter((section) => {
+    if (!showOtherSections && section !== focusedSection) return false;
     const first = section.meetings[0];
     if (!first) return false;
     if (teacherFilter !== "all" && first.teacher !== teacherFilter) return false;
@@ -7507,7 +7554,7 @@ function CourseDrawer({
       return false;
     }
     return true;
-  });
+  }).sort((left, right) => Number(right === focusedSection) - Number(left === focusedSection));
   const comparedSections = compareIds
     .map((id) => sections.find((section) => section.id === id))
     .filter((section): section is (typeof sections)[number] => Boolean(section));
@@ -7525,14 +7572,15 @@ function CourseDrawer({
   return (
     <div className="modal-backdrop drawer-backdrop" onMouseDown={onClose}>
       <aside
+        ref={drawerRef}
         className="course-drawer"
         onMouseDown={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="course-drawer-title"
       >
-        <header>
-          <span>课程号 {course.id}</span>
+        <header className={courseStyles.contextHeader}>
+          {fromRoom ? <button className={courseStyles.contextBack} onClick={onClose}>← 返回教室课表</button> : <span>课程号 {course.id}</span>}
           <button onClick={onClose} aria-label="关闭课程详情">×</button>
         </header>
         <div className="course-drawer-title">
@@ -7547,18 +7595,22 @@ function CourseDrawer({
             </span>
           </div>
         </div>
+        <DataFeedback target={{ type: "course", courseId: course.id, ...(selectedMeetingId ? { meetingId: selectedMeetingId } : {}) }} />
         <section className="course-offerings-section">
           <div className="drawer-section-heading">
             <div>
-              <span className="drawer-label">选择教学班</span>
+              <span className="drawer-label">{!showOtherSections ? "当前教学班" : "选择教学班"}</span>
               <small>
-                {sections.length} 个教学班 ·{" "}
+                {!showOtherSections && focusedSection ? (focusedSection.meetings[0].sectionCode ? `课序号 ${focusedSection.meetings[0].sectionCode}` : `课程号 ${course.id}`) : <>{sections.length} 个教学班 ·{" "}
                 {new Set(offerings.map((item) => item.teacher).filter(Boolean)).size}{" "}
-                位教师
+                位教师</>}
               </small>
             </div>
+            {selectedMeetingId && sections.length > 1 && <button className={courseStyles.sectionSwitch} type="button" onClick={() => setShowOtherSections((value) => !value)}>
+              {showOtherSections ? "只看刚才的教学班" : `查看其他教学班（${sections.length - 1}）`}
+            </button>}
           </div>
-          <div className="section-filter-bar">
+          {showOtherSections && <><div className="section-filter-bar">
             <input
               aria-label="搜索教学班"
               name="section-search"
@@ -7667,6 +7719,7 @@ function CourseDrawer({
               </button>
             )}
           </div>
+          </>}
           <div className="offering-list">
             {filteredSections.length ? (
               filteredSections.map((section) => {
@@ -7678,6 +7731,8 @@ function CourseDrawer({
                 return (
                   <article
                     key={section.id}
+                    data-section-id={section.id}
+                    data-selected={section === focusedSection || undefined}
                     className={`${section.conflict ? "has-conflict" : ""} ${compared ? "is-compared" : ""}`}
                   >
                     <div>
@@ -7685,6 +7740,7 @@ function CourseDrawer({
                         {first.teacher ? (
                           <TeacherRecordLink
                             className="teacher-record-link"
+                            returnTo={returnTo}
                             catalogId={catalogId}
                             scheduleId={first.id}
                             teacherName={first.teacher}
@@ -7706,10 +7762,11 @@ function CourseDrawer({
                           </span>
                         ))}
                       </div>
+                      <ScheduleConflictReview conflicts={section.conflicts} />
                     </div>
                     <footer>
                       <TeachingSectionLinks catalogId={catalogId} scheduleId={first.id}
-                        courseId={course.id} materialCount={materials.length} hasTextbook={Boolean(course.textbook)} />
+                        courseId={course.id} materialCount={materials.length} hasTextbook={Boolean(course.textbook)} returnTo={returnTo} />
                       <button
                         className={`compare-button ${compared ? "active" : ""}`}
                         onClick={() => toggleCompare(section.id)}
@@ -7733,7 +7790,7 @@ function CourseDrawer({
                 );
               })
             ) : (
-              <p className="quiet-empty">没找到合适的教学班，少选一个条件试试。</p>
+              <p className="quiet-empty">{selectedMeetingId && !focusedSection ? "这个教学班已不在当前课程库中，请返回教室课表重新查看。" : "没找到合适的教学班，少选一个条件试试。"}</p>
             )}
           </div>
         </section>

@@ -5,6 +5,7 @@ import ts from "typescript";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const hub = read("app/community/CommunityHub.tsx");
+const composer = read("app/community/WallComposer.tsx");
 const topic = read("app/community/CommunityTopicView.tsx");
 const shared = read("app/community/CommunityShared.tsx");
 const profile = read("app/community/CommunityProfileView.tsx");
@@ -18,10 +19,10 @@ const availability = read("app/materials/MaterialAvailability.tsx");
 const missingMaterial = read("app/materials/[materialId]/not-found.tsx");
 
 test("public surfaces use direct labels without duplicate introductions", () => {
-  assert.match(hub, /<h1 id="community-title">校园回廊<\/h1>/u);
-  assert.match(hub, /已加载主题/u);
-  assert.match(hub, /正在加载主题/u);
-  assert.match(hub, /加载更多主题/u);
+  assert.match(hub, /<h1 id="community-title">东财墙<\/h1>/u);
+  assert.doesNotMatch(hub, /已加载主题/u);
+  assert.match(hub, /正在加载帖子/u);
+  assert.match(hub, /更多帖子/u);
   assert.doesNotMatch(hub, /让有用的话|在校园里多走一段|正在听回廊里的声音|继续往前走|沿时间向前读/u);
   assert.doesNotMatch(topic, /线程墓碑|页面不会替你提交任何操作|回复只展开一层|补上第一段/u);
   assert.doesNotMatch(saved, /留存与边界|PRIVATE INDEX|控制阅读边界的工具|不会混入匿名设备数据/u);
@@ -43,14 +44,16 @@ test("teacher identity, history, uncertainty and publication boundaries remain e
 });
 
 test("community deletion, blocking and reporting warnings are preserved", () => {
-  assert.match(topic, /删除后正文无法恢复，讨论位置仍保留。确认删除主题？/u);
+  assert.match(topic, /window\.confirm\("确定删除这条帖子？正文无法恢复。"\)/u);
   assert.match(topic, /删除后正文不再显示，讨论位置仍保留。确认删除回复？/u);
   assert.match(topic, /互相看不到对方的社区内容，相关旧互动也会清理。确认屏蔽？/u);
-  assert.match(hub, /互相看不到对方的社区内容。确认屏蔽？/u);
+  assert.match(hub, /window\.confirm\(`屏蔽[\s\S]*你们将互相看不到对方的内容/u);
   assert.match(shared, /举报不会通知对方。审核员会看到你选择的原因和补充说明/u);
   assert.match(shared, /（至少 8 个字）/u);
   assert.match(shared, /账号已注销/u);
-  assert.match(hub, /请尊重同学隐私。课程与校园信息如有变动，以学校官方通知为准/u);
+  assert.match(hub, /href="\/terms">社区规则/u);
+  assert.match(hub, /href="\/privacy">隐私/u);
+  assert.match(read("app/terms/page.tsx"), /信息应以学校官方发布为准/u);
 });
 
 test("private and unavailable community content retains its boundaries", () => {
@@ -60,7 +63,7 @@ test("private and unavailable community content retains its boundaries", () => {
   assert.match(profile, /未公开、已删除或仅链接可见的内容不会出现在个人主页/u);
   assert.match(profile, /账号已停用、注销，或你们之间存在屏蔽关系/u);
   assert.match(topic, /仅链接可见/u);
-  assert.match(hub, /仅通过链接访问/u);
+  assert.match(composer, /<option value="unlisted">仅链接可见<\/option>/u);
   assert.match(topic, /这条回复因屏蔽关系不再显示/u);
   assert.match(topic, /这条回复已不可见，讨论位置仍被保留/u);
 });
@@ -85,7 +88,7 @@ test("shorter copy keeps accessible labels, status announcements and keyboard he
   assert.match(shared, /aria-labelledby="community-report-title"/u);
   assert.match(topic, /aria-labelledby="edit-comment-title"/u);
   assert.match(topic, /<h2 id="edit-comment-title">修改回复/u);
-  assert.match(hub, /aria-label="主题排序方式"/u);
+  assert.match(hub, /aria-label="帖子排序方式"/u);
   assert.match(saved, /aria-labelledby="saved-title"/u);
   assert.match(saved, /id="saved-title">收藏与屏蔽/u);
   assert.match(teachers, /aria-label="清空教师搜索"/u);

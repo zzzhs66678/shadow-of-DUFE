@@ -347,6 +347,8 @@ jobs:
           node --test tests/admin-user-registration.test.mjs
           node --test tests/ui-copy-edit.test.mjs tests/copy-public-surfaces.test.mjs
           node --test tests/course-workspace.test.mjs tests/teacher-explorer.test.mjs tests/materials-explorer.test.mjs
+          node --test tests/course-search.test.mjs tests/discovery-navigation.test.mjs tests/competitions-presentation.test.mjs
+          node --test tests/hub-experience.test.mjs tests/material-search.test.mjs tests/material-bookmarks.test.mjs tests/data-feedback.test.mjs tests/auth-extensions-integration.test.mjs
           node --test tests/performance-budget.test.mjs
           node --test tests/infrastructure-contract.test.mjs
           node --test tests/environment-contract.test.mjs
@@ -402,7 +404,9 @@ jobs:
           node --test tests/rendered-html.test.mjs
           node --test tests/production-server.test.mjs
       - name: Check browser accessibility and responsive layouts
-        run: npm run test:browser
+        run: |
+          npm run test:browser
+          node tests/wall-topic-drafts.browser.mjs
 
   secret-scan:
     name: full-history-secret-scan

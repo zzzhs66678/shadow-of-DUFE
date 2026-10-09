@@ -13,6 +13,8 @@ import { validateSyncWrite } from "./sync-contract.mjs";
 import { createApiRateLimiters } from "./rate-limit.mjs";
 import { createAdminRequestHandler } from "./admin-routes.mjs";
 import { createCommunityRequestHandler } from "./community-routes.mjs";
+import { createMaterialBookmarkRequestHandler } from "./material-bookmarks-routes.mjs";
+import { createDataFeedbackRequestHandler } from "./data-feedback-routes.mjs";
 import { createTeacherRequestHandler } from "./teacher-routes.mjs";
 import { createAcademicRequestHandler } from "./academic-routes.mjs";
 import {
@@ -213,6 +215,8 @@ export function createAuthServer({
     rateLimiters,
   });
   const handleTeacherRequest = createTeacherRequestHandler({ store, config, rateLimiters });
+  const handleMaterialBookmarkRequest = createMaterialBookmarkRequestHandler({ store, config });
+  const handleDataFeedbackRequest = createDataFeedbackRequestHandler({ store, config, adminSecurity });
   const handleAcademicRequest = createAcademicRequestHandler({
     store,
     config,
@@ -255,6 +259,8 @@ export function createAuthServer({
         return;
       }
 
+      if (await handleDataFeedbackRequest(request, response, url)) return;
+      if (await handleMaterialBookmarkRequest(request, response, url)) return;
       if (await handleAdminRequest(request, response, url)) return;
       if (await handleCommunityRequest(request, response, url)) return;
       if (await handleTeacherRequest(request, response, url)) return;

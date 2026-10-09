@@ -73,6 +73,7 @@ test("materials browser: embedding, callbacks, keyboard, layout and late request
         const replaceState = history.replaceState.bind(history);
         history.replaceState = (...args) => { window.historyWrites.push(args[2]); replaceState(...args); };
         window.fetch = (url, options) => {
+          if (url === '/api/material-bookmarks') return Promise.resolve(new Response('{}', { status: 401 }));
           if (String(url).startsWith('/api/materials?')) return new Promise((resolve, reject) => {
             // Intentionally ignore abort: cancellation must not be the only stale-write guard.
             window.pending.push({ url: String(url), signal: options?.signal, resolve, reject });
@@ -127,7 +128,8 @@ test("materials browser: embedding, callbacks, keyboard, layout and late request
     id, name, courseTitle: "会计学", courseIds: [current ? "CURRENT" : "OTHER"], teachers: ["测试教师"], colleges: [], terms: ["fall"], years: [1], tags: ["复习"], category: "课件", kind: "课件", extension: ".pdf", sizeBytes: 1024, catalogedAt: "2026-10-01T00:00:00Z", description: "来源说明完整保留", previewable: true, previewUrl: `/fixture-preview/${id}`, downloadUrl: `/fixture-download/${id}`,
   });
   const first = material("fixture/a b?资料", "全校资料（测试样例）");
-  const current = material("fixture-current", "本学期资料（测试样例）", true);
+  // Keep literal relevance tied: personal ranking is a tie-breaker after shared search scores.
+  const current = material("fixture-current", "本期资料（测试样例）", true);
   const fresh = material("fixture-fresh", "新筛选结果（测试样例）");
   const stale = material("fixture-stale", "不应出现的过期资料");
   const response = (items, hasMore = false) => ({ items, total: hasMore ? 50 : items.length, offset: 0, limit: 24, hasMore, filters, catalog: { total: 50, generatedAt: "2026-10-01" } });

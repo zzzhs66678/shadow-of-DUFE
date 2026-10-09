@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   alternates: { canonical: publicPagePaths.materials },
 };
 
-const searchKeys = ["q", "course", "teacher", "type", "tag", "term", "year"] as const;
+const searchKeys = ["q", "course", "teacher", "type", "tag", "term", "year", "saved"] as const;
 
 type MaterialsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

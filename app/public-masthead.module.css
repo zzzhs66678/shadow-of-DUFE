@@ -9,6 +9,18 @@
   z-index: 3;
 }
 
+.courseBack {
+  color: var(--dufe-red-deep);
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  width: fit-content;
+  margin: 8px clamp(18px, 3.6vw, 56px) 0;
+  font: 600 13px/1.5 var(--journal-body, sans-serif);
+  text-underline-offset: 4px;
+}
+.courseBack:focus-visible { outline: 2px solid var(--dufe-red); outline-offset: 3px; }
+
 .wordmark {
   align-items: baseline;
   color: var(--dufe-ink);

@@ -161,7 +161,7 @@ export function CommunityProfileView({ userId }: { userId: string }) {
           </section>
         </>
       ) : state === "missing" ? (
-        <section className={styles.fullState}><b>这份公开档案不可用</b><p>账号已停用、注销，或你们之间存在屏蔽关系。私人资料不会在这里显示。</p><Link href="/community">返回校园回廊</Link></section>
+        <section className={styles.fullState}><b>这份公开档案不可用</b><p>账号已停用、注销，或你们之间存在屏蔽关系。</p><Link href="/community">返回东财墙</Link></section>
       ) : state === "error" ? (
         <section className={styles.fullState}><b>公开档案加载失败</b><p>检查网络后重试。</p><button onClick={() => void load(kind)}>重新加载</button></section>
       ) : (

@@ -710,3 +710,18 @@
     transition: none;
   }
 }
+
+.contextHeader > button.contextBack {
+  font: 600 14px/1.5 var(--journal-body, sans-serif);
+  min-height: 44px;
+  text-align: left;
+}
+.sectionSwitch {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid currentColor;
+  color: var(--dufe-red-deep);
+  font: 600 12px/1.5 var(--journal-body, sans-serif);
+  min-height: 44px;
+  padding: 4px 0;
+}

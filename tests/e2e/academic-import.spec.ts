@@ -242,8 +242,16 @@ test("teaching-class shortcuts point to existing reviews and exact course materi
   await page.locator(".schedule-card-main").first().click();
   const shortcuts = page.locator(".teaching-section-links").first();
   await shortcuts.scrollIntoViewIfNeeded();
-  await expect(shortcuts.getByRole("link", { name: "学生评价 · 3" })).toHaveAttribute("href", `/teachers/${teacherId}#teacher-reviews-title`);
-  await expect(shortcuts.getByRole("link", { name: "学习资料 · 1" })).toHaveAttribute("href", `/materials?course=${manual.courseId}`);
+  const review = shortcuts.getByRole("link", { name: "学生评价 · 3" });
+  await expect(review).toBeVisible();
+  const reviewUrl = new URL((await review.getAttribute("href"))!, page.url());
+  expect(reviewUrl.pathname).toBe(`/teachers/${teacherId}`);
+  expect(reviewUrl.hash).toBe("#teacher-reviews-title");
+  expect(new URL(reviewUrl.searchParams.get("returnTo")!, page.url()).searchParams.get("course")).toBe(manual.courseId);
+  const materialUrl = new URL((await shortcuts.getByRole("link", { name: "学习资料 · 1" }).getAttribute("href"))!, page.url());
+  expect(materialUrl.pathname).toBe("/materials");
+  expect(materialUrl.searchParams.get("course")).toBe(manual.courseId);
+  expect(materialUrl.searchParams.get("returnTo")).toBe(reviewUrl.searchParams.get("returnTo"));
   await expect(page.getByText("同名的其他课程", { exact: true })).toHaveCount(0);
   await page.locator(".course-drawer").screenshot({ path: ".codex_tmp/course-shortcuts-390.png" });
 });
