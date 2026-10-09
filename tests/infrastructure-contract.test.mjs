@@ -226,7 +226,7 @@ test("CI drives the authenticated browser critical path through PostgreSQL", asy
   assert.match(suite, /隐藏内容，继续审核/);
   assert.match(suite, /恢复内容并结案/);
   assert.match(suite, /这条回复已不可见，讨论位置仍被保留/);
-  assert.match(suite, /举报主题/);
+  assert.match(suite, /举报帖子/);
   assert.match(suite, /通知/);
   assert.match(suite, /建立审核案件/);
   assert.match(suite, /删除内容并结案/);

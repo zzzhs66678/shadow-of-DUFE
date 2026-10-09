@@ -412,7 +412,7 @@ test("native PostgreSQL product extensions: upgrade, runtime HTTP/ACL, timeline 
       visibility=COALESCE($5,visibility),version=version+1,updated_at=now(),edited_at=now()
       WHERE id=$1::uuid AND author_user_id=$2::uuid RETURNING id,title,body,status,visibility,version,created_at,updated_at`,
     [f.legacyTopic, f.users.legacy.userId, "旧版编辑标题", "旧版正文更新", "unlisted"]);
-    assert.equal(updated.rows[0].version, 2); assert.equal(updated.rows[0].title, "旧版编辑标题");
+    assert.equal(Number(updated.rows[0].version), 2); assert.equal(updated.rows[0].title, "旧版编辑标题");
     const input = validateTopicCreate({ body: "问", visibility: "unlisted" });
     assert.equal(input.title, "问");
     const created = await f.store.createCommunityTopic({ userId: f.users.legacy.userId, ...input });
