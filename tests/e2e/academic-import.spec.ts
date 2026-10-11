@@ -281,10 +281,7 @@ test("expired academic transactions return to a fresh login form", async ({
     }),
   );
 
-  await page.goto("/", { waitUntil: "domcontentloaded" });
-  await page
-    .getByRole("button", { name: "打开课程中心", exact: true })
-    .click();
+  await page.goto("/?view=catalog", { waitUntil: "domcontentloaded" });
   await page
     .getByRole("button", { name: "导入教务数据", exact: true })
     .click();
@@ -324,10 +321,7 @@ test("verified timetable and exams remain visible when the training plan alone f
     });
   });
 
-  await page.goto("/", { waitUntil: "domcontentloaded" });
-  await page
-    .getByRole("button", { name: "打开课程中心", exact: true })
-    .click();
+  await page.goto("/?view=catalog", { waitUntil: "domcontentloaded" });
   await page
     .getByRole("button", { name: "导入教务数据", exact: true })
     .click();
@@ -387,8 +381,7 @@ test("an exam refresh failure keeps the previous exams but labels them stale", a
     });
   });
 
-  await page.goto("/", { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "打开课程中心", exact: true }).click();
+  await page.goto("/?view=catalog", { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "导入教务数据", exact: true }).click();
   await page.getByLabel("教务账号").fill("20260001");
   await page.getByLabel("教务密码").fill("school-password");
@@ -508,10 +501,7 @@ test("official timetable and exams import through SMS and school verification", 
       },
     });
   });
-  await page.goto("/", { waitUntil: "domcontentloaded" });
-  await page
-    .getByRole("button", { name: "打开课程中心", exact: true })
-    .click();
+  await page.goto("/?view=catalog", { waitUntil: "domcontentloaded" });
   await page
     .getByRole("button", { name: "导入教务数据", exact: true })
     .click();

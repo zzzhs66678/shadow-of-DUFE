@@ -22,7 +22,9 @@ export default defineConfig({
     timeout: 10_000,
   },
   fullyParallel: false,
-  workers: 1,
+  // Browser fixtures use isolated contexts and mocked accounts; native database
+  // publication paths retain their separate single-worker configurations.
+  workers: process.env.CI ? 2 : 1,
   reporter: process.env.CI
     ? [["line"], ["html", { open: "never" }]]
     : "line",
