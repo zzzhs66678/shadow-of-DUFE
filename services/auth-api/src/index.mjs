@@ -12,6 +12,11 @@ import { createAcademicConnector } from "./academic-access.mjs";
 const config = loadConfig();
 const pool = createDatabasePool(config);
 const store = createAuthStore(pool);
+await store.cleanupSecurityState();
+const securityCleanup = setInterval(() => {
+  void store.cleanupSecurityState().catch(() => console.error("Security state cleanup failed"));
+}, 60_000);
+securityCleanup.unref();
 const rateLimiters = createApiRateLimiters({ store });
 const wechatProvider = createWechatProvider(config);
 const passwordService = createPasswordService();
@@ -44,8 +49,10 @@ server.listen(config.port, "0.0.0.0", () => {
 });
 
 async function shutdown(signal) {
+  clearInterval(securityCleanup);
   console.log(`Received ${signal}; closing auth API`);
   server.close(async () => {
+    academicConnector?.close();
     mailDelivery?.close();
     await store.close();
     process.exit(0);

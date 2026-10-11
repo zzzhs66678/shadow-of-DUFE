@@ -1,3 +1,4 @@
+import { clientAddress } from "./request-security.mjs";
 import { parseCookies } from "./cookies.mjs";
 import { isOpaqueToken, tokenDigest } from "./tokens.mjs";
 import {
@@ -60,13 +61,6 @@ function trustedOrigin(request, allowedOrigins) {
   return typeof origin === "string" && allowedOrigins.has(origin);
 }
 
-function clientAddress(request) {
-  const forwarded = String(request.headers["x-forwarded-for"] ?? "")
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
-  return forwarded.at(-1) || request.socket.remoteAddress || "unknown";
-}
 
 async function readJsonBody(request, maxBytes = 16_384) {
   const contentType = String(request.headers["content-type"] ?? "")
@@ -99,7 +93,7 @@ async function writeRateAllowed(request, userId, rateLimiters, config) {
   const networkLimiter = rateLimiters.teacherReviewIp ?? rateLimiters.write;
   const userKey = tokenDigest(`teacher-review:user:${userId}`, config.tokenPepper);
   const ipKey = tokenDigest(
-    `teacher-review:ip:${clientAddress(request)}`,
+    `teacher-review:ip:${clientAddress(request, config)}`,
     config.tokenPepper,
   );
   if (!(await accountLimiter.consume(userKey))) return false;

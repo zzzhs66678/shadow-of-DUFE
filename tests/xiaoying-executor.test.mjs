@@ -97,6 +97,7 @@ test("production HTTP surface isolates cookies, paths, origins, and invite burst
       XIAOYING_EXECUTOR_HOST: "127.0.0.1",
       XIAOYING_EXECUTOR_PORT: String(port),
       XIAOYING_PUBLIC_BASE_URL: "https://dufesh.cn/campus-lab",
+      XIAOYING_TRUSTED_PROXY_CIDRS: "127.0.0.1/32",
       XIAOYING_BASE_PATH: "/campus-lab",
       XIAOYING_DEFAULT_INVITE_CODE: inviteCode,
       XIAOYING_DEFAULT_INVITE_MAX_USES: "20",
@@ -106,10 +107,16 @@ test("production HTTP surface isolates cookies, paths, origins, and invite burst
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
+  // Simulate the explicitly trusted TLS-terminating proxy on loopback.
+  const fetch = (url, options = {}) => globalThis.fetch(url, {
+    ...options, headers: { ...options.headers, "x-forwarded-proto": "https" },
+  });
+  let startupError = "";
+  child.stderr.on("data", (chunk) => { startupError += chunk; });
 
   try {
     let health;
-    for (let attempt = 0; attempt < 40; attempt += 1) {
+    for (let attempt = 0; attempt < 160; attempt += 1) {
       try {
         health = await fetch(`http://127.0.0.1:${port}/health`);
         if (health.ok) break;
@@ -117,7 +124,9 @@ test("production HTTP surface isolates cookies, paths, origins, and invite burst
         await new Promise((resolve) => setTimeout(resolve, 75));
       }
     }
-    assert.equal(health?.status, 200);
+    assert.equal(health?.status, 200, startupError);
+
+    assert.equal((await globalThis.fetch(`http://127.0.0.1:${port}/v1/me`)).status, 403);
 
     const page = await fetch(`http://127.0.0.1:${port}/`);
     const html = await page.text();

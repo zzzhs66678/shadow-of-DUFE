@@ -111,11 +111,19 @@ function persistentOrLocal(store, options) {
 
 export function createApiRateLimiters({ store } = {}) {
   return {
-    read: createTokenBucket({
+    authNetwork: persistentOrLocal(store, { scope: "auth-network", capacity: 300, refillPerSecond: 5 }),
+    authAccount: persistentOrLocal(store, { scope: "auth-account", capacity: 20, refillPerSecond: 1 / 60 }),
+    registrationSend: persistentOrLocal(store, { scope: "registration-send", capacity: 5, refillPerSecond: 1 / 720 }),
+    registrationSubmit: persistentOrLocal(store, { scope: "registration-submit", capacity: 10, refillPerSecond: 1 / 60 }),
+    resetConfirm: persistentOrLocal(store, { scope: "reset-confirm", capacity: 10, refillPerSecond: 1 / 60 }),
+    verificationConfirm: persistentOrLocal(store, { scope: "verification-confirm", capacity: 10, refillPerSecond: 1 / 60 }),
+    read: persistentOrLocal(store, {
+      scope: "api-read-network",
       capacity: 2_400,
       refillPerSecond: 40,
     }),
-    write: createTokenBucket({
+    write: persistentOrLocal(store, {
+      scope: "api-write-network",
       capacity: 300,
       refillPerSecond: 5,
     }),
@@ -135,10 +143,13 @@ export function createApiRateLimiters({ store } = {}) {
     }),
     academicIp: persistentOrLocal(store, {
       scope: "academic-login-network",
-      capacity: 30,
-      refillPerSecond: 1 / 60,
+      capacity: 120,
+      refillPerSecond: 2,
       maxKeys: 30_000,
       idleTtlMs: 2 * 60 * 60_000,
+    }),
+    academicSchoolAccount: persistentOrLocal(store, {
+      scope: "academic-school-account", capacity: 4, refillPerSecond: 1 / 300,
     }),
     passwordReset: persistentOrLocal(store, {
       scope: "password-reset",

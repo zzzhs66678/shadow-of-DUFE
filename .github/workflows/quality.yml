@@ -118,6 +118,11 @@ jobs:
           docker network create "$ingress_network" >/dev/null
           docker compose -p "$project" -f docker-compose.staging.yml --profile tools run --rm migrate
           docker compose -p "$project" -f docker-compose.staging.yml up -d --no-build
+          web_id="$(docker compose -p "$project" -f docker-compose.staging.yml ps -q web)"
+          proxy_ip="$(docker inspect --format '{{range $name, $net := .NetworkSettings.Networks}}{{if eq $name "'"$project"'_default"}}{{$net.IPAddress}}{{end}}{{end}}' "$web_id")"
+          test -n "$proxy_ip"
+          printf 'AUTH_TRUSTED_PROXY_CIDRS=%s/32\n' "$proxy_ip" >> "$auth_env"
+          docker compose -p "$project" -f docker-compose.staging.yml up -d --no-build --no-deps --force-recreate auth-api
           for attempt in $(seq 1 45); do
             if sh ops/staging/smoke.sh; then
               exit 0
@@ -231,6 +236,11 @@ jobs:
         run: |
           MIGRATIONS_DIR="$GITHUB_WORKSPACE/ops/postgres/migrations" sh ops/postgres/run-migrations.sh
           MIGRATIONS_DIR="$GITHUB_WORKSPACE/ops/postgres/migrations" sh ops/postgres/run-migrations.sh
+      - name: Verify registration on an empty isolated native PostgreSQL database
+        run: |
+          npm ci --prefix xiaoying-executor --ignore-scripts --no-audit --no-fund
+          PGPASSWORD="$POSTGRES_PASSWORD" createdb --host "$PGHOST" --port "$PGPORT" --username "$POSTGRES_USER" dufesh_ci_security_test
+          POSTGRES_DB=dufesh_ci_security_test SECURITY_POSTGRES_TEST=true node --test tests/registration-security.test.mjs
       - name: Verify PostgreSQL roles and real auth/community flows
         run: node --test tests/postgres-runtime-integration.test.mjs tests/postgres-product-extensions.test.mjs
       - name: Install Chromium for authenticated browser checks
@@ -252,7 +262,7 @@ jobs:
         run: |
           auth_log="$RUNNER_TEMP/auth-api-browser.log"
           app_log="$RUNNER_TEMP/app-browser.log"
-          node services/auth-api/src/index.mjs >"$auth_log" 2>&1 &
+          node tests/helpers/auth-browser-server.mjs >"$auth_log" 2>&1 &
           auth_pid=$!
           AUTH_API_DEV_TARGET=http://127.0.0.1:3100 npm run dev >"$app_log" 2>&1 &
           app_pid=$!
@@ -352,6 +362,7 @@ jobs:
           node --test tests/performance-budget.test.mjs
           node --test tests/infrastructure-contract.test.mjs
           node --test tests/environment-contract.test.mjs
+          node --test tests/registration-security.test.mjs
           node --test tests/release-readiness.test.mjs
           node --test tests/staging-release-contract.test.mjs
           node --test tests/personal-storage.test.ts tests/personal-sync.test.ts

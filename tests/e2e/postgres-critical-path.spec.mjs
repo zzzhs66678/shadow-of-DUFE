@@ -14,7 +14,7 @@ import {
 } from "../../services/auth-api/src/db.mjs";
 import { normalizeLoginIdentifier } from "../../services/auth-api/src/credentials.mjs";
 
-const password = "Moonlight!2026";
+const password = "Moonlight!2026-long-passphrase";
 const { Pool } = pg;
 
 async function dismissOnboarding(page) {
@@ -37,8 +37,17 @@ async function register(page, label) {
   await page.getByRole("button", { name: "创建账号", exact: true }).click();
   const form = page.locator(".credential-gateway form");
   await form.getByLabel("用户名").fill(username);
-  await form.getByLabel("邮箱").fill(`${username}@example.com`);
+  await form.getByLabel("邮箱", { exact: true }).fill(`${username}@example.com`);
   await form.getByLabel("密码").fill(password);
+  await form.getByRole("button", { name: "发送验证码", exact: true }).click();
+  const mailbox = process.env.AUTH_TEST_MAILBOX_URL ?? "http://127.0.0.1:3111";
+  let code;
+  await expect.poll(async () => {
+    const reply = await fetch(`${mailbox}/?email=${encodeURIComponent(`${username}@example.com`)}`);
+    if (reply.status === 200) code = (await reply.json()).code;
+    return Boolean(code);
+  }).toBe(true);
+  await form.getByLabel("邮箱验证码").fill(code);
   await form.getByRole("button", { name: "创建账号", exact: true }).click();
   await expect(page.getByRole("heading", { name: `@${username}` })).toBeVisible();
   return username;

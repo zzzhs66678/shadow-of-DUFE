@@ -1,3 +1,4 @@
+import { clientAddress } from "./request-security.mjs";
 import {
   parseCookies,
   serializeSecureCookie,
@@ -23,13 +24,6 @@ function trustedOrigin(request, allowedOrigins) {
   return typeof origin === "string" && allowedOrigins.has(origin);
 }
 
-function clientAddress(request) {
-  const forwarded = String(request.headers["x-forwarded-for"] ?? "")
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
-  return forwarded.at(-1) || request.socket.remoteAddress || "unknown";
-}
 
 async function readJsonBody(request, maxBytes = 8_192) {
   const contentType = String(request.headers["content-type"] ?? "")
@@ -105,6 +99,8 @@ function mappedError(error) {
     ["ACADEMIC_SSO_VERIFICATION_INVALID", [400, "academic_sso_verification_invalid"]],
     ["ACADEMIC_SSO_PROTOCOL_CHANGED", [502, "academic_sso_protocol_changed"]],
     ["ACADEMIC_TRANSACTION_EXPIRED", [410, "academic_transaction_expired"]],
+    ["ACADEMIC_TRANSACTION_LIMIT", [429, "academic_rate_limit_exceeded"]],
+    ["ACADEMIC_TRANSACTION_INVALID", [410, "academic_transaction_expired"]],
     ["ACADEMIC_ADDITIONAL_AUTH_REQUIRED", [422, "academic_additional_auth_required"]],
     ["ACADEMIC_SESSION_NOT_READY", [502, "academic_session_not_ready"]],
     ["ACADEMIC_TERM_NOT_FOUND", [502, "academic_format_changed"]],
@@ -359,7 +355,7 @@ export function createAcademicRequestHandler({
     }
     const principal = await resolvePrincipal(request, store, config);
     const ipKey = tokenDigest(
-      `academic-ip:${clientAddress(request)}`,
+      `academic-ip:${clientAddress(request, config)}`,
       config.tokenPepper,
     );
     const principalKey = tokenDigest(
@@ -392,6 +388,14 @@ export function createAcademicRequestHandler({
     try {
       let result;
       if (url.pathname === "/api/auth/academic/connect") {
+        if (typeof body.username === "string" && body.username.length <= 64) {
+          const schoolKey = tokenDigest(`academic-school-account:${body.username.trim()}`, config.tokenPepper);
+          if (!(await (rateLimiters.academicSchoolAccount ?? rateLimiters.academicPrincipal).consume(schoolKey))) {
+            response.setHeader("Retry-After", "300");
+            sendJson(response, 429, { error: "academic_rate_limit_exceeded" }, principal.setCookies);
+            return true;
+          }
+        }
         result = await connector.start({
           username: body.username,
           password: body.password,

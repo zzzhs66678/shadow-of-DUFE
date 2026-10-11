@@ -1,3 +1,4 @@
+import { clientAddress } from "./request-security.mjs";
 import { randomUUID } from "node:crypto";
 import {
   clearSecureCookie,
@@ -27,13 +28,6 @@ function trustedOrigin(request, allowedOrigins) {
   return typeof origin === "string" && allowedOrigins.has(origin);
 }
 
-function clientAddress(request) {
-  const forwarded = String(request.headers["x-forwarded-for"] ?? "")
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
-  return forwarded.at(-1) || request.socket.remoteAddress || "unknown";
-}
 
 async function readJsonBody(request, maxBytes = 16_384) {
   const contentType = String(request.headers["content-type"] ?? "")
@@ -270,7 +264,7 @@ export function createAdminRequestHandler({
       }
 
       const rateKey = tokenDigest(
-        `admin-mfa:${clientAddress(request)}:${session.userId}:${session.id}`,
+        `admin-mfa:${clientAddress(request, config)}:${session.userId}:${session.id}`,
         config.tokenPepper,
       );
       if (
@@ -297,7 +291,7 @@ export function createAdminRequestHandler({
           Date.now() + config.adminElevationTtlSeconds * 1_000,
         ),
         ipHash: tokenDigest(
-          `admin-ip:${clientAddress(request)}`,
+          `admin-ip:${clientAddress(request, config)}`,
           config.tokenPepper,
         ),
         userAgentHash: tokenDigest(
@@ -564,7 +558,7 @@ export function createAdminRequestHandler({
         return true;
       }
       const rateKey = tokenDigest(
-        `admin-announcement:${clientAddress(request)}:${session.userId}:${session.id}`,
+        `admin-announcement:${clientAddress(request, config)}:${session.userId}:${session.id}`,
         config.tokenPepper,
       );
       if (
@@ -589,7 +583,7 @@ export function createAdminRequestHandler({
           fallbackPath,
           requestId,
           ipHash: tokenDigest(
-            `admin-ip:${clientAddress(request)}`,
+            `admin-ip:${clientAddress(request, config)}`,
             config.tokenPepper,
           ),
           userAgentHash: tokenDigest(
@@ -691,7 +685,7 @@ export function createAdminRequestHandler({
         return true;
       }
       const rateKey = tokenDigest(
-        `teacher-review-moderation:${clientAddress(request)}:${session.userId}:${session.id}`,
+        `teacher-review-moderation:${clientAddress(request, config)}:${session.userId}:${session.id}`,
         config.tokenPepper,
       );
       if (
@@ -712,7 +706,7 @@ export function createAdminRequestHandler({
           decision: body.decision,
           reason,
           requestId,
-          ipHash: tokenDigest(`admin-ip:${clientAddress(request)}`, config.tokenPepper),
+          ipHash: tokenDigest(`admin-ip:${clientAddress(request, config)}`, config.tokenPepper),
           userAgentHash: tokenDigest(
             `admin-ua:${String(request.headers["user-agent"] ?? "")}`,
             config.tokenPepper,
@@ -802,7 +796,7 @@ export function createAdminRequestHandler({
         return true;
       }
       const rateKey = tokenDigest(
-        `admin-community-moderation:${clientAddress(request)}:${session.userId}:${session.id}`,
+        `admin-community-moderation:${clientAddress(request, config)}:${session.userId}:${session.id}`,
         config.tokenPepper,
       );
       if (!(await (rateLimiters.adminCommunityModeration ?? rateLimiters.write).consume(rateKey))) {
@@ -819,7 +813,7 @@ export function createAdminRequestHandler({
           targetId: directCaseMatch[2],
           reason,
           requestId,
-          ipHash: tokenDigest(`admin-ip:${clientAddress(request)}`, config.tokenPepper),
+          ipHash: tokenDigest(`admin-ip:${clientAddress(request, config)}`, config.tokenPepper),
           userAgentHash: tokenDigest(
             `admin-ua:${String(request.headers["user-agent"] ?? "")}`,
             config.tokenPepper,
@@ -862,7 +856,7 @@ export function createAdminRequestHandler({
         return true;
       }
       const rateKey = tokenDigest(
-        `admin-community-moderation:${clientAddress(request)}:${session.userId}:${session.id}`,
+        `admin-community-moderation:${clientAddress(request, config)}:${session.userId}:${session.id}`,
         config.tokenPepper,
       );
       if (!(await (rateLimiters.adminCommunityModeration ?? rateLimiters.write).consume(rateKey))) {
@@ -879,7 +873,7 @@ export function createAdminRequestHandler({
           reason,
           requestId,
           ipHash: tokenDigest(
-            `admin-ip:${clientAddress(request)}`,
+            `admin-ip:${clientAddress(request, config)}`,
             config.tokenPepper,
           ),
           userAgentHash: tokenDigest(
@@ -950,7 +944,7 @@ export function createAdminRequestHandler({
         return true;
       }
       const rateKey = tokenDigest(
-        `admin-community-moderation:${clientAddress(request)}:${session.userId}:${session.id}`,
+        `admin-community-moderation:${clientAddress(request, config)}:${session.userId}:${session.id}`,
         config.tokenPepper,
       );
       if (!(await (rateLimiters.adminCommunityModeration ?? rateLimiters.write).consume(rateKey))) {
@@ -969,7 +963,7 @@ export function createAdminRequestHandler({
           durationHours,
           requestId,
           ipHash: tokenDigest(
-            `admin-ip:${clientAddress(request)}`,
+            `admin-ip:${clientAddress(request, config)}`,
             config.tokenPepper,
           ),
           userAgentHash: tokenDigest(
@@ -1043,7 +1037,7 @@ export function createAdminRequestHandler({
           reason,
           requestId,
           ipHash: tokenDigest(
-            `admin-ip:${clientAddress(request)}`,
+            `admin-ip:${clientAddress(request, config)}`,
             config.tokenPepper,
           ),
           userAgentHash: tokenDigest(

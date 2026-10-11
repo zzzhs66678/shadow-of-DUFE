@@ -1,4 +1,7 @@
+import { clientAddress, forwardedOrigin, secureRequest } from "./request-security.mjs";
 import { createServer } from "node:http";
+import { randomUUID } from "node:crypto";
+import { createRegistrationCode, registrationDigest, REGISTRATION_POLICY } from "./registration-security.mjs";
 import {
   clearSecureCookie,
   parseCookies,
@@ -19,6 +22,8 @@ import { createTeacherRequestHandler } from "./teacher-routes.mjs";
 import { createAcademicRequestHandler } from "./academic-routes.mjs";
 import {
   normalizeLoginIdentifier,
+  normalizeEmail,
+  validEmail,
   validateLogin,
   validateNewPassword,
   validateProfileUpdate,
@@ -78,23 +83,7 @@ function isUuid(value) {
   );
 }
 
-function forwardedOrigin(request) {
-  const protocol = String(
-    request.headers["x-forwarded-proto"] || "http",
-  ).split(",", 1)[0].trim();
-  const host = String(
-    request.headers["x-forwarded-host"] || request.headers.host || "",
-  ).split(",", 1)[0].trim();
-  return host ? `${protocol}://${host}` : "";
-}
 
-function clientAddress(request) {
-  const forwarded = String(request.headers["x-forwarded-for"] ?? "")
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
-  return forwarded.at(-1) || request.socket.remoteAddress || "unknown";
-}
 
 async function readJsonBody(request, maxBytes = 524_288) {
   const contentType = String(request.headers["content-type"] ?? "")
@@ -194,7 +183,7 @@ export function createAuthServer({
   academicConnector = null,
 }) {
   if (
-    (config.passwordResetMode === "smtp" ||
+    (config.registrationMode === "smtp" || config.passwordResetMode === "smtp" ||
       config.emailVerificationMode === "smtp") &&
     !mailDelivery
   ) {
@@ -224,6 +213,33 @@ export function createAuthServer({
     rateLimiters,
   });
 
+  const policy = config.registrationPolicy ?? REGISTRATION_POLICY;
+  const registrationCookie = config.registrationCookie ?? "__Host-dufesh_registration";
+
+  async function authLimit(request, identifier, stage) {
+    const results = await Promise.all([
+      (rateLimiters.authNetwork ?? rateLimiters.write).consume(tokenDigest(`auth-network:${clientAddress(request, config)}`, config.tokenPepper)),
+      (rateLimiters.authAccount ?? rateLimiters.credential).consume(tokenDigest(`auth-account:${identifier}`, config.tokenPepper)),
+      (rateLimiters[stage] ?? rateLimiters.credential).consume(tokenDigest(`${stage}:${identifier}`, config.tokenPepper)),
+    ]);
+    return results.every(Boolean);
+  }
+
+  async function deliverSecurityMail(method, input, reservation, challengeId = null) {
+    let delivered = false;
+    try {
+      await mailDelivery[method](input);
+      delivered = true;
+    } catch { console.error("Security mail delivery failed"); }
+    try {
+      await store.finishSecurityMail({ sendId: reservation, challengeId, delivered });
+    } catch { console.error("Security mail state update failed"); }
+  }
+
+  async function reserveDelivery(email) {
+    return store.reserveSecurityMail({ recipientDigest: tokenDigest(`mail:${normalizeEmail(email)}`, config.tokenPepper), policy });
+  }
+
   return createServer(async (request, response) => {
     try {
       const url = new URL(request.url ?? "/", "http://auth-api.local");
@@ -242,6 +258,12 @@ export function createAuthServer({
         }
         return;
       }
+      // Plain HTTP through a trusted TLS terminator is acceptable; direct
+      // production requests and caller-forged proxy headers are rejected.
+      if (config.requireHttps && !secureRequest(request, config)) {
+        sendJson(response, 403, { error: "https_required" });
+        return;
+      }
 
       const limiter =
         request.method === "GET" &&
@@ -250,7 +272,7 @@ export function createAuthServer({
           ? rateLimiters.read
           : rateLimiters.write;
       const rateKey = tokenDigest(
-        `rate:${clientAddress(request)}`,
+        `rate:${clientAddress(request, config)}`,
         config.tokenPepper,
       );
       if (!(await limiter.consume(rateKey))) {
@@ -426,7 +448,7 @@ export function createAuthServer({
           return;
         }
         const uploadRateKey = tokenDigest(
-          `avatar:${clientAddress(request)}:${session.userId}`,
+          `avatar:${clientAddress(request, config)}:${session.userId}`,
           config.tokenPepper,
         );
         if (
@@ -567,6 +589,47 @@ export function createAuthServer({
         return;
       }
 
+      if (url.pathname === "/api/auth/register/challenge") {
+        if (request.method !== "POST") { methodNotAllowed(response, "POST"); return; }
+        if (!trustedOrigin(request, config.allowedOrigins)) { sendJson(response, 403, { error: "untrusted_origin" }); return; }
+        if (config.credentialsEnabled === false || config.registrationMode !== "smtp" || !mailDelivery || !config.registrationKey) {
+          sendJson(response, 503, { error: "registration_unavailable" }); return;
+        }
+        let body;
+        try { body = await readJsonBody(request, 2048); }
+        catch (error) {
+          if (["JSON_CONTENT_TYPE_REQUIRED", "JSON_BODY_INVALID", "REQUEST_BODY_TOO_LARGE"].includes(error.code)) {
+            sendJson(response, 400, { error: "invalid_registration_email" }); return;
+          }
+          throw error;
+        }
+        const email = normalizeEmail(body?.email);
+        if (!body || Array.isArray(body) || Object.keys(body).some((key) => key !== "email") || !validEmail(email)) {
+          sendJson(response, 400, { error: "invalid_registration_email" }); return;
+        }
+        if (!(await authLimit(request, email, "registrationSend"))) {
+          response.setHeader("Retry-After", "60"); sendJson(response, 429, { error: "credential_rate_limit_exceeded" }); return;
+        }
+        const previous = parseCookies(request.headers.cookie).get(registrationCookie);
+        const browserToken = isOpaqueToken(previous) ? previous : createOpaqueToken();
+        const id = randomUUID();
+        const code = createRegistrationCode();
+        const created = await store.createRegistrationChallenge({ id, email,
+          emailDigest: tokenDigest(`mail:${email}`, config.tokenPepper),
+          browserHash: tokenDigest(browserToken, config.registrationKey),
+          codeHash: registrationDigest({ challengeId: id, email, code }, config.registrationKey), policy });
+        if (!created) {
+          response.setHeader("Retry-After", "60"); sendJson(response, 429, { error: "credential_rate_limit_exceeded" }); return;
+        }
+        // Return the same response before SMTP for both occupied and free emails.
+        // Never issue a credential for an existing account through this flow.
+        if (created.shouldSend) void deliverSecurityMail("sendRegistrationCode", { to: email, code, expiresAt: created.expiresAt }, created.sendId, id);
+        else void store.finishSecurityMail({ sendId: created.sendId, delivered: false }).catch(() => console.error("Security mail state update failed"));
+        sendJson(response, 202, { ok: true, challengeId: id, expiresIn: policy.ttlSeconds, retryAfter: policy.cooldownSeconds },
+          [serializeSecureCookie(registrationCookie, browserToken, policy.ttlSeconds)]);
+        return;
+      }
+
       if (url.pathname === "/api/auth/register") {
         if (request.method !== "POST") {
           methodNotAllowed(response, "POST");
@@ -579,6 +642,9 @@ export function createAuthServer({
         if (!trustedOrigin(request, config.allowedOrigins)) {
           sendJson(response, 403, { error: "untrusted_origin" });
           return;
+        }
+        if (config.registrationMode !== "smtp" || !config.registrationKey) {
+          sendJson(response, 503, { error: "registration_unavailable" }); return;
         }
 
         let body;
@@ -607,15 +673,12 @@ export function createAuthServer({
           });
           return;
         }
-        const credentialRateKey = tokenDigest(
-          `register:${clientAddress(request)}:${registration.value.normalizedUsername}`,
-          config.tokenPepper,
-        );
-        if (
-          !(await (rateLimiters.credential ?? rateLimiters.write).consume(
-            credentialRateKey,
-          ))
-        ) {
+        const browserToken = parseCookies(request.headers.cookie).get(registrationCookie);
+        if (!isUuid(body?.challengeId) || typeof body?.code !== "string" || !/^\d{6}$/u.test(body.code) || !isOpaqueToken(browserToken) ||
+          Object.keys(body).some((key) => !["username", "email", "password", "schoolAccount", "challengeId", "code"].includes(key))) {
+          sendJson(response, 400, { error: "invalid_registration_verification" }); return;
+        }
+        if (!(await authLimit(request, registration.value.normalizedEmail, "registrationSubmit"))) {
           response.setHeader("Retry-After", "60");
           sendJson(response, 429, { error: "credential_rate_limit_exceeded" });
           return;
@@ -633,7 +696,15 @@ export function createAuthServer({
         let registered;
         try {
           registered = await store.registerCredentialUser({
-            ...registration.value,
+            username: registration.value.username,
+            normalizedUsername: registration.value.normalizedUsername,
+            email: registration.value.email,
+            normalizedEmail: registration.value.normalizedEmail,
+            schoolAccount: registration.value.schoolAccount,
+            registrationProof: { challengeId: body.challengeId,
+              emailDigest: tokenDigest(`mail:${registration.value.normalizedEmail}`, config.tokenPepper),
+              browserHash: tokenDigest(browserToken, config.registrationKey),
+              codeHash: registrationDigest({ challengeId: body.challengeId, email: registration.value.normalizedEmail, code: body.code }, config.registrationKey) },
             passwordHash,
             anonymousDeviceId: device.id,
             sessionTokenHash: tokenDigest(
@@ -643,24 +714,15 @@ export function createAuthServer({
             sessionExpiresAt,
           });
         } catch (error) {
-          if (error?.code === "AUTH_USERNAME_TAKEN") {
-            sendJson(response, 409, {
-              error: "registration_conflict",
-              fields: { username: "这个用户名已被使用" },
-            });
-            return;
-          }
-          if (error?.code === "AUTH_EMAIL_TAKEN") {
-            sendJson(response, 409, {
-              error: "registration_conflict",
-              fields: { email: "这个邮箱已注册" },
-            });
-            return;
+          if (["AUTH_REGISTRATION_PROOF_INVALID", "AUTH_EMAIL_TAKEN", "AUTH_USERNAME_TAKEN"].includes(error?.code)) {
+            sendJson(response, 400, { error: "invalid_registration_verification" }); return;
           }
           throw error;
         }
 
+        if (!registered) { sendJson(response, 400, { error: "invalid_registration_verification" }); return; }
         const setCookies = [
+          clearSecureCookie(registrationCookie),
           serializeSecureCookie(
             config.sessionCookie,
             sessionToken,
@@ -715,15 +777,7 @@ export function createAuthServer({
 
         const login = validateLogin(body);
         const identifier = login?.identifier ?? "invalid";
-        const credentialRateKey = tokenDigest(
-          `login:${clientAddress(request)}:${identifier}`,
-          config.tokenPepper,
-        );
-        if (
-          !(await (rateLimiters.credential ?? rateLimiters.write).consume(
-            credentialRateKey,
-          ))
-        ) {
+        if (!(await authLimit(request, identifier, "credential"))) {
           response.setHeader("Retry-After", "60");
           sendJson(response, 429, { error: "credential_rate_limit_exceeded" });
           return;
@@ -759,6 +813,7 @@ export function createAuthServer({
         try {
           await store.createCredentialSession({
             userId: principal.id,
+            expectedPasswordHash: principal.passwordHash,
             anonymousDeviceId: device.id,
             sessionTokenHash: tokenDigest(
               sessionToken,
@@ -827,15 +882,7 @@ export function createAuthServer({
           sendJson(response, 409, { error: "email_verification_unavailable" });
           return;
         }
-        const verificationRateKey = tokenDigest(
-          `email-verification:${clientAddress(request)}:${session.userId}`,
-          config.tokenPepper,
-        );
-        if (
-          !(await (
-            rateLimiters.emailVerification ?? rateLimiters.write
-          ).consume(verificationRateKey))
-        ) {
+        if (!(await authLimit(request, normalizeEmail(session.email), "emailVerification"))) {
           response.setHeader("Retry-After", "120");
           sendJson(response, 429, {
             error: "email_verification_rate_limit_exceeded",
@@ -864,11 +911,13 @@ export function createAuthServer({
             return;
           }
           try {
-            await mailDelivery.sendEmailVerification({
+            const reservation = await reserveDelivery(session.email);
+            if (!reservation) { sendJson(response, 429, { error: "email_verification_rate_limit_exceeded" }); return; }
+            await deliverSecurityMail("sendEmailVerification", {
               to: session.email,
               token: verificationToken,
               expiresAt: verificationExpiresAt,
-            });
+            }, reservation);
           } catch {
             sendJson(response, 503, {
               error: "email_verification_delivery_failed",
@@ -920,6 +969,9 @@ export function createAuthServer({
           sendJson(response, 400, { error: "invalid_email_verification" });
           return;
         }
+        if (!(await authLimit(request, session.userId, "verificationConfirm"))) {
+          sendJson(response, 429, { error: "credential_rate_limit_exceeded" }); return;
+        }
         const consumed = await store.consumeEmailVerification({
           userId: session.userId,
           tokenHash: tokenDigest(body.token, config.tokenPepper),
@@ -969,18 +1021,33 @@ export function createAuthServer({
           }
           throw error;
         }
-        const identifier = normalizeLoginIdentifier(body?.identifier);
-        const resetRateKey = tokenDigest(
-          `reset:${clientAddress(request)}:${identifier || "invalid"}`,
-          config.tokenPepper,
-        );
-        if (
-          !(await (rateLimiters.passwordReset ?? rateLimiters.write).consume(
-            resetRateKey,
-          ))
-        ) {
+        const identifier = normalizeLoginIdentifier(body?.identifier).slice(0, 254);
+        if (!(await authLimit(request, identifier, "passwordReset"))) {
           response.setHeader("Retry-After", "60");
           sendJson(response, 429, { error: "password_reset_rate_limit_exceeded" });
+          return;
+        }
+
+        if (config.passwordResetMode === "smtp") {
+          // Account lookup, writes and SMTP all run after the same response.
+          // Failures leave the password and sessions unchanged.
+          sendJson(response, 202, { ok: true });
+          void (async () => {
+            const target = identifier ? await store.getCredentialPrincipal(identifier) : null;
+            if (target?.status !== "active" || !mailDelivery) return;
+            const reservation = await reserveDelivery(target.email);
+            if (!reservation) return;
+            try {
+              const token = createOpaqueToken();
+              const expiresAt = new Date(Date.now() + config.passwordResetTtlSeconds * 1000);
+              await store.createPasswordReset({ userId: target.id,
+                tokenHash: tokenDigest(token, config.tokenPepper), expiresAt });
+              await deliverSecurityMail("sendPasswordReset", { to: target.email, token, expiresAt }, reservation);
+            } catch {
+              await store.finishSecurityMail({ sendId: reservation, delivered: false });
+              console.error("Security password reset request failed");
+            }
+          })().catch(() => console.error("Security password reset request failed"));
           return;
         }
 
@@ -1000,17 +1067,6 @@ export function createAuthServer({
           });
           if (config.passwordResetMode === "response") {
             debugToken = resetToken;
-          } else if (config.passwordResetMode === "smtp" && mailDelivery) {
-            void mailDelivery
-              .sendPasswordReset({
-                to: principal.email,
-                token: resetToken,
-                expiresAt: resetExpiresAt,
-              })
-              .catch(() => {
-                // Keep the anti-enumeration response and timing independent from
-                // SMTP. Staging monitors delivery without logging account data.
-              });
           }
         }
         sendJson(response, 202, {
@@ -1054,6 +1110,9 @@ export function createAuthServer({
         if (!isOpaqueToken(body?.token)) {
           sendJson(response, 400, { error: "invalid_password_reset" });
           return;
+        }
+        if (!(await authLimit(request, tokenDigest(body.token, config.tokenPepper), "resetConfirm"))) {
+          sendJson(response, 429, { error: "credential_rate_limit_exceeded" }); return;
         }
         const resetTokenHash = tokenDigest(body.token, config.tokenPepper);
         const resetPrincipal = await store.getPasswordResetPrincipal(
@@ -1292,7 +1351,7 @@ export function createAuthServer({
           return;
         }
 
-        if (forwardedOrigin(request) !== config.publicOrigin) {
+        if (forwardedOrigin(request, config) !== config.publicOrigin) {
           const canonical = new URL(url.pathname + url.search, config.publicOrigin);
           sendRedirect(response, canonical.toString(), [], 307);
           return;
@@ -1499,8 +1558,8 @@ export function createAuthServer({
       }
 
       sendJson(response, 404, { error: "not_found" });
-    } catch (error) {
-      console.error("Auth API request failed", error);
+    } catch {
+      console.error("Auth API request failed");
       if (!response.headersSent) {
         sendJson(response, 503, { error: "service_unavailable" });
       } else {

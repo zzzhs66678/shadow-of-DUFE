@@ -40,6 +40,7 @@ export default defineConfig({
     stderr: "pipe",
   },
   projects: [
+    { name: "registration-security", testMatch: /registration-security\.spec\.ts/ },
     { name: "hub-experience-mobile", testMatch: /hub-experience\.spec\.ts/, use: { viewport: { width: 390, height: 844 }, timezoneId: "Asia/Shanghai" } },
     { name: "hub-experience-desktop", testMatch: /hub-experience\.spec\.ts/, use: { viewport: { width: 1280, height: 900 }, timezoneId: "Asia/Shanghai" } },
     { name: "admin-workspace", testMatch: /admin-workspace\.spec\.ts/ },

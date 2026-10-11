@@ -1046,7 +1046,8 @@ test("Xiaoying is isolated behind a private, resource-bounded service", async ()
   assert.match(server, /sameOriginRequest/);
   assert.match(server, /withinRateLimit/);
   assert.doesNotMatch(server, /const rateLimits = new Map/);
-  assert.match(server, /forwarded\.at\(-1\)/);
+  assert.match(server, /clientAddress\(request, proxyConfig\)/);
+  assert.match(server, /XIAOYING_TRUSTED_PROXY_CIDRS/);
   assert.match(store, /CREATE TABLE IF NOT EXISTS public_rate_limits/);
   assert.match(store, /createHmac\("sha256", this\.masterKey\)/);
   assert.match(store, /BEGIN IMMEDIATE/);
@@ -1082,7 +1083,7 @@ test("static assets and route discovery have explicit cache and SEO policy", asy
   assert.match(caddy, /www\.dufesh\.cn[\s\S]*redir https:\/\/dufesh\.cn\{uri\} 308/);
   assert.match(
     caddy,
-    /http:\/\/112\.126\.75\.74 \{\r?\n\tredir https:\/\/dufesh\.cn\{uri\} 308\r?\n\}/,
+    /http:\/\/112\.126\.75\.74 \{[\s\S]*respond @authentication_submit 403[\s\S]*redir https:\/\/dufesh\.cn\{uri\} 308/,
   );
   assert.match(robots, /\/campus-lab\//);
   const { absoluteUrl, publicPagePaths } = await import("../app/seo.ts");

@@ -1,3 +1,4 @@
+import { parseTrustedProxies } from "../services/auth-api/src/request-security.mjs";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { once } from "node:events";
@@ -143,6 +144,12 @@ test("material bookmarks: migrated SQL + real HTTP + existing auth/session/rate 
     assert.equal((await call(`/${id1}`, { method: "PUT", headers: { "X-Forwarded-For": "198.51.100.1, 192.0.2.2" } })).status, 429);
     assert.equal(seen[0].scope, "material-bookmarks-write-account");
     assert.equal(seen[1].scope, "material-bookmarks-write-network");
+    assert.equal(seen[1].keyDigest, tokenDigest("material-bookmarks:ip:127.0.0.1", config.tokenPepper));
+    // Only a configured socket peer may supply the network identity.
+    seen.length = 0;
+    handler = createMaterialBookmarkRequestHandler({ store: networkLimited,
+      config: { ...config, trustedProxyRanges: parseTrustedProxies("127.0.0.1/32") } });
+    assert.equal((await call(`/${id1}`, { method: "PUT", headers: { "X-Forwarded-For": "198.51.100.1, 192.0.2.2" } })).status, 429);
     assert.equal(seen[1].keyDigest, tokenDigest("material-bookmarks:ip:192.0.2.2", config.tokenPepper));
     assert.notEqual(seen[0].keyDigest, seen[1].keyDigest);
     seen.length = 0;

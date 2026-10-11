@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { createServer } from "node:http";
+import { clientAddress, parseTrustedProxies, secureRequest } from "../src/request-security.mjs";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { networkInterfaces } from "node:os";
@@ -23,6 +24,8 @@ import { loadTraceIntProtocolConfig } from "../src/traceint-protocol-config.mjs"
 const host = process.env.XIAOYING_EXECUTOR_HOST ?? "127.0.0.1";
 const port = Number.parseInt(process.env.XIAOYING_EXECUTOR_PORT ?? "43120", 10);
 const isProduction = process.env.NODE_ENV === "production";
+const proxyConfig = { trustedProxyRanges: parseTrustedProxies(process.env.XIAOYING_TRUSTED_PROXY_CIDRS) };
+if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === "0") throw new Error("TLS certificate verification must remain enabled");
 const defaultInviteCode =
   process.env.XIAOYING_DEFAULT_INVITE_CODE ?? (isProduction ? "" : "fjbadguy");
 const defaultInviteMaxUses = Number.parseInt(
@@ -315,13 +318,7 @@ async function readJson(request, maxBytes = 64 * 1024) {
   }
 }
 
-function requestIp(request) {
-  const forwarded = String(request.headers["x-forwarded-for"] ?? "")
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
-  return forwarded.at(-1) || request.socket.remoteAddress || "unknown";
-}
+function requestIp(request) { return clientAddress(request, proxyConfig); }
 
 function withinRateLimit(request, bucket, limit, windowMs) {
   return store.consumePublicRateLimit({
@@ -351,6 +348,9 @@ function sameOriginRequest(request) {
 const server = createServer(async (request, response) => {
   const requestUrl = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
   applySecurityHeaders(response);
+  if (isProduction && requestUrl.pathname !== "/health" && !secureRequest(request, proxyConfig)) {
+    return sendJson(response, 403, { error: "https_required" });
+  }
   if (!sameOriginRequest(request)) {
     return sendJson(response, 403, { error: "request_origin_rejected" });
   }

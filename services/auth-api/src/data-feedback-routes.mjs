@@ -1,3 +1,4 @@
+import { clientAddress } from "./request-security.mjs";
 import { randomUUID } from "node:crypto";
 import { parseCookies } from "./cookies.mjs";
 import { isOpaqueToken, tokenDigest } from "./tokens.mjs";
@@ -25,7 +26,6 @@ async function body(request) {
   }
   try { return JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch { return null; }
 }
-const clientAddress = request => String(request.headers["x-forwarded-for"] ?? "").split(",").map(x => x.trim()).filter(Boolean).at(-1) || request.socket.remoteAddress || "unknown";
 
 // Independent initialization: production always uses the existing persistent limiter store.
 export function createDataFeedbackRateLimiters(store) {
@@ -67,7 +67,7 @@ export function createDataFeedbackRequestHandler({ store, config, adminSecurity,
         if (!access?.elevated) return json(response, 403, { error: "admin_mfa_required" });
         input.requestId = randomUUID();
         response.setHeader("X-Request-ID", input.requestId);
-        input.ipHash = tokenDigest(`admin-ip:${clientAddress(request)}`, config.tokenPepper);
+        input.ipHash = tokenDigest(`admin-ip:${clientAddress(request, config)}`, config.tokenPepper);
         input.userAgentHash = tokenDigest(`admin-ua:${String(request.headers["user-agent"] ?? "")}`, config.tokenPepper);
       }
       const suffix = url.pathname.slice(root.length);
@@ -83,7 +83,7 @@ export function createDataFeedbackRequestHandler({ store, config, adminSecurity,
       rateLimiters ??= createDataFeedbackRateLimiters(store);
       const limiter = request.method === "GET" ? rateLimiters.read : admin ? rateLimiters.admin : rateLimiters.submit;
       const digest = tokenDigest(`data-feedback-user:${session.userId}`, config.tokenPepper);
-      if (!(await limiter.consume(digest)) || (request.method === "POST" && !(await rateLimiters.ip.consume(tokenDigest(`data-feedback-ip:${clientAddress(request)}`, config.tokenPepper))))) {
+      if (!(await limiter.consume(digest)) || (request.method === "POST" && !(await rateLimiters.ip.consume(tokenDigest(`data-feedback-ip:${clientAddress(request, config)}`, config.tokenPepper))))) {
         response.setHeader("Retry-After", request.method === "GET" ? "1" : admin ? "10" : "300");
         return json(response, 429, { error: "data_feedback_rate_limited" });
       }

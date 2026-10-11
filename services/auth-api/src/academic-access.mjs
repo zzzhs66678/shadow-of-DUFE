@@ -1,3 +1,4 @@
+import { AcademicCookieJar as CookieJar } from "./academic-cookie-jar.mjs";
 import {
   constants,
   createCipheriv,
@@ -236,45 +237,6 @@ function encryptPassword(password, csrfRandCode, modulus, exponent) {
   ).toString("hex");
 }
 
-class CookieJar {
-  #cookies = new Map();
-
-  update(response) {
-    const values =
-      typeof response.headers.getSetCookie === "function"
-        ? response.headers.getSetCookie()
-        : [response.headers.get("set-cookie")].filter(Boolean);
-    for (const value of values) {
-      const pair = String(value).split(";", 1)[0];
-      const separator = pair.indexOf("=");
-      if (separator <= 0) continue;
-      const name = pair.slice(0, separator).trim();
-      const cookieValue = pair.slice(separator + 1).trim();
-      if (!cookieValue) this.#cookies.delete(name);
-      else this.#cookies.set(name, cookieValue);
-    }
-  }
-
-  header() {
-    return [...this.#cookies]
-      .map(([name, value]) => `${name}=${value}`)
-      .join("; ");
-  }
-
-  set(name, value) {
-    const normalizedName = String(name ?? "").trim();
-    const normalizedValue = String(value ?? "").trim();
-    if (
-      !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/u.test(normalizedName) ||
-      !normalizedValue ||
-      /[;\r\n]/u.test(normalizedValue)
-    ) {
-      throw academicError("ACADEMIC_PROTOCOL_CHANGED");
-    }
-    this.#cookies.set(normalizedName, normalizedValue);
-  }
-}
-
 async function readLimitedText(response, maxBytes = MAX_PAGE_BYTES) {
   const declared = Number(response.headers.get("content-length") ?? 0);
   if (Number.isFinite(declared) && declared > maxBytes) {
@@ -341,7 +303,7 @@ async function requestWithCookies({
           Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
           "User-Agent":
             "Mozilla/5.0 (compatible; DufeshAcademicImport/1.0; +https://dufesh.cn)",
-          ...(jar.header() ? { Cookie: jar.header() } : {}),
+          ...(jar.header(current) ? { Cookie: jar.header(current) } : {}),
           ...headers,
         },
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -352,7 +314,7 @@ async function requestWithCookies({
       }
       throw academicError("ACADEMIC_UPSTREAM_UNAVAILABLE");
     }
-    jar.update(response);
+    jar.update(response, current);
     if (![301, 302, 303, 307, 308].includes(response.status)) {
       return { response, finalUrl: current };
     }
@@ -2513,7 +2475,12 @@ export function createAcademicConnector({
   academicOrigin = DEFAULT_ACADEMIC_ORIGIN,
   now = () => Date.now(),
   transactionTtlMs = TRANSACTION_TTL_MS,
+  maxTransactions = 100,
 } = {}) {
+  if (!Number.isInteger(maxTransactions) || maxTransactions < 1 || maxTransactions > 1000 ||
+      !Number.isInteger(transactionTtlMs) || transactionTtlMs < 1 || transactionTtlMs > TRANSACTION_TTL_MS) {
+    throw new TypeError("Invalid academic transaction limits");
+  }
   const vpn = new URL(vpnOrigin);
   const academic = new URL(academicOrigin);
   const isTrustedTarget = createTrustedTargetPolicy(vpn, academic);
@@ -2523,6 +2490,7 @@ export function createAcademicConnector({
     const transaction = transactions.get(id);
     if (transaction) {
       transaction.password = "";
+      transaction.jar.clear();
       transaction.sso = null;
       transaction.partialSnapshot = null;
     }
@@ -2536,7 +2504,20 @@ export function createAcademicConnector({
     }
   }
 
+  const cleanupTimer = setInterval(cleanup, Math.min(30_000, Math.max(10, transactionTtlMs)));
+  cleanupTimer.unref();
+  let closed = false;
+
   function createTransaction(jar, principalKey, credentials, details = {}) {
+    cleanup();
+    // Restarting an import in this principal replaces its pending credentials.
+    for (const [id, flow] of transactions) {
+      if (flow.principalKey === principalKey) destroyTransaction(id);
+    }
+    if (closed || transactions.size >= maxTransactions) {
+      jar.clear();
+      throw academicError("ACADEMIC_TRANSACTION_LIMIT");
+    }
     const transactionId = randomBytes(24).toString("base64url");
     const transaction = {
       jar,
@@ -2573,7 +2554,7 @@ export function createAcademicConnector({
       );
       // Sangfor's official portal updates its active TWFID from the XML auth
       // response. The value is not guaranteed to arrive as a Set-Cookie header.
-      if (result.twfId) jar.set("TWFID", result.twfId);
+      if (result.twfId) jar.setVpnSession("TWFID", result.twfId, vpn);
       return result;
     });
   }
@@ -3054,6 +3035,7 @@ export function createAcademicConnector({
 
   return {
     async start({ username, password, principalKey }) {
+      if (closed) throw academicError("ACADEMIC_TRANSACTION_INVALID");
       cleanup();
       const credentials = validateCredentials(username, password);
       if (typeof principalKey !== "string" || !principalKey) {
@@ -3266,6 +3248,12 @@ export function createAcademicConnector({
       transaction.sso = null;
       transaction.expiresAt = now() + transactionTtlMs;
       return continueImport(transactionId, transaction);
+    },
+
+    close() {
+      closed = true;
+      clearInterval(cleanupTimer);
+      for (const id of transactions.keys()) destroyTransaction(id);
     },
 
     pendingCount() {

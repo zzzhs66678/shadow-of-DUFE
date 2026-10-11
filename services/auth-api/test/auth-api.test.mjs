@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import sharp from "sharp";
+import { parseTrustedProxies } from "../src/request-security.mjs";
 import {
   clearSecureCookie,
   parseCookies,
@@ -18,6 +19,7 @@ import {
 } from "../src/tokens.mjs";
 
 const config = {
+  trustedProxyRanges: parseTrustedProxies("127.0.0.1/32"),
   tokenPepper: "test-pepper-that-is-longer-than-thirty-two-characters",
   allowedOrigins: new Set(["https://dufesh.cn"]),
   sessionCookie: "__Host-dufesh_session",
@@ -29,6 +31,8 @@ const config = {
   publicOrigin: "https://dufesh.cn",
   credentialsEnabled: true,
   academicImportEnabled: false,
+  registrationMode: "smtp",
+  registrationKey: "independent-test-registration-hmac-key-32chars",
   passwordResetMode: "response",
   passwordResetTtlSeconds: 1_800,
   emailVerificationMode: "response",
@@ -40,7 +44,27 @@ const config = {
   mockLoginSecret: "mock-secret-that-is-longer-than-thirty-two-characters",
 };
 
+test("school account limits survive fresh device cookies and forged source headers", async () => {
+  await withServer(async ({ baseUrl }) => {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const reply = await fetch(`${baseUrl}/api/auth/academic/connect`, {
+        method: "POST", headers: { Origin: "https://dufesh.cn", "Content-Type": "application/json", "X-Forwarded-For": `192.0.2.${attempt}` },
+        body: JSON.stringify({ username: "20260001", password: "synthetic-school-password" }),
+      });
+      assert.equal(reply.status, attempt < 4 ? 401 : 429);
+    }
+    const other = await fetch(`${baseUrl}/api/auth/academic/connect`, {
+      method: "POST", headers: { Origin: "https://dufesh.cn", "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "20260002", password: "synthetic-school-password" }),
+    });
+    assert.equal(other.status, 401);
+  }, { config: { academicImportEnabled: true }, academicConnector: {
+    async start() { const error = new Error("ACADEMIC_INVALID_CREDENTIALS"); error.code = "ACADEMIC_INVALID_CREDENTIALS"; throw error; },
+  } });
+});
+
 function createFakeStore() {
+  const challenges = new Map();
   const devices = new Map();
   const sessions = new Map();
   const transactions = new Map();
@@ -76,6 +100,9 @@ function createFakeStore() {
     deletedAccounts,
     credentialPrincipals,
     async health() {},
+    async reserveSecurityMail() { return "fixture-reservation"; },
+    async createRegistrationChallenge(input) { challenges.set(input.id,input); return {sendId:input.id,shouldSend:true,expiresAt:new Date(Date.now()+300000)}; },
+    async finishSecurityMail({sendId,delivered}) { const c=challenges.get(sendId);if(c)c.delivered=delivered; },
     async getOrCreateAnonymousDevice(hash) {
       if (!devices.has(hash)) {
         const number = devices.size + 1;
@@ -136,6 +163,9 @@ function createFakeStore() {
       return sessions.get(hash) ?? null;
     },
     async registerCredentialUser(input) {
+      const proof=input.registrationProof; const c=challenges.get(proof?.challengeId);
+      if(!c || !c.delivered || c.used || c.codeHash!==proof.codeHash || c.browserHash!==proof.browserHash || c.email!==input.normalizedEmail) return null;
+      c.used=true;
       if (credentialPrincipals.has(input.normalizedUsername)) {
         const error = new Error("username taken");
         error.code = "AUTH_USERNAME_TAKEN";
@@ -438,6 +468,18 @@ function createFakeStore() {
   };
 }
 
+const mailboxes = new Map();
+async function registerWithProof(url, options) {
+  const base = new URL(url).origin;
+  const body = JSON.parse(options.body);
+  const challenge = await fetch(base+"/api/auth/register/challenge", { ...options, body:JSON.stringify({email:body.email}) });
+  if(!challenge.ok) return challenge;
+  const payload = await challenge.json();
+  await new Promise((resolve)=>setTimeout(resolve,5));
+  const cookie = challenge.headers.getSetCookie().map((v)=>v.split(";",1)[0]).join("; ");
+  return fetch(url,{...options,headers:{...options.headers,Cookie:cookie},body:JSON.stringify({...body,challengeId:payload.challengeId,code:mailboxes.get(base).get(body.email)})});
+}
+
 async function withServer(callback, options = {}) {
   const store = createFakeStore();
   const runtimeConfig = { ...config, ...(options.config ?? {}) };
@@ -457,11 +499,15 @@ async function withServer(callback, options = {}) {
     wechatProvider,
     passwordService,
     avatarProcessor,
-    mailDelivery: options.mailDelivery,
+    mailDelivery: { ...options.mailDelivery,
+      async sendRegistrationCode(input) { mailboxes.get(baseUrl).set(input.to,input.code); },
+    },
     academicConnector: options.academicConnector,
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  mailboxes.set(baseUrl, new Map());
 
   try {
     await callback({
@@ -474,6 +520,35 @@ async function withServer(callback, options = {}) {
     );
   }
 }
+
+test("SMTP reset response is independent of account lookup and redacts background failures", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    let release;
+    const gate = new Promise((resolve) => { release = resolve; });
+    store.getCredentialPrincipal = async () => { await gate; return null; };
+    try {
+      const response = await fetch(`${baseUrl}/api/auth/password/reset/request`, {
+        method: "POST", headers: { Origin: "https://dufesh.cn", "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: "unknown@example.com" }), signal: AbortSignal.timeout(2000),
+      });
+      assert.equal(response.status, 202);
+      assert.deepEqual(await response.json(), { ok: true });
+    } finally { release(); }
+    const logs = []; const original = console.error;
+    console.error = (...args) => logs.push(args.join(" "));
+    try {
+      store.getCredentialPrincipal = async () => { throw new Error("synthetic-password-and-SMTP-secret"); };
+      const response = await fetch(`${baseUrl}/api/auth/password/reset/request`, {
+        method: "POST", headers: { Origin: "https://dufesh.cn", "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: "known@example.com" }),
+      });
+      assert.equal(response.status, 202);
+      assert.deepEqual(await response.json(), { ok: true });
+      assert.ok(logs.includes("Security password reset request failed"));
+      assert.equal(logs.join(" ").includes("synthetic-password-and-SMTP-secret"), false);
+    } finally { console.error = original; }
+  }, { config: { passwordResetMode: "smtp" } });
+});
 
 test("secure cookies are host-only, HttpOnly, Secure, and SameSite=Lax", () => {
   const serialized = serializeSecureCookie("__Host-test", "value", 60);
@@ -1087,7 +1162,7 @@ test("SMTP mode delivers reset and verification tokens without returning them", 
         Origin: "https://dufesh.cn",
         "Content-Type": "application/json",
       };
-      const registration = await fetch(`${baseUrl}/api/auth/register`, {
+      const registration = await registerWithProof(`${baseUrl}/api/auth/register`, {
         method: "POST",
         headers,
         body: JSON.stringify({
@@ -1530,11 +1605,11 @@ test("credential registration, login, and one-time password reset are real serve
     const registration = {
       username: "海边自习室",
       email: "student@example.com",
-      password: "Moonlight!2026",
+      password: "Moonlight!2026-Long",
       schoolAccount: "2026123456",
     };
 
-    const registered = await fetch(`${baseUrl}/api/auth/register`, {
+    const registered = await registerWithProof(`${baseUrl}/api/auth/register`, {
       method: "POST",
       headers,
       body: JSON.stringify(registration),
@@ -1549,13 +1624,13 @@ test("credential registration, login, and one-time password reset are real serve
         .some((value) => value.startsWith(`${config.sessionCookie}=`)),
     );
 
-    const duplicate = await fetch(`${baseUrl}/api/auth/register`, {
+    const duplicate = await registerWithProof(`${baseUrl}/api/auth/register`, {
       method: "POST",
       headers,
       body: JSON.stringify(registration),
     });
-    assert.equal(duplicate.status, 409);
-    assert.equal((await duplicate.json()).error, "registration_conflict");
+    assert.equal(duplicate.status, 400);
+    assert.equal((await duplicate.json()).error, "invalid_registration_verification");
 
     const wrongKnown = await fetch(`${baseUrl}/api/auth/login`, {
       method: "POST",
@@ -1655,13 +1730,13 @@ test("repeated credential failures lock the account even when the password later
       "Content-Type": "application/json",
       Origin: "https://dufesh.cn",
     };
-    await fetch(`${baseUrl}/api/auth/register`, {
+    await registerWithProof(`${baseUrl}/api/auth/register`, {
       method: "POST",
       headers,
       body: JSON.stringify({
         username: "locked-student",
         email: "locked@example.com",
-        password: "Moonlight!2026",
+        password: "Moonlight!2026-Long",
       }),
     });
 
@@ -1682,7 +1757,7 @@ test("repeated credential failures lock the account even when the password later
       headers,
       body: JSON.stringify({
         identifier: "locked-student",
-        password: "Moonlight!2026",
+        password: "Moonlight!2026-Long",
       }),
     });
     assert.equal(locked.status, 401);
@@ -1696,13 +1771,13 @@ test("authenticated profile updates are whitelisted, normalized, and account-sco
       "Content-Type": "application/json",
       Origin: "https://dufesh.cn",
     };
-    const registered = await fetch(`${baseUrl}/api/auth/register`, {
+    const registered = await registerWithProof(`${baseUrl}/api/auth/register`, {
       method: "POST",
       headers,
       body: JSON.stringify({
         username: "profile-student",
         email: "profile@example.com",
-        password: "Moonlight!2026",
+        password: "Moonlight!2026-Long",
       }),
     });
     const cookie = registered.headers
@@ -1761,13 +1836,13 @@ test("email verification is session-bound, single-use, and updates the account",
       Origin: "https://dufesh.cn",
     };
     const register = async (username, email) => {
-      const response = await fetch(`${baseUrl}/api/auth/register`, {
+      const response = await registerWithProof(`${baseUrl}/api/auth/register`, {
         method: "POST",
         headers,
         body: JSON.stringify({
           username,
           email,
-          password: "Moonlight!2026",
+          password: "Moonlight!2026-Long",
         }),
       });
       assert.equal(response.status, 201);
@@ -1863,7 +1938,7 @@ test("email verification is session-bound, single-use, and updates the account",
 
 test("avatar upload validates content, serves versioned WebP, and supports deletion", async () => {
   await withServer(async ({ baseUrl }) => {
-    const registration = await fetch(`${baseUrl}/api/auth/register`, {
+    const registration = await registerWithProof(`${baseUrl}/api/auth/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -1872,7 +1947,7 @@ test("avatar upload validates content, serves versioned WebP, and supports delet
       body: JSON.stringify({
         username: "avatar-student",
         email: "avatar@example.com",
-        password: "Moonlight!2026",
+        password: "Moonlight!2026-Long",
       }),
     });
     const cookie = registration.headers

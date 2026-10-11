@@ -1,3 +1,7 @@
+import { normalizeEmail, validEmail } from "./credentials.mjs";
+import { parseTrustedProxies } from "./request-security.mjs";
+import { REGISTRATION_POLICY } from "./registration-security.mjs";
+
 function positiveInteger(value, fallback, name) {
   const parsed = Number.parseInt(value ?? "", 10);
   const resolved = Number.isFinite(parsed) ? parsed : fallback;
@@ -44,11 +48,9 @@ function adminKeyring(value, activeKeyId) {
 }
 
 function plainEmailAddress(value, name) {
-  const normalized = String(value ?? "").trim().toLowerCase();
+  const normalized = normalizeEmail(value);
   if (
-    normalized.length > 254 ||
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(normalized) ||
-    /[\r\n]/u.test(normalized)
+    !validEmail(normalized)
   ) {
     throw new Error(`${name} must be a plain email address`);
   }
@@ -57,6 +59,7 @@ function plainEmailAddress(value, name) {
 
 export function loadConfig(env = process.env) {
   const nodeEnv = env.NODE_ENV || "development";
+  if (env.NODE_TLS_REJECT_UNAUTHORIZED === "0") throw new Error("TLS certificate verification must remain enabled");
   const tokenPepper = env.AUTH_TOKEN_PEPPER ?? "";
   if (tokenPepper.length < 32) {
     throw new Error("AUTH_TOKEN_PEPPER must contain at least 32 characters");
@@ -95,6 +98,18 @@ export function loadConfig(env = process.env) {
   if (allowedOrigins.size === 0) {
     throw new Error("AUTH_ALLOWED_ORIGINS must not be empty");
   }
+  for (const value of allowedOrigins) {
+    const origin = new URL(value);
+    if (origin.origin !== value || (nodeEnv === "production" && origin.protocol !== "https:")) {
+      throw new Error("AUTH_ALLOWED_ORIGINS must contain exact HTTPS origins in production");
+    }
+  }
+  const registrationMode = env.AUTH_REGISTRATION_MODE || "disabled";
+  if (!["disabled", "smtp"].includes(registrationMode)) throw new Error("AUTH_REGISTRATION_MODE must be disabled or smtp");
+  const registrationKey = env.AUTH_REGISTRATION_HMAC_KEY || "";
+  if (registrationMode !== "disabled" && (registrationKey.length < 32 || registrationKey === tokenPepper)) {
+    throw new Error("AUTH_REGISTRATION_HMAC_KEY must be an independent random key of at least 32 characters");
+  }
 
   const passwordResetMode =
     env.AUTH_PASSWORD_RESET_MODE ||
@@ -125,7 +140,7 @@ export function loadConfig(env = process.env) {
   }
 
   const smtpRequired =
-    passwordResetMode === "smtp" || emailVerificationMode === "smtp";
+    registrationMode === "smtp" || passwordResetMode === "smtp" || emailVerificationMode === "smtp";
   let smtp = null;
   if (smtpRequired) {
     const host = String(env.AUTH_SMTP_HOST ?? "").trim().toLowerCase();
@@ -154,6 +169,10 @@ export function loadConfig(env = process.env) {
       password,
       from: plainEmailAddress(env.AUTH_EMAIL_FROM, "AUTH_EMAIL_FROM"),
     };
+    if (smtp.port === 465 && !smtp.secure) throw new Error("SMTP port 465 requires implicit TLS");
+    if (registrationMode === "smtp" && (smtp.user !== "2016594477@qq.com" || smtp.from !== "2016594477@qq.com")) {
+      throw new Error("Registration mail must use the configured QQ sender 2016594477@qq.com");
+    }
   }
 
   const adminEnabled = booleanValue(
@@ -181,6 +200,13 @@ export function loadConfig(env = process.env) {
   }
 
   return {
+    nodeEnv,
+    requireHttps: nodeEnv === "production",
+    trustedProxyRanges: parseTrustedProxies(env.AUTH_TRUSTED_PROXY_CIDRS),
+    registrationMode,
+    registrationKey,
+    registrationPolicy: REGISTRATION_POLICY,
+    registrationCookie: "__Host-dufesh_registration",
     port: positiveInteger(env.AUTH_API_PORT, 3100, "AUTH_API_PORT"),
     tokenPepper,
     allowedOrigins,

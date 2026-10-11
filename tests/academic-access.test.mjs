@@ -14,6 +14,31 @@ import {
   parseWeeks,
 } from "../services/auth-api/src/academic-access.mjs";
 
+test("school credential flows have a bound, replace old flows and expire without activation", async () => {
+  const challenge = rsaChallengeXml();
+  let now = Date.now();
+  const connector = createAcademicConnector({ maxTransactions: 1, transactionTtlMs: 80,
+    now: () => now,
+    fetchImpl: async (url) => response(new URL(url).pathname === "/por/login_psw.csp"
+      ? "<Auth><ErrorCode>1</ErrorCode><NextService>sms</NextService></Auth>" : challenge),
+  });
+  const input = { username: "20260001", password: "synthetic-school-password", principalKey: "device:a" };
+  try {
+    const first = await connector.start(input);
+    await assert.rejects(connector.start({ ...input, principalKey: "device:b" }), { code: "ACADEMIC_TRANSACTION_LIMIT" });
+    const replacement = await connector.start(input);
+    assert.notEqual(first.transactionId, replacement.transactionId);
+    await assert.rejects(connector.verifySms({ transactionId: first.transactionId, code: "123456", principalKey: input.principalKey }),
+      { code: "ACADEMIC_TRANSACTION_EXPIRED" });
+    now += 81;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await assert.rejects(connector.verifySms({ transactionId: replacement.transactionId, code: "123456", principalKey: input.principalKey }),
+      { code: "ACADEMIC_TRANSACTION_EXPIRED" });
+    assert.equal(connector.pendingCount(), 0);
+  } finally { connector.close(); }
+  await assert.rejects(connector.start(input), { code: "ACADEMIC_TRANSACTION_INVALID" });
+});
+
 const timetableHtml = `<!doctype html>
 <html><body>
   <nav>2026-2027学年第一学期 第5周</nav>
@@ -885,7 +910,7 @@ test("connector performs encrypted login and imports both official pages", async
       assert.notEqual(form.get("svpn_password"), "test-password");
       assert.ok(!String(options.body).includes("test-password"));
       return response("<Auth><ErrorCode>1</ErrorCode></Auth>", {
-        headers: { "set-cookie": "SVPNCOOKIE=session; Path=/" },
+        headers: { "set-cookie": "SVPNCOOKIE=session; Domain=vpn.dufe.edu.cn; Path=/" },
       });
     }
     if (parsed.pathname === "/student/courseSelect/thisSemesterCurriculum/index") {
@@ -933,7 +958,7 @@ test("connector keeps verified timetable and exams when only the plan is invalid
     if (parsed.pathname === "/public/psw_config") return response(challenge);
     if (parsed.pathname === "/por/login_psw.csp") {
       return response("<Auth><ErrorCode>1</ErrorCode></Auth>", {
-        headers: { "set-cookie": "SVPNCOOKIE=session; Path=/" },
+        headers: { "set-cookie": "SVPNCOOKIE=session; Domain=vpn.dufe.edu.cn; Path=/" },
       });
     }
     if (parsed.pathname === "/student/courseSelect/thisSemesterCurriculum/index") {
@@ -980,7 +1005,7 @@ test("connector keeps timetable and training plan when the exam page is unknown"
     if (parsed.pathname === "/public/psw_config") return response(challenge);
     if (parsed.pathname === "/por/login_psw.csp") {
       return response("<Auth><ErrorCode>1</ErrorCode></Auth>", {
-        headers: { "set-cookie": "SVPNCOOKIE=session; Path=/" },
+        headers: { "set-cookie": "SVPNCOOKIE=session; Domain=vpn.dufe.edu.cn; Path=/" },
       });
     }
     if (parsed.pathname === "/student/courseSelect/thisSemesterCurriculum/index") {
@@ -1027,7 +1052,7 @@ test("connector keeps timetable when optional school services are unavailable", 
     if (parsed.pathname === "/public/psw_config") return response(challenge);
     if (parsed.pathname === "/por/login_psw.csp") {
       return response("<Auth><ErrorCode>1</ErrorCode></Auth>", {
-        headers: { "set-cookie": "SVPNCOOKIE=session; Path=/" },
+        headers: { "set-cookie": "SVPNCOOKIE=session; Domain=vpn.dufe.edu.cn; Path=/" },
       });
     }
     if (parsed.pathname === "/student/courseSelect/thisSemesterCurriculum/index") {
@@ -1082,7 +1107,7 @@ test("connector keeps verified exams when only the plan service is unavailable",
     if (parsed.pathname === "/public/psw_config") return response(challenge);
     if (parsed.pathname === "/por/login_psw.csp") {
       return response("<Auth><ErrorCode>1</ErrorCode></Auth>", {
-        headers: { "set-cookie": "SVPNCOOKIE=session; Path=/" },
+        headers: { "set-cookie": "SVPNCOOKIE=session; Domain=vpn.dufe.edu.cn; Path=/" },
       });
     }
     if (parsed.pathname === "/student/courseSelect/thisSemesterCurriculum/index") {
@@ -1123,7 +1148,7 @@ test("connector uses the official single-bound-phone SMS endpoints", async () =>
     if (parsed.pathname === "/por/login_psw.csp") {
       return response(
         "<Auth><ErrorCode>1</ErrorCode><NextService>sms</NextService></Auth>",
-        { headers: { "set-cookie": "SVPNCOOKIE=session; Path=/" } },
+        { headers: { "set-cookie": "SVPNCOOKIE=session; Domain=vpn.dufe.edu.cn; Path=/" } },
       );
     }
     if (parsed.pathname === "/por/login_sms.csp") {
@@ -1292,7 +1317,7 @@ test("connector completes the school CAS slider step before importing", async ()
           status: 302,
           headers: {
             location: serviceUrl,
-            "set-cookie": "SSO_SESSION=ready; Path=/",
+            "set-cookie": "SSO_SESSION=ready; Domain=vpn.dufe.edu.cn; Path=/",
           },
         });
       }

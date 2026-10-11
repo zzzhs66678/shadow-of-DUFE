@@ -10,6 +10,7 @@
     "start": "node bin/server.mjs"
   },
   "dependencies": {
+    "ipaddr.js": "2.3.0",
     "qrcode": "1.5.4"
   }
 }

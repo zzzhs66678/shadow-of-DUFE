@@ -11,6 +11,7 @@
 		Referrer-Policy "no-referrer"
 		X-Frame-Options "DENY"
 		X-XSS-Protection "0"
+
 		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
 		Cross-Origin-Opener-Policy "same-origin"
 		Cross-Origin-Resource-Policy "same-origin"
@@ -28,33 +29,57 @@
 	header @compiled_assets Cache-Control "public, max-age=31536000, immutable"
 
 	handle /api/auth/* {
-		reverse_proxy auth-api:3100
+		reverse_proxy auth-api:3100 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
 	}
 
 	handle /api/admin/* {
 		header Cache-Control "no-store"
-		reverse_proxy auth-api:3100
+		reverse_proxy auth-api:3100 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
 	}
 
 	handle /api/community/* {
-		reverse_proxy auth-api:3100
+		reverse_proxy auth-api:3100 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
 	}
 
 	@material_bookmarks path /api/material-bookmarks /api/material-bookmarks/*
 	handle @material_bookmarks {
-		reverse_proxy auth-api:3100
+		reverse_proxy auth-api:3100 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
 	}
 
 	@teacher_api path /api/teachers /api/teachers/*
 	handle @teacher_api {
-		reverse_proxy auth-api:3100
+		reverse_proxy auth-api:3100 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
 	}
 
 	redir /campus-lab /campus-lab/ 308
 
 	handle_path /campus-lab/* {
 		header Cache-Control "no-store"
-		reverse_proxy xiaoying:43120
+		reverse_proxy xiaoying:43120 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
 	}
 
 	handle_path /resources/files/* {

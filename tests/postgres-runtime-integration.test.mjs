@@ -402,6 +402,9 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
 
     for (const [table, privilege, expected] of [
       ["teachers", "SELECT", true],
+      ["registration_challenges", "SELECT", true],
+      ["registration_challenges", "UPDATE", true],
+      ["security_mail_sends", "INSERT", true],
       ["teachers", "INSERT", false],
       ["teacher_source_identities", "UPDATE", false],
       ["course_schedule_teachers", "SELECT", true],
@@ -532,6 +535,8 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
       ["teachers", "SELECT", true],
       ["course_schedule_teachers", "SELECT", true],
       ["app_users", "INSERT", false],
+      ["registration_challenges", "SELECT", false],
+      ["security_mail_sends", "SELECT", false],
       ["app_users", "UPDATE", false],
       ["app_users", "DELETE", false],
       ["app_users", "TRUNCATE", false],
@@ -904,7 +909,8 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
   skip: !enabled,
   timeout: 45_000,
 }, async () => {
-  const config = integrationConfig();
+  const config = { ...integrationConfig(), registrationMode: "smtp", registrationKey: "independent-ci-registration-key-longer-than-32" };
+  const mailbox = new Map();
   const fixtureOwner = poolFor(
     process.env.POSTGRES_USER,
     process.env.POSTGRES_PASSWORD,
@@ -922,6 +928,7 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
     passwordService: createPasswordService(),
     avatarProcessor: createAvatarProcessor(),
     adminSecurity,
+    mailDelivery: { async sendRegistrationCode(input) { mailbox.set(input.to, input.code); } },
     rateLimiters: createApiRateLimiters({ store }),
   });
 
@@ -938,13 +945,26 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
   };
 
   async function register(label) {
+    const email = `ci-${label}-${suffix}@example.com`;
+    const challengeResponse = await fetch(`${baseUrl}/api/auth/register/challenge`, {
+      method: "POST", headers: requestHeaders, body: JSON.stringify({ email }),
+    });
+    assert.equal(challengeResponse.status, 202);
+    const challenge = await challengeResponse.json();
+    const registrationCookie = cookieHeader(challengeResponse);
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const delivered = await fixtureOwner.query("SELECT delivered_at FROM registration_challenges WHERE id=$1", [challenge.challengeId]);
+      if (delivered.rows[0]?.delivered_at && mailbox.has(email)) break;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
     const response = await fetch(`${baseUrl}/api/auth/register`, {
       method: "POST",
-      headers: requestHeaders,
+      headers: { ...requestHeaders, Cookie: registrationCookie },
       body: JSON.stringify({
+        challengeId: challenge.challengeId, code: mailbox.get(email),
         username: `ci-${label}-${suffix}`,
         email: `ci-${label}-${suffix}@example.com`,
-        password: "Moonlight!2026",
+        password: "Moonlight!2026-long-passphrase",
       }),
     });
     const body = await response.json();
@@ -1383,7 +1403,7 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
           headers: requestHeaders,
           body: JSON.stringify({
             identifier: `ci-admin-${suffix}@example.com`,
-            password: "Moonlight!2026",
+            password: "Moonlight!2026-long-passphrase",
           }),
         })
       ),

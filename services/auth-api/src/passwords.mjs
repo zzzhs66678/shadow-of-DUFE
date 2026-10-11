@@ -9,12 +9,22 @@ const ARGON2ID_OPTIONS = Object.freeze({
 });
 
 export function createPasswordService() {
+  let active = 0;
+  async function bounded(operation) {
+    if (active >= 2) {
+      const error = new Error("Password service busy");
+      error.code = "AUTH_PASSWORD_BUSY";
+      throw error;
+    }
+    active += 1;
+    try { return await operation(); } finally { active -= 1; }
+  }
   return {
     hash(password) {
-      return hash(password, ARGON2ID_OPTIONS);
+      return bounded(() => hash(password, ARGON2ID_OPTIONS));
     },
     verify(passwordHash, password) {
-      return verify(passwordHash, password);
+      return bounded(() => verify(passwordHash, password));
     },
   };
 }

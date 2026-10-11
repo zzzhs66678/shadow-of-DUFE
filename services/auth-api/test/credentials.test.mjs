@@ -21,7 +21,7 @@ test("registration validates fields and rejects weak or identity-derived passwor
   const valid = validateRegistration({
     username: "海边自习室",
     email: "student@example.com",
-    password: "Moonlight!2026",
+    password: "Moonlight!2026-Long",
     schoolAccount: "2026123456",
   });
   assert.equal(valid.ok, true);
@@ -55,16 +55,16 @@ test("login and reset password validation use bounded scalar input", () => {
     { identifier: "student@example.com", password: "secret" },
   );
   assert.equal(validateLogin({ identifier: {}, password: [] }), null);
-  assert.equal(validateNewPassword("Moonlight!2026", ["alice"]), true);
+  assert.equal(validateNewPassword("Moonlight!2026-Long", ["alice"]), true);
   assert.equal(validateNewPassword("alice!2026x", ["alice"]), false);
 });
 
 test("password service creates Argon2id hashes and verifies without exposing plaintext", async () => {
   const passwords = createPasswordService();
-  const passwordHash = await passwords.hash("Moonlight!2026");
+  const passwordHash = await passwords.hash("Moonlight!2026-Long");
   assert.match(passwordHash, /^\$argon2id\$/);
-  assert.equal(passwordHash.includes("Moonlight!2026"), false);
-  assert.equal(await passwords.verify(passwordHash, "Moonlight!2026"), true);
+  assert.equal(passwordHash.includes("Moonlight!2026-Long"), false);
+  assert.equal(await passwords.verify(passwordHash, "Moonlight!2026-Long"), true);
   assert.equal(await passwords.verify(passwordHash, "wrong-password"), false);
 });
 

@@ -42,12 +42,12 @@ test("SMTP delivery requires TLS and disables file and URL content access", asyn
   await delivery.sendPasswordReset({
     to: "student@example.com",
     token,
-    expiresAt: new Date("2026-08-11T12:00:00Z"),
+    expiresAt: new Date(Date.now()+300000),
   });
   await delivery.sendEmailVerification({
     to: "student@example.com",
     token,
-    expiresAt: new Date("2026-08-12T12:00:00Z"),
+    expiresAt: new Date(Date.now()+300000),
   });
 
   assert.equal(messages.length, 2);
@@ -76,7 +76,7 @@ test("SMTP delivery rejects header injection and malformed tokens", async () => 
       throw new Error("should not send");
     },
   }));
-  const expiresAt = new Date("2026-08-11T12:00:00Z");
+  const expiresAt = new Date(Date.now()+300000);
 
   await assert.rejects(
     delivery.sendPasswordReset({
@@ -94,4 +94,27 @@ test("SMTP delivery rejects header injection and malformed tokens", async () => 
     }),
     /mail delivery input is invalid/u,
   );
+});
+
+test("registration SMTP uses a fixed template, two concurrent sends and zero requeues", async () => {
+  const messages = []; const releases = []; let options;
+  const delivery = createMailDelivery(config, (transportOptions) => {
+    options = transportOptions;
+    return { sendMail(message) {
+      messages.push(message); return new Promise((resolve) => releases.push(resolve));
+    } };
+  });
+  const input = { to: "student@example.com", code: "246810", expiresAt: new Date(Date.now() + 300000),
+    from: "attacker@example.com", subject: "arbitrary", attachments: [{ path: "secret" }], html: "<script>evil()</script>" };
+  const one = delivery.sendRegistrationCode(input); const two = delivery.sendRegistrationCode(input);
+  await assert.rejects(delivery.sendRegistrationCode(input), /unavailable/u);
+  assert.equal(options.maxConnections, 2); assert.equal(options.maxRequeues, 0);
+  assert.equal(options.logger, false); assert.equal(options.debug, false);
+  for (const message of messages) {
+    assert.equal(message.from.address, config.smtp.from);
+    assert.equal(message.subject, "东财之影注册验证码");
+    assert.equal(message.html, undefined); assert.equal(message.attachments, undefined);
+  }
+  releases.forEach((resolve) => resolve()); await Promise.all([one, two]);
+  await assert.rejects(delivery.sendRegistrationCode({ ...input, expiresAt: new Date(Date.now() - 1) }), /unavailable/u);
 });

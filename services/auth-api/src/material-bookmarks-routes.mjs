@@ -1,3 +1,4 @@
+import { clientAddress } from "./request-security.mjs";
 import { parseCookies } from "./cookies.mjs";
 import { isOpaqueToken, tokenDigest } from "./tokens.mjs";
 import { createSharedTokenBucket } from "./rate-limit.mjs";
@@ -83,7 +84,7 @@ export function createMaterialBookmarkRequestHandler({ store, config, rateLimite
         return true;
       }
       limits ??= createMaterialBookmarkRateLimiters({ store });
-      const address = String(request.headers["x-forwarded-for"] ?? "").split(",").map((item) => item.trim()).filter(Boolean).at(-1) || request.socket.remoteAddress || "unknown";
+      const address = clientAddress(request, config);
       const account = write ? limits.writeAccount : limits.readAccount;
       const network = write ? limits.writeNetwork : limits.readNetwork;
       if (!(await account.consume(tokenDigest(`material-bookmarks:user:${session.userId}`, config.tokenPepper))) ||

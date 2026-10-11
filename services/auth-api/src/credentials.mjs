@@ -1,3 +1,11 @@
+import isEmail from "validator/lib/isEmail.js";
+
+export function validEmail(value) {
+  return typeof value === "string" && value.length <= 254 &&
+    isEmail(value, { allow_display_name: false, allow_utf8_local_part: false, allow_ip_domain: false }) &&
+    !/[\s<>(),:;"\\]/u.test(value);
+}
+
 const COMMON_PASSWORDS = new Set([
   "1234567890",
   "123456789",
@@ -48,26 +56,20 @@ export function validateRegistration(input) {
   }
 
   if (
-    email.length > 254 ||
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email)
+    !validEmail(email)
   ) {
     fields.email = "请输入有效邮箱";
   }
 
   const normalizedPassword = password.normalize("NFKC");
-  if (password.length < 10 || password.length > 128) {
-    fields.password = "密码需为 10—128 个字符";
+  if (Array.from(password).length < 15 || Array.from(password).length > 128) {
+    fields.password = "密码需为 15—128 个字符，可以使用长句";
   } else if (
     COMMON_PASSWORDS.has(normalizedPassword.toLocaleLowerCase("en-US")) ||
     normalizedPassword.toLocaleLowerCase("en-US").includes(normalizedUsername) ||
-    normalizedPassword.toLocaleLowerCase("en-US").includes(email.split("@", 1)[0])
+    (email.split("@", 1)[0].length >= 3 && normalizedPassword.toLocaleLowerCase("en-US").includes(email.split("@", 1)[0]))
   ) {
     fields.password = "请使用不包含用户名、邮箱或常见口令的密码";
-  } else if (
-    !/[\p{L}]/u.test(password) ||
-    !/[\p{N}\p{P}\p{S}]/u.test(password)
-  ) {
-    fields.password = "密码需同时包含文字与数字或符号";
   }
 
   if (
@@ -99,7 +101,7 @@ export function validateRegistration(input) {
 export function validateLogin(input) {
   const identifier = normalizeLoginIdentifier(input?.identifier);
   const password = stringValue(input?.password);
-  if (!identifier || identifier.length > 254 || !password || password.length > 128) {
+  if (!identifier || identifier.length > 254 || !password || Array.from(password).length > 128) {
     return null;
   }
   return { identifier, password };
@@ -107,16 +109,14 @@ export function validateLogin(input) {
 
 export function validateNewPassword(password, identityHints = []) {
   const value = stringValue(password);
-  if (value.length < 10 || value.length > 128) return false;
+  if (Array.from(value).length < 15 || Array.from(value).length > 128) return false;
   const lower = value.normalize("NFKC").toLocaleLowerCase("en-US");
   if (COMMON_PASSWORDS.has(lower)) return false;
-  if (!/[\p{L}]/u.test(value) || !/[\p{N}\p{P}\p{S}]/u.test(value)) {
-    return false;
-  }
   return !identityHints
     .map((hint) => normalizeLoginIdentifier(hint))
+    .map((hint) => hint.split("@", 1)[0])
     .filter((hint) => hint.length >= 3)
-    .some((hint) => lower.includes(hint.split("@", 1)[0]));
+    .some((hint) => lower.includes(hint));
 }
 
 export function validateProfileUpdate(input) {

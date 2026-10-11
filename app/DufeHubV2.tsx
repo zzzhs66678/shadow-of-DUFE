@@ -6260,7 +6260,38 @@ function MePage({
     password: "",
     schoolAccount: "",
     resetToken: "",
+    registrationCode: "",
   });
+  const [registrationChallengeId, setRegistrationChallengeId] = useState("");
+  const [registrationSeconds, setRegistrationSeconds] = useState(0);
+  useEffect(() => {
+    if (registrationSeconds <= 0) return;
+    const timer = setTimeout(() => setRegistrationSeconds((value) => Math.max(0, value - 1)), 1000);
+    return () => clearTimeout(timer);
+  }, [registrationSeconds]);
+
+  const requestRegistrationCode = async () => {
+    setAccountBusy("credential-code");
+    setCredentialFeedback("");
+    try {
+      const response = await fetch("/api/auth/register/challenge", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: credentialForm.email }),
+      });
+      const payload = await response.json() as { error?: string; challengeId: string; retryAfter: number };
+      if (!response.ok) {
+        setCredentialFeedback(response.status === 429 ? "请求太频繁，请稍后再试。" :
+          payload.error === "invalid_registration_email" ? "请输入有效邮箱。" : "注册邮件暂时不可用，请稍后再试。");
+        return;
+      }
+      setRegistrationChallengeId(payload.challengeId);
+      setRegistrationSeconds(payload.retryAfter);
+      setCredentialForm((current) => ({ ...current, registrationCode: "" }));
+      setCredentialFeedback("如果邮箱可用于注册，验证码将发送到邮箱。请在当前浏览器于 5 分钟内完成注册；已有账号请直接登录或找回密码。");
+    } catch { setCredentialFeedback("注册邮件暂时不可用，请稍后再试。"); }
+    finally { setAccountBusy(""); }
+  };
   const [credentialFeedback, setCredentialFeedback] = useState("");
   const [profileEditing, setProfileEditing] = useState(false);
   const [profileForm, setProfileForm] = useState({
@@ -6318,6 +6349,8 @@ function MePage({
               email: credentialForm.email,
               password: credentialForm.password,
               schoolAccount: credentialForm.schoolAccount,
+              challengeId: registrationChallengeId,
+              code: credentialForm.registrationCode,
             }
           : credentialMode === "login"
             ? {
@@ -6349,6 +6382,8 @@ function MePage({
         const messages: Record<string, string> = {
           invalid_credentials: "用户名、邮箱或密码不正确。",
           invalid_registration: fieldMessage || "请检查注册信息。",
+          invalid_registration_verification: "验证码无效、已过期或注册信息不可用，请检查后重新申请。",
+          registration_unavailable: "注册邮件暂时不可用，请稍后再试。",
           registration_conflict: fieldMessage || "用户名或邮箱已被使用。",
           credential_rate_limit_exceeded: "尝试次数过多，请稍后再试。",
           password_reset_rate_limit_exceeded: "请求太频繁，请稍后再试。",
@@ -6389,7 +6424,8 @@ function MePage({
         return;
       }
 
-      setCredentialForm((current) => ({ ...current, password: "" }));
+      setCredentialForm((current) => ({ ...current, password: "", registrationCode: "" }));
+      setRegistrationChallengeId("");
       onAuthChanged();
     } catch {
       setCredentialFeedback("账号服务暂时离线，本机课表仍可继续使用。");
@@ -6737,14 +6773,17 @@ function MePage({
                         type="email"
                         maxLength={254}
                         autoComplete="email"
+                        disabled={accountBusy === "credential-code"}
                         value={credentialForm.email}
-                        onChange={(event) =>
+                        onChange={(event) => {
+                          setRegistrationChallengeId("");
                           setCredentialForm((current) => ({
                             ...current,
                             email: event.target.value,
+                            registrationCode: "",
                           }))
-                        }
-                        placeholder="you@example.com"
+                        }}
+                        placeholder="用于登录和找回密码"
                       />
                     </FormField>
                   ) : (
@@ -6775,6 +6814,18 @@ function MePage({
                       </FormField>
                     )
                   )}
+                  {credentialMode === "register" && (
+                    <FormField label="邮箱验证码" hint="5 分钟内有效，请在本浏览器完成注册" className="credential-field">
+                      <input required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6}
+                        value={credentialForm.registrationCode}
+                        onChange={(event) => setCredentialForm((current) => ({ ...current, registrationCode: event.target.value }))}
+                        placeholder="6 位数字" />
+                      <button type="button" disabled={Boolean(accountBusy) || registrationSeconds > 0 || !credentialForm.email}
+                        onClick={() => void requestRegistrationCode()}>
+                        {registrationSeconds > 0 ? `${registrationSeconds} 秒后可重发` : "发送验证码"}
+                      </button>
+                    </FormField>
+                  )}
                   {(credentialMode !== "reset" || credentialForm.resetToken) && (
                     <FormField
                       label={credentialMode === "reset" ? "新密码" : "密码"}
@@ -6783,8 +6834,8 @@ function MePage({
                       <input
                         required
                         type="password"
-                        minLength={10}
-                        maxLength={128}
+                        minLength={credentialMode === "login" ? 1 : undefined}
+                        maxLength={256}
                         autoComplete={
                           credentialMode === "login"
                             ? "current-password"
@@ -6800,7 +6851,7 @@ function MePage({
                         placeholder={
                           credentialMode === "login"
                             ? "输入密码"
-                            : "至少 10 位，包含文字与数字或符号"
+                            : "15—128 个字符，可以使用长句"
                         }
                       />
                     </FormField>

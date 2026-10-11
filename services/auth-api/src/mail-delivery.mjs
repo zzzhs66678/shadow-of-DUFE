@@ -1,9 +1,10 @@
 import nodemailer from "nodemailer";
+import { validEmail } from "./credentials.mjs";
 
 function assertDeliveryInput({ to, token, expiresAt }) {
   if (
     typeof to !== "string" ||
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(to) ||
+    !validEmail(to) ||
     /[\r\n]/u.test(to) ||
     typeof token !== "string" ||
     !/^[A-Za-z0-9_-]{43}$/u.test(token) ||
@@ -28,6 +29,10 @@ export function createMailDelivery(
 ) {
   if (!config.smtp) return null;
   const transport = createTransport({
+    pool: true,
+    maxConnections: 2,
+    maxMessages: 1,
+    maxRequeues: 0,
     host: config.smtp.host,
     port: config.smtp.port,
     secure: config.smtp.secure,
@@ -38,13 +43,29 @@ export function createMailDelivery(
     socketTimeout: 15_000,
     disableFileAccess: true,
     disableUrlAccess: true,
+    logger: false,
+    debug: false,
     tls: { minVersion: "TLSv1.2", rejectUnauthorized: true },
   });
   const from = { name: "东财之影", address: config.smtp.from };
+  let active = 0;
+  async function deliver(message, expiresAt) {
+    if (active >= 2 || expiresAt.getTime() <= Date.now()) throw new Error("mail delivery unavailable");
+    active += 1;
+    let timer;
+    try {
+      await Promise.race([transport.sendMail(message), new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          transport.close?.();
+          reject(new Error("mail delivery timeout"));
+        }, 30_000);
+      })]);
+    } finally { clearTimeout(timer); active -= 1; }
+  }
 
   async function send({ to, token, expiresAt, subject, purpose }) {
     assertDeliveryInput({ to, token, expiresAt });
-    await transport.sendMail({
+    await deliver({
       from,
       to,
       subject,
@@ -56,10 +77,18 @@ export function createMailDelivery(
         "",
         "如果这不是你的操作，请忽略本邮件。不要把令牌转发给任何人。",
       ].join("\n"),
-    });
+    }, expiresAt);
   }
 
   return {
+    async sendRegistrationCode({ to, code, expiresAt }) {
+      if (!validEmail(to) || !/^\d{6}$/u.test(code) || !(expiresAt instanceof Date)) {
+        throw new Error("mail delivery input is invalid");
+      }
+      await deliver({ from, to, subject: "东财之影注册验证码",
+        text: `你正在注册东财之影。\n\n验证码：${code}\n有效期至：${expiryText(expiresAt)}\n\n请在申请验证码的浏览器完成注册。如果不是你的操作，请忽略本邮件。不要转发验证码。`,
+      }, expiresAt);
+    },
     async sendPasswordReset(input) {
       await send({
         ...input,

@@ -7,6 +7,8 @@ import { createDataFeedbackStore } from "./data-feedback-store.mjs";
 import { createTeacherReviewStore } from "./teacher-review-store.mjs";
 import { createTeacherStore } from "./teacher-store.mjs";
 
+import { createRegistrationStore, consumeRegistrationProof } from "./registration-security.mjs";
+
 const { Pool } = pg;
 
 async function claimAnonymousDevice(client, anonymousDeviceId, userId) {
@@ -82,8 +84,8 @@ export function createDatabasePool(config) {
     maxUses: 7_500,
   });
 
-  pool.on("error", (error) => {
-    console.error("Unexpected idle PostgreSQL client error", error);
+  pool.on("error", () => {
+    console.error("Unexpected idle PostgreSQL client error");
   });
 
   return pool;
@@ -103,6 +105,7 @@ export function createAuthStore(pool) {
     ...teacherReviewStore,
     ...teacherStore,
     ...createAdminUserDetailsStore(pool),
+    ...createRegistrationStore(pool),
     async health() {
       await pool.query("SELECT 1");
     },
@@ -1519,10 +1522,15 @@ export function createAuthStore(pool) {
       anonymousDeviceId,
       sessionTokenHash,
       sessionExpiresAt,
+      registrationProof,
     }) {
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
+        if (!(await consumeRegistrationProof(client, registrationProof, normalizedEmail))) {
+          await client.query("COMMIT");
+          return null;
+        }
         const user = await client.query(
           `INSERT INTO app_users (
              username,
@@ -1532,9 +1540,10 @@ export function createAuthStore(pool) {
              school_account,
              display_name,
              registered_via,
-             last_login_at
+             last_login_at,
+             email_verified_at
            )
-           VALUES ($1, $2, $3, $4, $5, $1, 'password', now())
+           VALUES ($1, $2, $3, $4, $5, $1, 'verified_password', now(), now())
            RETURNING id, username, display_name, email, school_account,
                      created_at, last_login_at, status`,
           [
@@ -1660,12 +1669,13 @@ export function createAuthStore(pool) {
       anonymousDeviceId,
       sessionTokenHash,
       sessionExpiresAt,
+      expectedPasswordHash,
     }) {
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
         const principal = await client.query(
-          `SELECT users.status, credentials.locked_until
+          `SELECT users.status, credentials.locked_until, credentials.password_hash
            FROM app_users AS users
            INNER JOIN password_credentials AS credentials
              ON credentials.user_id = users.id
@@ -1676,6 +1686,7 @@ export function createAuthStore(pool) {
         if (
           principal.rowCount === 0 ||
           principal.rows[0].status !== "active" ||
+          principal.rows[0].password_hash !== expectedPasswordHash ||
           (principal.rows[0].locked_until &&
             new Date(principal.rows[0].locked_until).getTime() > Date.now())
         ) {
