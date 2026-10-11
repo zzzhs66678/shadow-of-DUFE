@@ -40,6 +40,7 @@ export default defineConfig({
     stderr: "pipe",
   },
   projects: [
+    { name: "published-catalog", testMatch: /published-catalog\.spec\.ts/, use: { viewport: { width: 1280, height: 900 }, timezoneId: "Asia/Shanghai" } },
     { name: "catalog-admin", testMatch: /catalog-admin\.spec\.ts/ },
     { name: "registration-security", testMatch: /registration-security\.spec\.ts/ },
     { name: "recovery-security", testMatch: /recovery-security\.spec\.ts/ },

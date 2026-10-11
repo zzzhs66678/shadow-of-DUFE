@@ -14,6 +14,7 @@ import { matchesMaterialFilters, scoreMaterialSearch } from "./materials-search"
 import { useMaterialBookmarks } from "./use-material-bookmarks";
 import { MaterialBookmarkButton } from "./MaterialBookmarkControls";
 import { MaterialBookmarksPanel } from "./MaterialBookmarksPanel";
+import { loadPublishedMaterials } from "../published-catalog";
 import styles from "./materials.module.css";
 
 type Material = {
@@ -140,7 +141,7 @@ export function MaterialsExplorer({
   const filtersExpanded = !compactFilters || filtersOpen;
   const [ranking, setRanking] = useState<"personal" | "all">("personal");
   const [personalContext, setPersonalContext] = useState<PersonalCourseContext | null>(null);
-  const [personalCatalog, setPersonalCatalog] = useState<Material[] | null>(null);
+  const [personalCatalog, setPersonalCatalog] = useState<{ generatedAt?: string; materials: Material[] } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultRefs = useRef<Array<HTMLAnchorElement | null>>([]);
   const generation = useRef(0);
@@ -204,16 +205,9 @@ export function MaterialsExplorer({
     );
     if (!hasCourseContext) return;
     const controller = new AbortController();
-    void fetch("/data/resource-manifest.json", {
-      cache: "force-cache",
-      signal: controller.signal,
-    })
-      .then((response) => {
-        if (!response.ok) throw new Error("material_manifest_unavailable");
-        return response.json() as Promise<{ materials?: Material[] }>;
-      })
+    void loadPublishedMaterials<{ generatedAt?: string; materials?: Material[] }>()
       .then((payload) => {
-        if (!controller.signal.aborted) setPersonalCatalog(payload.materials ?? []);
+        if (!controller.signal.aborted) setPersonalCatalog({ generatedAt: payload.generatedAt, materials: payload.materials ?? [] });
       })
       .catch((error) => {
         if (!controller.signal.aborted && (error as Error).name !== "AbortError") setPersonalCatalog(null);
@@ -302,10 +296,14 @@ export function MaterialsExplorer({
     if (ranking === "all") return items;
     const matchesFilters = (material: Material) =>
       matchesMaterialFilters(material, { query, course, teacher, type, tag, term, year });
-    const personalItems = (personalCatalog ?? []).filter(
+    // A page can hold an older immutable snapshot while search has refreshed.
+    // Only supplement a search from the same publication; current API records
+    // take precedence so an old recommendation cannot restore a retired link.
+    const samePublication = Boolean(personalCatalog?.generatedAt && personalCatalog.generatedAt === result?.catalog.generatedAt);
+    const personalItems = (samePublication ? personalCatalog?.materials ?? [] : []).filter(
       (material) => materialRelation(material) !== "other" && matchesFilters(material),
     );
-    const sourceItems = [...personalItems, ...items].filter(
+    const sourceItems = [...items, ...personalItems].filter(
       (material, index, all) => all.findIndex((item) => item.id === material.id) === index,
     );
     const relevance = (material: Material) => scoreMaterialSearch(material, query.trim().slice(0, 80));

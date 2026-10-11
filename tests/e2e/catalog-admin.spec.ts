@@ -73,6 +73,15 @@ async function openMaterials(page: Page) {
   await expect(page.getByLabel("关联课程（按课程号选择）").getByRole("option", { name: "11160114 · 中国近现代史纲要" })).toBeAttached();
 }
 
+async function openExistingMaterials(page: Page) {
+  await page.getByText("查找并编辑已有资料", { exact: true }).click();
+}
+
+async function openMaterialSpreadsheet(page: Page) {
+  await page.getByRole("navigation", { name: "资料编辑方式" }).getByRole("button", { name: "上传表格", exact: true }).click();
+  await expect(page.getByLabel("上传学习资料表格")).toBeVisible();
+}
+
 async function addLink(page: Page, title = "链接复习资料") {
   await page.getByLabel("资料标题", { exact: true }).fill(title);
   await page.getByLabel("关联课程（按课程号选择）").selectOption("11160114");
@@ -106,6 +115,11 @@ for (const width of [320, 390, 1280]) {
     const errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
     const state = await setup(page);
     await openMaterials(page);
+    const prepare = await page.getByRole("heading", { name: /准备学习资料/ }).boundingBox();
+    const validate = await page.getByRole("heading", { name: /校验本批/ }).boundingBox();
+    expect(prepare).not.toBeNull(); expect(validate).not.toBeNull();
+    if (width === 1280) expect(validate!.x).toBeGreaterThan(prepare!.x + prepare!.width);
+    else expect(validate!.y).toBeGreaterThan(prepare!.y);
     await verifyPage(page);
     await addLink(page);
     await page.getByLabel("资料标题", { exact: true }).fill("上传复习文件");
@@ -118,6 +132,8 @@ for (const width of [320, 390, 1280]) {
     expect(state.fileRequests[0].bytes?.toString()).toContain("%PDF-1.4");
     expect(state.publications).toBe(0);
     await page.getByRole("button", { name: "加入本批", exact: true }).click();
+    await expect(page.getByLabel("资料文件（最多 25 MiB）")).toHaveCount(0);
+    await expect(page.getByRole("navigation", { name: "资料来源" }).getByRole("button", { name: "填写链接", exact: true })).toHaveAttribute("aria-pressed", "true");
     await page.getByRole("button", { name: "校验并生成预览" }).click();
     await expect(page.getByRole("button", { name: "确认发布到网站" })).toBeDisabled();
     expect(state.drafts[0].rows).toHaveLength(2);
@@ -132,6 +148,7 @@ for (const width of [320, 390, 1280]) {
     await expect(previewFields.getByText("链接", { exact: true })).toBeVisible();
     await expect(previewFields.locator("pre")).toHaveCount(0);
     await verifyPage(page);
+    await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: testInfo.outputPath(`catalog-${width}.png`), fullPage: true });
     await page.getByRole("button", { name: "确认发布到网站" }).click();
     await expect(page.getByRole("status")).toContainText("学习资料已发布");
@@ -188,6 +205,7 @@ for (const scenario of [
 
 test("existing material editing keeps its ID and displays precise server validation errors", async ({ page }) => {
   const state = await setup(page, { invalid: true }); await openMaterials(page);
+  await openExistingMaterials(page);
   await page.getByLabel("选择要修改的资料").selectOption(existingMaterial.id);
   await expect(page.getByLabel("资料编号", { exact: true })).toHaveValue(existingMaterial.id);
   await expect(page.getByLabel("资料链接", { exact: true })).toHaveValue(existingMaterial.downloadUrl);
@@ -203,6 +221,7 @@ test("existing material editing keeps its ID and displays precise server validat
 
 test("editing a legacy shared material preserves all courses associated with its stable ID", async ({ page }) => {
   const state = await setup(page, { duplicateMaterial: true }); await openMaterials(page);
+  await openExistingMaterials(page);
   await expect(page.getByLabel("选择要修改的资料").locator(`option[value='${existingMaterial.id}']`)).toHaveCount(1);
   await page.getByLabel("选择要修改的资料").selectOption(existingMaterial.id);
   await expect(page.getByLabel("关联课程（按课程号选择）")).toHaveValue("__multiple");
@@ -238,6 +257,7 @@ test("templates export literal stable IDs and invalid spreadsheets never reach t
   await page.getByRole("button", { name: "导出当前目录" }).click();
   const exported = await exportPromise;
   expect(await readFile((await exported.path())!, "utf8")).toContain(existingMaterial.id);
+  await openMaterialSpreadsheet(page);
   await page.getByLabel("上传学习资料表格").setInputFiles({ name: "错误表头.csv", mimeType: "text/csv", buffer: Buffer.from("课程名称,链接\r\n示例,https://example.test/a.pdf") });
   await expect(page.getByRole("alert")).toContainText("请按行号修正表格");
   await expect(page.getByRole("button", { name: "校验并生成预览" })).toBeDisabled();
@@ -275,6 +295,7 @@ function workbook(sheets: { name: string; rows: string[][]; formula?: boolean }[
 
 test("XLSX needs an explicit sheet selection and rejects cached formulas before creating a draft", async ({ page }) => {
   const state = await setup(page); await openMaterials(page);
+  await openMaterialSpreadsheet(page);
   const rowValues = CATALOG_COLUMNS.materials.map((column) => materialRow[column as keyof typeof materialRow]);
   await page.getByLabel("上传学习资料表格").setInputFiles({ name: "资料.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: workbook([{ name: "第一张", rows: [[...CATALOG_COLUMNS.materials], rowValues] }, { name: "本次更新", rows: [[...CATALOG_COLUMNS.materials], rowValues] }]) });
   await expect(page.getByLabel("本批使用的工作表")).toBeVisible();
@@ -290,4 +311,31 @@ test("XLSX needs an explicit sheet selection and rejects cached formulas before 
   await expect(page.getByRole("button", { name: "确认发布到网站" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "校验并生成预览" })).toBeDisabled();
   expect(state.previews).toBe(1);
+});
+
+test("entry modes preserve unfinished details and an existing material can be downlisted with its metadata folded", async ({ page }) => {
+  const state = await setup(page); await openMaterials(page); await addLink(page);
+  await page.getByLabel("资料标题", { exact: true }).fill("尚未加入本批的资料");
+  const entryNav = page.getByRole("navigation", { name: "资料编辑方式" });
+  await entryNav.getByRole("button", { name: "上传表格", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByLabel("上传学习资料表格")).toBeVisible();
+  await expect(page.getByLabel("资料标题", { exact: true })).toBeHidden();
+  await expect(page.getByText("本批资料 · 1 条", { exact: true })).toBeVisible();
+  await entryNav.getByRole("button", { name: "直接填写", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByLabel("资料标题", { exact: true })).toHaveValue("尚未加入本批的资料");
+  await page.getByText("查找并编辑已有资料", { exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await page.getByLabel("选择要修改的资料").selectOption(existingMaterial.id);
+  await expect(page.getByLabel("资料编号", { exact: true })).toBeHidden();
+  await expect(page.getByLabel("资料描述（选填）")).toHaveValue(existingMaterial.description);
+  await page.getByLabel("本次操作").selectOption("下架");
+  await page.getByRole("button", { name: "加入本批", exact: true }).click();
+  await expect(page.getByText("本批资料 · 2 条", { exact: true })).toBeVisible();
+  await expect(page.getByText("当前：等待校验", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "校验并生成预览" }).click();
+  expect(state.drafts[0].rows[1]).toMatchObject({ 操作: "下架", 资料编号: existingMaterial.id, 描述: existingMaterial.description, 课程号: "11160113" });
+  await expect(page.getByText("当前：核对变化", { exact: true })).toBeVisible();
+  expect(state.publications).toBe(0);
 });

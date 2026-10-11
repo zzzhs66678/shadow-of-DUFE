@@ -237,7 +237,8 @@ test("teacher and material discovery use scoped course context without hiding sc
   assert.match(materialsSource, /与我相关/);
   assert.match(materialsSource, /全站排序/);
   assert.match(materialsSource, /rankedItems\.map/);
-  assert.match(materialsSource, /\/data\/resource-manifest\.json/);
+  assert.match(materialsSource, /loadPublishedMaterials/);
+  assert.doesNotMatch(materialsSource, /\/data\/resource-manifest\.json/);
   assert.match(materialsSource, /materialRelation\(material\) !== "other"/);
   assert.match(materialsSource, /\.slice\(0, items\.length\)/);
   assert.match(materialsSource, /params\.set\("offset"/);

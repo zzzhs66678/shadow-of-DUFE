@@ -69,16 +69,23 @@ test("materials browser: embedding, callbacks, keyboard, layout and late request
         import React, { useState } from 'react';
         import { createRoot } from 'react-dom/client';
         import { MaterialsExplorer } from './app/materials/MaterialsExplorer';
-        window.pending = []; window.changes = []; window.links = []; window.historyWrites = [];
+        window.pending = []; window.changes = []; window.links = []; window.historyWrites = []; window.catalogReads = [];
         const replaceState = history.replaceState.bind(history);
         history.replaceState = (...args) => { window.historyWrites.push(args[2]); replaceState(...args); };
         window.fetch = (url, options) => {
+          window.catalogReads.push(String(url));
           if (url === '/api/material-bookmarks') return Promise.resolve(new Response('{}', { status: 401 }));
           if (String(url).startsWith('/api/materials?')) return new Promise((resolve, reject) => {
             // Intentionally ignore abort: cancellation must not be the only stale-write guard.
             window.pending.push({ url: String(url), signal: options?.signal, resolve, reject });
           });
-          if (url === '/data/resource-manifest.json') return Promise.resolve(new Response(JSON.stringify({ materials: [] })));
+          if (url === '/api/catalog/current') {
+            if (!window.publishedCatalog) return Promise.resolve(new Response('{}', { status: 404 }));
+            const version = 'a'.repeat(64), prefix = '/api/catalog/releases/' + version;
+            return Promise.resolve(Response.json({ courses: { coreUrl: prefix + '/core', fullUrl: prefix + '/full' }, materials: { url: prefix + '/materials' } }));
+          }
+          if (String(url).endsWith('/materials')) return Promise.resolve(Response.json(window.publishedCatalog));
+          if (url === '/data/resource-manifest.json') return Promise.resolve(Response.json({ materials: [] }));
           throw new Error('Unexpected fixture request: ' + url);
         };
         window.complete = (index, payload) => window.pending[index].resolve(new Response(JSON.stringify(payload)));
@@ -133,7 +140,7 @@ test("materials browser: embedding, callbacks, keyboard, layout and late request
   const fresh = material("fixture-fresh", "新筛选结果（测试样例）");
   const stale = material("fixture-stale", "不应出现的过期资料");
   const response = (items, hasMore = false) => ({ items, total: hasMore ? 50 : items.length, offset: 0, limit: 24, hasMore, filters, catalog: { total: 50, generatedAt: "2026-10-01" } });
-  async function open(options = { embedded: true }, width = 390) {
+  async function open(options = { embedded: true }, width = 390, publishedCatalog = null) {
     const context = await browser.newContext({ viewport: { width, height: 900 } });
     const page = await context.newPage();
     page.setDefaultTimeout(5000);
@@ -143,6 +150,7 @@ test("materials browser: embedding, callbacks, keyboard, layout and late request
     await page.goto("http://materials.test/?view=catalog&center=materials");
     await page.addStyleTag({ content: `* { box-sizing: border-box; } body { margin: 0; background: #f4f1e9; } #host { padding: 18px; } :root { --journal-body: Arial, sans-serif; --dufe-paper: #f4f1e9; --dufe-paper-raised: #fbfaf5; --dufe-ink: #1d1b18; --dufe-muted: #706a62; --dufe-red: #a52325; --dufe-line: #cec6ba; } ${stylesheet}` });
     await page.addScriptTag({ content: script });
+    await page.evaluate(payload => { window.publishedCatalog = payload; }, publishedCatalog);
     await page.evaluate((options) => window.mount(options), options);
     await waitRequests(page, 1);
     return { page, errors };
@@ -154,6 +162,27 @@ test("materials browser: embedding, callbacks, keyboard, layout and late request
     await page.evaluate(({ index, payload }) => window.complete(index, payload), { index, payload });
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   }
+
+  await t.test("personal recommendations use published records and never restore retired entries from an older version", async () => {
+    const updated = { ...current, name: "更新后的个人学习资料", downloadUrl: "https://example.test/current.pdf" };
+    const old = { ...current, name: "旧版个人学习资料", downloadUrl: "https://example.test/old.pdf" };
+    const retired = { ...current, id: "retired-material", name: "已下架的个人资料" };
+    for (const outdated of [false, true]) {
+      const catalog = { generatedAt: outdated ? "2026-09-01" : "2026-10-01", materials: outdated ? [old, retired] : [updated] };
+      const { page, errors } = await open({ embedded: true }, 390, catalog);
+      try {
+        await complete(page, 0, response([first, updated]));
+        await expect(page.getByRole("listitem").first()).toContainText(updated.name);
+        await expect(page.getByText(old.name, { exact: true })).toHaveCount(0);
+        await expect(page.getByText(retired.name, { exact: true })).toHaveCount(0);
+        await expect(page.getByRole("listitem").first().getByRole("link", { name: "下载", exact: true })).toHaveAttribute("href", updated.downloadUrl);
+        const reads = await page.evaluate(() => window.catalogReads);
+        assert.ok(reads.some(path => path.endsWith("/materials") && path.startsWith("/api/catalog/releases/")));
+        assert.ok(!reads.includes("/data/resource-manifest.json"), "published personal ranking must not load the legacy static catalog");
+        assert.deepEqual(errors, []);
+      } finally { await page.context().close(); }
+    }
+  });
 
   await t.test("embedded preserves filters, callback stability, ranking, URLs and keyboard at four widths", async () => {
     const initialSearch = { q: "资料", course: "会计学", teacher: "测试教师", type: "课件", tag: "复习", term: "fall", year: "1" };

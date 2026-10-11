@@ -149,6 +149,7 @@ async function readWorkbookSheet(file: File, sheet: string, kind: Kind): Promise
 
 export function CatalogDesk({ active = true, onMfaExpired, onAuditChanged }: { active?: boolean; onMfaExpired: () => void; onAuditChanged: () => Promise<void> }) {
   const [kind, setKind] = useState<Kind>("courses");
+  const [materialEntry, setMaterialEntry] = useState<"direct" | "spreadsheet">("direct");
   const [catalog, setCatalog] = useState<CatalogState | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
@@ -242,9 +243,12 @@ export function CatalogDesk({ active = true, onMfaExpired, onAuditChanged }: { a
   const releaseHistory = catalog ? catalog.history.filter((entry) => entry.kind === kind) : [];
   if (catalog?.baselineVersions?.[kind] && !releaseHistory.some((entry) => entry.version === catalog.baselineVersions?.[kind])) releaseHistory.push({ kind, version: catalog.baselineVersions[kind], revision: 0, createdAt: "", sourceName: "部署时初始目录", summary: { added: 0, updated: 0, removed: 0, unchanged: 0 } });
   const changedCount = draft ? draft.summary.added + draft.summary.updated + draft.summary.removed : 0;
+  const readyToPublish = Boolean(draft && !expired && changedCount && reason.trim().length >= 8 && (!draft.warnings.length || acknowledgeWarnings));
+  const stage = draft && !expired ? readyToPublish ? 3 : 2 : rows.length ? 1 : 0;
+  const stageLabel = busy === "read" ? "正在读取" : busy === "validate" ? "正在校验" : busy === "publish" ? "正在发布" : ["准备内容", "等待校验", "核对变化", "等待确认发布"][stage];
 
   function invalidatePreview() { setDraft(null); setReason(""); setAcknowledgeWarnings(false); setErrors([]); setVisibleChanges(20); }
-  function changeKind(next: Kind) { if (next === kind) return; setKind(next); setRows([]); setSourceName(""); setSheetFile(null); setSheets([]); setSheetName(""); setNotice(""); invalidatePreview(); if (fileInputRef.current) fileInputRef.current.value = ""; }
+  function changeKind(next: Kind) { if (next === kind) return; setKind(next); setMaterialEntry("direct"); setRows([]); setSourceName(""); setSheetFile(null); setSheets([]); setSheetName(""); setNotice(""); invalidatePreview(); if (fileInputRef.current) fileInputRef.current.value = ""; }
 
   async function readSpreadsheet(file?: File) {
     if (!file) return;
@@ -320,7 +324,7 @@ export function CatalogDesk({ active = true, onMfaExpired, onAuditChanged }: { a
     setBusy("publish"); setNotice("");
     try {
       await requestJson(`${API}/drafts/${encodeURIComponent(draft.id)}/publish`, { method: "POST", body: JSON.stringify({ expectedRevision: draft.baseRevision, reason: reason.trim(), acknowledgeWarnings }) });
-      invalidatePreview(); setRows([]); setSourceName(""); setSheets([]); setSheetFile(null); setMaterialForm(blankMaterial); setPendingFile("");
+      invalidatePreview(); setRows([]); setSourceName(""); setSheets([]); setSheetFile(null); setMaterialForm(blankMaterial); setPendingFile(""); setFileMode(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
       setNotice(`${labels[kind]}已发布，网站将读取新目录。`);
       await loadCatalog().catch(() => setNotice(`${labels[kind]}已发布。目录状态刷新失败，请刷新页面查看新版本。`));
@@ -347,7 +351,7 @@ export function CatalogDesk({ active = true, onMfaExpired, onAuditChanged }: { a
 
   function chooseExisting(id: string) {
     const material = materials.find((item) => item.id === id);
-    if (!material) { setMaterialForm(blankMaterial); setPendingFile(""); return; }
+    if (!material) { setMaterialForm(blankMaterial); setPendingFile(""); setFileMode(false); return; }
     setMaterialForm({ id: material.id, title: material.name, courseId: material.courseIds.join(";"), category: material.category, link: material.downloadUrl, description: material.description, operation: "更新" });
     setPendingFile(""); setFileMode(false); setCourseSearch("");
   }
@@ -359,7 +363,7 @@ export function CatalogDesk({ active = true, onMfaExpired, onAuditChanged }: { a
     if (!rows.some((entry) => entry.资料编号 === id) && rows.length >= MAX_ROWS) { setNotice("本批已达到 10,000 行，请先发布再新增。"); return; }
     invalidatePreview();
     setRows((value) => value.some((entry) => entry.资料编号 === id) ? value.map((entry) => entry.资料编号 === id ? row : entry) : [...value, row]);
-    setSourceName("后台资料编辑"); setMaterialForm(blankMaterial); setPendingFile(""); setNotice("资料已加入本批。请继续校验，核对后发布。");
+    setSourceName("后台资料编辑"); setMaterialForm(blankMaterial); setPendingFile(""); setFileMode(false); setNotice("资料已加入本批。请继续校验，核对后发布。");
   }
 
   async function confirmRollback(event: FormEvent<HTMLFormElement>) {
@@ -379,31 +383,123 @@ export function CatalogDesk({ active = true, onMfaExpired, onAuditChanged }: { a
   }
 
   return <section className={styles.desk} aria-label="课程与资料发布工作台">
-    <header className={styles.intro}><div><span className={styles.eyebrow}>目录编辑 · 按批发布</span><h2>准备好，再让大家看见。</h2><p>用同一份模板更新课程与教学班，或把资料关联到已有课程。</p></div><span className={styles.stamp}>发布前<br />先核对</span></header>
-    <nav className={styles.kindNav} aria-label="目录类型">{(["courses", "materials"] as Kind[]).map((value) => <button key={value} aria-pressed={kind === value} disabled={Boolean(busy)} onClick={() => changeKind(value)}>{labels[value]}<small>{catalog ? `当前 r${catalog.current[value].revision}` : "读取中"}</small></button>)}</nav>
-    <ol className={styles.steps} aria-label="发布步骤">{["准备内容", "校验表格", "核对变化", "确认发布"].map((label, index) => <li key={label} aria-current={(draft ? 2 : rows.length ? 1 : 0) === index ? "step" : undefined}><span>0{index + 1}</span><b>{label}</b></li>)}</ol>
+    <header className={styles.intro}>
+      <div><h2>目录发布</h2><p>准备本批内容，核对变化后发布到网站。</p></div>
+      <div className={styles.batchStatus}><span className={styles.phase}>当前：{stageLabel}</span><span>本批 <strong>{rows.length}</strong> {kind === "courses" ? "行" : "条"}</span></div>
+    </header>
+    <nav className={styles.kindNav} aria-label="目录类型">
+      {(["courses", "materials"] as Kind[]).map((value) => <button key={value} aria-pressed={kind === value} disabled={Boolean(busy)} onClick={() => changeKind(value)}>{labels[value]}<small>{catalog ? `当前 r${catalog.current[value].revision}` : "读取中"}</small></button>)}
+    </nav>
+    <ol className={styles.steps} aria-label="发布步骤">
+      {["准备内容", "校验本批", "核对变化", "确认发布"].map((label, index) => <li key={label} aria-current={stage === index ? "step" : undefined} data-complete={index < stage}><span>0{index + 1}</span><b>{label}</b></li>)}
+    </ol>
     {notice && <div className={styles.notice} ref={noticeRef} tabIndex={-1} role={errors.length ? "alert" : "status"}>{notice}</div>}
     {!catalog && <div className={styles.loading}><p>{notice ? "目录状态尚未加载。" : "正在读取当前目录…"}</p>{notice && <button className={styles.button} onClick={() => void loadCatalog().catch(reportError)}>重新读取目录</button>}</div>}
     {catalog && <>
-      <section className={styles.section} aria-labelledby="catalog-prepare-title"><header className={styles.sectionHeader}><h3 id="catalog-prepare-title"><span>01</span>准备{labels[kind]}</h3><div className={styles.tools}><button className={styles.button} disabled={Boolean(busy)} onClick={() => downloadCsv(writeCatalogCsv([], CATALOG_COLUMNS[kind]), `${labels[kind]}-模板.csv`)}>下载空白模板</button><button className={styles.button} disabled={Boolean(busy)} onClick={() => void exportCurrent()}>{busy === "export" ? "正在导出…" : "导出当前目录"}</button></div></header>
-        <details className={styles.template}><summary>模板字段与填写规则</summary><p>保留表头。新增或更新填“更新”；仅修改上传的记录，其他记录会保留。编号需保持稳定，不能用课程名代替课程号。</p><div className={styles.columnList}>{(CATALOG_COLUMNS[kind] as string[]).map((column) => <code key={column}>{column}</code>)}</div>{kind === "courses" ? <p>一行表示一个上课时段。同一教学班可有多行，时段编号各不相同；教师、主修班级与课序号保持一致。学期填 fall（秋季）或 spring（春季），星期填 1–7，节次如 1–2、3–4、5–7 或 8–10。周次填“1-9周”“9-18周”或“1-18周”。删除某时段时，“操作”填“删除时段”，并保留其时段编号。</p> : <p>资料编号为空时会生成新编号；更新已有资料应保留原编号。多门课程用英文分号分隔。下架时，“操作”填“下架”，并保留资料编号。链接支持 HTTPS，或已暂存的站内文件地址。</p>}<p>CSV 用 UTF-8 保存；XLSX 的课程号、编号设为文本，公式需粘贴为值。每批最多 10,000 行、表格 8 MiB。</p></details>
-        <div className={styles.upload}><label htmlFor="catalog-spreadsheet">上传{labels[kind]}表格</label><input ref={fileInputRef} id="catalog-spreadsheet" type="file" accept=".csv,.xlsx" disabled={Boolean(busy)} onChange={(event) => void readSpreadsheet(event.target.files?.[0])} /><small>{sourceName || "从空白模板新增，或从当前目录修改后上传"}</small></div>
-        {sheets.length > 1 && <div className={styles.sheetChoice}><label htmlFor="catalog-sheet">本批使用的工作表</label><select id="catalog-sheet" disabled={Boolean(busy)} value={sheetName} onChange={(event) => { setSheetName(event.target.value); setRows([]); invalidatePreview(); }} >{sheets.map((name) => <option key={name}>{name}</option>)}</select><button className={styles.button} disabled={Boolean(busy)} onClick={() => void readSelectedSheet()}>读取工作表</button></div>}
-        {kind === "materials" && <details className={styles.composer} open><summary>逐条添加或修改资料</summary>
-          <div className={styles.existing}><label htmlFor="catalog-material-search">查找现有资料</label><input id="catalog-material-search" value={materialSearch} onChange={(event) => setMaterialSearch(event.target.value)} placeholder="标题或资料编号" maxLength={200} disabled={Boolean(busy)} /><label htmlFor="catalog-existing-material">选择要修改的资料</label><select id="catalog-existing-material" value={materials.some((item) => item.id === materialForm.id) ? materialForm.id : ""} disabled={Boolean(busy)} onChange={(event) => chooseExisting(event.target.value)}><option value="">添加新资料</option>{filteredMaterials.map((material) => <option key={material.id} value={material.id}>{material.name} · {material.id}</option>)}</select><small>最多显示 40 项，请用搜索缩小范围。</small></div>
-          <form onSubmit={addMaterial} className={styles.materialForm}><div className={styles.field}><label htmlFor="catalog-material-title">资料标题</label><input id="catalog-material-title" required={materialForm.operation !== "下架"} maxLength={200} value={materialForm.title} disabled={Boolean(busy)} onChange={(event) => setMaterialForm((value) => ({ ...value, title: event.target.value }))} /></div><div className={styles.field}><label htmlFor="catalog-material-category">分类</label><input id="catalog-material-category" required={materialForm.operation !== "下架"} maxLength={80} list="catalog-material-categories" value={materialForm.category} disabled={Boolean(busy)} onChange={(event) => setMaterialForm((value) => ({ ...value, category: event.target.value }))} /><datalist id="catalog-material-categories"><option value="课件" /><option value="题库" /><option value="教材" /><option value="其他" /></datalist></div>
-            <div className={styles.fullField}><label htmlFor="catalog-course-search">查找要关联的课程</label><input id="catalog-course-search" placeholder="输入课程名或课程号" value={courseSearch} maxLength={100} disabled={Boolean(busy)} onChange={(event) => setCourseSearch(event.target.value)} /></div><div className={styles.fullField}><label htmlFor="catalog-material-course">关联课程（按课程号选择）</label><select id="catalog-material-course" required={materialForm.operation !== "下架"} value={materialForm.courseId.includes(";") ? "__multiple" : materialForm.courseId} disabled={Boolean(busy)} onChange={(event) => setMaterialForm((value) => ({ ...value, courseId: event.target.value }))}><option value="">请选择课程</option>{materialForm.courseId.includes(";") && <option value="__multiple">保留原有多门课程：{materialForm.courseId}</option>}{filteredCourses.map((course) => <option key={course.id} value={course.id}>{course.id} · {course.title}</option>)}</select><small>最多显示 50 门。通过表格可关联多门课程；同名课程请核对课程号。</small></div>
-            <div className={styles.fullField}><nav className={styles.sourceNav} aria-label="资料来源"><button type="button" aria-pressed={!fileMode} disabled={Boolean(busy)} onClick={() => setFileMode(false)}>填写链接</button><button type="button" aria-pressed={fileMode} disabled={Boolean(busy)} onClick={() => setFileMode(true)}>上传文件</button></nav>{fileMode && <div className={styles.fileSource}><label htmlFor="catalog-material-file">资料文件（最多 25 MiB）</label><input id="catalog-material-file" type="file" accept=".pdf,.pptx,.docx,.xlsx,.zip" disabled={Boolean(busy) || !catalog.uploadsEnabled} onChange={(event) => void uploadMaterial(event.target.files?.[0])} /><small>{catalog.uploadsEnabled ? "支持 PDF、PPTX、DOCX、XLSX、ZIP；大文件可填写外部链接。" : "文件上传未启用：服务器尚未配置资料存储目录。当前可填写 HTTPS 链接。"}</small>{pendingFile && <p className={styles.pending}>待发布文件 · {pendingFile}</p>}</div>}<label htmlFor="catalog-material-link">资料链接</label><input id="catalog-material-link" required={materialForm.operation !== "下架"} placeholder="https://…" maxLength={2000} value={materialForm.link} disabled={Boolean(busy) || (fileMode && Boolean(pendingFile))} onChange={(event) => { setPendingFile(""); setMaterialForm((value) => ({ ...value, link: event.target.value })); }} /><small>上传文件会自动填入地址，发布关联资料后才能在网站下载。</small></div>
-            <div className={styles.fullField}><label htmlFor="catalog-material-description">资料描述（选填）</label><textarea id="catalog-material-description" rows={2} maxLength={500} value={materialForm.description} disabled={Boolean(busy)} onChange={(event) => setMaterialForm((value) => ({ ...value, description: event.target.value }))} /></div><div className={styles.field}><label htmlFor="catalog-material-id">资料编号</label><input id="catalog-material-id" pattern="[a-f0-9]{20}" placeholder="新增时自动生成" maxLength={20} value={materialForm.id} disabled={Boolean(busy)} onChange={(event) => setMaterialForm((value) => ({ ...value, id: event.target.value }))} /></div><div className={styles.field}><label htmlFor="catalog-material-operation">本次操作</label><select id="catalog-material-operation" value={materialForm.operation} disabled={Boolean(busy)} onChange={(event) => setMaterialForm((value) => ({ ...value, operation: event.target.value }))}><option value="更新">新增或更新</option><option value="下架" disabled={!materialForm.id}>下架资料</option></select></div><div className={styles.formActions}><button className={styles.button} type="button" disabled={Boolean(busy)} onClick={() => { setMaterialForm(blankMaterial); setPendingFile(""); }}>清空填写</button><button className={styles.primary} disabled={Boolean(busy) || (materialForm.operation === "下架" && !materialForm.id)}>加入本批</button></div></form>
-        </details>}
-        {kind === "materials" && rows.length > 0 && <details className={styles.queue}><summary>本批资料 · {rows.length} 条</summary><ol>{rows.slice(0, 20).map((row, index) => <li key={`${row.资料编号}-${index}`}><div><b>{row.标题 || row.资料编号}</b><small>{row.操作 || "更新"} · {row.课程号}</small></div><button className={styles.button} disabled={Boolean(busy)} onClick={() => { setRows((value) => value.filter((_, rowIndex) => rowIndex !== index)); invalidatePreview(); }}>移出本批<span className="sr-only"> {row.标题 || row.资料编号}</span></button></li>)}</ol>{rows.length > 20 && <p>其余 {rows.length - 20} 条可在校验后的变化清单中核对。</p>}</details>}
-      </section>
-      <section className={styles.checkSection} aria-labelledby="catalog-validate-title"><div><h3 id="catalog-validate-title"><span>02</span>校验表格</h3><p>{busy === "read" ? "正在读取表格…" : rows.length ? `本批 ${rows.length} 行 · 基于当前 r${current?.revision}` : "上传表格，或把资料加入本批后继续。"}</p></div><button className={styles.primary} disabled={Boolean(busy) || !rows.length} onClick={() => void validateRows()}>{busy === "validate" ? "正在校验…" : draft ? "重新校验并预览" : "校验并生成预览"}</button></section>
-      {errors.length > 0 && <section className={styles.errorList} aria-label="表格校验错误"><h4>需修正 {errors.length} 处</h4><ol>{errors.slice(0, 100).map((error, index) => <li key={index}><b>第 {error.row} 行 · {error.field}</b><span>{error.message}</span></li>)}</ol>{errors.length > 100 && <p>先修正前 100 处，再重新校验。</p>}</section>}
-      <section className={styles.section} aria-labelledby="catalog-preview-title"><header className={styles.sectionHeader}><h3 id="catalog-preview-title" ref={previewRef} tabIndex={-1}><span>03</span>核对变化</h3>{draft && <small>预览有效至 {dateLabel(draft.expiresAt)}</small>}</header>{!draft ? <p className={styles.muted}>校验通过后，这里会列出新增、修改和删除。</p> : <><dl className={styles.summary}>{[["新增", draft.summary.added], ["修改", draft.summary.updated], ["删除 / 下架", draft.summary.removed], ["未改变", draft.summary.unchanged]].map(([label, count]) => <div key={label}><dt>{label}</dt><dd>{count}</dd></div>)}</dl>{!changedCount && <p className={styles.muted}>本批没有变化，无需发布。</p>}<ol className={styles.changes}>{draft.changes.slice(0, visibleChanges).map((change) => <li key={change.id}><details><summary><span className={styles.changeTag}>{({ added: "新增", updated: "修改", removed: "删除", unchanged: "未改变", add: "新增", update: "修改", remove: "删除" } as Record<string, string>)[change.action] || change.action}</span><b>{change.label}</b><code>{change.id}</code></summary><div className={styles.comparison}><div><h4>发布前</h4><div className={styles.recordBody} tabIndex={change.before == null ? undefined : 0} aria-label="发布前的记录字段">{change.before == null ? <p>尚无此记录</p> : <PreviewValue value={change.before} />}</div></div><div><h4>发布后</h4><div className={styles.recordBody} tabIndex={change.after == null ? undefined : 0} aria-label="发布后的记录字段">{change.after == null ? <p>将删除此记录</p> : <PreviewValue value={change.after} />}</div></div></div></details></li>)}</ol>{draft.changes.length > visibleChanges && <button className={styles.button} onClick={() => setVisibleChanges((value) => value + 20)}>再显示 20 条变化</button>}{draft.warnings.length > 0 && <div className={styles.warnings}><h4>发布前需要注意</h4><ul>{draft.warnings.map((warning, index) => <li key={index}>{typeof warning === "string" ? warning : warning.message}</li>)}</ul></div>}</>}</section>
-      <section className={styles.section} aria-labelledby="catalog-publish-title"><header className={styles.sectionHeader}><h3 id="catalog-publish-title"><span>04</span>确认发布</h3></header>{draft ? <form onSubmit={publish} className={styles.publishForm}><p>发布{labels[draft.kind]}，共 {changedCount} 处变化。成功后网站使用这一批目录，原版本保留供恢复。</p>{expired && <p className={styles.expired} role="alert">预览已过期，请重新校验。</p>}<label htmlFor="catalog-publish-reason">发布说明（至少 8 个字）</label><textarea id="catalog-publish-reason" value={reason} rows={2} minLength={8} maxLength={500} required disabled={Boolean(busy)} onChange={(event) => setReason(event.target.value)} placeholder="例如：补充秋季课程资料并修正教室" />{draft.warnings.length > 0 && <label className={styles.acknowledge}><input type="checkbox" checked={acknowledgeWarnings} disabled={Boolean(busy)} onChange={(event) => setAcknowledgeWarnings(event.target.checked)} /><span>我已核对以上提醒，确认继续发布</span></label>}<button className={styles.publish} disabled={Boolean(busy) || expired || !changedCount || reason.trim().length < 8 || (draft.warnings.length > 0 && !acknowledgeWarnings)}>{busy === "publish" ? "正在发布…" : "确认发布到网站"}</button></form> : <p className={styles.muted}>完成校验与核对后，才能发布。</p>}</section>
-      {catalog.drafts.length > 0 && <details className={styles.history}><summary>未发布预览 · {catalog.drafts.length} 份</summary><p>预览保存 20 分钟，最多保留 3 份。可丢弃不再使用的预览，释放本批空间。</p><ol>{catalog.drafts.map((entry) => <li key={entry.id}><div><b>{labels[entry.kind]} · {entry.sourceName || "未命名表格"}</b><span>基于 r{entry.baseRevision} · 有效至 {dateLabel(entry.expiresAt)}</span></div><button className={styles.button} disabled={Boolean(busy)} onClick={() => void discardDraft(entry.id)}>丢弃预览<span className="sr-only"> {entry.sourceName || entry.id}</span></button></li>)}</ol></details>}
-      <details className={styles.history}><summary>发布记录与恢复版本</summary><p>恢复会把所选目录整体切换到该版本，请先核对版本和时间。</p><ol>{releaseHistory.map((entry) => <li key={`${entry.version}-${entry.revision}`}><div><b>{labels[entry.kind]} · r{entry.revision}{catalog.current[entry.kind].version === entry.version ? " · 当前" : ""}</b><time dateTime={entry.createdAt || undefined}>{dateLabel(entry.createdAt)}</time><span>{entry.sourceName || "初始目录"}</span><code>{entry.version.slice(0, 12)}</code></div>{catalog.current[entry.kind].version !== entry.version && <button className={styles.button} disabled={Boolean(busy)} onClick={() => { setRollback({ entry, revision: catalog.current[entry.kind].revision }); setRollbackReason(""); setRollbackNotice(""); }}>恢复此版本</button>}</li>)}</ol>{!releaseHistory.length && <p>还没有发布记录。</p>}</details>
+      <div className={styles.workbench}>
+        <section className={styles.section} aria-labelledby="catalog-prepare-title">
+          <header className={styles.sectionHeader}><h3 id="catalog-prepare-title"><span>01</span>准备{labels[kind]}</h3></header>
+          <div className={styles.tools}>
+            <button className={styles.button} disabled={Boolean(busy)} onClick={() => downloadCsv(writeCatalogCsv([], CATALOG_COLUMNS[kind]), `${labels[kind]}-模板.csv`)}>下载空白模板</button>
+            <button className={styles.button} disabled={Boolean(busy)} onClick={() => void exportCurrent()}>{busy === "export" ? "正在导出…" : "导出当前目录"}</button>
+          </div>
+          {kind === "materials" && <nav className={styles.entryNav} aria-label="资料编辑方式">
+            <button aria-pressed={materialEntry === "direct"} aria-controls="catalog-direct-entry" disabled={Boolean(busy)} onClick={() => setMaterialEntry("direct")}>直接填写</button>
+            <button aria-pressed={materialEntry === "spreadsheet"} aria-controls="catalog-sheet-entry" disabled={Boolean(busy)} onClick={() => setMaterialEntry("spreadsheet")}>上传表格</button>
+          </nav>}
+          <div id="catalog-sheet-entry" hidden={kind === "materials" && materialEntry !== "spreadsheet"}>
+            <p className={styles.entryHint}>按模板批量新增或修改。未上传的记录会保留。</p>
+            <div className={styles.upload}>
+              <label htmlFor="catalog-spreadsheet">上传{labels[kind]}表格</label>
+              <input ref={fileInputRef} id="catalog-spreadsheet" type="file" accept=".csv,.xlsx" disabled={Boolean(busy)} onChange={(event) => void readSpreadsheet(event.target.files?.[0])} />
+              <small>CSV / XLSX · 最多 8 MiB、10,000 行</small>
+            </div>
+            {sheets.length > 1 && <div className={styles.sheetChoice}>
+              <label htmlFor="catalog-sheet">本批使用的工作表</label>
+              <select id="catalog-sheet" disabled={Boolean(busy)} value={sheetName} onChange={(event) => { setSheetName(event.target.value); setRows([]); invalidatePreview(); }}>{sheets.map((name) => <option key={name}>{name}</option>)}</select>
+              <button className={styles.button} disabled={Boolean(busy)} onClick={() => void readSelectedSheet()}>读取工作表</button>
+            </div>}
+            <details className={styles.template}>
+              <summary>模板字段与填写规则</summary>
+              <p>保留表头。新增或更新填“更新”；仅修改上传的记录，其他记录会保留。编号需保持稳定，不能用课程名代替课程号。</p>
+              <div className={styles.columnList}>{(CATALOG_COLUMNS[kind] as string[]).map((column) => <code key={column}>{column}</code>)}</div>
+              {kind === "courses" ? <p>一行表示一个上课时段。同一教学班可有多行，时段编号各不相同；教师、主修班级与课序号保持一致。学期填 fall（秋季）或 spring（春季），星期填 1–7，节次如 1–2、3–4、5–7 或 8–10。周次填“1-9周”“9-18周”或“1-18周”。删除某时段时，“操作”填“删除时段”，并保留其时段编号。</p> : <p>资料编号为空时会生成新编号；更新已有资料应保留原编号。多门课程用英文分号分隔。下架时，“操作”填“下架”，并保留资料编号。链接支持 HTTPS，或已暂存的站内文件地址。</p>}
+              <p>CSV 用 UTF-8 保存；XLSX 的课程号、编号设为文本，公式需粘贴为值。</p>
+            </details>
+          </div>
+          {kind === "materials" && <div id="catalog-direct-entry" className={styles.composer} hidden={materialEntry !== "direct"}>
+            <details className={styles.existingPicker}>
+              <summary>查找并编辑已有资料</summary>
+              <div className={styles.existing}>
+                <label htmlFor="catalog-material-search">查找现有资料</label>
+                <input id="catalog-material-search" value={materialSearch} onChange={(event) => setMaterialSearch(event.target.value)} placeholder="标题或资料编号" maxLength={200} disabled={Boolean(busy)} />
+                <label htmlFor="catalog-existing-material">选择要修改的资料</label>
+                <select id="catalog-existing-material" value={materials.some((item) => item.id === materialForm.id) ? materialForm.id : ""} disabled={Boolean(busy)} onChange={(event) => chooseExisting(event.target.value)}><option value="">添加新资料</option>{filteredMaterials.map((material) => <option key={material.id} value={material.id}>{material.name} · {material.id}</option>)}</select>
+                <small>最多显示 40 项，请用搜索缩小范围。选中后，可在“本次操作”中下架。</small>
+              </div>
+            </details>
+            <form onSubmit={addMaterial} className={styles.materialForm}>
+              <div className={styles.field}><label htmlFor="catalog-material-title">资料标题</label><input id="catalog-material-title" required={materialForm.operation !== "下架"} maxLength={200} value={materialForm.title} disabled={Boolean(busy)} onChange={(event) => setMaterialForm((value) => ({ ...value, title: event.target.value }))} /></div>
+              <div className={styles.field}><label htmlFor="catalog-material-category">分类</label><input id="catalog-material-category" required={materialForm.operation !== "下架"} maxLength={80} list="catalog-material-categories" value={materialForm.category} disabled={Boolean(busy)} onChange={(event) => setMaterialForm((value) => ({ ...value, category: event.target.value }))} /><datalist id="catalog-material-categories"><option value="课件" /><option value="题库" /><option value="教材" /><option value="其他" /></datalist></div>
+              <div className={styles.fullField}><label htmlFor="catalog-course-search">查找要关联的课程</label><input id="catalog-course-search" placeholder="输入课程名或课程号" value={courseSearch} maxLength={100} disabled={Boolean(busy)} onChange={(event) => setCourseSearch(event.target.value)} /></div>
+              <div className={styles.fullField}><label htmlFor="catalog-material-course">关联课程（按课程号选择）</label><select id="catalog-material-course" required={materialForm.operation !== "下架"} value={materialForm.courseId.includes(";") ? "__multiple" : materialForm.courseId} disabled={Boolean(busy)} onChange={(event) => setMaterialForm((value) => ({ ...value, courseId: event.target.value }))}><option value="">请选择课程</option>{materialForm.courseId.includes(";") && <option value="__multiple">保留原有多门课程：{materialForm.courseId}</option>}{filteredCourses.map((course) => <option key={course.id} value={course.id}>{course.id} · {course.title}</option>)}</select><small>最多显示 50 门，同名课程请核对课程号。多门课程关联可通过表格编辑。</small></div>
+              <div className={styles.fullField}>
+                <nav className={styles.sourceNav} aria-label="资料来源"><button type="button" aria-pressed={!fileMode} disabled={Boolean(busy)} onClick={() => setFileMode(false)}>填写链接</button><button type="button" aria-pressed={fileMode} disabled={Boolean(busy)} onClick={() => setFileMode(true)}>上传文件</button></nav>
+                {fileMode && <div className={styles.fileSource}><label htmlFor="catalog-material-file">资料文件（最多 25 MiB）</label><input id="catalog-material-file" type="file" accept=".pdf,.pptx,.docx,.xlsx,.zip" disabled={Boolean(busy) || !catalog.uploadsEnabled} onChange={(event) => void uploadMaterial(event.target.files?.[0])} /><small>{catalog.uploadsEnabled ? "支持 PDF、PPTX、DOCX、XLSX、ZIP；大文件可填写外部链接。" : "文件上传未启用：服务器尚未配置资料存储目录。当前可填写 HTTPS 链接。"}</small>{pendingFile && <p className={styles.pending}>待发布文件 · {pendingFile}</p>}</div>}
+                <label htmlFor="catalog-material-link">资料链接</label><input id="catalog-material-link" required={materialForm.operation !== "下架"} placeholder="https://…" maxLength={2000} value={materialForm.link} disabled={Boolean(busy) || (fileMode && Boolean(pendingFile))} onChange={(event) => { setPendingFile(""); setMaterialForm((value) => ({ ...value, link: event.target.value })); }} />
+                <small>{fileMode ? "文件地址自动填入，发布关联资料后即可下载。" : "填写 HTTPS 链接，发布后出现在关联课程中。"}</small>
+              </div>
+              <details className={styles.metadata}>
+                <summary>描述与资料编号（选填）</summary>
+                <div className={styles.metadataFields}>
+                  <div className={styles.fullField}><label htmlFor="catalog-material-description">资料描述（选填）</label><textarea id="catalog-material-description" rows={2} maxLength={500} value={materialForm.description} disabled={Boolean(busy)} onChange={(event) => setMaterialForm((value) => ({ ...value, description: event.target.value }))} /></div>
+                  <div className={styles.fullField}><label htmlFor="catalog-material-id">资料编号</label><input id="catalog-material-id" pattern="[a-f0-9]{20}" placeholder="新增时自动生成" maxLength={20} value={materialForm.id} disabled={Boolean(busy)} onChange={(event) => setMaterialForm((value) => ({ ...value, id: event.target.value }))} /><small>更新已有资料应保留原编号。</small></div>
+                </div>
+              </details>
+              <div className={styles.actionBar}>
+                <div className={styles.field}><label htmlFor="catalog-material-operation">本次操作</label><select id="catalog-material-operation" value={materialForm.operation} disabled={Boolean(busy)} onChange={(event) => setMaterialForm((value) => ({ ...value, operation: event.target.value }))}><option value="更新">新增或更新</option><option value="下架" disabled={!materialForm.id}>下架资料</option></select></div>
+                <div className={styles.formActions}><button className={styles.button} type="button" disabled={Boolean(busy)} onClick={() => { setMaterialForm(blankMaterial); setPendingFile(""); setFileMode(false); }}>清空填写</button><button className={styles.primary} disabled={Boolean(busy) || (materialForm.operation === "下架" && !materialForm.id)}>加入本批</button></div>
+              </div>
+            </form>
+          </div>}
+          {sourceName && <p className={styles.batchSource}>本批来源 · {sourceName}</p>}
+          {kind === "materials" && rows.length > 0 && <details className={styles.queue}><summary>本批资料 · {rows.length} 条</summary><ol>{rows.slice(0, 20).map((row, index) => <li key={`${row.资料编号}-${index}`}><div><b>{row.标题 || row.资料编号}</b><small>{row.操作 || "更新"} · {row.课程号}</small></div><button className={styles.button} disabled={Boolean(busy)} onClick={() => { setRows((value) => value.filter((_, rowIndex) => rowIndex !== index)); invalidatePreview(); }}>移出本批<span className="sr-only"> {row.标题 || row.资料编号}</span></button></li>)}</ol>{rows.length > 20 && <p>其余 {rows.length - 20} 条可在变化清单中核对。</p>}</details>}
+        </section>
+        <div className={styles.flowRail}>
+          <section className={styles.checkSection} aria-labelledby="catalog-validate-title">
+            <h3 id="catalog-validate-title"><span>02</span>校验本批</h3>
+            <p>{busy === "read" ? "正在读取表格…" : rows.length ? `本批 ${rows.length} ${kind === "courses" ? "行" : "条"} · 基于当前 r${current?.revision}` : "上传表格，或把资料加入本批后继续。"}</p>
+            <button className={styles.primary} disabled={Boolean(busy) || !rows.length} onClick={() => void validateRows()}>{busy === "validate" ? "正在校验…" : draft ? "重新校验并预览" : "校验并生成预览"}</button>
+          </section>
+          {errors.length > 0 && <section className={styles.errorList} aria-label="表格校验错误"><h4>需修正 {errors.length} 处</h4><ol>{errors.slice(0, 100).map((error, index) => <li key={index}><b>第 {error.row} 行 · {error.field}</b><span>{error.message}</span></li>)}</ol>{errors.length > 100 && <p>先修正前 100 处，再重新校验。</p>}</section>}
+          <section className={styles.section} aria-labelledby="catalog-preview-title">
+            <header className={styles.sectionHeader}><h3 id="catalog-preview-title" ref={previewRef} tabIndex={-1}><span>03</span>核对变化</h3>{draft && <small>有效至 {dateLabel(draft.expiresAt)}</small>}</header>
+            {!draft ? <p className={styles.muted}>校验后查看新增、修改和删除。</p> : <>
+              <dl className={styles.summary}>{[["新增", draft.summary.added], ["修改", draft.summary.updated], ["删除 / 下架", draft.summary.removed], ["未改变", draft.summary.unchanged]].map(([label, count]) => <div key={label}><dt>{label}</dt><dd>{count}</dd></div>)}</dl>
+              {!changedCount && <p className={styles.muted}>本批没有变化，无需发布。</p>}
+              {draft.changes.length > 0 && <div className={styles.changeWindow} tabIndex={0} role="region" aria-label="本批变化清单"><ol className={styles.changes}>
+                {draft.changes.slice(0, visibleChanges).map((change) => <li key={change.id}><details><summary><span className={styles.changeTag}>{({ added: "新增", updated: "修改", removed: "删除", unchanged: "未改变", add: "新增", update: "修改", remove: "删除" } as Record<string, string>)[change.action] || change.action}</span><b>{change.label}</b><code>{change.id}</code></summary><div className={styles.comparison}><div><h4>发布前</h4><div className={styles.recordBody} tabIndex={change.before == null ? undefined : 0} aria-label="发布前的记录字段">{change.before == null ? <p>尚无此记录</p> : <PreviewValue value={change.before} />}</div></div><div><h4>发布后</h4><div className={styles.recordBody} tabIndex={change.after == null ? undefined : 0} aria-label="发布后的记录字段">{change.after == null ? <p>将删除此记录</p> : <PreviewValue value={change.after} />}</div></div></div></details></li>)}
+              </ol></div>}
+              {draft.changes.length > visibleChanges && <button className={styles.button} onClick={() => setVisibleChanges((value) => value + 20)}>再显示 20 条变化</button>}
+              {draft.warnings.length > 0 && <div className={styles.warnings}><h4>发布前需要注意</h4><ul>{draft.warnings.map((warning, index) => <li key={index}>{typeof warning === "string" ? warning : warning.message}</li>)}</ul></div>}
+            </>}
+          </section>
+          <section className={styles.section} aria-labelledby="catalog-publish-title">
+            <header className={styles.sectionHeader}><h3 id="catalog-publish-title"><span>04</span>确认发布</h3></header>
+            {draft ? <form onSubmit={publish} className={styles.publishForm}>
+              <p>{labels[draft.kind]} · {changedCount} 处变化。发布后网站使用本批目录，原版本保留。</p>
+              {expired && <p className={styles.expired} role="alert">预览已过期，请重新校验。</p>}
+              <label htmlFor="catalog-publish-reason">发布说明（至少 8 个字）</label><textarea id="catalog-publish-reason" value={reason} rows={2} minLength={8} maxLength={500} required disabled={Boolean(busy)} onChange={(event) => setReason(event.target.value)} placeholder="说明本批更新了什么" />
+              {draft.warnings.length > 0 && <label className={styles.acknowledge}><input type="checkbox" checked={acknowledgeWarnings} disabled={Boolean(busy)} onChange={(event) => setAcknowledgeWarnings(event.target.checked)} /><span>我已核对以上提醒，确认继续发布</span></label>}
+              <button className={styles.publish} disabled={Boolean(busy) || !readyToPublish}>{busy === "publish" ? "正在发布…" : "确认发布到网站"}</button>
+            </form> : <p className={styles.muted}>完成校验与核对后，填写说明并确认发布。</p>}
+          </section>
+        </div>
+      </div>
+      <div className={styles.historyArea}>
+        {catalog.drafts.length > 0 && <details className={styles.history}><summary>未发布预览 · {catalog.drafts.length} 份</summary><p>预览保存 20 分钟，最多保留 3 份。可丢弃不再使用的预览，释放本批空间。</p><ol>{catalog.drafts.map((entry) => <li key={entry.id}><div><b>{labels[entry.kind]} · {entry.sourceName || "未命名表格"}</b><span>基于 r{entry.baseRevision} · 有效至 {dateLabel(entry.expiresAt)}</span></div><button className={styles.button} disabled={Boolean(busy)} onClick={() => void discardDraft(entry.id)}>丢弃预览<span className="sr-only"> {entry.sourceName || entry.id}</span></button></li>)}</ol></details>}
+        <details className={styles.history}><summary>发布记录与恢复版本</summary><p>恢复会把所选目录整体切换到该版本，请先核对版本和时间。</p><ol>{releaseHistory.map((entry) => <li key={`${entry.version}-${entry.revision}`}><div><b>{labels[entry.kind]} · r{entry.revision}{catalog.current[entry.kind].version === entry.version ? " · 当前" : ""}</b><time dateTime={entry.createdAt || undefined}>{dateLabel(entry.createdAt)}</time><span>{entry.sourceName || "初始目录"}</span><code>{entry.version.slice(0, 12)}</code></div>{catalog.current[entry.kind].version !== entry.version && <button className={styles.button} disabled={Boolean(busy)} onClick={() => { setRollback({ entry, revision: catalog.current[entry.kind].revision }); setRollbackReason(""); setRollbackNotice(""); }}>恢复此版本</button>}</li>)}</ol>{!releaseHistory.length && <p>还没有发布记录。</p>}</details>
+      </div>
     </>}
     {rollback && <DialogBackdrop onDismiss={closeRollback} dismissDisabled={busy === "rollback"}><form className={styles.rollbackDialog} ref={rollbackRef} role="dialog" aria-modal="true" aria-labelledby="catalog-rollback-title" onSubmit={confirmRollback}><span className={styles.eyebrow}>恢复目录版本</span><h2 id="catalog-rollback-title">确认恢复{labels[rollback.entry.kind]}</h2><p>网站将使用 {dateLabel(rollback.entry.createdAt)} 的 r{rollback.entry.revision}。当前这一类目录的后续更新会被替换。</p><p>{rollback.entry.sourceName || "初始目录"}<br /><code>{rollback.entry.version}</code></p><label htmlFor="catalog-rollback-reason">恢复原因（至少 8 个字）</label><textarea id="catalog-rollback-reason" required minLength={8} maxLength={500} rows={3} value={rollbackReason} disabled={busy === "rollback"} onChange={(event) => setRollbackReason(event.target.value)} />{rollbackNotice && <p role="alert">{rollbackNotice}</p>}<DialogActions><button className={styles.button} type="button" disabled={busy === "rollback"} onClick={closeRollback}>取消</button><button className={styles.publish} disabled={busy === "rollback" || rollbackReason.trim().length < 8}>{busy === "rollback" ? "正在恢复…" : "确认恢复此版本"}</button></DialogActions></form></DialogBackdrop>}
   </section>;

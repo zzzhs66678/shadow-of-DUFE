@@ -292,6 +292,12 @@ jobs:
           test "$ready" = "1"
           PLAYWRIGHT_BASE_URL=http://localhost:3000 \
             npx playwright test --config playwright.postgres.config.ts
+      - name: Verify admin publication reaches public pages on native PostgreSQL
+        env:
+          CATALOG_PUBLISHING_NATIVE_CONTROL_URL: postgresql://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@127.0.0.1:5432/postgres
+        run: |
+          npm run build
+          npx playwright test --config playwright.catalog-native.config.mjs
       - name: Run isolated backup restore drill
         run: |
           drill_dir="$RUNNER_TEMP/postgres-restore-drill"

@@ -85,3 +85,41 @@ test("standalone material lookup follows the published version with bounded refr
   failing = true; clock += 10_001;
   await assert.rejects(publishedMaterialCatalog(), /unavailable/);
 });
+
+test("bookmark resolution distinguishes catalog outages from invalid IDs and recovers current records", async t => {
+  const previous = process.env.CATALOG_API_ORIGIN;
+  const version = "c".repeat(64), materialId = "d".repeat(20);
+  let failing = true, requests = 0;
+  const server = createServer((request, response) => {
+    requests += 1;
+    if (failing) { response.writeHead(503).end("{}"); return; }
+    response.setHeader("Content-Type", "application/json");
+    response.end(JSON.stringify(request.url === "/api/catalog/current"
+      ? { materials: { version, url: `/api/catalog/releases/${version}/materials` } }
+      : { schemaVersion: 2, generatedAt: "2026-10-12T00:00:00Z", materials: [{ id: materialId, name: "更新后的收藏资料", courseTitle: "课程", courseIds: [], teachers: [], colleges: [], terms: [], years: [], tags: [], downloadUrl: "https://example.test/current.pdf" }] }));
+  });
+  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+  process.env.CATALOG_API_ORIGIN = `http://127.0.0.1:${server.address().port}`;
+  t.after(async () => {
+    if (previous === undefined) delete process.env.CATALOG_API_ORIGIN;
+    else process.env.CATALOG_API_ORIGIN = previous;
+    await new Promise(resolve => server.close(resolve));
+  });
+  const { POST } = await import("../app/api/materials/resolve/route.ts");
+  const request = ids => new Request("https://example.test/api/materials/resolve", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }),
+  });
+  assert.equal((await POST(request(["invalid"]))).status, 400);
+  assert.equal(requests, 0, "invalid input never queries the catalog");
+  const outage = await POST(request([materialId]));
+  assert.equal(outage.status, 503);
+  assert.deepEqual(await outage.json(), { error: "materials_unavailable" });
+  assert.equal(outage.headers.get("cache-control"), "no-store, private");
+  failing = false;
+  const recovered = await POST(request([materialId, materialId]));
+  assert.equal(recovered.status, 200);
+  const { items } = await recovered.json();
+  assert.equal(items.length, 1);
+  assert.equal(items[0].material.name, "更新后的收藏资料");
+  assert.equal(items[0].material.downloadUrl, "https://example.test/current.pdf");
+});

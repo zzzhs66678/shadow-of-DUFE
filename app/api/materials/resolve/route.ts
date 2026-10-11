@@ -11,6 +11,7 @@ export async function POST(request: Request) {
   const reader = request.body?.getReader();
   if (!reader) return Response.json({ error: "invalid_material_ids" }, { status: 400, headers });
   const chunks: Uint8Array[] = [];
+  let ids: string[];
   try {
     for (;;) {
       const { done, value } = await reader.read();
@@ -25,10 +26,14 @@ export async function POST(request: Request) {
     const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
     if (!body || Object.keys(body).join() !== "ids" || !Array.isArray(body.ids) || body.ids.length > 1000 ||
         body.ids.some((id: unknown) => typeof id !== "string" || !/^[0-9a-f]{20}$/.test(id))) throw new Error("invalid_ids");
-    const ids = [...new Set<string>(body.ids)];
-    const { getMaterialById } = await publishedMaterialCatalog();
-    return Response.json({ items: ids.map((materialId) => ({ materialId, material: getMaterialById(materialId) })) }, { headers });
+    ids = [...new Set<string>(body.ids)];
   } catch {
     return Response.json({ error: "invalid_material_ids" }, { status: 400, headers });
   } finally { reader.releaseLock(); }
+  try {
+    const { getMaterialById } = await publishedMaterialCatalog();
+    return Response.json({ items: ids.map((materialId) => ({ materialId, material: getMaterialById(materialId) })) }, { headers });
+  } catch {
+    return Response.json({ error: "materials_unavailable" }, { status: 503, headers });
+  }
 }
