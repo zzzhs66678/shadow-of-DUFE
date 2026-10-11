@@ -1,12 +1,12 @@
 # 东财之影安全审计与修复：生产版本基线
 
-日期：2026-10-11。状态：开发分支代码与本地隔离测试完成；没有发布生产、修改 staging、启用新注册或执行生产迁移。
+日期：2026-10-11。状态：用户已授权按小网站规模上线可完成的防护；完整 GitHub CI 通过，生产 app/auth、追加迁移0028、Caddy与PostgreSQL日志防护已发布，邮箱验证码注册已正式开启。部署时间UTC2026-10-11T15:22:02Z（北京时间23:22），staging未修改。
 
-当前交付补充了连接时 DNS/IP 校验、跨域登录请求体重放阻断和兼容依赖补丁。真实 PostgreSQL 非 owner 角色测试及本地只读备份/恢复已完成；当前生产代理 peer 已观察为172.18.0.6。网站两域名显式开启证书校验的 TLS 1.3 检查通过。代码仍未上线，下面的剩余事项不得当成已经修复。
+当前交付包括邮箱验证码注册、共享数据库限流、可信代理、日志保护、学校 Cookie 隔离、临时凭据清理、连接时 DNS/IP 校验、跨 origin 登录请求体重放阻断和兼容依赖补丁。复用现有 PostgreSQL、SMTP 与 Caddy，未增加 Redis 或服务。学校 HTTP 回源、历史疑似凭据与剩余环境验收仍未解决，详见统一清单。
 
 ## 范围与发布基线
 
-生产 app/auth 当前版本为 `9de3008cf8411dd0012e499b1590117d42eac2c7`，数据库已应用至 `0027_community_reply_timeline.sql`。本报告和修复位于分支 `codex/security-production-20261011`，工作目录 `C:/Users/zzz/.codex/worktrees/security-production-base/云`，从该生产提交创建。
+修复基线为生产 `9de3008cf8411dd0012e499b1590117d42eac2c7` 与数据库 0027；现已发布 app/auth `9a343d1ee081e204382cd5a30e59a4b95c4f1270`，数据库应用至 `0028_registration_security.sql`。本报告和修复位于分支 `codex/security-production-20261011`，工作目录 `C:/Users/zzz/.codex/worktrees/security-production-base/云`，从实际生产基线创建。
 
 原目录 `C:/Users/zzz/Documents/云` 的安全审计基于较旧提交，含用户未提交的其他工作。其 `0021/0022` 编号与生产已应用迁移冲突，**不能作为发布候选直接部署**。本分支使用新增 `0028_registration_security.sql`，保留实际生产的教务导入、课表、考试、培养方案、教师评价、资料与收藏、社区时间线、纠错和管理员功能；没有复制旧本地教务原型。
 
@@ -21,22 +21,22 @@
 
 ## 风险清单
 
-以下行号以本开发分支为准。代码修复通过不代表线上已生效。
+以下行号以发布候选代码为准；每项分别记录代码验证、生产生效及未完成的线上验证，保留已确认、疑似与外部配置的区别。
 
 | 编号/级别/证据分类 | 触发条件、证据与影响 | 修复、文件位置与验证状态 |
 | --- | --- | --- |
-| R01 高，已确认 | 原 register 直接创建正式账号，无邮箱证明；可抢占他人邮箱并滥用注册。现有邮箱数据库唯一索引已经存在。 | `services/auth-api/src/server.mjs:592`、`:633`，`src/db.mjs:1530`，新增 `src/registration-security.mjs` 与 `ops/postgres/migrations/0028_registration_security.sql`：邮箱/用途/挑战/申请浏览器绑定、已投递状态、原子消费。数据库增加 verified_password 必须具备验证时间的约束；已有账号不覆盖。原生 PG 并发/回滚与浏览器测试通过；线上未发布。 |
-| R02 高，已确认 | 原转发头无明确可信代理边界；认证账号限流混入 IP，改变来源可分散攻击。生产新增收藏/反馈/教务路由也读取来源头。 | 新 `src/request-security.mjs`，`src/config.mjs:205`，`src/rate-limit.mjs:114`，各路由及小影 helper，Caddy 覆盖来源/协议/主机头。共享数据库独立账号、IP、跨接口及全局邮件额度。学校账号摘要限流 `academic-routes.mjs:390`、`rate-limit.mjs:151`，校园共享 IP 使用较宽额度。伪造头、不同账号、共享状态测试通过；已观察生产实际peer172.18.0.6，但安全代码尚未发布。 |
-| R03 高，已确认配置风险；真实历史泄漏未确认 | 线上 PG `log_parameter_max_length=-1`，慢查询可能记录绑定邮箱、会话摘要或密码哈希；错误 DETAIL 可包含邮箱。仅合成日志测试复现，不推断已有真实泄漏。 | `ops/postgres/postgresql.conf:29` 两项参数日志长度置 0，terse 错误及限制错误 SQL；服务错误用固定事件名。原生 PG 合成敏感参数复现/修复检查通过。生产有效设置仍旧值，历史日志/备份审查未执行。 |
-| R04 中，已确认 | 原新密码长度/字符组合策略不符合本次长口令要求。原网站密码已经使用 Argon2id，未发现明文存储。 | `src/credentials.mjs:39`、`:110`：新注册/重置 15–128 Unicode 码点，无字符类别强制，不截断/改写哈希输入；旧短密码仍可登录。`src/passwords.mjs` 保留 19MiB/t2/p1，限制两个哈希操作并发；旧哈希不再次当原密码处理。边界/兼容测试通过；生产 Linux 128MiB 容器性能待验证。 |
-| R05 中，已确认 | 登录校验旧哈希后创建会话可能与重置交错；找回密码按账号存在性执行不同的 SMTP/查询路径，存在探测面。 | `src/db.mjs:1672` 锁内比对预期哈希；`server.mjs` SMTP 找回先统一 202，再异步查询与固定错误事件，共用发送预算。旧校验拒绝、退出/重置与响应/故障测试通过；不承诺消除所有统计时序侧信道。 |
-| R06 中，已确认线上配置风险 | 对当前 `http://dufesh.cn/api/auth/login` 发出空 POST（无凭据）仍返回308，应用旧版本没有新 TLS 提交边界。若用户实际通过 HTTP 发出密码，首次传输已泄漏，后续重定向或403无法补救。没有证据证明正常 HTTPS 浏览器会降级发送。 | `deploy/Caddyfile`、`deploy/staging/Caddyfile` 拒绝非 HTTPS/非规范主机 API 写请求；`server.mjs:264` 和小影仅接受真实 TLS 或明确可信代理的 HTTPS。新 HSTS 主域一天，不含 includeSubDomains/preload。两 Caddy 配置通过；线上目前仍一年+includeSubDomains，尚未加载修复。两域名证书/TLS1.3、主站CSP/nosniff/frame阻止与私有no-store已验证；CDN/跨机回源/防火墙完整验证未完成。 |
+| R01 高，已确认并修复 | 原 register 直接创建正式账号，无邮箱证明；可抢占他人邮箱并滥用注册。现有邮箱数据库唯一索引已经存在。 | `services/auth-api/src/server.mjs:592`、`:633`，`src/db.mjs:1530`，新增 `src/registration-security.mjs` 与 `ops/postgres/migrations/0028_registration_security.sql`：邮箱/用途/挑战/申请浏览器绑定、已投递状态、原子消费。数据库增加 verified_password 必须具备验证时间的约束；已有账号不覆盖。原生PG并发/回滚、浏览器与CI通过；生产代码和迁移已生效，注册正式开启。线上缺邮箱400、伪造verified/role400、外部Origin403，手机桌面注册面板2/2通过。 |
+| R02 高，已确认并修复主站边界 | 原转发头无明确可信代理边界；认证账号限流混入 IP，改变来源可分散攻击。生产新增收藏/反馈/教务路由也读取来源头。 | 新 `src/request-security.mjs`，`src/config.mjs:205`，`src/rate-limit.mjs:114` 及各路由，Caddy 覆盖来源/协议/主机头。共享数据库独立账号、IP、跨接口及全局邮件额度；学校账号摘要限流 `academic-routes.mjs:390`、`rate-limit.mjs:151`，校园共享 IP 使用较宽额度。伪造头、不同账号、共享状态测试和 CI 通过。主站/auth 已发布，实际 peer 与配置为172.18.0.6/32；小影 helper 已测试但本轮保留其旧镜像，未宣称小影内部改动生效。 |
+| R03 高，已确认配置风险并修复；真实历史泄漏未确认 | 发布前 PG `log_parameter_max_length=-1`，慢查询可能记录绑定邮箱、会话摘要或密码哈希；错误 DETAIL 可包含邮箱。仅合成日志测试复现，不推断已有真实泄漏。 | `ops/postgres/postgresql.conf:29` 两项参数日志长度置 0，terse 错误及限制错误 SQL；服务错误用固定事件名。原生 PG 合成敏感参数检查通过；生产 reload 后 SHOW 确认 `log_parameter_max_length=0`、`log_parameter_max_length_on_error=0`、`log_error_verbosity=terse`、`log_min_error_statement=panic`。数据库容器未重建。历史日志/备份敏感内容审查未执行。 |
+| R04 中，已确认并修复 | 原新密码长度/字符组合策略不符合本次长口令要求。原网站密码已经使用 Argon2id，未发现明文存储。 | `src/credentials.mjs:39`、`:110`：新注册/重置 15–128 Unicode 码点，无字符类别强制，不截断/改写哈希输入；旧短密码仍可登录。`src/passwords.mjs` 保留 19MiB/t2/p1，限制两个哈希操作并发；旧哈希不再次当原密码处理。边界/兼容与 CI 通过并已发布。在服务器独立128MiB候选容器中两个并发 Argon2 hash+verify 成功，耗时590ms、exit0；cgroup memory.peak 不可读，未获得峰值内存数，不等于持续负载验证。 |
+| R05 中，已确认并修复代码 | 登录校验旧哈希后创建会话可能与重置交错；找回密码按账号存在性执行不同的 SMTP/查询路径，存在探测面。 | `src/db.mjs:1672` 锁内比对预期哈希；`server.mjs` SMTP 找回先统一 202，再异步查询与固定错误事件，共用发送预算。旧校验拒绝、退出/重置与响应/故障测试和 CI 通过，代码已发布。找回密码仍维持 disabled，不宣称该邮件流程已上线验收；不承诺消除所有统计时序侧信道。 |
+| R06 中，已确认配置风险并修复 | 发布前 `http://dufesh.cn/api/auth/login` 空 POST（无凭据）返回308，旧应用没有新 TLS 提交边界。若用户实际通过 HTTP 发出密码，首次传输已泄漏，后续重定向或403无法补救。没有证据证明正常 HTTPS 浏览器会降级发送。 | `deploy/Caddyfile` 拒绝 HTTP/非规范主机 API 写请求；auth `server.mjs:264` 仅接受真实 TLS 或明确可信代理的 HTTPS。生产 Caddy 保留 staging/library 现场片段后已加载：HTTP API 空 POST 与 HTTPS www API POST 均403，主域health200，HSTS主域一天且不含 includeSubDomains/preload。两域证书/TLS1.3、主站CSP/nosniff/frame阻止与私有no-store已验证。staging 配置及小影内部代码本轮未发布；CDN/跨机回源/防火墙完整验证未完成。 |
 | R07 高，已确认允许 HTTP；实际线上请求链尚未抓取 | 生产 `AUTH_ACADEMIC_IMPORT_ENABLED=true`；`src/academic-access.mjs:13` 默认 `http://zhjw-dufe-edu-cn.vpn.dufe.edu.cn:8118`，目标白名单允许映射 WebVPN HTTP。必要的协议密码加密不能保护 HTTP Cookie/令牌。 | **未解决外部 TLS 问题**。固定目标和重定向白名单保留，没有关闭证书校验。需要学校支持的 HTTPS/安全授权端点，或明确风险决策；没有擅自禁用原有导入。仅模拟学校接口，未使用真实账号验证、未探测学校服务。 |
-| R08 高，已确认 | 原自制 CookieJar 忽略 Domain/Path/Secure/有效期，将全部 Cookie 转发给不同允许目标；可能跨域泄漏会话或串流程。 | 新 `src/academic-cookie-jar.mjs` 使用 tough-cookie，`:21` 单独限制厂商 TWFID 会话域；`academic-access.mjs` 每流程独立 CookieJar，按每个请求 URL 选择 Cookie。跨域、路径、Secure、过期、恶意 Cookie 与完整学校模拟流程测试通过。真实学校兼容未验证。 |
-| R09 中，已确认 | 原待验证教务流程仅在后续请求清理，空闲时可能无限期持有密码；数量未设上限。不同临时客户端可能累计攻击同一学校账号。 | `academic-access.mjs:2478` 起限制 100 个/最长 5 分钟，同主体新流程销毁旧流程，定时清理密码/Cookie/SSO/部分快照，关闭清理；共享学校账号限流见 R02。限额/替换/过期/关闭测试通过；内存回收并非可证明的字节擦除，生产资源压力待隔离验证。 |
-| R10 高，依赖告警已确认；运行时可利用性未确认 | 主站生产 audit 原始输出仍6 high（同一braces依赖链多节点，不是六个独立漏洞）；原全量审计15项，续修后8 high全部属于该链。braces官方仍无补丁，直接换vinext大版本未经本次兼容验证。 | 兼容升级Next/ESLint配套16.3.8、fast-uri3.1.8、Undici7.30.0、ws8.21.0及锁文件，消除相应可修补告警。保留原有构建链例外/运行时裁剪，截止2026-11-04，不扩展豁免。现有production门禁通过，Linux镜像裁剪本轮未执行；auth/小影production audit各0。 |
+| R08 高，已确认并修复代码 | 原自制 CookieJar 忽略 Domain/Path/Secure/有效期，将全部 Cookie 转发给不同允许目标；可能跨域泄漏会话或串流程。 | 新 `src/academic-cookie-jar.mjs` 使用 tough-cookie，`:21` 单独限制厂商 TWFID 会话域；`academic-access.mjs` 每流程独立 CookieJar，按每个请求 URL 选择 Cookie。跨域、路径、Secure、过期、恶意 Cookie 与完整学校模拟流程和 CI 通过，auth代码已发布。真实学校账号兼容未验证。 |
+| R09 中，已确认并修复代码 | 原待验证教务流程仅在后续请求清理，空闲时可能无限期持有密码；数量未设上限。不同临时客户端可能累计攻击同一学校账号。 | `academic-access.mjs:2478` 起限制100个/最长5分钟，同主体新流程销毁旧流程，定时清理密码/Cookie/SSO/部分快照，关闭清理；共享学校账号限流见 R02。限额/替换/过期/关闭测试和 CI 通过，auth代码已发布；内存回收并非可证明的字节擦除，未使用真实学校账号做压力测试。 |
+| R10 高，依赖告警已确认；运行时可利用性未确认 | 主站production依赖清单 raw audit仍6 high（同一braces依赖链多节点，不是六个独立漏洞）；原全量审计15项，续修后8 high全部属于该链。braces官方仍无补丁，直接换vinext大版本未经本次兼容验证。 | 兼容升级Next/ESLint配套16.3.8、fast-uri3.1.8、Undici7.30.0、ws8.21.0及锁文件，消除相应可修补告警。保留原有构建链例外/运行时裁剪，截止2026-11-04，不扩展豁免。CI已在Linux最终镜像验证裁剪、生产server加载与HTTP冒烟，并已发布该完整app/auth镜像；auth/候选小影production audit各0，小影镜像本轮未更换。 |
 | R11 低/疑似 | 目录扫描3匹配：两服务端manifest prerenderSecret和合成API值。完整Git历史355提交扫描2匹配：`af1f88b0074818409d9718fb6c80b98119aaf44e` 的 `tests/academic-access.test.mjs:67` 学校滑块challenge，及 `f9469b55ab00c7c2167a79d71fb89d4f735858a3` 的 `tests/xiaoying-executor.test.mjs:383` 合成API值。 | manifest由vinext随机生成，仅server；客户端复扫0。API值明确synthetic。学校历史challenge的真实性/有效性仍未知，没有使用它请求学校。未输出完整值/重写历史；若确认为真实授权信息须失效/轮换与调查，不只删除文件。 |
-| R12 高，已确认代码边界缺失；线上利用未确认 | 旧 fetch只验证URL域名/端口，连接时未检查解析IP；上游响应或DNS被操控时可访问私网/元数据。307/308允许把学校登录请求体转发至另一允许域名；模拟接口复现旧重放边界失败，未对真实系统攻击。 | 新 `services/auth-api/src/academic-transport.mjs:19` 用连接层lookup固定已校验IP，拒绝私网/回环/link-local/CGNAT/特殊和混合DNS答案，字面IP同样检查；`:33` 使用成熟Undici专用Agent、证书校验及有界连接。`academic-access.mjs:339` 拒绝跨origin请求体重放，保留CAS302转GET；`:325` 取消重定向响应体释放连接。DNS再绑定/元数据/真实回环HTTP阻断及43项学校模拟兼容通过；学校实际端点的线上兼容仍需验证。 |
+| R12 高，已确认代码边界缺失并修复；线上利用未确认 | 旧 fetch只验证URL域名/端口，连接时未检查解析IP；上游响应或DNS被操控时可访问私网/元数据。307/308允许把学校登录请求体转发至另一允许域名；模拟接口复现旧重放边界失败，未对真实系统攻击。 | 新 `services/auth-api/src/academic-transport.mjs:19` 用连接层lookup固定已校验IP，拒绝私网/回环/link-local/CGNAT/特殊和混合DNS答案，字面IP同样检查；`:33` 使用成熟Undici专用Agent、证书校验及有界连接。`academic-access.mjs:339` 拒绝跨origin请求体重放，保留CAS302转GET；`:325` 取消重定向响应体释放连接。DNS再绑定/元数据/真实回环HTTP阻断及43项学校模拟和 CI 通过，代码已发布。服务器宿主解析两固定域名仅得到202.199.175.250与2001:da8:9007:1175::250；这是DNS兼容证据，不证明真实学校账号/TLS链路正常。 |
 
 ## 已满足并保留的要求
 
@@ -44,7 +44,7 @@
 - 现有 Cookie 会话、生产 Secure/HttpOnly/SameSite、来源/CSRF 校验、数据库会话撤销、管理员 MFA 与角色检查保留；不改成 JWT。响应字段显式列举，参数化 SQL。跨用户个人资料、课表同步、考试/导入归属及普通用户直调管理员接口的测试保留并执行。完整浏览器用两个以上合成账号及管理员覆盖原有路径。
 - 评价/社区/昵称以 React 文本输出，既有受控文件/图片上传、资料下载授权、路径边界、服务端页面 CSP/nonce/脚本哈希、安全响应头保留。没有为了审计启用任意 HTML 或 SVG 同源执行。自动填充和粘贴能力保留。
 - 前端 API 为同源路径，私有 API no-store；没有新增密码、学校凭据、SMTP 密钥或正式令牌的 localStorage/sessionStorage 保存。个人课表离线数据保留。Cookie 库遵循域、路径、Secure 和有效期，依据 [tough-cookie 官方文档](https://github.com/salesforce/tough-cookie)。
-- 学校目标白名单、重定向检查、响应大小/超时及每用户流程隔离保留；没有任意 URL 代理。新增连接层IP检查与DNS再绑定模拟测试，避免“预解析检查后再次解析”竞态，依据 [Node DNS lookup](https://nodejs.org/api/dns.html) 与 [Undici Client连接选项](https://github.com/nodejs/undici/blob/main/docs/docs/api/Client.md)。学校实际端点的在线解析和TLS兼容仍未验证。
+- 学校目标白名单、重定向检查、响应大小/超时及每用户流程隔离保留；没有任意 URL 代理。新增连接层IP检查与DNS再绑定模拟测试，避免“预解析检查后再次解析”竞态，依据 [Node DNS lookup](https://nodejs.org/api/dns.html) 与 [Undici Client连接选项](https://github.com/nodejs/undici/blob/main/docs/docs/api/Client.md)。服务器宿主DNS解析已确认只得到学校公网IPv4/IPv6，真实账号导入和TLS兼容仍未验证。
 
 ## 注册实现与故障边界
 
@@ -56,25 +56,37 @@
 
 统一验证码发送文案、固定注册失败结果、找回统一 202 减少账号枚举。没有人工验证码布尔绕过。SMTP 失败记录固定事件，不输出地址、验证码、错误对象或凭据；报警接收渠道仍需运维配置，不能把 stderr 当成已验证的告警系统。
 
-## 服务器配置预检的真实结果
+## 生产发布与配置的真实结果
 
-仅生产 `/srv/apps/dufesh/shared/config/auth.env` 保存配置，0600。SMTP 固定 QQ 465/隐式 TLS、2016594477@qq.com 发件人/用户；密码已存在，未读出或复制到本地。用户确认聊天中出现的旧码已撤销并重新生成。
+用户最终授权“需要补充资料的先跳过，把能部署的防范先做了”，本轮按现有小站架构发布，不新增基础设施。仅生产 `/srv/apps/dufesh/shared/config/auth.env` 保存配置，0600。SMTP 固定 QQ 465/隐式 TLS、2016594477@qq.com 发件人/用户；真实授权码未读出或复制到本地。用户确认聊天中出现的旧码已撤销并重新生成。
 
 既有 HMAC 值长度至少32、与AUTH_TOKEN_PEPPER不同，保留原值；生成熵来源未验证。已新增 `AUTH_TRUSTED_PROXY_CIDRS=172.18.0.6/32`，备份 `/srv/apps/dufesh/shared/config/auth.env.backup-20261011T132343Z`。匿名健康请求后，只读观察auth TCP连接及TIME_WAIT元数据，确认实际代理peer为172.18.0.6；另有容器健康检查127.0.0.1。早期仅查ESTABLISHED没捕获，不再将当前peer列为未知。web重建后地址可能变，不能套用staging或扩大信任整网段。
 
-服务器上 SMTP_SSL 使用系统证书/主机名校验，认证通过，TLS 1.3，**发送邮件 0 封**。此结果只证明可连接并登录，未验证真实投递/垃圾箱/收件时间。
+早期 SMTP_SSL 预检使用系统证书/主机名校验，认证通过、TLS1.3且零封发信。此次发布前用候选库与固定注册模板，仅向站长自己的2016594477@qq.com发送 **1封** 验证邮件，SMTP服务器接受；没有给真实用户批量发信。收件箱、垃圾箱、收件时间和用户可读正文仍未验证，SMTP接受不等同于最终投递。
 
-运行中的 auth 容器没有加载 SMTP 密码和注册 HMAC；旧代码尚不支持新的注册门禁，不能因为保存配置就宣称已安全启用或关闭注册。没有调用重启、重建、发布或 reload；staging 未修改。
+完整 GitHub quality [run38150051738](https://github.com/zzzhs66678/shadow-of-DUFE/actions/runs/38150051738) 的5项任务全部success，包括verify、PostgreSQL17、Linux生产镜像、CodeQL和全历史secret-scan任务。发布代码 `9a343d1ee081e204382cd5a30e59a4b95c4f1270` 的完整app/auth镜像已校验SHA-256、镜像ID与non-root运行用户；服务器没有重新编译安装依赖。CI secret-scan通过与本地手动全历史扫描2匹配分别记录，不以CI结果抹除R11疑似值。
 
-检查期间额外 Node 只读探针退出 137，随后观察到 auth RestartCount=1，已恢复 healthy；是否由该探针触发无法确认，OOMKilled=false，未查得足够事件证据。没有隐藏此事件，也不声称容器从未重启。之后停止额外 Node 探针，只用宿主 Python 和受限元数据检查，最终重启计数仍 1。
+生产发布前备份 `/srv/apps/dufesh/shared/backups/security-20261011T151027Z/before-security.dump`，在自建临时库恢复通过：27迁移、58表、0无效约束；临时库已删除，没有覆盖生产库。0028通过既有runner应用，前27条已应用迁移的校验和匹配。迁移仅追加安全表/约束及授权，未删除用户、改写旧密码、批量验证旧邮箱或撤销所有会话。
+
+发布后同目录 `after-security.dump` 已由只读备份角色生成，摘要及归档目录校验通过；再次在自建临时库隔离恢复，通过28迁移、61表、0无效约束及三张新安全表检查，临时库已删除。dump、配置和日志留在服务器0700目录，不下载用户数据、不提交备份。该恢复检查不代表已恢复角色ACL；新表runtime、importer隔离及backup只读另做线上权限检查。
+
+app/auth已更新到候选提交，健康检查通过、各RestartCount=0且OOMKilled=false。新auth载入SMTP和独立注册HMAC，`AUTH_REGISTRATION_MODE=smtp`，最终检查后已解除临时Caddy注册关闸并记录release至current。可信peer保持172.18.0.6/32。生产小影、PostgreSQL、web容器未重建，其他服务镜像保留核对为true，staging未修改；Caddy只修改必要的生产段并保留现场staging/library配置。
+
+PostgreSQL配置reload后四项SHOW为0、0、terse、panic，与R03一致。生产HTTP API空POST及HTTPS www API POST返回403，主域health200；HSTS主域一天。不能因HTTP拒绝而认为已发出的HTTP密码可以补救。
+
+在服务器独立128MiB候选容器执行两个并发Argon2 hash+verify，成功590ms、exit0。cgroup memory.peak不可读，结果为null；未测得峰值内存，也没有对真实用户或生产账号进行压力测试。
+
+前期旧容器检查期间额外Node只读探针退出137，随后观察到旧auth RestartCount=1并恢复healthy；是否由该探针触发无法确认，OOMKilled=false，未查得足够事件证据。随后停止额外Node探针。此次新auth容器计数为0，不能据此抹除旧容器曾重启的记录。
 
 Docker 映射显示 auth 3100/PostgreSQL 5432 未发布宿主端口，仅网关 80/443 发布。未做公网端口扫描，也未核对阿里云安全组/宿主防火墙/CDN。同机 Docker 网络的内部 HTTP 不直接定性为公网明文泄漏；不可信跨机回源应 TLS。
 
-终验生产 app/auth 镜像仍为9de3008基线，均healthy，重启计数分别0/1，没有新增重启。显式rejectUnauthorized=true、TLS最低1.2检查两域名均证书授权通过/TLS1.3。主域200、www及普通HTTP页面308到HTTPS；主站有nonce CSP、nosniff、DENY，匿名GET会话200且no-store/private。HTTP登录空POST308为已确认未上线问题；所有线上探针无密码、Cookie会话、验证码或学校凭据，没有登录或发信。
+发布前显式rejectUnauthorized=true、TLS最低1.2检查两域均证书授权通过/TLS1.3。主域200、www及普通HTTP页面规范跳转，主站有nonce CSP、nosniff、DENY，匿名GET会话200且no-store/private；此次发布后HTTP及www API写入拒绝已从308修复为403。网络探针不携带真实密码、用户Cookie、学校凭据或真实用户邮箱。
+
+注册正式开放后的最小失败关闭检查：challenge缺邮箱返回400 `invalid_registration_email`；携带伪造 `emailVerified`/`role` 的合成注册返回400 `invalid_registration_verification`；foreignOrigin返回403；未登录devices/bookmarks返回401。生产只读Playwright以1280/390宽度检查注册面板2/2通过：验证码/发码按钮、15–128字符提示与new-password自动填充正常，无横向溢出，console/page/HTTP错误均0，API写请求0。该只读检查不等同于在生产创建真实新账号或验证邮件最终收件。
 
 ## 已执行检查与结果
 
-均在本分支执行；邮箱及学校使用模拟服务，数据库为 localhost 专用合成库。日志留在工作树本地，不加入 Git。
+本地和CI自动化测试使用模拟邮件/学校接口与专用合成数据库；生产验证另行明确列出，只有站长本人邮箱单封发信。日志不加入Git，不输出秘密或验证码。
 
 | 命令/检查 | 最终真实结果 |
 | --- | --- |
@@ -87,6 +99,7 @@ Docker 映射显示 auth 3100/PostgreSQL 5432 未发布宿主端口，仅网关 
 | `CI=1 npx playwright test --config playwright.production-security.config.ts` | 原生 PostgreSQL 支撑的多账号/管理员 MFA/个人资料/资料/评价/社区关键链 1/1 通过。 |
 | `npm run typecheck`、`npm run build` | 通过。 |
 | 本分支 Windows Node 顺序执行 8 次 Argon2id hash+verify | 全部校验通过，中位41ms，最大52ms；不代表生产Linux容器性能。 |
+| ECS独立候选Linux容器，128MiB限制，两个并发Argon2 hash+verify | 成功590ms、exit0；memory.peak不可读/null，未获得峰值内存数；不等于持续生产负载验证。 |
 | 对变更源码/测试的 ESLint | 0 错误，3 条现有导航警告；后续新增变更检查也通过。 |
 | auth-api、小影 `npm audit --omit=dev --omit=optional` | 各 0 漏洞。 |
 | 根 `npm run audit:production`、`npm audit --json` | 现有例外门禁通过；原始production仍6 high，全量由15降至8 high（全部braces链，moderate0）；不称为零漏洞。 |
@@ -95,46 +108,61 @@ Docker 映射显示 auth 3100/PostgreSQL 5432 未发布宿主端口，仅网关 
 | Gitleaks `dir dist/client --redact` | 退出 0，未发现匹配；不是所有可能秘密的数学证明。 |
 | Gitleaks `git . --log-opts='9de3008cf8411dd0012e499b1590117d42eac2c7..HEAD' --redact` | 本次代码提交508a115扫描通过，退出0、未发现匹配；不包含生产基线之前的完整历史。 |
 | Gitleaks `git . --redact`（完整历史） | 355提交，退出1、2匹配，见R11；未隐藏。客户端最新构建复扫退出0。 |
-| 工作流YAML用js-yaml解析、23个run块用Git Bash `bash -n`静态检查 | 通过；不等于GitHub Actions实际运行。 |
+| 工作流YAML用js-yaml解析、23个run块用Git Bash `bash -n`静态检查 | 通过；静态检查与下方实际CI结果分别记录。 |
+| GitHub quality [38150051738](https://github.com/zzzhs66678/shadow-of-DUFE/actions/runs/38150051738)，提交9a343d1ee081e204382cd5a30e59a4b95c4f1270 | 全部5项任务success，包括真实PG17/浏览器、Linux完整镜像裁剪及启动、CodeQL、secret-scan。与本地手动全历史Gitleaks2匹配分别记录。 |
+| CI完整app/auth镜像的工件摘要、镜像ID与运行用户校验 | 通过；使用完整镜像发布，non-root，未在ECS现场重新编译。 |
 | 本地只读备份角色 `pg_dump --format custom`，全新隔离库 `pg_restore --no-owner --no-acl --exit-on-error` | 恢复通过；61张表行数和28条迁移version/checksum一致。恢复库ACL不由行数检查证明；另由上方非owner角色套件验证授权。未用生产数据。 |
-| 线上无凭据HEAD/GET、显式证书TLS检查、HTTP空POST、TCP元数据 | 两域TLS1.3/证书通过；页面/私有缓存头通过；HTTP登录POST308风险确认；真实代理peer172.18.0.6已观察。 |
+| 生产before-security.dump备份及自建临时库隔离恢复 | 通过：27迁移、58表、0无效约束，临时库已删除；未覆盖生产库，不将该检查当作恢复ACL证明。 |
+| 生产after-security.dump备份及自建临时库隔离恢复 | 通过：28迁移、61表、0无效约束及新安全表存在；临时库已删除，未覆盖生产库。 |
+| 生产既有migration runner应用0028 | 成功；前27迁移校验和匹配，历史用户/密码/邮箱状态与会话保留。 |
+| PostgreSQL日志配置reload及SHOW | 通过：0/0/terse/panic，PostgreSQL容器未重建。 |
+| 线上无凭据HEAD/GET、显式证书TLS检查、HTTP空POST、TCP元数据 | 两域TLS1.3/证书与页面/私有缓存头通过；发布后HTTP API及HTTPS www API POST403、主域health200、HSTS主域一天，真实代理peer172.18.0.6。 |
+| 发布后生产app/auth健康与元数据 | healthy、RestartCount=0、OOMKilled=false；注册mode=smtp且已正式开放，其他服务镜像保留为true，staging未改。 |
+| 注册与匿名权限的生产最小失败关闭探针 | 缺邮箱400 invalid_registration_email；伪造emailVerified/role的合成注册400 invalid_registration_verification；foreignOrigin403；未登录devices/bookmarks401。 |
+| 生产只读Playwright注册面板1280/390 | 2/2通过：验证码/发码按钮、15–128提示与new-password正常，无溢出，console/page/HTTP错误0，API写请求0；未创建真实账号或检查最终邮件收件。 |
 | `git diff --check` | 通过；Windows LF/CRLF 提示不是空白错误。 |
-| 线上受限只读元数据 + SMTP 登录 | 配置/网络/版本/迁移/有效日志设置已核实，SMTP TLS/登录通过，邮件 0 封。 |
+| 服务器SMTP TLS/认证及候选库固定注册模板发信 | TLS/认证通过；仅给站长本人邮箱单发1封，SMTP接受，未验证收件箱/垃圾箱或延迟。 |
+| 学校两固定域名宿主DNS解析 | 只得到202.199.175.250与2001:da8:9007:1175::250；未使用真实账号、未证明HTTP回源安全。 |
 
 修复/重跑前真实失败：并行安装未完成造成 PGlite 模块缺失；首轮根测试在未构建 dist 和旧代理断言下失败；验证码浏览器测试需先打开登录面板；原生 PG 首选端口被 Windows 保留；完整浏览器 MFA 合成 key 格式错误及邮箱 label 歧义。修正安装顺序、测试合同/fixture、构建和空闲回环端口后取得上表结果。曾有临时组合启动/停止脚本被自动审批拒绝，未执行，改为 Playwright 管理自有测试服务完成验证；没有终止占用旧端口的无关用户进程。
 
 续修失败与修正：新增跨域307/308测试先复现重放边界失败，DNS测试在保护模块尚未实现时失败，修复后46项通过。真实角色测试先发现旧断言误认为只读备份不能读取新表、把新已验证账号当成未验证账号；按原备份职责增加读取/写入拒绝断言，并单独创建合成旧账号验证流程，不改生产授权。MSYS子进程迁移路径改为正斜杠后升级通过；固定限流测试摘要造成重复运行已耗尽，改为每次运行随机合成摘要并保留同次并发/重启持久性断言。早期本地PG重启遗漏55439端口造成连接拒绝，指定原独立回环端口后恢复，未连接或修改生产库。最初YAML检查缺yaml模块，使用现有js-yaml后23个shell块通过。最终检查如上，失败未被当作通过。
 
-**未运行/未验证**：本提交GitHub CI、CodeQL、Linux Docker镜像/裁剪、隔离staging/生产备份恢复/实际二进制回滚、生产Argon资源压力、真实邮件投递、微信内置浏览器/第三方回调、CDN/跨机回源/阿里云安全组/防火墙完整核查、真实学校TLS/授权、告警接收、历史生产日志/备份及历史学校challenge真实性。真实PostgreSQL角色ACL、本地合成备份恢复、公开HTTPS/证书/缓存与当前代理peer已验证，不再列为全未验证。已增加CI用例不等于CI已通过。
+**未运行/未验证**：修改既有staging、实际旧镜像回滚再前滚、持续生产负载及峰值内存、真实邮件收件箱/垃圾箱和延迟、微信内置浏览器/第三方回调、CDN/跨机回源/阿里云安全组/防火墙完整核查、真实学校账号/TLS/授权、报警接收、历史生产日志/备份敏感内容及学校challenge真实性。GitHub CI、CodeQL、Linux镜像/裁剪、真实PG角色ACL、生产备份隔离恢复、服务器128MiB短测、SMTP接受、当前代理peer及公开HTTPS/安全头已取得上表证据，不再列为全未验证。
 
 本地原生PG复跑：PGHOST=127.0.0.1、PGPORT=55439、POSTGRES_USER=dufesh_security_owner、合成库 `dufesh_production_security_test`；SECURITY_POSTGRES_TEST=true注册测试要求独立空库并自行应用0001–0028，已运行库须换符合名称限制的空库，不能覆盖。完整浏览器 `dufesh_production_ci` 先应用0001–0028，端口33137/33138/33139，配置只含合成凭据。续修真实角色库 `dufesh_continuation_acl_ci` 使用独立schema/migrator/runtime/import/backup角色、既有shell迁移入口及PostgreSQL17.10官方Windows客户端，备份恢复至全新 `dufesh_continuation_restore_ci`。角色测试实际用非owner请求，区别于前期owner浏览器fixture；不替代Linux镜像验证。临时客户端来源为 [PostgreSQL官方Windows二进制下载入口](https://www.postgresql.org/download/windows/)，未安装系统服务/WSL/Docker。专用PG已正常停止，测试端口释放；合成数据、dump与本地日志未提交，不包含生产数据。
 
-## 不能在当前边界内完成的事项（统一清单）
+## 尚未解决或需要后续验收的事项（统一清单）
 
 | 事项 | 当前证据/原因 | 完成条件 |
 | --- | --- | --- |
-| 学校HTTP回源，高风险R07 | 固定默认和允许协议已确认；没有真实教务账号/学校支持的安全端点兼容证据，改协议可能破坏导入 | 学校提供HTTPS/官方授权方案，受控账号逐步验证完整VPN/SSO/导入；不把RSA/AES或HTTP重定向当TLS |
-| 无上游补丁的braces链R10 | [官方公告](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)仍无补丁；raw生产6/full8，兼容补丁已全部修复可修项 | Linux运行镜像验证裁剪；2026-11-04前处理已有例外，未来兼容升级独立回归，不强制降级/换栈 |
-| GitHub CI/CodeQL/Linux镜像 | 仓库PUBLIC，本分支含仍未上线漏洞细节；本轮不提前公开推送。本机无Docker/可用WSL，23个run块静态通过 | 明确公开发布时机或提供私有CI渠道后跑完整提交；本地真实PG12项不冒称LinuxCI已通过 |
-| 生产修复生效与邮件投递 | 代码/0028/Caddy/PG日志尚未发布，运行容器仍旧；SMTP仅TLS认证通过、零邮件 | 按下方备份/迁移/协同发布/单封站长邮箱验收后启用注册。用户先前仅保存配置边界仍有效 |
-| 历史学校challenge与历史敏感数据 | Git历史发现一处疑似值；未确认其真实性，未读取生产用户日志/备份 | 不提供完整值；有来源证据后确认失效/轮换与影响范围，必要时另行事故处置，禁止无依据撤销全部会话 |
-| 上线环境验收 | 未核实安全组/防火墙/CDN/跨机回源、128MiB容器新依赖+Argon资源、真实微信回调和报警接收 | 运维与受控验证环境逐项确认；当前TLS证书/安全头/无公开auth/DB端口映射/真实peer结果保留 |
+| 学校HTTP回源，高风险R07 | 固定默认和允许协议已确认；宿主DNS均得到学校公网地址，但没有真实账号/学校HTTPS兼容证据，改协议可能破坏原导入 | 学校提供HTTPS/官方授权方案，受控账号逐步验证完整VPN/SSO/导入；不把RSA/AES或HTTP重定向当TLS |
+| 无上游补丁的braces链R10 | [官方公告](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)仍无补丁；依赖清单raw生产6/full8，Linux最终镜像裁剪及真实启动已通过 | 2026-11-04前处理已有有期限例外，未来兼容升级独立回归；不强制降级/换栈，也不因裁剪将清单告警称为零 |
+| 历史学校challenge与历史敏感数据 | 手动完整Git历史扫描一处学校challenge真实性未知，另一个API值已确认合成；CI secret-scan任务success。历史生产日志/备份的敏感内容未审查 | 保留两种扫描结果；不展示完整值，有来源证据后确认失效/轮换与影响，必要时另行事故处置，禁止无依据撤销全部会话 |
+| 真实邮箱接收 | 固定注册模板单封站长邮件已被SMTP接受；收件箱/垃圾箱/延迟未验证。生产代码/迁移及注册已正式开放，失败关闭与只读手机桌面检查通过 | 由站长自行核对该1封邮件；若需真实账号端到端验收，使用本人受控邮箱，不要求在聊天提供授权码或验证码，不向真实用户批量发信 |
+| 上线环境与外部登录验收 | 安全组/防火墙/CDN/跨机回源、真实微信回调、报警接收与持续负载尚未完整核实。128MiB短测成功但峰值内存不可读 | 后续受控核查这些外部条件；保留TLS/安全头/未公开auth与DB端口/真实peer的现有证据，不新增不必要基础设施 |
+| 小影额外改动与回滚演练 | 本轮保留小影现有镜像及staging；候选小影helper不代表已上线，实际旧镜像回滚再前滚未执行 | 需要时独立评估兼容并发布小影；回滚使用精确镜像/配置，先在Caddy关闭注册，不覆盖生产数据库 |
 
-## 人工配置、上线顺序与兼容迁移
+## 配置、实际发布顺序与兼容迁移
 
-当前没有需要在聊天提供的秘密。SMTP 授权码已经在服务器保存。AUTH_REGISTRATION_HMAC_KEY 应来自 CSPRNG（至少 32 随机字节编码），与 AUTH_TOKEN_PEPPER/管理员 MFA/小影密钥独立，0600 或密钥管理注入；如无法确认现有值生成来源，应在未开启新注册时于服务器单独生成，不变更现有 token pepper。SMTP 使用邮箱客户端授权码、465 隐式 TLS、证书校验开启，示例只留空占位符。
+当前没有需要在聊天提供的秘密。SMTP授权码已由用户在服务器配置并确认旧码轮换；新auth已载入，配置0600。独立 `AUTH_REGISTRATION_HMAC_KEY` 已核实长度至少32且不同于 `AUTH_TOKEN_PEPPER`，本轮保留现有值；生成熵来源未追溯，不据此认定已经泄漏。该密钥应由CSPRNG生成至少32随机字节编码，未来只在服务器密钥管理下单独轮换，不变更既有token pepper/管理员MFA/小影密钥。SMTP465隐式TLS与证书校验开启，配置模板只保留占位符。
 
-后续步骤按顺序，**涉及发布/重建/启用或数据库操作需用户单独明确授权，目前没有执行**：
+本次已按用户明确授权执行以下顺序；历史数据保留，未新增微服务或其他基础设施：
 
-1. 审阅本分支完整差异，运行 GitHub CI/Linux 镜像/角色 ACL 和 secret scan，处理剩余依赖例外到期。保留生产现场 `library.dufesh.cn`、额外 Docker 网络及图书馆网关内容，不能用仓库 Caddy/Compose 整文件覆盖现场。
-2. 在独立验证环境创建受限秘密，备份并演练恢复业务数据库/配置，记录当前镜像摘要与回滚配置。不得未经授权修改当前 staging。验证新镜像 128MiB 资源/Argon2 并发及代理 peer；保持新注册 disabled。
-3. 由既有 migration 入口应用追加 `0028` 并授予 auth runtime 权限、维持 importer 不可读新安全表；不得修改已应用 0021–0027 校验和。新表是追加式，历史用户/密码/邮箱状态/绑定/会话不改；不要把所有老邮箱设已验证，也不强制全员登出。老用户可继续原登录；补验证仅在未来明确过渡政策或敏感邮箱操作时要求。
-4. 按审阅方案共同发布 app/auth 与 Caddy 转发头/TLS 边界、PG 日志配置。重新创建 auth 才会载入新 env，单纯 restart 不保证 env_file 更新；观测真实 peer 并将 `/32` 同步到 auth 和需要的独立小影配置。服务端门禁和网关配置必须匹配，避免因不信任合法代理破坏登录。PG 有效日志设置需 SHOW 验证。
-5. 经授权只给站长自己的受控邮箱发送一封验证码，检查发件人、TLS、正文、延迟/垃圾箱；验证错误/过期/重发/重放/预算故障闭锁，不测试真实用户地址。配置固定事件告警与全局额度监控。
-6. 上述通过后再明确启用 `AUTH_REGISTRATION_MODE=smtp`。找回密码/改邮箱目前 mode=disabled，不能仅改配置就认为它们完成真实投递验收；启用应分别验证。没有 SMTP/HMAC 时禁止启用，不能回退旧无验证注册。
-7. 验证 https://dufesh.cn 与 www 规范跳转、HTTP API 拒绝（不能拿已有密码作 HTTP 探针）、Secure/HttpOnly/SameSite、CSP/frame-ancestors/nosniff、HSTS 1 天兼容、私有 no-store/CDN/SW、退出/重置失效、A/B 越权拒绝与普通用户管理员拒绝。使用受控新账号完成桌面/手机及需要的微信/第三方登录回归。
-8. 学校 HTTP 风险需单独解决/决策，核实允许域名、端口、重定向和实际解析 IP，不把邮箱注册上线视为学校链路已经安全。若最终确认真实凭据泄漏，另行制定学校密码更换/会话失效及事件调查，不能用当前代码修复宣告事故结束。
+1. 公开推送隔离生产基线候选并运行GitHub quality，5项实际任务全部通过；获取完整app/auth镜像，核对工件SHA、镜像ID与non-root。没有使用原旧工作树或现场重新构建。
+2. 备份生产数据库、在自建临时库完成隔离恢复并删除该临时库；保留原镜像与配置用于回滚。独立128MiB候选容器的双Argon2短测通过，可信代理仍为172.18.0.6/32。既有staging及其数据库不变。
+3. 给站长本人邮箱单发1封固定注册模板邮件，SMTP接受；收件箱/垃圾箱及延迟未验证。验收使用候选库，不向真实用户发信，也不输出验证码或授权码。
+4. 生产Caddy保留现场 `library.dufesh.cn`、staging片段、额外网络与图书馆配置，只加载必要的生产边界修改，注册先临时关闸。PostgreSQL日志配置reload并SHOW确认为0/0/terse/panic，数据库容器未重建。
+5. 既有migration runner应用追加0028，前27迁移校验和匹配。新表与约束是追加式，历史用户/密码/邮箱状态/绑定/会话不改；不把历史邮箱批量标成已验证，也不强制全员登出。旧账号继续原登录；补验证仅在未来明确过渡政策或敏感邮箱操作时要求。
+6. 仅替换app/auth完整镜像，新auth载入SMTP/HMAC及 `AUTH_REGISTRATION_MODE=smtp`，健康通过且RestartCount=0/OOMKilled=false。生产小影、PG、web容器未重建，其他服务镜像保留检查为true，staging未改。
+7. 最后检查主域health200、HTTP API与HTTPS www API空POST403、HSTS主域一天及HTTPS/私有no-store等，解除临时注册关闸、正式开放邮箱验证码注册，并记录release至current，时间UTC2026-10-11T15:22:02Z。缺邮箱/伪造verified或role/外部Origin以及未登录私有入口均被拒绝；生产只读手机390与桌面1280注册面板2/2通过，没有API写请求。完整CI覆盖合成多账号权限、会话、旧用户兼容及手机桌面关键链；真实微信/第三方回调、邮箱收件、外部CDN/安全组仍逐项标为未验证。找回密码/改邮箱维持原disabled，未凭注册邮件验收擅自启用其他流程。
 
-回滚：先关闭新注册与发信，保留追加安全表/历史记录；回滚 app/auth/gateway 到精确已记录版本及配置需整体核对，不恢复会开放无验证注册的旧入口。HMAC 轮换仅使待验证挑战失效，不撤销既有会话。数据库恢复属于高风险、可能丢失期间业务数据的独立操作，需单独授权并先验证备份；不删除用户或原始资料，不自动 down 掉生产栈。密钥疑似已泄漏须失效/轮换并审查历史访问，不仅删除文件。
+学校HTTP风险单独保留。宿主解析地址符合公网要求，但没有真实学校账号导入证据；不能把邮箱注册发布视为学校链路已安全。若后续确认真实凭据泄漏，另行制定学校密码更换/会话失效及调查，不用当前修复宣告事故结束。
+
+安全回滚必须先在 **Caddy关闭 `/api/auth/register` 与 `/api/auth/register/challenge` 写入口**，验证关闸生效后再回退旧app/auth精确镜像；只设 `AUTH_REGISTRATION_MODE=disabled` 无法保证不认识该变量的旧auth关闭注册。保留追加0028安全表/约束及历史记录，不运行旧迁移器，不覆盖生产数据库，不回退到会重开无验证注册的网关配置。整体核对来源头/可信peer与HTTPS保护，重复健康和拒绝测试。HMAC轮换仅使待验证挑战失效，不撤销既有会话。
+
+已准备具体回滚材料于 `/srv/apps/dufesh/shared/backups/security-20261011T151027Z/`：`snapshot.json` 记录原镜像摘要和真实绑定路径，`Caddyfile.rollback-registration-closed` 保留本次HTTPS/代理保护并关register及全部子路径，`docker-compose.rollback.yml` 精确退app/auth到9de3008而保留其他服务，`auth.env.rollback-disabled` 保留密钥并关闭新注册。目录0700，秘密配置0600。应用回滚步骤为：先核对当前仍是本次9a343d1并取得release.lock；把关闸Caddy内容写到snapshot记录的实际绑定文件（文件挂载用原inode写入），执行`docker exec dufesh-web-1 caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile`，空POST确认503；加载禁用注册的env，然后用回滚Compose运行`docker compose -p dufesh -f <回滚Compose绝对路径> up -d --no-build --no-deps --wait app auth-api`；只在健康后原子更新current指向9de3008并重新记录manifest，保留0028和日志设置。未实际执行旧镜像回滚再前滚；正式数据库restore属于独立高风险操作，不能拿隔离恢复命令直接覆盖原库。
+
+覆盖恢复生产数据库可能丢失发布后的业务数据，属于另需明确授权的高风险操作；本轮隔离恢复成功不授权执行覆盖恢复。不删除用户或原始资料，不 `down` 生产栈，不重写Git历史。疑似真实密钥确认泄漏后应失效/轮换并审查影响，不能只删除当前文件。
 
 以上修复降低已确认风险，不承诺绝对安全。本地通过的结果和未完成的线上验收分别记录。
