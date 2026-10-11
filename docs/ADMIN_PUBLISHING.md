@@ -46,7 +46,7 @@
 
 ## 部署与维护
 
-需要同步更新 app、auth-api、0029 数据库迁移、对应环境的网关和 Compose。新配置包括 `AUTH_CATALOG_UPLOAD_DIR=/srv/catalog-files` 与独立资料卷；app 的 `CATALOG_API_ORIGIN` 必须指向本环境明确配置的 HTTPS 域名。生产与 staging 的新资料卷、数据库及上游代理分别独立，不能覆盖现场额外的图书馆与网络配置。
+需要同步更新 app、auth-api、0032 数据库迁移、对应环境的网关和 Compose。新配置包括 `AUTH_CATALOG_UPLOAD_DIR=/srv/catalog-files` 与独立资料卷；app 的 `CATALOG_API_ORIGIN` 必须指向本环境明确配置的 HTTPS 域名。生产与 staging 的新资料卷、数据库及上游代理分别独立，不能覆盖现场额外的图书馆与网络配置。
 
 `/api/catalog/*` 与 `/resources/files/uploads/*` 由本网关转发到本环境 auth-api。旧静态资料路径保留。未配置目录时后台明确禁用文件上传，链接资料仍可操作；已配置公共目录 API 故障时不悄悄回退到旧目录。
 

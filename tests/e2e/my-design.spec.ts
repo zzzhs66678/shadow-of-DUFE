@@ -18,6 +18,33 @@ async function setup(page: Page) {
 async function axe(page: Page) {
   expect((await new AxeBuilder({ page }).analyze()).violations.filter(v => ["serious", "critical"].includes(v.impact || ""))).toEqual([]);
 }
+
+test("clearing signed-in local cache reloads cloud records without deleting them", async ({ page }) => {
+  const userId = "local-cache-fixture";
+  const cloud = { ...savedState({ assignments:[{id:"keep-cloud-task",title:"云端作业保留",courseId:"",notes:"",completed:false,dueDate:"2026-10-20"}] }), preferredTerm:"fall",theme:"system" };
+  const writes: Record<string,unknown>[] = [];
+  let reads = 0;
+  await page.route("**/api/**", async route => {
+    const req=route.request(), path=new URL(req.url()).pathname;
+    if(path==="/api/auth/session") return route.fulfill({json:{authenticated:true,user:{id:userId,username:"cache-user",displayName:"缓存测试",role:"user"},session:{expiresAt:"2099-01-01T00:00:00Z"},login:{credentialsAvailable:true}}});
+    if(path==="/api/auth/devices") return route.fulfill({json:{devices:[]}});
+    if(path==="/api/auth/sync"){
+      if(req.method()==="GET") reads++;
+      else writes.push(req.postDataJSON().state);
+      return route.fulfill({json:{revision:5,state:cloud,updatedAt:"2026-10-12T00:00:00Z"}});
+    }
+    return route.fulfill({json:{items:[],nextCursor:null}});
+  });
+  await page.goto("/?view=me");
+  await expect.poll(()=>page.evaluate(key=>JSON.parse(localStorage.getItem(key)||"{}").assignments?.[0]?.id,`dufesh:student-profile:v3:user:${userId}`)).toBe("keep-cloud-task");
+  page.on("dialog",dialog=>dialog.accept());
+  await page.getByRole("button",{name:"清除缓存并重新同步",exact:true}).click();
+  await expect.poll(()=>reads).toBeGreaterThanOrEqual(2);
+  await expect.poll(()=>page.evaluate(key=>JSON.parse(localStorage.getItem(key)||"{}").assignments?.[0]?.id,`dufesh:student-profile:v3:user:${userId}`)).toBe("keep-cloud-task");
+  // Cover the debounced cloud writer as well as the immediate reload.
+  await page.waitForTimeout(1800);
+  expect(writes.every(state=>Array.isArray(state.assignments)&&state.assignments.some(task=>task.id==="keep-cloud-task"))).toBe(true);
+});
 async function enter(page: Page) {
   const opener = page.getByRole("button", { name: "进入校园漫游", exact: true });
   await opener.click();

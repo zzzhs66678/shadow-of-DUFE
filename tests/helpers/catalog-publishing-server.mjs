@@ -263,7 +263,7 @@ try {
   }
   assert.ok(ready, `Built app did not become ready: ${appOutput}`);
   appReady = true;
-  console.log(`Catalog native fixture ready at ${origin}; PostgreSQL17+,29 migrations,actual runtime LOGIN; synthetic users only.`);
+  console.log(`Catalog native fixture ready at ${origin}; PostgreSQL17+,32 migrations,actual runtime LOGIN; synthetic users only.`);
   await new Promise(() => {});
 } catch (error) {
   console.error(error.message);

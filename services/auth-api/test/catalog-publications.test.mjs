@@ -40,7 +40,7 @@ async function fixture(t) {
   t.after(() => db.close());
   const directory = new URL('../../../ops/postgres/migrations/', import.meta.url);
   for (const file of (await readdir(directory)).filter(file => file.endsWith('.sql')).sort()) await db.exec(await readFile(new URL(file, directory), 'utf8'));
-  await db.exec(await readFile(new URL('0029_catalog_publications.sql', directory), 'utf8'));
+  await db.exec(await readFile(new URL('0032_catalog_publications.sql', directory), 'utf8'));
   const query = async (sql, values) => { const result = await db.query(sql, values); return { ...result, rowCount: result.rows.length || result.affectedRows || 0 }; };
   let tail = Promise.resolve();
   const pool = { query, async connect() { const previous = tail; let release; tail = new Promise(resolve => { release = resolve; }); await previous; return { query, release }; } };

@@ -4,6 +4,7 @@ import { once } from "node:events";
 import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 import { PGlite } from "@electric-sql/pglite";
+import pg from "pg";
 import { createAuthStore } from "../services/auth-api/src/db.mjs";
 import { createAuthServer } from "../services/auth-api/src/server.mjs";
 import { createWhiteboardStore } from "../services/auth-api/src/whiteboard-store.mjs";
@@ -13,6 +14,7 @@ import { createOpaqueToken, tokenDigest } from "../services/auth-api/src/tokens.
 import { encodeWhiteboardCursor, validateWhiteboardContent, validateWhiteboardMutation, whiteboardPageQuery, whiteboardTimestamp } from "../services/auth-api/src/whiteboard-contract.mjs";
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), "utf8");
+const nativeUrl = process.env.WHITEBOARD_NATIVE_DATABASE_URL;
 const origin = "https://whiteboard.test";
 const config = { tokenPepper: "synthetic-whiteboard-pepper-not-a-production-secret", allowedOrigins: new Set([origin]),
   sessionCookie: "__Host-board-session", adminCookie: "__Host-board-admin", deviceCookie: "__Host-board-device",
@@ -38,14 +40,33 @@ async function roleBlock(db, block) {
     const results = await db.exec(pieces[i]);
     if (i === pieces.length - 1) continue;
     for (const result of results) for (const row of result.rows) {
-      if (/^(?:GRANT|REVOKE) .+ ON DATABASE /u.test(row.format)) continue;
+      if (!nativeUrl && /^(?:GRANT|REVOKE) .+ ON DATABASE /u.test(row.format)) continue;
       await db.exec(row.format);
     }
   }
 }
 
 async function fixture(t) {
-  const db = new PGlite();
+  let db, nativeRuntime;
+  if (nativeUrl) {
+    const url = new URL(nativeUrl);
+    assert.ok(["127.0.0.1", "localhost", "[::1]"].includes(url.hostname));
+    assert.match(url.pathname, /^\/whiteboard_ci_[a-z0-9_]+$/u);
+    const control = new pg.Client({ connectionString: nativeUrl, connectionTimeoutMillis: 3000 });
+    await control.connect();
+    const database = "whiteboard_ci_" + randomUUID().replaceAll("-", "");
+    await control.query(`CREATE DATABASE ${database}`);
+    url.pathname = "/" + database;
+    const client = new pg.Client({ connectionString: url.href, query_timeout: 15000 });
+    await client.connect();
+    assert.ok(Number((await client.query("SHOW server_version_num")).rows[0].server_version_num) >= 170000);
+    db = { waitReady: Promise.resolve(),
+      async exec(sql) { const result = await client.query(sql); return Array.isArray(result) ? result : [result]; },
+      query: (sql, params) => client.query(sql, params),
+      async close() { await nativeRuntime?.end(); await client.end(); await control.query(`DROP DATABASE ${database}`); await control.end(); } };
+    nativeRuntime = new pg.Pool({ host: url.hostname, port: Number(url.port || 5432),
+      database, user: roles.runtime_user, password: roles.runtime_password, max: 3 });
+  } else db = new PGlite();
   let server, tail = Promise.resolve();
   t.after(async () => {
     if (server?.listening) { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
@@ -61,7 +82,7 @@ async function fixture(t) {
   assert.equal(new Set(names.map(name => name.slice(0, 4))).size, names.length);
   let before;
   for (const name of names) {
-    if (name === "0028_public_whiteboard.sql") {
+    if (name === "0031_public_whiteboard.sql") {
       await db.query("INSERT INTO app_users(display_name) VALUES ('PRIVATE_LEGACY_ACCOUNT')");
       before = (await db.query("SELECT * FROM app_users ORDER BY id")).rows;
     }
@@ -69,18 +90,25 @@ async function fixture(t) {
     await db.exec(sql);
     await db.query("INSERT INTO schema_migrations(version,checksum) VALUES ($1,$2)", [name, createHash("sha256").update(sql).digest("hex")]);
   }
-  assert.ok(before, "reserved migration 0028 must exist");
+  assert.ok(before, "additive migration 0031 must exist");
   assert.deepEqual((await db.query("SELECT * FROM app_users ORDER BY id")).rows, before, "migration preserves existing accounts");
   assert.equal((await db.query("SELECT count(*)::int AS n FROM whiteboard_entries")).rows[0].n, 0, "migration never publishes seed content");
   await db.exec("RESET ROLE");
   const grants = blocks.find(block => block.includes("CREATE ROLE %I LOGIN', :'runtime_user'"));
   await roleBlock(db, grants);
   await roleBlock(db, grants);
-  await db.exec("CREATE ROLE board_public NOLOGIN NOSUPERUSER NOBYPASSRLS");
+  await db.exec("DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='board_public') THEN CREATE ROLE board_public NOLOGIN NOSUPERUSER NOBYPASSRLS; END IF; END $$");
   async function lease(role) {
     const before = tail; let unlock;
     tail = new Promise(resolve => { unlock = resolve; });
     await before;
+    if (nativeRuntime && role === roles.runtime_user) {
+      try {
+        const client = await nativeRuntime.connect();
+        return { query: (sql, params) => client.query(sql, params),
+          release() { client.release(); unlock(); } };
+      } catch (error) { unlock(); throw error; }
+    }
     try { await db.exec(`SET ROLE ${role}`); } catch (error) { unlock(); throw error; }
     return {
       async query(sql, params) { const result = await db.query(sql, params); return { ...result, rowCount: result.rows.length || result.affectedRows || 0 }; },

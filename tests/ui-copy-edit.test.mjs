@@ -7,10 +7,14 @@ const hub = read("app/DufeHubV2.tsx");
 
 test("campus photos keep images and alt text without visible introductions or captions", () => {
   const album = hub.slice(hub.indexOf("function CampusAlmanac()"), hub.indexOf("function KnowledgeTribute()"));
-  assert.equal((album.match(/<img\b/gu) ?? []).length, 7);
-  assert.equal((album.match(/alt="[^"]+"/gu) ?? []).length, 7);
+  assert.match(album, /return <CampusAlbum \/>/u);
+  const gallery = read("app/CampusAlbum.tsx");
+  const photos = gallery.slice(gallery.indexOf("const photos = ["), gallery.indexOf("] as const"));
+  assert.equal((photos.match(/src: "\/images\//gu) ?? []).length, 26);
+  assert.equal((photos.match(/alt: "[^"]+"/gu) ?? []).length, 26);
   assert.doesNotMatch(album, /<figcaption|<p>|校园影集|另一张课表/u);
-  assert.match(album, /id="campus-almanac-title">校园相册/u);
+  assert.match(gallery, /campus-almanac-title/u);
+  assert.doesNotMatch(gallery, /<figcaption/u);
   assert.match(hub, /Apneet Jolly/u);
   assert.match(hub, /CC BY 2\.0/u);
 });

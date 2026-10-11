@@ -197,7 +197,7 @@ test("community list and topic routes render independent readable shells", async
   assert.equal((sortNavigation.match(/<button\b/g) ?? []).length, 2);
   assert.match(listHtml, /aria-label="最新发布的帖子"/);
   assert.match(listHtml, /正在加载帖子/);
-  assert.match(listHtml, /href="\/\?view=me"[^>]*>登录发帖<\/a>/);
+  assert.match(listHtml, /href="\/\?view=me&amp;wallReturn=%2Fcommunity[^"]*"[^>]*>登录发帖<\/a>/);
   assert.match(listHtml, /href="\/materials"/);
   assert.doesNotMatch(listHtml, /积分榜|用户等级/);
 

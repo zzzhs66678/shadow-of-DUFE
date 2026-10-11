@@ -1997,6 +1997,17 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           data={data}
           saved={saved}
           setSaved={setSaved}
+          onClearLocal={() => {
+            if (account.status === "authenticated" && account.user?.id) {
+              clearPersonalSyncMetadata(account.user.id);
+              removePersonalStorage(localStorage, userPersonalScope(account.user.id));
+              // Never put an empty state through the cloud write effect. A fresh
+              // bootstrap pulls the account's cloud state without a local base.
+              window.location.reload();
+              return;
+            }
+            setSaved(emptySavedState);
+          }}
           onSetup={openOnboarding}
           academicSnapshot={academicSnapshot}
           trainingPlan={saved.trainingPlan}
@@ -2449,8 +2460,9 @@ function HomePage({
     (item) => item.id === saved.profile?.majorId,
   );
   const [searchQuery, setSearchQuery] = useState("");
-  const hasTimetable = activeSchedules.some((item) => item.term === term) || Boolean(academicSnapshot?.sections.length);
+  const hasTimetable = activeSchedules.some((item) => item.term === term) || Boolean(academicSnapshot);
   const hasScheduledCourses = activeSchedules.some((item) => item.term === term);
+  const confirmedEmptyTimetable = academicSnapshot?.sections.length === 0;
   const today = weekdayNumber(new Date());
   const nowBlock = currentBlock();
   const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
@@ -2722,7 +2734,7 @@ function HomePage({
             <small>
               {primaryClass
                 ? data.periods[primaryClass.block - 1]?.short
-                : hasScheduledCourses ? "课后时间" : "时段待定"}
+                : hasScheduledCourses || confirmedEmptyTimetable ? "课后时间" : "时段待定"}
             </small>
           </header>
           <div>
@@ -2731,10 +2743,10 @@ function HomePage({
               <h2>
                 {primaryClass
                   ? primaryClass.title
-                  : hasScheduledCourses ? "今天没有后续课程" : "课程时段尚未安排"}
+                  : hasScheduledCourses || confirmedEmptyTimetable ? "今天没有后续课程" : "课程时段尚未安排"}
               </h2>
               {primaryClass && <p>{`${data.periods[primaryClass.block - 1]?.time} · ${primaryClass.building}${primaryClass.room}`}</p>}
-              {!primaryClass && <p>{!hasScheduledCourses ? "已导入课程尚未安排上课时段，可在课表中核对。" : "可以安排自习、记录作业，或查找空教室。"}</p>}
+              {!primaryClass && <p>{!hasScheduledCourses && !confirmedEmptyTimetable ? "已导入课程尚未安排上课时段，可在课表中核对。" : "可以安排自习、记录作业，或查找空教室。"}</p>}
               {primaryClass && (
                 <small>
                   {primaryClass.teacher || "教师未标注"} ·{" "}
@@ -6108,6 +6120,7 @@ function MePage({
   data,
   saved,
   setSaved,
+  onClearLocal,
   onSetup,
   academicSnapshot,
   trainingPlan,
@@ -6131,6 +6144,7 @@ function MePage({
   data: SiteData;
   saved: SavedState;
   setSaved: React.Dispatch<React.SetStateAction<SavedState>>;
+  onClearLocal: () => void;
   onSetup: () => void;
   academicSnapshot?: AcademicSnapshot;
   trainingPlan: AcademicTrainingPlan | null;
@@ -7464,15 +7478,18 @@ function MePage({
           <h2>本机数据由你控制</h2>
         </div>
         <p>
-          清除后，这台设备上的专业、课表、日程和作业会被移除；已登录账号的云端内容不受影响。
+          {account.status === "authenticated"
+            ? "清除这台设备的缓存后会重新读取云端内容，不删除云端课表。尚未同步的本机修改会丢失。"
+            : "清除后，这台设备上的专业、课表、日程和作业会被移除。"}
         </p>
         <button
           onClick={() => {
-            if (confirm("确认清除这台设备上的专业、课表、日程和作业吗？"))
-              setSaved(emptySavedState);
+            if (confirm(account.status === "authenticated"
+              ? "确认清除本机缓存并重新同步？云端内容不删除，尚未同步的本机修改会丢失。"
+              : "确认清除这台设备上的专业、课表、日程和作业吗？")) onClearLocal();
           }}
         >
-          清除本机数据
+          {account.status === "authenticated" ? "清除缓存并重新同步" : "清除本机数据"}
         </button>
       </section>
       {deleteOpen && (

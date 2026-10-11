@@ -63,6 +63,22 @@ jobs:
           done
           echo "Production gateway did not become ready" >&2
           exit 1
+      - name: Measure catalog publishing in the bounded Linux auth container
+        run: |
+          pg_id="$(docker run --detach --publish 127.0.0.1:54955:5432 \
+            --env POSTGRES_USER=catalog_fixture_owner --env POSTGRES_HOST_AUTH_METHOD=trust postgres:17-alpine)"
+          trap 'docker logs catalog-capacity-ci 2>/dev/null || true; docker rm --force catalog-capacity-ci "$pg_id" >/dev/null 2>&1 || true' EXIT
+          for attempt in $(seq 1 40); do
+            if docker exec "$pg_id" pg_isready -U catalog_fixture_owner; then break; fi
+            sleep 1
+          done
+          docker run --name catalog-capacity-ci --network host --memory 256m --cpus .5 \
+            --pids-limit 128 --read-only --tmpfs /tmp:size=32m,mode=1777 \
+            --security-opt no-new-privileges:true \
+            --volume "$GITHUB_WORKSPACE/ops/postgres:/ops/postgres:ro" \
+            --entrypoint node dufesh-auth-api:ci \
+            --max-old-space-size=64 --max-semi-space-size=4 scripts/catalog-native-store-load-check.mjs
+          test "$(docker inspect --format '{{.State.OOMKilled}}' catalog-capacity-ci)" = false
       - name: Start and smoke-test the isolated staging stack
         run: |
           docker tag dufesh-app:ci "dufesh-app:$GITHUB_SHA"
@@ -247,6 +263,10 @@ jobs:
         run: |
           PGPASSWORD="$POSTGRES_PASSWORD" createdb --host "$PGHOST" --port "$PGPORT" --username "$POSTGRES_USER" catalog_acl_ci_native
           CATALOG_NATIVE_DATABASE_URL="postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$PGHOST:$PGPORT/catalog_acl_ci_native" node --test tests/catalog-runtime-acl.test.mjs
+      - name: Verify whiteboard HTTP and runtime ACL on native PostgreSQL
+        run: |
+          PGPASSWORD="$POSTGRES_PASSWORD" createdb --host "$PGHOST" --port "$PGPORT" --username "$POSTGRES_USER" whiteboard_ci_native
+          WHITEBOARD_NATIVE_DATABASE_URL="postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$PGHOST:$PGPORT/whiteboard_ci_native" node --test tests/whiteboard.test.mjs
       - name: Install Chromium for authenticated browser checks
         run: npx playwright install --with-deps chromium
       - name: Run the PostgreSQL-backed browser critical path
@@ -371,6 +391,7 @@ jobs:
           node --test tests/hub-experience.test.mjs tests/material-search.test.mjs tests/material-bookmarks.test.mjs tests/data-feedback.test.mjs tests/auth-extensions-integration.test.mjs
           node --test tests/catalog-import.test.mjs tests/catalog-delivery.test.mjs tests/catalog-public-runtime.test.mjs tests/catalog-runtime-acl.test.mjs
           node --test tests/whiteboard.test.mjs
+          node --test tests/campus-gallery.test.mjs
           node --test tests/performance-budget.test.mjs
           node --test tests/infrastructure-contract.test.mjs
           node --test tests/environment-contract.test.mjs

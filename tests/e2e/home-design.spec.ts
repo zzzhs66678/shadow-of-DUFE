@@ -57,11 +57,12 @@ for (const configured of [false,true]) {
   test(`empty home distinguishes a profile from a confirmed empty timetable: ${configured}`,async({page})=>{
     await setup(page,savedState({profile:{majorId:"unknown",entranceYear:2026,className:"演示班级"},academicSnapshots:configured ? [snapshot({sections:[],exams:[]})] : []}),false);
     await page.goto("/?view=home");
-    await expect(page.locator(".now-card")).toContainText(configured ? "今天没有后续课程" : "把课表导进来吧");
+    await expect(page.getByRole("heading",{name:configured ? "今天没有后续课程" : "添加你的课表",exact:true})).toBeVisible();
     await expect(page.getByRole("region",{name:"最近考试",exact:true})).toHaveCount(0);
     await expect(page.getByRole("region",{name:"小白板",exact:true})).toHaveCount(0);
-    await page.locator(".now-card").getByRole("button",{name:configured ? "打开课表" : "设置本学期课程",exact:true}).click();
-    await expect(page.locator(configured ? ".schedule-page" : ".catalog-page-v2")).toBeVisible();
+    await page.getByRole("button",{name:configured ? "打开课表" : "按班级添加",exact:true}).click();
+    if (configured) await expect(page.locator(".schedule-page")).toBeVisible();
+    else await expect(page.getByRole("dialog",{name:"按班级添加课程",exact:true})).toBeVisible();
   });
 }
 

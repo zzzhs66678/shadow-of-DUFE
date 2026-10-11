@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { parseCookies } from "./cookies.mjs";
 import { isOpaqueToken, tokenDigest } from "./tokens.mjs";
 import { createSharedTokenBucket } from "./rate-limit.mjs";
+import { clientAddress } from "./request-security.mjs";
 import { isWhiteboardUuid, whiteboardPageQuery } from "./whiteboard-contract.mjs";
 
 function json(response, status, body) {
@@ -27,7 +28,6 @@ async function readBody(request) {
   }
   try { return JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch { return null; }
 }
-const address = request => String(request.headers["x-forwarded-for"] ?? "").split(",").map(x => x.trim()).filter(Boolean).at(-1) || request.socket.remoteAddress || "unknown";
 
 export function createWhiteboardRateLimiters(store) {
   const bucket = (scope, capacity, refillPerSecond) => createSharedTokenBucket({ store, scope, capacity, refillPerSecond });
@@ -54,7 +54,7 @@ export function createWhiteboardRequestHandler({ store, config, adminSecurity, r
         const page = whiteboardPageQuery(url.searchParams);
         if (!page) return json(response, 400, { error: "invalid_whiteboard" });
         rateLimiters ??= createWhiteboardRateLimiters(store);
-        if (!(await rateLimiters.publicRead.consume(tokenDigest(`whiteboard-ip:${address(request)}`, config.tokenPepper)))) {
+        if (!(await rateLimiters.publicRead.consume(tokenDigest(`whiteboard-ip:${clientAddress(request, config)}`, config.tokenPepper)))) {
           response.setHeader("Retry-After", "1"); return json(response, 429, { error: "whiteboard_rate_limited" });
         }
         // No session reader, cookies, user profile or MFA call on the public path.
@@ -75,7 +75,7 @@ export function createWhiteboardRequestHandler({ store, config, adminSecurity, r
       const elevation = cookies.get(config.adminCookie);
       const input = { userId: session.userId, sessionId: session.id,
         elevationTokenHash: isOpaqueToken(elevation) ? tokenDigest(elevation, config.tokenPepper) : null,
-        requestId: randomUUID(), ipHash: tokenDigest(`whiteboard-admin-ip:${address(request)}`, config.tokenPepper),
+        requestId: randomUUID(), ipHash: tokenDigest(`whiteboard-admin-ip:${clientAddress(request, config)}`, config.tokenPepper),
         userAgentHash: tokenDigest(`whiteboard-admin-ua:${String(request.headers["user-agent"] ?? "")}`, config.tokenPepper) };
       const access = await store.getAdminAccessState(input);
       if (!access?.elevated) return json(response, 403, { error: "admin_mfa_required" });

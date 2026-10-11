@@ -77,7 +77,7 @@ async function fixture(t) {
   await db.exec(`SET ROLE ${roles.schema_owner}`);
   await db.exec('CREATE TABLE schema_migrations(version text PRIMARY KEY, checksum text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now())');
   const names = (await readdir(new URL('../ops/postgres/migrations/', import.meta.url))).filter(name => /^\d{4}_.+\.sql$/u.test(name)).sort();
-  assert.ok(names.includes('0029_catalog_publications.sql'));
+  assert.ok(names.includes('0032_catalog_publications.sql'));
   for (const name of names) {
     const sql = await read(`ops/postgres/migrations/${name}`);
     await db.exec(sql);
