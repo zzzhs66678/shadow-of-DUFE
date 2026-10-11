@@ -25,7 +25,7 @@ async function previewAndPublish(page, kind) {
 
 test('real native publication reaches search, SSR details, file bytes and bookmarks while original personal data survives rollback', async ({ browser, request }, testInfo) => {
   const fixture = await checkReply(await request.get('/__catalog_fixture'));
-  expect(fixture.migrationCount).toBe(29);
+  expect(fixture.migrationCount).toBe(32);
   expect(fixture.runtimeRole).toMatch(/^catalog_browser_runtime_/);
   const adminContext = await browser.newContext({ baseURL: fixture.origin });
   const userContext = await browser.newContext({ baseURL: fixture.origin });

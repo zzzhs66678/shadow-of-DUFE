@@ -161,7 +161,7 @@ try {
   await migrator.query('CREATE TABLE schema_migrations(version text PRIMARY KEY,checksum text NOT NULL,applied_at timestamptz NOT NULL DEFAULT now())');
   const migrationDir = join(root, 'ops/postgres/migrations');
   const migrations = (await readdir(migrationDir)).filter(name => /^\d{4}_.+\.sql$/u.test(name)).sort();
-  assert.equal(migrations.length, 29);
+  assert.equal(migrations.length, 32);
   for (const name of migrations) {
     const sql = await readFile(join(migrationDir, name), 'utf8');
     await migrator.query('BEGIN');
