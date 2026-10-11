@@ -1996,7 +1996,6 @@ function HubApp({ data: initialData }: { data: SiteData }) {
         <MePage
           data={data}
           saved={saved}
-          setSaved={setSaved}
           onClearLocal={() => {
             if (account.status === "authenticated" && account.user?.id) {
               clearPersonalSyncMetadata(account.user.id);
@@ -6119,7 +6118,6 @@ function RoomsPage({
 function MePage({
   data,
   saved,
-  setSaved,
   onClearLocal,
   onSetup,
   academicSnapshot,
@@ -6143,7 +6141,6 @@ function MePage({
 }: {
   data: SiteData;
   saved: SavedState;
-  setSaved: React.Dispatch<React.SetStateAction<SavedState>>;
   onClearLocal: () => void;
   onSetup: () => void;
   academicSnapshot?: AcademicSnapshot;

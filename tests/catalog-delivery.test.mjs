@@ -7,8 +7,8 @@ import { reconcileCatalogTeacherOrigins } from "../services/auth-api/src/catalog
 test("API packaged baselines exactly match the public sources", async () => {
   for (const [kind, filename] of [["courses", "course-data.json"], ["materials", "resource-manifest.json"]]) {
     const compressed = await readFile(new URL(`../services/auth-api/catalog-baseline/${kind}.json.gz`, import.meta.url));
-    const source = await readFile(new URL(`../public/data/${filename}`, import.meta.url));
-    assert.deepEqual(gunzipSync(compressed), source);
+    const source = (await readFile(new URL(`../public/data/${filename}`, import.meta.url), "utf8")).replace(/\r\n/g, "\n");
+    assert.equal(gunzipSync(compressed).toString("utf8"), source);
   }
 });
 

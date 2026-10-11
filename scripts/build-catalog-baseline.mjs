@@ -6,6 +6,8 @@ import { gzipSync } from "node:zlib";
 const destination = new URL("../services/auth-api/catalog-baseline/", import.meta.url);
 await mkdir(destination, { recursive: true });
 for (const [kind, filename] of [["courses", "course-data.json"], ["materials", "resource-manifest.json"]]) {
-  const source = await readFile(new URL(`../public/data/${filename}`, import.meta.url));
+  // Git checks out JSON with LF in Linux. Canonicalize Windows working copies
+  // too, so the independently packaged API baseline has identical bytes.
+  const source = (await readFile(new URL(`../public/data/${filename}`, import.meta.url), "utf8")).replace(/\r\n/g, "\n");
   await writeFile(new URL(`${kind}.json.gz`, destination), gzipSync(source, { level: 9 }));
 }

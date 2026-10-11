@@ -451,6 +451,8 @@ test("users and an administrator complete the release browser path", async ({
     );
     await administrator.getByLabel("动态码或恢复码").fill(totp);
     await administrator.getByRole("button", { name: "进入后台" }).click();
+    await expect(administrator.getByRole("heading", { name: "课程与资料", exact: true })).toBeVisible();
+    await administrator.getByRole("navigation", { name: "管理功能" }).getByRole("button", { name: "用户", exact: true }).click();
     await expect(
       administrator.getByRole("heading", { name: "用户管理" }),
     ).toBeVisible();

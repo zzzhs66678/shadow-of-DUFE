@@ -8,7 +8,11 @@ for (const width of [320, 390, 1280]) {
     await page.setViewportSize({ width, height: 844 });
     await page.addInitScript(value => localStorage.setItem("dufesh:student-profile:v3:anonymous", JSON.stringify(value)), savedState());
     const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
-    await page.route("**/api/**", route => route.fulfill({ json: new URL(route.request().url()).pathname === "/api/auth/session" ? { authenticated: false } : { items: [], nextCursor: null } }));
+    await page.route("**/api/**", route => {
+      const path = new URL(route.request().url()).pathname;
+      if (path === "/api/catalog/current") return route.fulfill({ status: 404, json: { error: "not_found" } });
+      return route.fulfill({ json: path === "/api/auth/session" ? { authenticated: false } : { items: [], nextCursor: null } });
+    });
     for (const view of ["home", "schedule", "rooms", "catalog", "me"]) {
       await page.goto(`/?view=${view}`);
       const entry = page.locator("#wall-header-entry");
@@ -33,7 +37,10 @@ for (const width of [320, 390, 1280]) {
 }
 
 test("wall return address rejects external destinations and removes credentials", async ({ page }) => {
-  await page.route("**/api/**", route => route.fulfill({ json: { authenticated:false,items:[],nextCursor:null } }));
+  await page.route("**/api/**", route => {
+    if (new URL(route.request().url()).pathname === "/api/catalog/current") return route.fulfill({ status: 404, json: { error: "not_found" } });
+    return route.fulfill({ json: { authenticated:false,items:[],nextCursor:null } });
+  });
   await page.goto("/community?returnTo=https%3A%2F%2Fexample.com");
   await expect(page.getByRole("link", { name:"← 返回今日",exact:true })).toHaveAttribute("href","/?view=home");
   await page.goto("/community?returnTo="+encodeURIComponent("/?view=rooms&room-building=之远楼&room-floor=10&room-date=2026-10-11&password=secret&token=private"));
@@ -46,6 +53,7 @@ test("login returns to the wall composer and retains source and timeline", async
   const writes: string[] = [];
   await page.addInitScript(value => localStorage.setItem("dufesh:student-profile:v3:anonymous", JSON.stringify(value)), savedState());
   await page.route("**/api/**", route => {
+    if (new URL(route.request().url()).pathname === "/api/catalog/current") return route.fulfill({ status: 404, json: { error: "not_found" } });
     if (route.request().method() !== "GET") writes.push(route.request().method());
     const auth = { authenticated, user: authenticated ? { id:"20000000-0000-4000-8000-000000000001",username:"preview",displayName:"演示同学",avatarUrl:null } : undefined };
     return route.fulfill({ json: new URL(route.request().url()).pathname === "/api/auth/session" ? auth : { items:[],nextCursor:null,state:null,unread:0 } });

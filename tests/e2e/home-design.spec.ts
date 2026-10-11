@@ -14,6 +14,7 @@ async function setup(page: Page, state = savedState(), board = true) {
   await page.addInitScript(value => localStorage.setItem("dufesh:student-profile:v3:anonymous",JSON.stringify(value)), state);
   await page.route("**/api/**", route => {
     const request = route.request(), path = new URL(request.url()).pathname;
+    if (path === "/api/catalog/current") return route.fulfill({ status: 404, json: { error: "not_found" } });
     if (request.method() !== "GET") writes.push(`${request.method()} ${path}`);
     return route.fulfill({ json:path === "/api/auth/session" ? {authenticated:false} : {items:path === "/api/community/whiteboard" && board ? [whiteboardLecture] : [],nextCursor:null} });
   });

@@ -50,6 +50,7 @@ async function mockBoard(page: Page): Promise<BoardMock> {
     const path = url.pathname;
     const method = request.method();
     const json = (body: unknown, status = 200) => route.fulfill({ status, json: body, headers: { "Cache-Control": "no-store" } });
+    if (method === "GET" && path === "/api/catalog/current") return json({ error: "not_found" }, 404);
     if (method === "GET" && path === "/api/auth/session") return json({ authenticated: false });
     if (method === "GET" && path === "/api/teachers/by-schedule") return json({ items: [] });
     if (method === "GET" && path === "/api/community/whiteboard") {

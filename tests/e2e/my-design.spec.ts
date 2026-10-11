@@ -9,6 +9,7 @@ async function setup(page: Page) {
   await page.addInitScript(state => localStorage.setItem("dufesh:student-profile:v3:anonymous", JSON.stringify(state)), savedState());
   await page.route("**/api/**", route => {
     const path = new URL(route.request().url()).pathname;
+    if (path === "/api/catalog/current") return route.fulfill({ status: 404, json: { error: "not_found" } });
     if (route.request().method() !== "GET") writes.push(path);
     return route.fulfill({ json: path === "/api/auth/session" ? { authenticated: false, login: { credentialsAvailable: true } } : { items: [], nextCursor: null } });
   });
@@ -26,6 +27,7 @@ test("clearing signed-in local cache reloads cloud records without deleting them
   let reads = 0;
   await page.route("**/api/**", async route => {
     const req=route.request(), path=new URL(req.url()).pathname;
+    if (path === "/api/catalog/current") return route.fulfill({ status: 404, json: { error: "not_found" } });
     if(path==="/api/auth/session") return route.fulfill({json:{authenticated:true,user:{id:userId,username:"cache-user",displayName:"缓存测试",role:"user"},session:{expiresAt:"2099-01-01T00:00:00Z"},login:{credentialsAvailable:true}}});
     if(path==="/api/auth/devices") return route.fulfill({json:{devices:[]}});
     if(path==="/api/auth/sync"){

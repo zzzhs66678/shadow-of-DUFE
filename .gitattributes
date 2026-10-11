@@ -8,3 +8,4 @@ docker-compose.yml text eol=lf
 ops/postgres/*.conf text eol=lf
 ops/postgres/*.example text eol=lf
 ops/postgres/migrations/*.sql text eol=lf
+public/data/*.json text eol=lf
