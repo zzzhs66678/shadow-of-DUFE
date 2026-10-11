@@ -109,7 +109,7 @@ test("a refreshed name-change queue ignores a late pagination response", async (
     }
     await route.fulfill({ json: payload });
   });
-  await page.goto("/admin");
+  await page.goto("/admin#users");
   await expect(page.getByRole("heading", { name: "用户管理", exact: true })).toBeVisible();
   await page.locator("summary").filter({ hasText: /^改名申请$/ }).click();
   const desk = page.getByRole("region", { name: "改名申请", exact: true });
@@ -174,7 +174,7 @@ for (const width of [320, 390, 1280]) {
       if (path.endsWith("/audit")) payload = { events: reviews.filter(item => item.id !== entries[2].id).map((item, index) => ({ id: `name-audit-${index}`, action: item.body.decision === "approve" ? "admin.account_name.approved" : "admin.account_name.rejected", createdAt: now, metadata: {} })) };
       await route.fulfill({ json: payload });
     });
-    await page.goto("/admin");
+    await page.goto("/admin#users");
     await expect(page.getByRole("heading", { name: "用户管理", exact: true })).toBeVisible();
     expect(queueReads).toBe(0);
     await page.locator("summary").filter({ hasText: /^改名申请$/ }).click();
