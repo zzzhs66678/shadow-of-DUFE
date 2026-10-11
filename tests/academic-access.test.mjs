@@ -39,6 +39,28 @@ test("school credential flows have a bound, replace old flows and expire without
   await assert.rejects(connector.start(input), { code: "ACADEMIC_TRANSACTION_INVALID" });
 });
 
+test("login bodies cannot be replayed across school origins by 307/308 redirects", async () => {
+  const challenge = rsaChallengeXml();
+  for (const status of [307, 308]) {
+    let replayed = false;
+    let cancelled = false;
+    const connector = createAcademicConnector({ fetchImpl: async (url) => {
+      const parsed = new URL(url);
+      if (parsed.hostname !== "vpn.dufe.edu.cn") { replayed = true; return response(challenge); }
+      if (parsed.pathname === "/por/login_psw.csp") return new Response(new ReadableStream({
+        cancel() { cancelled = true; },
+      }), { status, headers: { location: "https://other.vpn.dufe.edu.cn/collect" } });
+      return response(challenge);
+    } });
+    try {
+      await assert.rejects(connector.start({ username: "20260001", password: "synthetic-school-password", principalKey: "device:redirect" }),
+        { code: "ACADEMIC_UNTRUSTED_REDIRECT" });
+      assert.equal(replayed, false);
+      assert.equal(cancelled, true);
+    } finally { connector.close(); }
+  }
+});
+
 const timetableHtml = `<!doctype html>
 <html><body>
   <nav>2026-2027学年第一学期 第5周</nav>

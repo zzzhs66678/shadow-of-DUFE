@@ -144,7 +144,8 @@ async function fixture(t) {
     try {
       await exec("sh", ["ops/postgres/run-migrations.sh"], {
         cwd: root, env: {
-          ...process.env, POSTGRES_DB: database, MIGRATIONS_DIR: fileURLToPath(migrations),
+          // MSYS sh needs forward slashes for native Windows fixture paths.
+          ...process.env, POSTGRES_DB: database, MIGRATIONS_DIR: fileURLToPath(migrations).replaceAll("\\", "/"),
           MIGRATION_DB_ROLE: roles.schema, MIGRATION_DB_USER: roles.migrator,
           AUTH_DB_USER: roles.runtime, IMPORT_DB_USER: roles.import, BACKUP_DB_USER: roles.backup,
         },

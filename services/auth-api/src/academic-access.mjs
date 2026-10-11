@@ -1,4 +1,5 @@
 import { AcademicCookieJar as CookieJar } from "./academic-cookie-jar.mjs";
+import { createAcademicTransport } from "./academic-transport.mjs";
 import {
   constants,
   createCipheriv,
@@ -319,6 +320,9 @@ async function requestWithCookies({
       return { response, finalUrl: current };
     }
     const location = response.headers.get("location");
+    // Redirect responses are never rendered. Release their streams before the
+    // next hop so the bounded connection pool cannot be exhausted by bodies.
+    await response.body?.cancel().catch(() => {});
     if (!location) throw academicError("ACADEMIC_PROTOCOL_CHANGED");
     let next;
     try {
@@ -332,7 +336,11 @@ async function requestWithCookies({
         redirect + 1,
       );
     }
-    if (!isTrustedTarget(next)) {
+    const dropsBody = response.status === 303 ||
+      ((response.status === 301 || response.status === 302) && currentMethod === "POST");
+    // Never replay a login body at a different origin, including another mapped
+    // school host. Normal CAS POST -> 302 -> GET remains supported.
+    if (!isTrustedTarget(next) || (!dropsBody && currentBody != null && next.origin !== current.origin)) {
       throw redirectError(
         "ACADEMIC_UNTRUSTED_REDIRECT",
         current,
@@ -342,7 +350,7 @@ async function requestWithCookies({
       );
     }
     current = next;
-    if (response.status === 303 || ((response.status === 301 || response.status === 302) && currentMethod === "POST")) {
+    if (dropsBody) {
       currentMethod = "GET";
       currentBody = undefined;
     }
@@ -2470,7 +2478,7 @@ function smsSendError(result) {
 }
 
 export function createAcademicConnector({
-  fetchImpl = fetch,
+  fetchImpl,
   vpnOrigin = DEFAULT_VPN_ORIGIN,
   academicOrigin = DEFAULT_ACADEMIC_ORIGIN,
   now = () => Date.now(),
@@ -2484,6 +2492,8 @@ export function createAcademicConnector({
   const vpn = new URL(vpnOrigin);
   const academic = new URL(academicOrigin);
   const isTrustedTarget = createTrustedTargetPolicy(vpn, academic);
+  const transport = fetchImpl ? null : createAcademicTransport();
+  const fetchRequest = fetchImpl ?? transport.fetch;
   const transactions = new Map();
 
   function destroyTransaction(id) {
@@ -2537,7 +2547,7 @@ export function createAcademicConnector({
 
   async function request(jar, url, options = {}) {
     return requestWithCookies({
-      fetchImpl,
+      fetchImpl: fetchRequest,
       jar,
       url,
       isTrustedTarget,
@@ -3254,6 +3264,7 @@ export function createAcademicConnector({
       closed = true;
       clearInterval(cleanupTimer);
       for (const id of transactions.keys()) destroyTransaction(id);
+      transport?.close();
     },
 
     pendingCount() {

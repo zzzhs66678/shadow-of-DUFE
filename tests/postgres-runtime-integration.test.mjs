@@ -19,6 +19,7 @@ import { createPasswordService } from "../services/auth-api/src/passwords.mjs";
 import { createWechatProvider } from "../services/auth-api/src/providers/mock-wechat.mjs";
 import { createApiRateLimiters } from "../services/auth-api/src/rate-limit.mjs";
 import { createAuthServer } from "../services/auth-api/src/server.mjs";
+import { createOpaqueToken, tokenDigest } from "../services/auth-api/src/tokens.mjs";
 import {
   applyPrivateBundle,
   rollbackImportBatch,
@@ -231,8 +232,10 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
     process.env.MIGRATION_DB_USER,
     process.env.MIGRATION_DB_PASSWORD,
   );
-  const digestA = Buffer.alloc(32, 0x41);
-  const digestB = Buffer.alloc(32, 0x42);
+  // Each run gets fresh synthetic limiter identities; persistence is asserted
+  // within this run without depending on a previously empty shared fixture DB.
+  const digestA = createHash("sha256").update(randomUUID()).digest();
+  const digestB = createHash("sha256").update(randomUUID()).digest();
 
   try {
     const version = await owner.query("SHOW server_version_num");
@@ -535,8 +538,15 @@ test("PostgreSQL 17 migrations and role boundaries hold under runtime traffic", 
       ["teachers", "SELECT", true],
       ["course_schedule_teachers", "SELECT", true],
       ["app_users", "INSERT", false],
-      ["registration_challenges", "SELECT", false],
-      ["security_mail_sends", "SELECT", false],
+      // The existing read-only backup role must include all added tables so a
+      // restore is complete. These hold HMAC proofs, never plaintext codes.
+      ["registration_challenges", "SELECT", true],
+      ["security_mail_sends", "SELECT", true],
+      ["registration_email_attempts", "SELECT", true],
+      ["registration_challenges", "INSERT", false],
+      ["registration_challenges", "UPDATE", false],
+      ["security_mail_sends", "DELETE", false],
+      ["registration_email_attempts", "TRUNCATE", false],
       ["app_users", "UPDATE", false],
       ["app_users", "DELETE", false],
       ["app_users", "TRUNCATE", false],
@@ -1061,11 +1071,27 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
     assert.equal(ownerSessionBody.authenticated, true);
     assert.equal(ownerSessionBody.user.id, owner.body.user.id);
 
+    assert.equal(ownerSessionBody.user.emailVerified, true);
+    const alreadyVerified = await fetch(`${baseUrl}/api/auth/email/verification/request`, {
+      method: "POST", headers: { Origin: "https://dufesh.cn", Cookie: owner.cookie },
+    });
+    assert.equal(alreadyVerified.status, 200);
+    assert.deepEqual(await alreadyVerified.json(), { ok: true, alreadyVerified: true });
+
+    // Seed a genuine legacy unverified fixture instead of downgrading a newly
+    // verified registration. Old users still use the independent confirmation.
+    const legacyUserId = randomUUID();
+    const legacyToken = createOpaqueToken();
+    const legacyCookie = `${config.sessionCookie}=${legacyToken}`;
+    await fixtureOwner.query(`INSERT INTO app_users(id,display_name,email,normalized_email,registered_via)
+      VALUES($1,'合成旧账号',$2,$2,'credential')`, [legacyUserId, `ci-legacy-${suffix}@example.com`]);
+    await fixtureOwner.query(`INSERT INTO user_sessions(id,user_id,token_hash,expires_at)
+      VALUES($1,$2,$3,now()+interval '1 hour')`, [randomUUID(), legacyUserId, tokenDigest(legacyToken, config.tokenPepper)]);
     const verificationRequest = await fetch(
       `${baseUrl}/api/auth/email/verification/request`,
       {
         method: "POST",
-        headers: { Origin: "https://dufesh.cn", Cookie: owner.cookie },
+        headers: { Origin: "https://dufesh.cn", Cookie: legacyCookie },
       },
     );
     const verificationRequestBody = await verificationRequest.json();
@@ -1075,7 +1101,7 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
       Array.from({ length: 2 }, () =>
         fetch(`${baseUrl}/api/auth/email/verification/confirm`, {
           method: "POST",
-          headers: { ...requestHeaders, Cookie: owner.cookie },
+          headers: { ...requestHeaders, Cookie: legacyCookie },
           body: JSON.stringify({ token: verificationRequestBody.debugToken }),
         })
       ),
@@ -1085,7 +1111,7 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
       [200, 400],
     );
     const verifiedSession = await fetch(`${baseUrl}/api/auth/session`, {
-      headers: { Cookie: owner.cookie },
+      headers: { Cookie: legacyCookie },
     });
     assert.equal((await verifiedSession.json()).user.emailVerified, true);
 
