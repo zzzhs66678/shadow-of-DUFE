@@ -17,10 +17,8 @@ for (const width of [390, 1280]) {
         contentType: "application/json", body: JSON.stringify(body) });
     });
     await page.goto("/?view=me");
-    const onboarding = page.getByRole("dialog", { name: "建立个人档案" });
-    await expect(onboarding).toBeVisible();
-    await onboarding.getByRole("button", { name: "暂时跳过" }).click();
-    await expect(onboarding).toBeHidden();
+    await expect(page.locator(".me-page")).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "按班级添加课程" })).toHaveCount(0);
     await page.getByRole("button", { name: "登录", exact: true }).click();
     await page.getByRole("button", { name: "创建账号", exact: true }).click();
     const form = page.locator(".credential-gateway form");

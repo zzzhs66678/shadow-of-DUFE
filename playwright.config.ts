@@ -33,7 +33,7 @@ export default defineConfig({
   },
   webServer: {
     command: webServerCommand,
-    url: "http://localhost:3000",
+    url: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     stdout: "pipe",
@@ -42,6 +42,7 @@ export default defineConfig({
   projects: [
     { name: "published-catalog", testMatch: /published-catalog\.spec\.ts/, use: { viewport: { width: 1280, height: 900 }, timezoneId: "Asia/Shanghai" } },
     { name: "catalog-admin", testMatch: /catalog-admin\.spec\.ts/ },
+    { name: "new-user", testMatch: /new-user\.spec\.ts/, use: { viewport: { width: 390, height: 844 }, timezoneId: "Asia/Shanghai" } },
     { name: "registration-security", testMatch: /registration-security\.spec\.ts/ },
     { name: "recovery-security", testMatch: /recovery-security\.spec\.ts/ },
     { name: "account-name-security", testMatch: /account-name-security\.spec\.ts/ },

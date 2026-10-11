@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import {
   lazy,
   Suspense,
@@ -58,6 +60,7 @@ import { useCourseWorkspace } from "./use-course-workspace";
 import { scoreCourseSearch } from "./course-search";
 import { discoveryKeys, localHref, pushDiscovery, readDiscovery, restoreDiscoveryPosition, roomContextUrl } from "./discovery-navigation";
 import homeStyles from "./home-workspace.module.css";
+import classSetupStyles from "./class-setup.module.css";
 import meStyles from "./my-page.module.css";
 import { CompetitionsGateway } from "./competitions/CompetitionsGateway";
 import roomFilterStyles from "./room-time-filter.module.css";
@@ -1139,6 +1142,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
       setCalendarSession((current) => current?.owner === personalOwner ? current : null);
       setAcademicUpdates((current) => current?.owner === personalOwner ? current : null);
       setAcademicImportOwner((current) => current === personalOwner ? current : "");
+      setOnboarding(false);
     });
   }, [personalOwner]);
 
@@ -1345,7 +1349,6 @@ function HubApp({ data: initialData }: { data: SiteData }) {
       setSaved(restored);
       savedRef.current = restored;
       setHydrated(true);
-      if (!restored.profile && !restored.skipped) setOnboarding(true);
     });
   }, []);
 
@@ -1433,11 +1436,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
         setPersonalScope(userScope);
         setSaved(localAccountState);
         savedRef.current = localAccountState;
-        setOnboarding(
-          !localAccountState.profile &&
-            !localAccountState.skipped &&
-            !canImportAnonymous,
-        );
+        setOnboarding(false);
         setAnonymousImportAvailable(canImportAnonymous);
         setCloudUserId(userId);
         setCloudSyncStatus("syncing");
@@ -1607,6 +1606,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
     function handleShortcut(event: KeyboardEvent) {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
+        if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
         setCommandOpen(true);
       }
       if (event.key === "Escape" && !event.defaultPrevented) {
@@ -1813,8 +1813,9 @@ function HubApp({ data: initialData }: { data: SiteData }) {
     addSchedules([id]);
   }
 
-  function openSearch(kind: SearchKind = "all") {
+  function openSearch(kind: SearchKind = "all", searchQuery?: string) {
     setSearchKind(kind);
+    if (searchQuery !== undefined) setQuery(searchQuery.trim());
     setCommandOpen(true);
   }
 
@@ -1946,6 +1947,8 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           upcomingExams={upcomingExams}
           onGo={go}
           onSearch={openSearch}
+          onSetup={openOnboarding}
+          personalReady={hydrated}
           onEditCalendar={setCalendarEditor}
           onToggleAssignment={(id) =>
             setSaved((state) => ({
@@ -2107,7 +2110,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
             setPersonalScope(anonymousPersonalScope);
             setSaved(anonymousState);
             savedRef.current = anonymousState;
-            setOnboarding(!anonymousState.profile && !anonymousState.skipped);
+            setOnboarding(false);
             setAnonymousImportAvailable(false);
             setCloudUserId("");
             setCloudSyncReady(false);
@@ -2175,7 +2178,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
             setPersonalScope(anonymousPersonalScope);
             setSaved(anonymousState);
             savedRef.current = anonymousState;
-            setOnboarding(!anonymousState.profile && !anonymousState.skipped);
+            setOnboarding(false);
             setAnonymousImportAvailable(false);
             setCloudUserId("");
             setCloudSyncReady(false);
@@ -2205,13 +2208,13 @@ function HubApp({ data: initialData }: { data: SiteData }) {
             const mergedSaved = fromPersonalSyncState(merged);
             setSaved(mergedSaved);
             savedRef.current = mergedSaved;
-            setOnboarding(!mergedSaved.profile && !mergedSaved.skipped);
+            setOnboarding(false);
             removePersonalStorage(localStorage, anonymousPersonalScope);
             setAnonymousImportAvailable(false);
           }}
           onKeepAnonymousDataSeparate={() => {
             setAnonymousImportAvailable(false);
-            setOnboarding(!savedRef.current.profile && !savedRef.current.skipped);
+            setOnboarding(false);
           }}
           onResolveSyncConflict={(choice) => {
             if (!cloudUserId) return;
@@ -2295,6 +2298,9 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           kind={searchKind}
           setKind={setSearchKind}
           items={searchItems}
+          loading={fullDataStatus === "idle" || fullDataStatus === "loading" || materialsStatus === "idle" || materialsStatus === "loading"}
+          unavailable={fullDataStatus === "error" || materialsStatus === "error"}
+          onRetry={() => { void loadFullData(); void loadMaterials(); }}
           onSelect={selectSearchItem}
           onClose={() => setCommandOpen(false)}
         />
@@ -2378,64 +2384,29 @@ function HubApp({ data: initialData }: { data: SiteData }) {
         </div>
       )}
       {onboarding && fullDataStatus !== "ready" && (
-        <div className="modal-backdrop onboarding-backdrop">
-          <section
-            className="onboarding"
-            role="dialog"
-            aria-modal="true"
-            aria-label="准备课表设置"
-          >
-            <header>
-              <Wordmark />
-              <button
-                onClick={() => {
-                  setSaved((state) => ({ ...state, skipped: true }));
-                  setOnboarding(false);
-                }}
-              >
-                暂时跳过
-              </button>
-            </header>
-            <div className="onboarding-copy">
-              <p>课表设置</p>
-              <h2>
-                {fullDataStatus === "error"
-                  ? "完整课程数据没有加载成功"
-                  : "正在准备班级与教学班数据"}
-              </h2>
-              <span>
-                {fullDataStatus === "error"
-                  ? "检查网络后重试，也可以先跳过，稍后从“我的”继续设置。"
-                  : "今天页面已经可用，课程数据正在加载。"}
-              </span>
-            </div>
-            <button
-              type="button"
-              className="finish-button onboarding-academic-import"
-              onClick={() => {
-                setOnboarding(false);
-                go("catalog");
-              }}
-            >
-              打开课程中心
-            </button>
-            {fullDataStatus === "error" && (
-              <button onClick={() => void loadFullData()}>重新加载课程数据</button>
-            )}
-          </section>
-        </div>
+        <ClassSetupFrame onClose={() => setOnboarding(false)}>
+          <div className={classSetupStyles.preview} role={fullDataStatus === "error" ? "alert" : "status"}>
+            <strong>{fullDataStatus === "error" ? "班级课程暂时没能加载" : "正在读取班级课程…"}</strong>
+            <p>{fullDataStatus === "error" ? "可以重试，或关闭后继续查资料、找空教室。" : "准备好后即可选择具体班级。你也可以随时关闭。"}</p>
+          </div>
+          {fullDataStatus === "error" && <div className={classSetupStyles.actions}>
+            <button onClick={() => void loadFullData()}>重新加载</button>
+            <button onClick={() => setOnboarding(false)}>先关闭</button>
+          </div>}
+        </ClassSetupFrame>
       )}
       {onboarding && fullDataStatus === "ready" && (
         <Onboarding
+          key={personalOwner}
           data={data}
           term={term}
           initial={saved.profile}
+          storageHint={account.status === "authenticated" ? "账号同步状态可在“我的”查看。" : "保存在当前浏览器，可随时在“我的”调整。"}
           onOpenCourses={() => {
             setOnboarding(false);
             go("catalog");
           }}
           onSkip={() => {
-            setSaved((state) => ({ ...state, skipped: true }));
             setOnboarding(false);
           }}
           onSave={(profile, scheduleIds) => {
@@ -2459,6 +2430,8 @@ function HubApp({ data: initialData }: { data: SiteData }) {
             setCollege(profile.college);
             setMajorId(profile.majorId);
             setOnboarding(false);
+            setAddFeedback(scheduleIds.length ? `${profile.className} 的课程已添加，可在课表中调整。` : "专业设置已保存，可继续手动选课。");
+            window.setTimeout(() => setAddFeedback(""), 4500);
           }}
         />
       )}
@@ -2522,6 +2495,8 @@ function HomePage({
   upcomingExams,
   onGo,
   onSearch,
+  onSetup,
+  personalReady,
   onEditCalendar,
   onToggleAssignment,
   onDeleteCalendar,
@@ -2535,7 +2510,9 @@ function HomePage({
   academicSnapshot?: AcademicSnapshot;
   upcomingExams: ReturnType<typeof upcomingAcademicExams>;
   onGo: (view: View) => void;
-  onSearch: (kind?: SearchKind) => void;
+  onSearch: (kind?: SearchKind, query?: string) => void;
+  onSetup: () => void;
+  personalReady: boolean;
   onEditCalendar: (request: CalendarEditorRequest) => void;
   onToggleAssignment: (id: string) => void;
   onDeleteCalendar: (
@@ -2546,14 +2523,16 @@ function HomePage({
   const profileMajor = data.majors.find(
     (item) => item.id === saved.profile?.majorId,
   );
-  const hasTimetable = Boolean(saved.profile) || activeSchedules.length > 0;
+  const [searchQuery, setSearchQuery] = useState("");
+  const hasTimetable = activeSchedules.some((item) => item.term === term) || Boolean(academicSnapshot?.sections.length);
+  const hasScheduledCourses = activeSchedules.some((item) => item.term === term);
   const today = weekdayNumber(new Date());
   const nowBlock = currentBlock();
   const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
   const todayCourses = activeSchedules
     .filter(
       (item) =>
-        item.weekday === today &&
+        item.term === term && item.weekday === today &&
         week.state === "active" &&
         scheduleOccursInWeek(item, week.week),
     )
@@ -2677,7 +2656,7 @@ function HomePage({
     .slice(0, 3);
 
   return (
-    <div className={`page-wrap today-page focus-page focus-page-v5 ${homeStyles.workspace}`}>
+    <div className={`page-wrap today-page focus-page focus-page-v5 ${homeStyles.workspace}`} data-has-timetable={hasTimetable}>
       <header className="focus-head focus-head-v5">
         <div>
           <span>{dateText}</span>
@@ -2702,24 +2681,28 @@ function HomePage({
         <CampusTimeMark />
       </header>
 
-      <nav className="campus-pins" aria-label="东财常用服务">
-        <span>校园直达</span>
-        <a href={campusLinks.library} target="_blank" rel="noreferrer">
-          <i>座</i>
-          我去图书馆
-          <em>↗</em>
-        </a>
-        <a href={campusLinks.campusCard} target="_blank" rel="noreferrer">
-          <i>码</i>
-          校园码
-          <em>↗</em>
-        </a>
-        <a href={campusLinks.ginkgo} target="_blank" rel="noreferrer">
-          <i>果</i>
-          白果云
-          <em>↗</em>
-        </a>
-      </nav>
+      <section className={homeStyles.discovery} aria-label="课程、教师与资料检索">
+        <div className={homeStyles.discoveryIntro}>
+          <p>{hasTimetable ? "课程、教师和资料，随时查。" : "查课程、看教师评价，找资料和空教室。"}</p>
+          <button onClick={() => onGo("rooms")}><UiIcon name="rooms" />找空教室 <span aria-hidden="true">→</span></button>
+        </div>
+        <form className={homeStyles.search} role="search" onSubmit={(event) => {
+          event.preventDefault();
+          onSearch("all", searchQuery);
+        }}>
+          <span aria-hidden="true"><UiIcon name="search" /></span>
+          <input aria-label="搜索课程、教师和资料" name="home-search" autoComplete="off"
+            value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="搜课程、教师、资料…" />
+          <button type="submit">搜索</button>
+        </form>
+        <div className={homeStyles.browse}>
+          <span>也可以浏览</span>
+          <button onClick={() => onGo("catalog")}>全校课程</button>
+          <Link href="/teachers">教师评价</Link>
+          <Link href="/materials">课程资料</Link>
+        </div>
+      </section>
 
       {academicSnapshot?.examStatus && (
         <section className={academicStyles.meExamSummary} aria-label="考试安排未同步">
@@ -2794,26 +2777,37 @@ function HomePage({
       )}
 
       <section className="today-command-deck" aria-label="今日关键信息" data-has-agenda={nextThree.length > 0}>
-        <article className="now-card">
+        {!personalReady ? <article className={homeStyles.setupCard} aria-live="polite"><h2>正在读取你的课表…</h2></article> : !hasTimetable ? (
+          <article className={homeStyles.setupCard}>
+            <div>
+              <span className={homeStyles.setupMark} aria-hidden="true"><UiIcon name="schedule" /></span>
+              <div><h2>添加你的课表</h2><p>按班级带入课程，或自己选择教学班。</p></div>
+            </div>
+            <div className={homeStyles.setupActions}>
+              <button onClick={onSetup}>按班级添加 <span aria-hidden="true">→</span></button>
+              <button onClick={() => onGo("schedule")}>手动选课</button>
+            </div>
+            <small>不登录也能使用；班级课程可按个人选课调整。</small>
+          </article>
+        ) : <article className="now-card">
           <header>
             <span>{primaryClass ? "接下来" : "此刻"}</span>
             <small>
               {primaryClass
                 ? data.periods[primaryClass.block - 1]?.short
-                : hasTimetable ? "课后时间" : "尚未导入"}
+                : hasScheduledCourses ? "课后时间" : "时段待定"}
             </small>
           </header>
           <div>
-            <i>{primaryClass ? courseMark(primaryClass.title) : "空"}</i>
+            <i aria-hidden="true">{primaryClass ? courseMark(primaryClass.title) : "课"}</i>
             <span>
               <h2>
                 {primaryClass
                   ? primaryClass.title
-                  : hasTimetable
-                    ? "今天没有后续课程"
-                    : "把课表导进来吧"}
+                  : hasScheduledCourses ? "今天没有后续课程" : "课程时段尚未安排"}
               </h2>
               {primaryClass && <p>{`${data.periods[primaryClass.block - 1]?.time} · ${primaryClass.building}${primaryClass.room}`}</p>}
+              {!primaryClass && <p>{!hasScheduledCourses ? "已导入课程尚未安排上课时段，可在课表中核对。" : "可以安排自习、记录作业，或查找空教室。"}</p>}
               {primaryClass && (
                 <small>
                   {primaryClass.teacher || "教师未标注"} ·{" "}
@@ -2823,10 +2817,10 @@ function HomePage({
             </span>
           </div>
           <footer>
-            <button onClick={() => onGo(hasTimetable ? "schedule" : "catalog")}>{hasTimetable ? "打开课表" : "设置本学期课程"}</button>
-            <button onClick={() => onGo("rooms")}>找空教室</button>
+            <button onClick={() => onGo("schedule")}>打开课表</button>
+            <button onClick={() => onEditCalendar({ kind: "activity" })}>添加日程</button>
           </footer>
-        </article>
+        </article>}
 
         {nextAssignment && <div className="today-side-stack">
           {nextAssignment && (
@@ -2888,7 +2882,7 @@ function HomePage({
         </article>}
       </section>
 
-      <section className="focus-timeline unified-agenda">
+      {todayAgenda.length > 0 && <section className="focus-timeline unified-agenda">
         <header>
           <div>
             <span>今天</span>
@@ -2951,9 +2945,9 @@ function HomePage({
             </div>
           )}
         </div>
-      </section>
+      </section>}
 
-      <section className="week-ahead">
+      {upcomingAgenda.length > 0 && <section className="week-ahead">
         <header>
           <div>
             <span>接下来七天</span>
@@ -2992,26 +2986,19 @@ function HomePage({
             <p>接下来七天还没有安排。</p>
           )}
         </div>
-      </section>
+      </section>}
 
-      <section className="study-management">
-        <header>
-          <h2>课表与日程</h2>
-        </header>
-        <div>
-          <button onClick={() => onGo("schedule")}>
-            <i>表</i>
-            <b>编辑我的课表</b>
-          </button>
-          <button onClick={() => onEditCalendar({ kind: "activity" })}>
-            <i>程</i>
-            <b>添加个人日程</b>
-          </button>
-          <button onClick={() => onEditCalendar({ kind: "assignment" })}>
-            <i>交</i>
-            <b>添加课程作业</b>
-          </button>
-        </div>
+      <nav className="campus-pins" aria-label="东财常用服务">
+        <span>校园直达</span>
+        <a href={campusLinks.library} target="_blank" rel="noreferrer">我去图书馆 <em>↗</em></a>
+        <a href={campusLinks.campusCard} target="_blank" rel="noreferrer">校园码 <em>↗</em></a>
+        <a href={campusLinks.ginkgo} target="_blank" rel="noreferrer">白果云 <em>↗</em></a>
+      </nav>
+
+      <section className={homeStyles.personalTools} aria-label="日程与作业">
+        <h2>日程与作业</h2>
+        <button onClick={() => onEditCalendar({ kind: "activity" })}>＋ 添加日程</button>
+        <button onClick={() => onEditCalendar({ kind: "assignment" })}>＋ 记录作业</button>
       </section>
 
       <a className="today-community-note" href="/community">
@@ -7630,6 +7617,9 @@ function SearchCommand({
   kind,
   setKind,
   items,
+  loading,
+  unavailable,
+  onRetry,
   onSelect,
   onClose,
 }: {
@@ -7638,9 +7628,13 @@ function SearchCommand({
   kind: SearchKind;
   setKind: (v: SearchKind) => void;
   items: SearchItem[];
+  loading: boolean;
+  unavailable: boolean;
+  onRetry: () => void;
   onSelect: (item: SearchItem) => void;
   onClose: () => void;
 }) {
+  const panelRef = useModalFocus<HTMLElement>(true, onClose);
   const kinds: Array<[SearchKind, string]> = [
     ["all", "全部"],
     ["material", "资料"],
@@ -7648,17 +7642,23 @@ function SearchCommand({
     ["teacher", "教师"],
     ["room", "教室"],
   ];
-  useEffect(() => {
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [onClose]);
   return (
-    <div className="modal-backdrop" onMouseDown={onClose}>
+    <div className="modal-backdrop" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) { event.preventDefault(); onClose(); }
+    }}>
       <section
+        ref={panelRef}
         className="command-panel"
+        onKeyDown={(event) => {
+          if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+          const results = [...(panelRef.current?.querySelectorAll<HTMLButtonElement>(".command-results > button") ?? [])];
+          if (!results.length) return;
+          if (event.target !== panelRef.current?.querySelector("input") && !results.includes(event.target as HTMLButtonElement)) return;
+          event.preventDefault();
+          const current = results.indexOf(document.activeElement as HTMLButtonElement);
+          const next = current < 0 ? (event.key === "ArrowDown" ? 0 : results.length - 1) : (current + (event.key === "ArrowDown" ? 1 : -1) + results.length) % results.length;
+          results[next].focus();
+        }}
         onMouseDown={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -7710,11 +7710,12 @@ function SearchCommand({
                 </button>
               ))
             ) : (
-              <div className="search-zero">
-                <strong>没搜到</strong>
+              <div className="search-zero" role="status">
+                <strong>{loading ? "正在查找…" : unavailable ? "部分搜索数据暂时未能加载" : "没搜到"}</strong>
                 <p>
-                  试试课程简称、课程号、教师姓名或教室。
+                  {loading ? "课程与资料准备好后，结果会显示在这里。" : unavailable ? "请重试，或先从首页浏览教师评价与课程资料。" : "试试课程简称、课程号、教师姓名或教室。"}
                 </p>
+                {unavailable && !loading && <button onClick={onRetry}>重新加载搜索数据</button>}
               </div>
             )
           ) : (
@@ -8222,13 +8223,26 @@ function CourseDrawer({
   );
 }
 
+function ClassSetupFrame({ children, onClose }: { children: ReactNode; onClose: () => void }) {
+  const panelRef = useModalFocus<HTMLElement>(true, onClose);
+  return (
+    <div className={classSetupStyles.backdrop} onMouseDown={(event) => {
+      if (event.target === event.currentTarget) { event.preventDefault(); onClose(); }
+    }}>
+      <section ref={panelRef} className={classSetupStyles.sheet} role="dialog"
+        aria-modal="true" aria-labelledby="class-setup-title">
+        <header className={classSetupStyles.header}>
+          <div><h2 id="class-setup-title">按班级添加课程</h2><p>添加班级课程后，可按自己的选课调整。</p></div>
+          <button type="button" onClick={onClose} aria-label="关闭班级设置">×</button>
+        </header>
+        {children}
+      </section>
+    </div>
+  );
+}
+
 function Onboarding({
-  data,
-  term,
-  initial,
-  onOpenCourses,
-  onSkip,
-  onSave,
+  data, term, initial, onOpenCourses, onSkip, onSave, storageHint,
 }: {
   data: SiteData;
   term: Term;
@@ -8236,171 +8250,86 @@ function Onboarding({
   onOpenCourses: () => void;
   onSkip: () => void;
   onSave: (profile: Profile, scheduleIds: string[]) => void;
+  storageHint: string;
 }) {
-  const [step, setStep] = useState(1);
-  const [entranceYear, setEntranceYear] = useState(
-    initial?.entranceYear ?? 2025,
-  );
+  const [entranceYear, setEntranceYear] = useState(initial?.entranceYear ?? 0);
   const [college, setCollege] = useState(initial?.college ?? "");
   const [majorId, setMajorId] = useState(initial?.majorId ?? "");
   const [className, setClassName] = useState(initial?.className ?? "");
-  const majors = data.majors.filter(
-    (item) => !college || item.college === college,
-  );
-  const major = data.majors.find((item) => item.id === majorId);
-  const code = String(entranceYear).slice(-2);
+  const currentYear = new Date().getFullYear() - (new Date().getMonth() < 7 ? 1 : 0);
+  const years = [...new Set([currentYear, currentYear - 1, currentYear - 2, currentYear - 3, ...(initial ? [initial.entranceYear] : [])])].sort((a, b) => b - a);
+  const majors = data.majors.filter((item) => item.college === college);
+  const major = majors.find((item) => item.id === majorId);
   const aliases = major?.aliases ?? [];
-  const classes = [
-    ...new Set(
-      data.schedules
-        .flatMap((item) => splitClasses(item.classNames))
-        .filter((name) =>
-          aliases.some((alias) => name.startsWith(`${alias}${code}`)),
-        ),
-    ),
-  ].sort((a, b) => a.localeCompare(b, "zh-CN", { numeric: true }));
-  function chooseCollege(value: string) {
-    setCollege(value);
-    setMajorId("");
-    setClassName("");
-    setStep(2);
-  }
-  function chooseMajor(value: string) {
-    setMajorId(value);
-    setClassName("");
-    setStep(3);
-  }
-  function finish() {
-    if (!college || !majorId) return;
-    const selected = className
-      ? data.schedules
-          .filter(
-            (item) =>
-              item.term === term &&
-              splitClasses(item.classNames).includes(className),
-          )
-          .map((item) => item.id)
-      : [];
-    // 没选具体班级时不能替用户猜教师或课序号；专业课程索引仍可浏览，
-    // 具体班次由用户在课程池中选择。
-    onSave({ entranceYear, college, majorId, className }, selected);
+  const classes = [...new Set(data.schedules
+    .filter((item) => item.term === term)
+    .flatMap((item) => splitClasses(item.classNames))
+    .filter((name) => entranceYear && aliases.some((alias) => name.startsWith(`${alias}${String(entranceYear).slice(-2)}`)))
+  )].sort((a, b) => a.localeCompare(b, "zh-CN", { numeric: true }));
+  // Class identity is an explicit catalogue choice. Preserve every actual meeting.
+  const selected = classes.includes(className)
+    ? data.schedules.filter((item) => item.term === term && splitClasses(item.classNames).includes(className))
+    : [];
+  const courseCount = new Set(selected.map((item) => item.courseId)).size;
+  const profileReady = Boolean(entranceYear && college && major);
+  function save(includeClass: boolean) {
+    if (!profileReady || (includeClass && !selected.length)) return;
+    onSave({ entranceYear, college, majorId, className: includeClass ? className : "" },
+      includeClass ? selected.map((item) => item.id) : []);
   }
   return (
-    <div className="modal-backdrop onboarding-backdrop">
-      <section
-        className="onboarding"
-        role="dialog"
-        aria-modal="true"
-        aria-label="建立个人档案"
-      >
-        <header>
-          <Wordmark />
-          <button onClick={onSkip}>暂时跳过</button>
-        </header>
-        <div className="onboarding-progress">
-          <span className={step >= 1 ? "active" : ""}>01 年级</span>
-          <i />
-          <span className={step >= 2 ? "active" : ""}>02 学院与专业</span>
-          <i />
-          <span className={step >= 3 ? "active" : ""}>03 班级</span>
+    <ClassSetupFrame onClose={onSkip}>
+      <form onSubmit={(event) => { event.preventDefault(); save(true); }}>
+        <div className={classSetupStyles.fields}>
+          <label>入学年份
+            <select name="entrance-year" aria-label="入学年份" value={entranceYear || ""} onChange={(event) => {
+              setEntranceYear(Number(event.target.value)); setClassName("");
+            }}>
+              <option value="">请选择入学年份</option>
+              {years.map((year) => <option key={year} value={year}>{year} 级</option>)}
+            </select>
+          </label>
+          <label>学院
+            <select name="college" aria-label="学院" value={college} onChange={(event) => {
+              setCollege(event.target.value); setMajorId(""); setClassName("");
+            }}>
+              <option value="">请选择学院</option>
+              {data.colleges.map((item) => <option key={item.name} value={item.name}>{item.name}</option>)}
+            </select>
+          </label>
+          <label>专业
+            <select name="major" aria-label="专业" value={majorId} disabled={!college} onChange={(event) => {
+              setMajorId(event.target.value); setClassName("");
+            }}>
+              <option value="">{college ? "请选择专业" : "先选择学院"}</option>
+              {majors.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+          </label>
+          <label>班级
+            <select name="class" aria-label="班级" value={classes.includes(className) ? className : ""} disabled={!profileReady || !classes.length}
+              onChange={(event) => setClassName(event.target.value)}>
+              <option value="">{!profileReady ? "先选择年份和专业" : classes.length ? "请选择班级" : "本学期没有匹配班级"}</option>
+              {classes.map((name) => <option key={name} value={name}>{name}</option>)}
+            </select>
+          </label>
         </div>
-        <div className="onboarding-copy">
-          <p>课表设置</p>
-          <h2>设置本学期课程</h2>
-          <span>去课程中心导入教务课表，或按班级手动设置。</span>
+        <div className={classSetupStyles.preview} aria-live="polite" aria-atomic="true">
+          {selected.length ? <>
+            <span>{term === "fall" ? "上学期" : "下学期"} · {className}</span>
+            <strong>{courseCount} 门课程 · {selected.length} 个上课时段</strong>
+            <p>包含该班全部教师和时段。班级课程仅供参考，请核对个人选课。</p>
+          </> : <>
+            <strong>{profileReady && !classes.length ? "没有匹配班级？可以自己选课。" : "选择具体班级后，预览要添加的课程。"}</strong>
+            <p>仅选专业不会自动添加课程。</p>
+          </>}
         </div>
-        <button
-          type="button"
-          className="finish-button onboarding-academic-import"
-          onClick={onOpenCourses}
-        >
-          打开课程中心
-        </button>
-        {step === 1 && (
-          <div className="choice-grid years">
-            {[2026, 2025, 2024, 2023].map((item) => (
-              <button
-                key={item}
-                className={entranceYear === item ? "active" : ""}
-                onClick={() => {
-                  setEntranceYear(item);
-                  setStep(2);
-                }}
-              >
-                <strong>{item}</strong>
-                <span>
-                  {item === 2026
-                    ? "新生"
-                    : `当前大${"一二三四"[Math.min(3, 2026 - item)]}`}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-        {step === 2 && (
-          <div className="onboarding-two">
-            <div>
-              <label>学院</label>
-              {data.colleges.map((item) => (
-                <button
-                  key={item.name}
-                  className={college === item.name ? "active" : ""}
-                  onClick={() => chooseCollege(item.name)}
-                >
-                  {item.name}
-                </button>
-              ))}
-            </div>
-            <div>
-              <label>专业</label>
-              {college ? (
-                majors.map((item) => (
-                  <button
-                    key={item.id}
-                    className={majorId === item.id ? "active" : ""}
-                    onClick={() => chooseMajor(item.id)}
-                  >
-                    {item.name}
-                  </button>
-                ))
-              ) : (
-                <p>请先选择学院</p>
-              )}
-            </div>
-          </div>
-        )}
-        {step === 3 && (
-          <div className="class-choice">
-            <label>班级（可跳过）</label>
-            <div>
-              {classes.map((item) => (
-                <button
-                  key={item}
-                  className={className === item ? "active" : ""}
-                  onClick={() => setClassName(item)}
-                >
-                  {item}
-                </button>
-              ))}
-              {!classes.length && (
-                <p>没有匹配班级。跳过后可自行选择教学班。</p>
-              )}
-            </div>
-            <button className="finish-button" onClick={finish}>
-              {className ? `导入 ${className} 的课程` : "保存设置"}
-            </button>
-          </div>
-        )}
-        <footer>
-          <button
-            disabled={step === 1}
-            onClick={() => setStep((value) => Math.max(1, value - 1))}
-          >
-            ← 上一步
-          </button>
-          <span>设置会保存在当前设备，可随时清除。</span>
+        <footer className={classSetupStyles.actions}>
+          <button type="submit" disabled={!selected.length}>{selected.length ? `添加 ${courseCount} 门课程` : "选择班级后添加"}</button>
+          <button type="button" onClick={onOpenCourses}>手动选课</button>
+          <button type="button" disabled={!profileReady} onClick={() => save(false)}>只保存专业设置</button>
         </footer>
-      </section>
-    </div>
+        <p className={classSetupStyles.storage}>{storageHint}</p>
+      </form>
+    </ClassSetupFrame>
   );
 }

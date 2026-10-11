@@ -18,16 +18,20 @@ try {
       activePlanId: 'default', activities: [], assignments: [], academicSnapshots: [], favoriteRooms: [], recentRooms: [],
     })));
     await page.goto(base);
-    const setup = page.getByRole('button', { name: '设置本学期课程', exact: true });
+    const setup = page.getByRole('button', { name: '按班级添加', exact: true });
     await setup.waitFor();
     assert.equal(await setup.count(), 1);
     assert.ok((await setup.boundingBox()).y < 750, 'primary action should not be below the first screen');
-    const description = await page.locator('.now-card > div').boundingBox();
-    assert.ok((await page.locator('.now-card > footer').boundingBox()).y >= description.y + description.height - 1, 'actions must not overlap the description');
+    const description = await page.getByRole('heading', { name: '添加你的课表', exact: true }).locator('..').boundingBox();
+    const action = await setup.boundingBox();
+    assert.ok(action.x >= description.x + description.width - 1 || action.y >= description.y + description.height - 1, 'actions must not overlap the description');
     assert.equal(await page.locator('.agenda-glance').count(), 0, 'do not repeat an empty daily agenda');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     await setup.click();
-    await page.locator('.catalog-page-v2').waitFor();
+    await page.getByRole('dialog', { name: '按班级添加课程', exact: true }).waitFor();
+    await page.getByRole('button', { name: '关闭班级设置', exact: true }).click();
+    await page.getByRole('button', { name: '手动选课', exact: true }).click();
+    await page.locator('.schedule-page').waitFor();
     await page.goto(`${base}/?view=rooms`);
     await page.locator('.floor-rooms-v5 button').first().click();
     const schedule = page.locator('#room-week-schedule');

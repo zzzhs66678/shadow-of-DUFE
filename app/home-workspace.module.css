@@ -1,4 +1,5 @@
 /* Daily workspace: a small campus-time rail, one next action, no repeated setup panels. */
+:global(.page-wrap.today-page.focus-page).workspace { max-width: 1200px; margin-inline: auto; padding: 24px 24px 100px; }
 .workspace :global(.focus-head.focus-head-v5) {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 140px;
@@ -25,7 +26,8 @@
 .workspace :global(.campus-pins a:focus-visible) { outline: 2px solid var(--journal-red); outline-offset: 3px; }
 .workspace :global(.today-command-deck) { margin: 20px 0 28px; grid-template-rows: auto auto; }
 .workspace :global(.today-command-deck[data-has-agenda="false"]) { grid-template-areas: "main side"; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); grid-template-rows: auto; }
-.workspace :global(.today-command-deck:not(:has(.today-side-stack))) { grid-template-areas: "main" "agenda"; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; }
+.workspace :global(.today-command-deck:not(:has(.today-side-stack))) { grid-template-areas: "main"; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; }
+.workspace :global(.today-command-deck[data-has-agenda="true"]:not(:has(.today-side-stack))) { grid-template-areas: "main" "agenda"; grid-template-rows: auto auto; }
 .workspace :global(.now-card) { min-height: 0; padding: 24px; box-shadow: none; border-radius: 0 44px 0 0; }
 .workspace :global(.now-card::before) { display: none; }
 .workspace :global(.now-card > div) { display: flex; flex-direction: row; align-items: flex-start; justify-content: flex-start; gap: 18px; padding: 24px 0; min-height: 0; margin: 0; }
@@ -53,10 +55,51 @@
 .workspace :global(.unified-agenda > header span), .workspace :global(.week-ahead > header span) { font-size: 13px; }
 .workspace :global(.unified-agenda > header b), .workspace :global(.week-ahead > header b), .workspace :global(.week-ahead > header button) { font-size: 12px; }
 .workspace :global(.timeline-empty) { min-height: 0; }
+
+/* Search stays in the same place as the personal desk fills with real content. */
+.discovery { padding: 0 0 4px; }
+.discoveryIntro { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.discoveryIntro p { margin: 0; font-size: 15px; line-height: 1.7; color: var(--journal-muted); }
+.discoveryIntro button { display: flex; align-items: center; gap: 8px; flex-shrink: 0; min-height: 44px; padding: 8px 12px; border: 1px solid var(--journal-line); border-radius: 6px; background: transparent; color: var(--journal-ink); font-size: 14px; }
+.search { display: flex; align-items: center; gap: 12px; padding: 6px 6px 6px 18px; background: var(--journal-paper-raised); border: 1px solid var(--journal-ink); border-radius: 8px; }
+.search > span { display: flex; color: var(--journal-muted); }
+.search input { flex: 1; width: 100%; min-width: 0; min-height: 44px; border: 0; padding: 8px 0; background: transparent; font: 400 16px/1.5 var(--journal-body); color: var(--journal-ink); outline-offset: 2px; }
+.search input::placeholder { color: var(--journal-muted); opacity: 1; }
+.search > button { flex-shrink: 0; min-height: 44px; padding: 10px 22px; border: 0; border-radius: 5px; background: var(--journal-red); color: white; font-size: 14px; font-weight: 600; }
+.browse { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 18px; margin-top: 10px; font-size: 13px; }
+.browse > span { color: var(--journal-muted); }
+.browse :is(button, a) { display: inline-flex; align-items: center; min-height: 44px; padding: 0; border: 0; background: transparent; color: var(--journal-ink); text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--journal-line); }
+.setupCard { grid-area: main; display: grid; align-content: center; gap: 16px; padding: 26px; border: 1px solid var(--journal-line); border-left: 3px solid var(--journal-red); border-radius: 8px; background: var(--journal-paper-raised); }
+.setupCard > div:first-child { display: flex; align-items: flex-start; gap: 14px; }
+.setupCard > div:first-child > div { min-width: 0; }
+.setupMark { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; flex: 0 0 40px; color: var(--journal-red); background: var(--journal-red-soft); border-radius: 6px; }
+.setupCard h2 { font: 600 22px/1.5 var(--journal-display); margin: 0; }
+.setupCard p { margin: 5px 0 0; font-size: 14px; line-height: 1.8; color: var(--journal-muted); }
+.setupCard > small { color: var(--journal-muted); font-size: 12px; line-height: 1.7; }
+.setupActions { display: flex; gap: 12px; }
+.setupActions button { min-height: 44px; padding: 10px 18px; font-size: 14px; border-radius: 6px; border: 1px solid var(--journal-line); background: transparent; color: var(--journal-ink); }
+.setupActions button:first-child { background: var(--journal-red); color: white; border-color: var(--journal-red); }
+.workspace :global(.campus-pins) { margin-top: 24px; border-top: 1px solid var(--journal-line); padding-top: 18px; }
+.personalTools { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; margin-top: 22px; }
+.personalTools h2 { margin: 0; font: 600 14px/1.5 var(--journal-body); }
+.personalTools button { border: 0; background: transparent; color: var(--journal-ink); min-height: 44px; padding: 6px 0; font-size: 14px; text-decoration: underline; text-decoration-color: var(--journal-line); text-underline-offset: 5px; }
+.workspace :global(.today-community-note) { margin-top: 28px; }
+.workspace :is(input, button, a):focus-visible { outline: 2px solid var(--journal-red); outline-offset: 3px; }
+.discovery :is(button, a):hover, .setupActions button:hover { filter: brightness(.94); }
+.search:focus-within { border-color: var(--journal-red); }
+
+@media (min-width: 761px) {
+  .setupCard { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .setupCard > div:first-child { grid-column: 1; grid-row: 1; }
+  .setupActions { grid-column: 2; grid-row: 1 / 3; }
+  .setupCard > small { grid-column: 1; grid-row: 2; }
+}
+
 @media (max-width: 900px) {
   .workspace :global(.today-command-deck[data-has-agenda="false"]) { grid-template-areas: "main" "side"; grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 760px) {
+  :global(.page-wrap.today-page.focus-page).workspace { padding: 14px 14px calc(96px + env(safe-area-inset-bottom)); }
   .workspace :global(.focus-head.focus-head-v5) { grid-template-columns: minmax(0, 1fr) 86px; gap: 10px 12px; padding-top: 8px; }
   .workspace :global(.time-mark-head time) { font-size: 23px; }
   .workspace :global(.campus-pins) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -66,4 +109,17 @@
   .workspace :global(.now-card > div) { gap: 12px; padding: 20px 0; }
   .workspace :global(.now-card > div > i) { flex-basis: 36px; width: 36px; height: 36px; font-size: 19px; }
   .workspace :global(.now-card > footer) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .workspace :global(.focus-head.focus-head-v5 h1) { font-size: 28px; }
+  .discoveryIntro { align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+  .discoveryIntro p { font-size: 14px; max-width: 25em; }
+  .discoveryIntro button { padding: 7px 8px; font-size: 13px; gap: 5px; }
+  .discoveryIntro button :global(.ui-icon) { display: none; }
+  .search { gap: 8px; padding-left: 12px; }
+  .search > button { padding: 10px 14px; }
+  .browse { gap: 0 14px; font-size: 12px; }
+  .setupCard { padding: 20px; gap: 14px; }
+  .setupCard h2 { font-size: 20px; }
+  .setupCard > div:first-child { gap: 12px; }
+  .setupActions { display: grid; grid-template-columns: 1.25fr 1fr; gap: 10px; }
+  .setupActions button { padding: 10px 8px; }
 }
