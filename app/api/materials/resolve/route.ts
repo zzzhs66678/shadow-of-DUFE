@@ -1,4 +1,4 @@
-import { getMaterialById } from "../../../materials/materials-catalog.mjs";
+import { publishedMaterialCatalog } from "../../../materials/published-materials-server.mjs";
 
 // Public catalog lookup only; never reads bookmarks, cookies or protected files.
 // POST keeps the user's private collection out of query strings and shared caches.
@@ -26,6 +26,7 @@ export async function POST(request: Request) {
     if (!body || Object.keys(body).join() !== "ids" || !Array.isArray(body.ids) || body.ids.length > 1000 ||
         body.ids.some((id: unknown) => typeof id !== "string" || !/^[0-9a-f]{20}$/.test(id))) throw new Error("invalid_ids");
     const ids = [...new Set<string>(body.ids)];
+    const { getMaterialById } = await publishedMaterialCatalog();
     return Response.json({ items: ids.map((materialId) => ({ materialId, material: getMaterialById(materialId) })) }, { headers });
   } catch {
     return Response.json({ error: "invalid_material_ids" }, { status: 400, headers });

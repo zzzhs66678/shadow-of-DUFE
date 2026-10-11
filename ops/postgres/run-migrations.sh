@@ -223,6 +223,14 @@ SELECT format(
     :'runtime_user'
 ) \gexec
 SELECT format(
+    'REVOKE UPDATE, DELETE, TRUNCATE ON catalog_releases, catalog_publication_events, catalog_schedule_origins FROM %I',
+    :'runtime_user'
+) \gexec
+SELECT format(
+    'REVOKE INSERT, DELETE, TRUNCATE ON catalog_heads FROM %I',
+    :'runtime_user'
+) \gexec
+SELECT format(
     'REVOKE UPDATE, DELETE, TRUNCATE ON material_bookmark_events, data_feedback_actions FROM %I',
     :'runtime_user'
 ) \gexec

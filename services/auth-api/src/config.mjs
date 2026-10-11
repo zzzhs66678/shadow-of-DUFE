@@ -1,6 +1,7 @@
 import { normalizeEmail, validEmail } from "./credentials.mjs";
 import { parseTrustedProxies } from "./request-security.mjs";
 import { REGISTRATION_POLICY } from "./registration-security.mjs";
+import { isAbsolute } from "node:path";
 
 function positiveInteger(value, fallback, name) {
   const parsed = Number.parseInt(value ?? "", 10);
@@ -199,8 +200,13 @@ export function loadConfig(env = process.env) {
     }
   }
 
+  const catalogUploadDir = env.AUTH_CATALOG_UPLOAD_DIR || null;
+  if (catalogUploadDir && (!isAbsolute(catalogUploadDir) || /[\u0000-\u001f]/u.test(catalogUploadDir))) {
+    throw new Error("AUTH_CATALOG_UPLOAD_DIR must be an absolute path");
+  }
   return {
     nodeEnv,
+    catalogUploadDir,
     requireHttps: nodeEnv === "production",
     trustedProxyRanges: parseTrustedProxies(env.AUTH_TRUSTED_PROXY_CIDRS),
     registrationMode,

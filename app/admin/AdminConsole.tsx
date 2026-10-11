@@ -12,6 +12,7 @@ import { ActiveContentDesk } from "./ActiveContentDesk";
 import { AnnouncementDesk } from "./AnnouncementDesk";
 import { TeacherReviewDesk } from "./TeacherReviewDesk";
 import { AccountNameReview } from "./AccountNameReview";
+import { CatalogDesk } from "./CatalogDesk";
 
 type AccessState = {
   role: "admin";
@@ -91,6 +92,12 @@ const actionLabels: Record<string, string> = {
   "admin.community.unban": "社区账号制裁已解除",
   "admin.community.dismiss": "社区举报已驳回",
   "admin.community.announcement_published": "系统公告已发布",
+  "admin.catalog.viewed": "已查看课程与资料目录",
+  "admin.catalog.draft_created": "已生成目录发布预览",
+  "admin.catalog.draft_discarded": "已丢弃目录预览",
+  "admin.catalog.file_staged": "学习资料文件已暂存",
+  "admin.catalog.publish": "目录已发布",
+  "admin.catalog.rollback": "目录已恢复历史版本",
 };
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -166,7 +173,7 @@ function userFilterSearch(filters: UserFilters, cursor?: string | null) {
 }
 
 export function AdminConsole() {
-  const [workspace, setWorkspace] = useState("users");
+  const [workspace, setWorkspace] = useState("catalog");
   const [reviewTab, setReviewTab] = useState("reports");
   const [screen, setScreen] = useState<Screen>("loading");
   const [access, setAccess] = useState<AccessState | null>(null);
@@ -201,7 +208,7 @@ export function AdminConsole() {
   useEffect(() => {
     const readLocation = () => {
       const [section, review] = window.location.hash.slice(1).split("-");
-      if (["users", "review", "notices", "audit"].includes(section)) setWorkspace(section);
+      if (["catalog", "users", "review", "notices", "audit"].includes(section)) setWorkspace(section);
       if (["reports", "content", "history"].includes(review)) setReviewTab(review);
     };
     const frame = window.requestAnimationFrame(readLocation);
@@ -497,7 +504,7 @@ export function AdminConsole() {
           <aside className={styles.sidebar}>
             <span className={styles.sidebarLabel}>管理</span>
             <nav aria-label="管理功能">
-              {[["users", "用户"], ["review", "内容审核"], ["notices", "通知"], ["audit", "操作记录"]].map(([key, label]) => (
+              {[["catalog", "课程与资料"], ["users", "用户"], ["review", "内容审核"], ["notices", "通知"], ["audit", "操作记录"]].map(([key, label]) => (
                 <button key={key} aria-pressed={workspace === key} onClick={() => navigate(key)}>{label}</button>
               ))}
             </nav>
@@ -506,10 +513,11 @@ export function AdminConsole() {
           </aside>
           <div className={styles.workspaceBody}>
             <header className={styles.deskHeading}>
-              <div><h1>{{ users: "用户管理", review: "内容审核", notices: "通知公告", audit: "操作记录" }[workspace]}</h1></div>
+              <div><h1>{{ catalog: "课程与资料", users: "用户管理", review: "内容审核", notices: "通知公告", audit: "操作记录" }[workspace]}</h1></div>
               <div className={styles.watchStatus}><span>验证有效至 {access?.elevatedUntil ? new Date(access.elevatedUntil).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false }) : "—"}</span><button onClick={endWatch} disabled={busy === "leave"}>退出管理</button></div>
             </header>
             {feedback && <div className={styles.feedback} role="status">{feedback}</div>}
+            <div className={styles.panel} hidden={workspace !== "catalog"}><CatalogDesk active={workspace === "catalog"} onMfaExpired={handleMfaExpired} onAuditChanged={loadAudit} /></div>
             <div className={styles.panel} hidden={workspace !== "users"}>
               <section className={styles.ledger} aria-label="账号概况">
                 <div><span>注册用户</span><strong>{overview.totalUsers}</strong></div>

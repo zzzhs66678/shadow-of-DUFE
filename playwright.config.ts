@@ -40,6 +40,7 @@ export default defineConfig({
     stderr: "pipe",
   },
   projects: [
+    { name: "catalog-admin", testMatch: /catalog-admin\.spec\.ts/ },
     { name: "registration-security", testMatch: /registration-security\.spec\.ts/ },
     { name: "recovery-security", testMatch: /recovery-security\.spec\.ts/ },
     { name: "account-name-security", testMatch: /account-name-security\.spec\.ts/ },

@@ -50,6 +50,11 @@ export default defineConfig(async () => {
         ? { watch: { useFsEvents: false, usePolling: true } }
         : {}),
       proxy: {
+        "/api/catalog": { target: authApiDevTarget },
+        "/resources/files/uploads": {
+          target: authApiDevTarget,
+          rewrite: (path: string) => path.replace("/resources/files/uploads/", "/api/catalog/files/"),
+        },
         "/api/auth": { target: authApiDevTarget },
         "/api/admin": { target: authApiDevTarget },
         "/api/community": { target: authApiDevTarget },

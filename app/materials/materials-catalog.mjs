@@ -8,8 +8,9 @@ function cleanFilter(value, maxLength = 80) {
   return String(value ?? "").trim().slice(0, maxLength);
 }
 
+export function createMaterialCatalog(source) {
 const materials = Object.freeze(
-  manifest.materials.map((material) =>
+  source.materials.map((material) =>
     Object.freeze({
       ...material,
       teachers: Object.freeze([...(material.teachers ?? [])]),
@@ -30,15 +31,15 @@ function publicMaterial(material) {
   );
 }
 
-export function getMaterialById(materialId) {
+function getMaterialById(materialId) {
   return publicMaterial(materialsById.get(cleanFilter(materialId, 64)));
 }
 
-export function getMaterialPaths() {
+function getMaterialPaths() {
   return [...materialsById.keys()].map((id) => `/materials/${encodeURIComponent(id)}`);
 }
 
-export function getMaterialFilters() {
+function getMaterialFilters() {
   const unique = (values) =>
     [...new Set(values.filter(Boolean))].sort((a, b) =>
       String(a).localeCompare(String(b), "zh-CN"),
@@ -53,7 +54,7 @@ export function getMaterialFilters() {
   };
 }
 
-export function searchMaterials(input = {}) {
+function searchMaterials(input = {}) {
   const query = cleanFilter(input.query);
   const course = cleanFilter(input.course);
   const teacher = cleanFilter(input.teacher);
@@ -90,8 +91,12 @@ export function searchMaterials(input = {}) {
   };
 }
 
-export const materialCatalogMeta = Object.freeze({
-  schemaVersion: manifest.schemaVersion ?? 1,
-  generatedAt: manifest.generatedAt,
+const materialCatalogMeta = Object.freeze({
+  schemaVersion: source.schemaVersion ?? 1,
+  generatedAt: source.generatedAt,
   total: materials.length,
 });
+return { getMaterialById, getMaterialPaths, getMaterialFilters, searchMaterials, materialCatalogMeta };
+}
+
+export const { getMaterialById, getMaterialPaths, getMaterialFilters, searchMaterials, materialCatalogMeta } = createMaterialCatalog(manifest);

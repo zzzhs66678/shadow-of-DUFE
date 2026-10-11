@@ -37,6 +37,7 @@ import {
   type PersonalSyncState,
 } from "./personal-sync";
 import { FormField } from "./FormField";
+import { loadPublishedCourseCore, loadPublishedCourseFull, loadPublishedMaterials } from "./published-catalog";
 import { DataFeedback } from "./DataFeedback";
 import { MomoMark } from "./community/MomoMark";
 import { useModalFocus } from "./use-modal-focus";
@@ -455,6 +456,7 @@ function todayISO() {
 }
 
 function formatFileSize(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "大小未标注";
   if (bytes >= 1024 * 1024 * 1024) {
     return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
   }
@@ -1022,12 +1024,7 @@ export function DufeHubV2() {
   const [dataError, setDataError] = useState(false);
   useEffect(() => {
     let live = true;
-    fetch("/data/course-core.json")
-      .then((response) => {
-        if (!response.ok) throw new Error("course data unavailable");
-        return response;
-      })
-      .then((response) => response.json() as Promise<CourseCorePayload>)
+    loadPublishedCourseCore<CourseCorePayload>()
       .then((payload) => live && setData(inflateCourseCore(payload)))
       .catch(() => live && setDataError(true));
     return () => {
@@ -1148,12 +1145,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
   const loadFullData = useCallback(() => {
     if (fullDataRequestRef.current) return fullDataRequestRef.current;
     setFullDataStatus("loading");
-    const request = fetch("/data/course-data.json")
-      .then((response) =>
-        response.ok
-          ? (response.json() as Promise<SiteData>)
-          : Promise.reject(new Error("full course data unavailable")),
-      )
+    const request = loadPublishedCourseFull<SiteData>(initialData.catalogId)
       .then((payload) => {
         if (
           !COURSE_CATALOG_ID.test(payload.catalogId) ||
@@ -1181,12 +1173,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
   const loadMaterials = useCallback(() => {
     if (materialsRequestRef.current) return materialsRequestRef.current;
     setMaterialsStatus("loading");
-    const request = fetch("/data/resource-manifest.json")
-      .then((response) =>
-        response.ok
-          ? (response.json() as Promise<MaterialManifest>)
-          : Promise.reject(new Error("resource manifest unavailable")),
-      )
+    const request = loadPublishedMaterials<MaterialManifest>()
       .then((payload) => {
         setMaterials(payload.materials);
         setMaterialsStatus("ready");

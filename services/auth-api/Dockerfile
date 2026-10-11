@@ -11,6 +11,9 @@ RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
 COPY --chown=node:node src ./src
 COPY --chown=node:node bin ./bin
 COPY --chown=node:node scripts ./scripts
+COPY --chown=node:node catalog-baseline ./catalog-baseline
+
+RUN mkdir -p /srv/catalog-files && chown node:node /srv/catalog-files
 
 ENV NODE_ENV=production
 EXPOSE 3100

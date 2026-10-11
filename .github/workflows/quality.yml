@@ -243,6 +243,10 @@ jobs:
           POSTGRES_DB=dufesh_ci_security_test SECURITY_POSTGRES_TEST=true node --test tests/registration-security.test.mjs
       - name: Verify PostgreSQL roles and real auth/community flows
         run: node --test tests/postgres-runtime-integration.test.mjs tests/postgres-product-extensions.test.mjs tests/account-recovery-security.test.mjs tests/account-name-security.test.mjs
+      - name: Verify catalog publication on isolated native PostgreSQL
+        run: |
+          PGPASSWORD="$POSTGRES_PASSWORD" createdb --host "$PGHOST" --port "$PGPORT" --username "$POSTGRES_USER" catalog_acl_ci_native
+          CATALOG_NATIVE_DATABASE_URL="postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$PGHOST:$PGPORT/catalog_acl_ci_native" node --test tests/catalog-runtime-acl.test.mjs
       - name: Install Chromium for authenticated browser checks
         run: npx playwright install --with-deps chromium
       - name: Run the PostgreSQL-backed browser critical path
@@ -359,6 +363,7 @@ jobs:
           node --test tests/course-workspace.test.mjs tests/teacher-explorer.test.mjs tests/materials-explorer.test.mjs
           node --test tests/course-search.test.mjs tests/discovery-navigation.test.mjs tests/competitions-presentation.test.mjs
           node --test tests/hub-experience.test.mjs tests/material-search.test.mjs tests/material-bookmarks.test.mjs tests/data-feedback.test.mjs tests/auth-extensions-integration.test.mjs
+          node --test tests/catalog-import.test.mjs tests/catalog-delivery.test.mjs tests/catalog-public-runtime.test.mjs tests/catalog-runtime-acl.test.mjs
           node --test tests/performance-budget.test.mjs
           node --test tests/infrastructure-contract.test.mjs
           node --test tests/environment-contract.test.mjs

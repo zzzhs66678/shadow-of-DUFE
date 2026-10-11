@@ -35,7 +35,7 @@ for (const width of [320, 390, 1280]) {
       if (path.endsWith("/audit")) payload = { events: [{ id: "audit", action: "admin.user.registration_viewed", targetId: id, createdAt: now, metadata: {} }] };
       await route.fulfill({ json: payload });
     });
-    await page.goto("/admin");
+    await page.goto("/admin#users");
     await expect(page.getByRole("heading", { name: "用户管理" })).toBeVisible();
     expect(detailReads).toBe(0);
     await checkLayout();

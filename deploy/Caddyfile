@@ -27,6 +27,23 @@
 	@security_text path /.well-known/security.txt
 	header @security_text >Content-Type "text/plain; charset=utf-8"
 
+	handle /api/catalog/* {
+		reverse_proxy production-auth-api:3100 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+
+	handle /resources/files/uploads/* {
+		uri replace /resources/files/uploads/ /api/catalog/files/
+		reverse_proxy production-auth-api:3100 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+
 	handle /api/auth/* {
 		reverse_proxy production-auth-api:3100 {
 			header_up X-Forwarded-For {remote_host}
@@ -142,6 +159,23 @@ staging.dufesh.cn {
 		Cross-Origin-Opener-Policy "same-origin"
 		Cross-Origin-Resource-Policy "same-origin"
 		X-Robots-Tag "noindex, nofollow, noarchive"
+	}
+
+	handle /api/catalog/* {
+		reverse_proxy staging-auth-api:3100 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+
+	handle /resources/files/uploads/* {
+		uri replace /resources/files/uploads/ /api/catalog/files/
+		reverse_proxy staging-auth-api:3100 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
 	}
 
 	handle /api/auth/* {

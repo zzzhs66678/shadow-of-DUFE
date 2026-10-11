@@ -1,16 +1,13 @@
-import {
-  getMaterialFilters,
-  materialCatalogMeta,
-  searchMaterials,
-} from "../../materials/materials-catalog.mjs";
+import { publishedMaterialCatalog } from "../../materials/published-materials-server.mjs";
 
 const cacheHeaders = {
-  "Cache-Control": "public, max-age=300, stale-while-revalidate=3600",
+  "Cache-Control": "public, max-age=10, must-revalidate",
   "Content-Type": "application/json; charset=utf-8",
 };
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
+  const { getMaterialFilters, materialCatalogMeta, searchMaterials } = await publishedMaterialCatalog();
   const result = searchMaterials({
     query: url.searchParams.get("q"),
     course: url.searchParams.get("course"),

@@ -28,6 +28,23 @@
 	@compiled_assets path /assets/* /_next/static/*
 	header @compiled_assets Cache-Control "public, max-age=31536000, immutable"
 
+	handle /api/catalog/* {
+		reverse_proxy auth-api:3100 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+
+	handle /resources/files/uploads/* {
+		uri replace /resources/files/uploads/ /api/catalog/files/
+		reverse_proxy auth-api:3100 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+
 	handle /api/auth/* {
 		reverse_proxy auth-api:3100 {
 			header_up X-Forwarded-For {remote_host}

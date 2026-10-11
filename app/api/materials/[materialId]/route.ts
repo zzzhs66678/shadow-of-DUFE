@@ -1,10 +1,11 @@
-import { getMaterialById } from "../../../materials/materials-catalog.mjs";
+import { publishedMaterialCatalog } from "../../../materials/published-materials-server.mjs";
 
 export async function GET(
   _request: Request,
   context: { params: Promise<{ materialId: string }> },
 ) {
   const { materialId } = await context.params;
+  const { getMaterialById } = await publishedMaterialCatalog();
   const material = getMaterialById(materialId);
   if (!material) {
     return Response.json(
@@ -20,7 +21,7 @@ export async function GET(
     {
       status: 200,
       headers: {
-        "Cache-Control": "public, max-age=300, stale-while-revalidate=3600",
+        "Cache-Control": "public, max-age=10, must-revalidate",
       },
     },
   );

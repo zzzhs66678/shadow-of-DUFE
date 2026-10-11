@@ -316,17 +316,17 @@ test("the daily workspace defers non-critical materials until idle or demand", (
   const shellSource = component.slice(shellStart, hubStart);
   const hubSource = component.slice(hubStart, homeStart);
 
-  assert.match(shellSource, /fetch\("\/data\/course-core\.json"\)/);
-  assert.doesNotMatch(shellSource, /fetch\("\/data\/course-data\.json"\)/);
+  assert.match(shellSource, /loadPublishedCourseCore<CourseCorePayload>\(\)/);
+  assert.doesNotMatch(shellSource, /loadPublishedCourseFull/);
   assert.doesNotMatch(shellSource, /resource-manifest\.json/);
-  assert.match(hubSource, /fetch\("\/data\/course-data\.json"\)/);
+  assert.match(hubSource, /loadPublishedCourseFull<SiteData>\(initialData\.catalogId\)/);
   assert.match(hubSource, /fullDataRequired/);
   assert.match(hubSource, /view === "catalog" \|\| view === "schedule" \|\| view === "rooms"/);
   assert.match(hubSource, /materialsRequestRef/);
   assert.match(hubSource, /requestIdleCallback/);
   assert.match(hubSource, /setTimeout\(\(\) => void loadMaterials\(\), 1200\)/);
   assert.match(hubSource, /commandOpen \|\| selectedCourse/);
-  assert.match(hubSource, /fetch\("\/data\/resource-manifest\.json"\)/);
+  assert.match(hubSource, /loadPublishedMaterials<MaterialManifest>\(\)/);
   assert.match(component, /资料清单没有加载成功。关闭课程后重新打开即可再试。/);
 
   assert.match(adminStyles, /\.shell :is\(button, a, input, select, textarea, summary\):focus-visible/);

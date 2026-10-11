@@ -14,8 +14,10 @@ export function MaterialAvailability({
   previewable: boolean;
 }) {
   const [state, setState] = useState<"checking" | "ready" | "missing" | "denied" | "offline">("checking");
+  const external = downloadUrl.startsWith("https://");
 
   useEffect(() => {
+    if (external) return;
     const controller = new AbortController();
     fetch(downloadUrl, { method: "HEAD", cache: "no-store", signal: controller.signal })
       .then((response) => {
@@ -28,7 +30,7 @@ export function MaterialAvailability({
         if ((error as Error).name !== "AbortError") setState("offline");
       });
     return () => controller.abort();
-  }, [downloadUrl]);
+  }, [downloadUrl, external]);
 
   if (state === "missing" || state === "denied") {
     return (
@@ -43,11 +45,11 @@ export function MaterialAvailability({
   return (
     <div className={styles.detailActions}>
       <span aria-live="polite">
-        {state === "checking" ? "正在确认文件…" : state === "offline" ? "无法确认文件状态，仍可尝试打开" : "文件可用"}
+        {external ? "资料链接将在新窗口打开" : state === "checking" ? "正在确认文件…" : state === "offline" ? "无法确认文件状态，仍可尝试打开" : "文件可用"}
       </span>
       <div>
         {previewable && <a className={styles.primaryAction} href={previewUrl} target="_blank" rel="noreferrer">在线预览 ↗</a>}
-        <a className={previewable ? styles.secondaryAction : styles.primaryAction} href={downloadUrl} download>下载原件</a>
+        <a className={previewable ? styles.secondaryAction : styles.primaryAction} href={downloadUrl} download={external ? undefined : true} target={external ? "_blank" : undefined} rel={external ? "noreferrer" : undefined}>{external ? "打开资料链接 ↗" : "下载原件"}</a>
       </div>
     </div>
   );

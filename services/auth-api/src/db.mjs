@@ -5,6 +5,7 @@ import { createCommunityStore } from "./community-store.mjs";
 import { createMaterialBookmarkStore } from "./material-bookmarks-store.mjs";
 import { createDataFeedbackStore } from "./data-feedback-store.mjs";
 import { accountNameFields, createAccountNameStore } from "./account-names.mjs";
+import { createCatalogStore } from "./catalog/store.mjs";
 import { createTeacherReviewStore } from "./teacher-review-store.mjs";
 import { createTeacherStore } from "./teacher-store.mjs";
 
@@ -165,7 +166,7 @@ export function createDatabasePool(config) {
   return pool;
 }
 
-export function createAuthStore(pool) {
+export function createAuthStore(pool, { catalogUploadDir = null } = {}) {
   const personalStore = createPersonalStore(pool);
   const communityStore = createCommunityStore(pool);
   const teacherReviewStore = createTeacherReviewStore(pool);
@@ -177,6 +178,7 @@ export function createAuthStore(pool) {
     ...createMaterialBookmarkStore(pool),
     ...createDataFeedbackStore(pool),
     ...createAccountNameStore({ pool }),
+    ...createCatalogStore(pool, { uploadDir: catalogUploadDir }),
     ...teacherReviewStore,
     ...teacherStore,
     ...createAdminUserDetailsStore(pool),

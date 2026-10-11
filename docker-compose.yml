@@ -11,6 +11,7 @@ services:
     environment:
       NODE_ENV: production
       WRANGLER_LOG_PATH: /tmp/wrangler.log
+      CATALOG_API_ORIGIN: https://dufesh.cn
     expose:
       - "3000"
     healthcheck:
@@ -154,6 +155,10 @@ services:
       PGHOST: postgres
       PGPORT: "5432"
       AUTH_API_PORT: "3100"
+      AUTH_CATALOG_UPLOAD_DIR: /srv/catalog-files
+      NODE_OPTIONS: --max-old-space-size=64 --max-semi-space-size=4
+    volumes:
+      - catalog_files:/srv/catalog-files
     expose:
       - "3100"
     healthcheck:
@@ -162,7 +167,7 @@ services:
       timeout: 5s
       retries: 8
       start_period: 20s
-    mem_limit: 128m
+    mem_limit: 256m
     mem_reservation: 32m
     cpus: 0.50
     pids_limit: 128
@@ -212,6 +217,7 @@ services:
         max-file: "3"
 
 volumes:
+  catalog_files:
   caddy_data:
   caddy_config:
   postgres_data:

@@ -11,7 +11,7 @@ import { createAcademicConnector } from "./academic-access.mjs";
 
 const config = loadConfig();
 const pool = createDatabasePool(config);
-const store = createAuthStore(pool);
+const store = createAuthStore(pool, { catalogUploadDir: config.catalogUploadDir });
 await store.cleanupSecurityState();
 await store.cleanupRecoveryState();
 const securityCleanup = setInterval(() => {

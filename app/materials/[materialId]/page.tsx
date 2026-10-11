@@ -6,7 +6,7 @@ import { MaterialDetailBookmark } from "../MaterialBookmarkControls";
 import { DataFeedback } from "../../DataFeedback";
 import { PublicMasthead } from "../../PublicMasthead";
 import styles from "../materials.module.css";
-import { getMaterialById } from "../materials-catalog.mjs";
+import { publishedMaterialCatalog } from "../published-materials-server.mjs";
 
 type PageProps = { params: Promise<{ materialId: string }> };
 type MaterialDetail = {
@@ -29,11 +29,13 @@ type MaterialDetail = {
   catalogedAt: string;
 };
 
-function materialById(materialId: string) {
+async function materialById(materialId: string) {
+  const { getMaterialById } = await publishedMaterialCatalog();
   return getMaterialById(materialId) as MaterialDetail | null;
 }
 
 function fileSize(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "大小未标注";
   return bytes < 1024 * 1024
     ? `${Math.max(1, Math.round(bytes / 1024))} KB`
     : `${(bytes / 1024 / 1024).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
@@ -52,7 +54,7 @@ function catalogDate(value: string) {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { materialId } = await params;
-  const material = materialById(materialId);
+  const material = await materialById(materialId);
   if (!material) return { title: "资料未找到" };
   return {
     title: material.name,
@@ -62,7 +64,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function MaterialDetailPage({ params }: PageProps) {
-  const material = materialById((await params).materialId);
+  const material = await materialById((await params).materialId);
   if (!material) notFound();
   return (
     <main className={styles.detailPage} id="main-content">

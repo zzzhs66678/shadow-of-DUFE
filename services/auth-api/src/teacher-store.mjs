@@ -154,12 +154,17 @@ export function createTeacherStore(pool) {
              WHERE review.teacher_id = teacher.id
                AND review.status = 'published'
            ) AS review_count
-         FROM course_schedule_teachers AS link
+         FROM (SELECT DISTINCT link.teacher_id
+           FROM course_schedule_teachers AS link
+           WHERE link.schedule_id = $2 AND link.record_status = 'current'
+             AND (link.catalog_id = $1 OR EXISTS (
+               SELECT 1 FROM catalog_schedule_origins AS origin
+               WHERE origin.catalog_id = $1 AND origin.schedule_id = $2
+                 AND origin.origin_catalog_id = link.catalog_id
+             ))
+         ) AS link
          INNER JOIN teachers AS teacher ON teacher.id = link.teacher_id
-         WHERE link.catalog_id = $1
-           AND link.schedule_id = $2
-           AND link.record_status = 'current'
-           AND teacher.identity_status IN ('pending', 'active')
+         WHERE teacher.identity_status IN ('pending', 'active')
          ORDER BY teacher.normalized_name, teacher.normalized_college, teacher.id`,
         [catalogId, scheduleId],
       );
