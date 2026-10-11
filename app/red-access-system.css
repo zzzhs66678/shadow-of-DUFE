@@ -1307,6 +1307,20 @@ body:has(.course-pool.finder-pool.open) .mobile-nav {
   font-weight: 450;
 }
 
+.credential-nickname-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.credential-nickname-option > input {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  accent-color: var(--dufe-red);
+}
+
 .credential-feedback {
   color: var(--journal-red);
   font-size: 11px;
@@ -1534,6 +1548,37 @@ body:has(.course-pool.finder-pool.open) .mobile-nav {
   font-size: 10px;
   grid-column: 1 / -1;
   margin: 0;
+}
+
+.account-name-mode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--journal-line);
+  margin-top: 16px;
+  padding-top: 16px;
+}
+
+.account-name-mode p {
+  margin: 6px 0;
+  overflow-wrap: anywhere;
+}
+
+.account-name-mode button {
+  min-height: 44px;
+  padding: 8px 12px;
+  margin-right: 8px;
+}
+
+.account-name-mode button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.account-name-mode > p {
+  flex-basis: 100%;
 }
 
 .account-email-verification {

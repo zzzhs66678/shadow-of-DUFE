@@ -12,12 +12,14 @@ import {
   communityErrorMessage,
   communityRequest,
   formatCommunityTime,
+  isMomoAuthor,
   reportReasons,
   type CommunityAuthor,
   type CommunityNotification,
   type CommunitySession,
 } from "./community-api";
 import styles from "./community.module.css";
+import { MomoMark } from "./MomoMark";
 
 export function CommunityHeader({
   session,
@@ -50,6 +52,10 @@ export function CommunityHeader({
   );
 }
 
+export function AuthorLabel({ author, withUsername = false }: { author: CommunityAuthor | null; withUsername?: boolean }) {
+  return <>{authorName(author)}{isMomoAuthor(author) && <MomoMark className={styles.momoMark} />}{withUsername && author?.username ? ` @${author.username}` : ""}</>;
+}
+
 export function AuthorBadge({ author }: { author: CommunityAuthor | null }) {
   const badge = (
     <>
@@ -59,7 +65,7 @@ export function AuthorBadge({ author }: { author: CommunityAuthor | null }) {
         <i aria-hidden="true">{authorName(author).slice(0, 1)}</i>
       )}
       <span>
-        <b>{authorName(author)}</b>
+        <b><AuthorLabel author={author} /></b>
         <small>{author?.username ? `@${author.username}` : "账号已注销"}</small>
       </span>
     </>
@@ -262,7 +268,7 @@ export function NotificationsPanel({
                   <button className={styles.notificationMain} onClick={() => void openItem(item)} disabled={busy === item.id}>
                     <span>{item.title}</span>
                     {item.body && <p>{item.body}</p>}
-                    <small>{item.actor ? authorName(item.actor) : "系统通知"} · {formatCommunityTime(item.createdAt)}</small>
+                    <small>{item.actor ? <AuthorLabel author={item.actor} withUsername /> : "系统通知"} · {formatCommunityTime(item.createdAt)}</small>
                   </button>
                   <button className={styles.dismiss} onClick={() => void dismiss(item)} disabled={busy === item.id} aria-label={`隐藏通知：${item.title}`}>隐藏</button>
                 </li>

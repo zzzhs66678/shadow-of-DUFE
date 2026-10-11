@@ -38,6 +38,7 @@ import {
 } from "./personal-sync";
 import { FormField } from "./FormField";
 import { DataFeedback } from "./DataFeedback";
+import { MomoMark } from "./community/MomoMark";
 import { useModalFocus } from "./use-modal-focus";
 import { activityTimes, activityTimeLabel, activityTimesOverlap, activityStart, activityBlock, activityOccursOn, activityListOrder, clockMinutes, eventWeekDate, validEventTimes, validEventDate } from "./personal-events";
 import { TeacherRecordLink } from "./TeacherRecordLink";
@@ -271,12 +272,26 @@ type AccountDevice = {
   active: boolean;
   current: boolean;
 };
+type AccountNameChange = {
+  id: string;
+  userId: string;
+  requestedUsername: string | null;
+  requestedDisplayName: string | null;
+  status: "pending" | "approved" | "rejected" | "cancelled";
+  reason: string | null;
+  createdAt: string;
+  reviewedAt: string | null;
+};
 type AccountState = {
   status: "loading" | "anonymous" | "authenticated";
   user: {
     id: string;
     username?: string | null;
     displayName: string | null;
+    accountName?: string | null;
+    nameMode?: "name" | "momo";
+    nameModeChangedAt?: string | null;
+    nameModeAvailableAt?: string | null;
     avatarUrl: string | null;
     email?: string | null;
     emailVerified?: boolean;
@@ -6264,6 +6279,7 @@ function MePage({
     registrationCode: "",
   });
   const [resetConfirmationOpen, setResetConfirmationOpen] = useState(false);
+  const [useMomoName, setUseMomoName] = useState(false);
   const securityFlowGeneration = useRef(0);
   const [registrationChallengeId, setRegistrationChallengeId] = useState("");
   const [registrationSeconds, setRegistrationSeconds] = useState(0);
@@ -6305,6 +6321,18 @@ function MePage({
     schoolAccount: "",
   });
   const [profileFeedback, setProfileFeedback] = useState("");
+  const [nameChange, setNameChange] = useState<AccountNameChange | null>(null);
+  const [nameChangeFeedback, setNameChangeFeedback] = useState("");
+  const [nameChangeLoading, setNameChangeLoading] = useState(false);
+  const [nameModeFeedback, setNameModeFeedback] = useState("");
+  const [nameModeConfirm, setNameModeConfirm] = useState<"name" | "momo" | null>(null);
+  const [nameModeNow, setNameModeNow] = useState(0);
+  const ownAccountName = account.user?.accountName !== undefined
+    ? account.user.accountName ?? ""
+    : account.user?.displayName ?? account.user?.username ?? "";
+  const currentNameMode = account.user?.nameMode ?? "name";
+  const nameModeAvailableAt = account.user?.nameModeAvailableAt ? Date.parse(account.user.nameModeAvailableAt) : 0;
+  const nameModeCoolingDown = Number.isFinite(nameModeAvailableAt) && nameModeAvailableAt > nameModeNow;
   const [emailVerificationToken, setEmailVerificationToken] = useState("");
   const [emailVerificationPassword, setEmailVerificationPassword] = useState("");
   const [emailVerificationOpen, setEmailVerificationOpen] = useState(false);
@@ -6318,6 +6346,14 @@ function MePage({
     setEmailVerificationOpen(false);
     setCredentialFeedback("");
     setProfileFeedback("");
+    setNameChangeFeedback("");
+    setNameChange(null);
+    setNameChangeLoading(false);
+    setNameModeFeedback("");
+    setNameModeConfirm(null);
+    setProfileEditing(false);
+    setProfileForm({ username: "", displayName: "", schoolAccount: "" });
+    setUseMomoName(false);
     setAccountBusy("");
   }, []);
   useLayoutEffect(() => {
@@ -6329,6 +6365,37 @@ function MePage({
     return () => { active = false; securityFlowGeneration.current += 1; };
   }, [account.status, account.user?.id, account.session?.expiresAt, clearSensitiveAccountInputs]);
   useEffect(() => () => { securityFlowGeneration.current += 1; }, []);
+  useEffect(() => {
+    if (!accountOpen || account.status !== "authenticated") return;
+    const update = () => setNameModeNow(Date.now());
+    const first = setTimeout(update, 0);
+    const timer = setInterval(update, 1000);
+    return () => { clearTimeout(first); clearInterval(timer); };
+  }, [accountOpen, account.status]);
+  useEffect(() => {
+    if (!accountOpen || account.status !== "authenticated" || !account.user?.id) return;
+    let active = true;
+    const controller = new AbortController();
+    void (async () => {
+      await Promise.resolve();
+      if (!active) return;
+      const generation = securityFlowGeneration.current;
+      setNameChangeLoading(true);
+      try {
+        const response = await fetch("/api/auth/name-change", { credentials: "same-origin", cache: "no-store", signal: controller.signal, headers: { "X-Account-Owner": account.user?.id ?? "" } });
+        if (response.status === 409 && active && generation === securityFlowGeneration.current) {
+          clearSensitiveAccountInputs();
+          onAuthChanged();
+          return;
+        }
+        if (!response.ok) throw new Error("name_change_unavailable");
+        const payload = await response.json() as { request?: AccountNameChange | null };
+        if (active && generation === securityFlowGeneration.current) setNameChange(payload.request ?? null);
+      } catch { if (active && generation === securityFlowGeneration.current) setNameChangeFeedback("改名申请暂时无法读取，请稍后再试。"); }
+      finally { if (active && generation === securityFlowGeneration.current) setNameChangeLoading(false); }
+    })();
+    return () => { active = false; controller.abort(); };
+  }, [accountOpen, account.status, account.user?.id, account.session?.expiresAt, clearSensitiveAccountInputs, onAuthChanged]);
   const changeCredentialMode = (mode: "login" | "register" | "reset") => {
     clearSensitiveAccountInputs();
     setCredentialMode(mode);
@@ -6363,10 +6430,18 @@ function MePage({
     event.preventDefault();
     const generation = securityFlowGeneration.current;
     const isResetConfirmation = credentialMode === "reset" && resetConfirmationOpen;
+    if (credentialMode === "register") {
+      const username = credentialForm.username.normalize("NFKC").trim();
+      const length = Array.from(username).length;
+      if (length < 1 || length > 24 || !/^[\p{L}\p{N}_-]+$/u.test(username)) {
+        setCredentialFeedback("用户名需要 1–24 个字符，可用汉字、字母、数字、下划线或短横线。");
+        return;
+      }
+    }
     if (credentialMode === "register" || isResetConfirmation) {
       const length = Array.from(credentialForm.password).length;
-      if (length < 15 || length > 128) {
-        setCredentialFeedback("新密码需要 15–128 个字符，可以使用长句。");
+      if (length < 8 || length > 128) {
+        setCredentialFeedback("新密码需要 8–128 个字符。");
         return;
       }
     }
@@ -6385,6 +6460,7 @@ function MePage({
         credentialMode === "register"
           ? {
               username: credentialForm.username,
+              ...(useMomoName ? { displayName: "momo" } : {}),
               email: credentialForm.email,
               password: credentialForm.password,
               schoolAccount: credentialForm.schoolAccount,
@@ -6425,6 +6501,7 @@ function MePage({
           invalid_registration_verification: "验证码无效、已过期或注册信息不可用，请检查后重新申请。",
           registration_unavailable: "注册邮件暂时不可用，请稍后再试。",
           registration_conflict: fieldMessage || "用户名或邮箱已被使用。",
+          name_conflict: fieldMessage || "这个名字已被使用，请换一个。",
           credential_rate_limit_exceeded: "尝试次数过多，请稍后再试。",
           password_reset_rate_limit_exceeded: "请求太频繁，请稍后再试。",
           password_reset_delivery_unavailable:
@@ -6477,7 +6554,7 @@ function MePage({
         method: "PUT",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(profileForm),
+        body: JSON.stringify({ schoolAccount: profileForm.schoolAccount }),
       });
       const payload = (await response.json().catch(() => ({}))) as {
         error?: string;
@@ -6496,13 +6573,89 @@ function MePage({
         return;
       }
       setProfileEditing(false);
-      setProfileFeedback("账号资料已保存。");
+      setProfileFeedback("学号已保存。");
       onAuthChanged();
     } catch {
       setProfileFeedback("账号服务暂时离线，资料没有更改。");
     } finally {
       setAccountBusy("");
     }
+  };
+
+  const submitAccountNameChange = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const generation = securityFlowGeneration.current;
+    const username = profileForm.username.normalize("NFKC").trim();
+    const displayName = profileForm.displayName.normalize("NFKC").trim();
+    if ((username || account.user?.username) && (Array.from(username).length < 1 || Array.from(username).length > 24 || !/^[\p{L}\p{N}_-]+$/u.test(username))) {
+      setNameChangeFeedback("用户名需要 1–24 个字符，可用汉字、字母、数字、下划线或短横线。");
+      return;
+    }
+    if (Array.from(displayName).length < 1 || Array.from(displayName).length > 40 || /[\p{Cc}\p{Cf}]/u.test(displayName)) {
+      setNameChangeFeedback("昵称需要 1–40 个可见字符。");
+      return;
+    }
+    if (displayName.toLowerCase() === "momo" && ownAccountName.toLowerCase() !== "momo") {
+      setNameChangeFeedback("想使用 momo，请使用昵称切换；自己的名字会为你保留。");
+      return;
+    }
+    const body = {
+      ...(username !== (account.user?.username ?? "") ? { username } : {}),
+      ...(displayName !== ownAccountName ? { displayName } : {}),
+    };
+    if (!Object.keys(body).length) { setNameChangeFeedback("请先填写想改的名字。"); return; }
+    setAccountBusy("name-change");
+    setNameChangeFeedback("");
+    try {
+      const response = await fetch("/api/auth/name-change", { method: "POST", credentials: "same-origin", cache: "no-store", headers: { "Content-Type": "application/json", "X-Account-Owner": account.user?.id ?? "" }, body: JSON.stringify(body) });
+      const payload = await response.json() as { request?: AccountNameChange; error?: string; fields?: Record<string, string> };
+      if (generation !== securityFlowGeneration.current) return;
+      if (!response.ok) {
+        if (payload.error === "account_changed") {
+          clearSensitiveAccountInputs();
+          setNameChangeFeedback("登录账号已变化，请核对当前账号后重新操作。");
+          onAuthChanged();
+          return;
+        }
+        const message = payload.fields ? Object.values(payload.fields)[0] : "";
+        setNameChangeFeedback(message || (payload.error === "account_changed" ? "登录账号已变化，请刷新后重新操作。" : payload.error === "name_conflict" ? "这个名字已被使用，请换一个。" : payload.error === "name_change_conflict" ? "已有待审核的申请，请等待管理员处理。" : response.status === 429 ? "改名申请太频繁，请稍后再试。" : "改名申请暂时无法提交，请稍后再试。"));
+        return;
+      }
+      setNameChange(payload.request ?? null);
+      setNameChangeFeedback("改名申请已提交，管理员通过后生效。当前名字保持不变。");
+    } catch { if (generation === securityFlowGeneration.current) setNameChangeFeedback("改名申请暂时无法提交，请稍后再试。"); }
+    finally { if (generation === securityFlowGeneration.current) setAccountBusy(""); }
+  };
+
+  const switchAccountNameMode = async () => {
+    if (!nameModeConfirm) return;
+    const mode = nameModeConfirm;
+    const generation = securityFlowGeneration.current;
+    setAccountBusy("name-mode");
+    setNameModeFeedback("");
+    try {
+      const response = await fetch("/api/auth/name-mode", {
+        method: "POST", credentials: "same-origin", cache: "no-store",
+        headers: { "Content-Type": "application/json", "X-Account-Owner": account.user?.id ?? "" }, body: JSON.stringify({ mode }),
+      });
+      const payload = await response.json() as { error?: string; availableAt?: string };
+      if (generation !== securityFlowGeneration.current) return;
+      setNameModeConfirm(null);
+      if (!response.ok) {
+        if (payload.error === "account_changed") clearSensitiveAccountInputs();
+        const availableAt = payload.availableAt ? new Date(payload.availableAt) : null;
+        setNameModeFeedback(payload.error === "name_mode_cooldown"
+          ? `还在冷却中${availableAt && Number.isFinite(availableAt.getTime()) ? `，可在 ${availableAt.toLocaleString("zh-CN")} 再次切换` : "，请稍后再试"}。`
+          : payload.error === "account_changed" ? "登录账号已变化，请刷新后重新操作。"
+          : payload.error === "name_mode_name_required" ? "请先提交自己的名字，管理员通过后即可切换。"
+          : response.status === 429 ? "操作太频繁，请稍后再试。" : "昵称暂时无法切换，请稍后再试。");
+        onAuthChanged();
+        return;
+      }
+      setNameModeFeedback(mode === "momo" ? "已切换为 momo，自己的名字已保留。" : "已切回自己的名字。");
+      onAuthChanged();
+    } catch { if (generation === securityFlowGeneration.current) setNameModeFeedback("昵称暂时无法切换，请稍后再试。"); }
+    finally { if (generation === securityFlowGeneration.current) setAccountBusy(""); }
   };
 
   const uploadAccountAvatar = async (file: File) => {
@@ -6793,11 +6946,9 @@ function MePage({
                 </nav>
                 <form onSubmit={submitCredentials}>
                   {credentialMode === "register" && (
-                    <FormField label="用户名" hint="3–24 个字，可用汉字、字母、数字、_ 或 -" className="credential-field">
+                    <FormField label="用户名" className="credential-field">
                       <input
                         required
-                        minLength={3}
-                        maxLength={24}
                         autoComplete="username"
                         value={credentialForm.username}
                         onChange={(event) =>
@@ -6892,7 +7043,6 @@ function MePage({
                         required
                         type="password"
                         minLength={credentialMode === "login" ? 1 : undefined}
-                        maxLength={256}
                         autoComplete={
                           credentialMode === "login"
                             ? "current-password"
@@ -6908,14 +7058,14 @@ function MePage({
                         placeholder={
                           credentialMode === "login"
                             ? "输入密码"
-                            : "15—128 个字符，可以使用长句"
+                            : "设置密码"
                         }
                       />
                     </FormField>
                   )}
                   {credentialMode === "register" && (
                     <FormField
-                      label="校园账号"
+                      label="学号"
                       hint="选填，不会自动认证身份"
                       className="credential-field"
                     >
@@ -6929,9 +7079,15 @@ function MePage({
                             schoolAccount: event.target.value,
                           }))
                         }
-                        placeholder="学号或校园账号"
+                        placeholder="填写学号"
                       />
                     </FormField>
+                  )}
+                  {credentialMode === "register" && (
+                    <label className="credential-nickname-option">
+                      <input type="checkbox" checked={useMomoName} onChange={(event) => setUseMomoName(event.target.checked)} />
+                      昵称使用 momo
+                    </label>
                   )}
                   {credentialFeedback && (
                     <p className="credential-feedback" aria-live="polite">
@@ -7042,7 +7198,7 @@ function MePage({
                       if (!profileEditing) {
                         setProfileForm({
                           username: account.user?.username ?? "",
-                          displayName: account.user?.displayName ?? "",
+                          displayName: ownAccountName,
                           schoolAccount: account.user?.schoolAccount ?? "",
                         });
                       }
@@ -7055,12 +7211,11 @@ function MePage({
                 </div>
               </header>
               {profileEditing ? (
-                <form onSubmit={saveAccountProfile}>
+                <>
+                <form onSubmit={submitAccountNameChange}>
                   <FormField label="用户名" className="profile-field">
                     <input
-                      required
-                      minLength={3}
-                      maxLength={24}
+                      required={Boolean(account.user?.username)}
                       autoComplete="username"
                       value={profileForm.username}
                       onChange={(event) =>
@@ -7071,10 +7226,9 @@ function MePage({
                       }
                     />
                   </FormField>
-                  <FormField label="显示名" className="profile-field">
+                  <FormField label="昵称" className="profile-field">
                     <input
                       required
-                      maxLength={40}
                       autoComplete="nickname"
                       value={profileForm.displayName}
                       onChange={(event) =>
@@ -7085,8 +7239,11 @@ function MePage({
                       }
                     />
                   </FormField>
+                  <button disabled={Boolean(accountBusy) || nameChangeLoading || nameChange?.status === "pending"}>提交改名申请</button>
+                </form>
+                <form onSubmit={saveAccountProfile}>
                   <FormField
-                    label="校园账号"
+                    label="学号"
                     hint="选填，修改后需重新验证"
                     className="profile-field"
                   >
@@ -7106,9 +7263,10 @@ function MePage({
                     <p aria-live="polite">{profileFeedback}</p>
                   )}
                   <button disabled={accountBusy === "profile"}>
-                    保存资料
+                    保存学号
                   </button>
                 </form>
+                </>
               ) : (
                 <dl>
                   <div>
@@ -7119,7 +7277,7 @@ function MePage({
                     </small>
                   </div>
                   <div>
-                    <dt>校园账号</dt>
+                    <dt>学号</dt>
                     <dd>{account.user?.schoolAccount || "未填写"}</dd>
                     <small>
                       {account.user?.schoolAccountVerified
@@ -7141,6 +7299,35 @@ function MePage({
                   </div>
                 </dl>
               )}
+              {nameChange && nameChange.userId === account.user?.id && (
+                <p className="profile-feedback" aria-live="polite">
+                  {nameChange.status === "pending" ? "改名申请待审核" : nameChange.status === "approved" ? "改名申请已通过" : nameChange.status === "rejected" ? "改名申请未通过" : "改名申请已取消"}
+                  {nameChange.requestedUsername ? ` · 用户名：${nameChange.requestedUsername}` : ""}
+                  {nameChange.requestedDisplayName ? ` · 昵称：${nameChange.requestedDisplayName}` : ""}
+                  {nameChange.reason ? ` · ${nameChange.reason}` : ""}
+                </p>
+              )}
+              {nameChangeFeedback && <p className="profile-feedback" aria-live="polite">{nameChangeFeedback}</p>}
+              <div className="account-name-mode">
+                <div>
+                  <b>东财墙昵称</b>
+                  <p>{currentNameMode === "momo" ? <><MomoMark /> momo</> : ownAccountName || "尚未设置自己的名字"}</p>
+                </div>
+                {nameModeConfirm ? (
+                  <div>
+                    <p>切换为{ nameModeConfirm === "momo" ? " momo" : "自己的名字" }后，7 天内无法再次切换。</p>
+                    <button type="button" disabled={Boolean(accountBusy)} onClick={() => void switchAccountNameMode()}>确认切换</button>
+                    <button type="button" disabled={Boolean(accountBusy)} onClick={() => setNameModeConfirm(null)}>取消切换</button>
+                  </div>
+                ) : (
+                  <button type="button" disabled={Boolean(accountBusy) || nameModeCoolingDown || (currentNameMode === "momo" && !ownAccountName)} onClick={() => setNameModeConfirm(currentNameMode === "momo" ? "name" : "momo")}>
+                    {currentNameMode === "momo" ? "切回自己的名字" : "切换为 momo"}
+                  </button>
+                )}
+                {nameModeCoolingDown && <p>可在 {new Date(nameModeAvailableAt).toLocaleString("zh-CN")} 再次切换。</p>}
+                {currentNameMode === "momo" && !ownAccountName && <p>先提交自己的名字，管理员通过后即可切换。</p>}
+                {nameModeFeedback && <p aria-live="polite">{nameModeFeedback}</p>}
+              </div>
               {!profileEditing &&
                 account.user?.email &&
                 !account.user.emailVerified && (

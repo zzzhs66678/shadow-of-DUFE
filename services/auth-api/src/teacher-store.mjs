@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { publicAccountNameSql } from "./account-names.mjs";
 
 function iso(value) {
   return value ? new Date(value).toISOString() : null;
@@ -89,6 +90,7 @@ function mapReviewComment(row) {
       id: String(row.author_user_id),
       username: row.author_username,
       displayName: row.author_display_name,
+      nameMode: row.author_name_mode ?? "name",
       avatarUrl: row.author_avatar_url,
     },
     createdAt: iso(row.created_at),
@@ -384,7 +386,8 @@ export function createTeacherStore(pool) {
       if (rootIds.length === 0) return { items: [], nextCursor: null };
       const result = await pool.query(
         `SELECT comments.*, authors.username AS author_username,
-                authors.display_name AS author_display_name,
+                ${publicAccountNameSql("authors")} AS author_display_name,
+                authors.name_mode AS author_name_mode,
                 authors.avatar_url AS author_avatar_url,
                 EXISTS (
                   SELECT 1 FROM community_user_blocks AS blocks
@@ -497,7 +500,7 @@ export function createTeacherStore(pool) {
         }
         const full = await client.query(
           `SELECT comments.*, users.username AS author_username,
-                  users.display_name AS author_display_name, users.avatar_url AS author_avatar_url,
+                  ${publicAccountNameSql("users")} AS author_display_name, users.name_mode AS author_name_mode, users.avatar_url AS author_avatar_url,
                   false AS blocked_by_viewer
            FROM teacher_review_comments AS comments
            LEFT JOIN app_users AS users ON users.id = comments.author_user_id
@@ -512,7 +515,7 @@ export function createTeacherStore(pool) {
       return withTransaction(pool, async (client) => {
         await assertTeacherReviewPostingAllowed(client, userId);
         const locked = await client.query(
-          `SELECT comments.*, COALESCE(users.display_name, users.username, '已注销用户') AS actor_label,
+          `SELECT comments.*, COALESCE(${publicAccountNameSql("users")}, '已注销用户') AS actor_label,
                   reviews.status AS review_status
            FROM teacher_review_comments AS comments
            JOIN teacher_reviews AS reviews ON reviews.id = comments.review_id
@@ -544,7 +547,7 @@ export function createTeacherStore(pool) {
         );
         const full = await client.query(
           `SELECT comments.*, users.username AS author_username,
-                  users.display_name AS author_display_name, users.avatar_url AS author_avatar_url,
+                  ${publicAccountNameSql("users")} AS author_display_name, users.name_mode AS author_name_mode, users.avatar_url AS author_avatar_url,
                   false AS blocked_by_viewer
            FROM teacher_review_comments AS comments
            LEFT JOIN app_users AS users ON users.id = comments.author_user_id
@@ -558,7 +561,7 @@ export function createTeacherStore(pool) {
     async deleteTeacherReviewComment({ commentId, userId, expectedVersion }) {
       return withTransaction(pool, async (client) => {
         const locked = await client.query(
-          `SELECT comments.*, COALESCE(users.display_name, users.username, '已注销用户') AS actor_label
+          `SELECT comments.*, COALESCE(${publicAccountNameSql("users")}, '已注销用户') AS actor_label
            FROM teacher_review_comments AS comments
            LEFT JOIN app_users AS users ON users.id = comments.author_user_id
            WHERE comments.id = $1::uuid AND comments.author_user_id = $2::uuid
@@ -591,7 +594,7 @@ export function createTeacherStore(pool) {
         );
         const full = await client.query(
           `SELECT comments.*, users.username AS author_username,
-                  users.display_name AS author_display_name, users.avatar_url AS author_avatar_url,
+                  ${publicAccountNameSql("users")} AS author_display_name, users.name_mode AS author_name_mode, users.avatar_url AS author_avatar_url,
                   false AS blocked_by_viewer
            FROM teacher_review_comments AS comments
            LEFT JOIN app_users AS users ON users.id = comments.author_user_id

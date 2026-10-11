@@ -181,7 +181,10 @@ function createFakeStore() {
       const principal = {
         id,
         username: input.username,
-        displayName: input.username,
+        displayName: input.nameMode === "momo" ? "momo" : input.username,
+        accountName: input.username,
+        nameMode: input.nameMode ?? "name",
+        nameModeAvailableAt: null,
         email: input.email,
         emailVerified: true,
         schoolAccount: input.schoolAccount,
@@ -196,7 +199,10 @@ function createFakeStore() {
         id: `credential-session-${sessions.size + 1}`,
         userId: id,
         username: input.username,
-        displayName: input.username,
+        displayName: principal.displayName,
+        accountName: principal.accountName,
+        nameMode: principal.nameMode,
+        nameModeAvailableAt: principal.nameModeAvailableAt,
         avatarUrl: null,
         email: input.email,
         emailVerified: true,
@@ -208,7 +214,10 @@ function createFakeStore() {
         user: {
           id,
           username: input.username,
-          displayName: input.username,
+          displayName: principal.displayName,
+          accountName: principal.accountName,
+          nameMode: principal.nameMode,
+          nameModeAvailableAt: principal.nameModeAvailableAt,
           email: input.email,
           schoolAccount: input.schoolAccount,
           status: "active",
@@ -230,6 +239,9 @@ function createFakeStore() {
             id: principal.id,
             username: principal.username,
             displayName: principal.displayName,
+            accountName: principal.accountName ?? principal.displayName,
+            nameMode: principal.nameMode ?? "name",
+            nameModeAvailableAt: principal.nameModeAvailableAt ?? null,
             avatarUrl: principal.avatarUrl ?? null,
             email: principal.email,
             emailVerified: principal.emailVerified,
@@ -1843,6 +1855,220 @@ test("credential registration, login, and one-time password reset are real serve
   });
 });
 
+test("HTTP registration accepts one-character usernames and reset enforces the shared eight-character minimum", async () => {
+  await withServer(async ({ baseUrl }) => {
+    const headers = { "Content-Type": "application/json", Origin: "https://dufesh.cn" };
+    const post = (path, body) => fetch(`${baseUrl}${path}`, { method: "POST", headers, body: JSON.stringify(body) });
+    const short = await post("/api/auth/register", { username: "A", email: "single@example.com", password: "river77" });
+    assert.equal(short.status, 400);
+    const invalid = await short.json();
+    assert.equal(invalid.error, "invalid_registration");
+    assert.deepEqual(Object.keys(invalid.fields), ["password"]);
+    assert.match(invalid.fields.password, /8—128/u);
+    const registered = await registerWithProof(`${baseUrl}/api/auth/register`, { method: "POST", headers,
+      body: JSON.stringify({ username: "A", email: "single@example.com", password: "aRiver77" }) });
+    assert.equal(registered.status, 201);
+    assert.equal((await registered.json()).user.username, "A");
+    const duplicate = await registerWithProof(`${baseUrl}/api/auth/register`, { method: "POST", headers,
+      body: JSON.stringify({ username: "Ａ", email: "duplicate@example.com", password: "aRiver77" }) });
+    assert.equal(duplicate.status, 400);
+    assert.equal((await duplicate.json()).error, "invalid_registration_verification");
+    const requested = await post("/api/auth/password/reset/request", { identifier: "single@example.com" });
+    const { debugToken } = await requested.json();
+    assert.equal(requested.status, 202); assert.equal(isOpaqueToken(debugToken), true);
+    const rejected = await post("/api/auth/password/reset/confirm", { token: debugToken, password: "river77" });
+    assert.equal(rejected.status, 400);
+    const accepted = await post("/api/auth/password/reset/confirm", { token: debugToken, password: "harbor88" });
+    assert.equal(accepted.status, 200);
+    const login = await post("/api/auth/login", { identifier: "ａ", password: "harbor88" });
+    assert.equal(login.status, 200);
+    assert.equal((await login.json()).user.username, "A");
+  });
+});
+
+test("SMTP registration permits separate momo profiles but no caller-selected names or privilege fields", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    const headers = { "Content-Type": "application/json", Origin: "https://dufesh.cn" };
+    const signUp = (body) => registerWithProof(`${baseUrl}/api/auth/register`, { method: "POST", headers, body: JSON.stringify(body) });
+    const accounts = [];
+    for (const [username, email, displayName] of [["海", "momo-one@example.com", "momo"], ["风", "momo-two@example.com", "ＭＯＭＯ"]]) {
+      const response = await signUp({ username, email, displayName, password: "river777" });
+      assert.equal(response.status, 201);
+      const body = await response.json();
+      accounts.push(body.user);
+      assert.equal(body.user.username, username);
+      assert.equal(body.user.accountName, username);
+      assert.equal(body.user.displayName, "momo");
+      assert.equal(body.user.nameMode, "momo");
+      const cookie = response.headers.getSetCookie().map(value => value.split(";", 1)[0]).join("; ");
+      const session = await (await fetch(`${baseUrl}/api/auth/session`, { headers: { Cookie: cookie } })).json();
+      assert.equal(session.user.role, "user");
+      assert.equal(session.user.id, body.user.id);
+      assert.equal(session.user.accountName, username);
+      const oldClientSave = await fetch(`${baseUrl}/api/auth/profile`, { method: "PUT", headers: { ...headers, Cookie: cookie },
+        body: JSON.stringify({ username, displayName: "momo", schoolAccount: "20261234" }) });
+      assert.equal(oldClientSave.status, 200);
+      const updated = (await oldClientSave.json()).profile;
+      assert.equal(updated.accountName, username);
+      assert.equal(updated.displayName, "momo");
+      assert.equal(updated.nameMode, "momo");
+      assert.equal(updated.schoolAccount, "20261234");
+    }
+    assert.notEqual(accounts[0].id, accounts[1].id);
+    const reservedLogin = await signUp({ username: "MOMO", email: "actual-momo@example.com", password: "river777" });
+    assert.equal(reservedLogin.status, 201);
+    assert.equal((await reservedLogin.json()).user.nameMode, "name");
+    const invalidName = await signUp({ username: "月", email: "invalid-name@example.com", displayName: "任意昵称", password: "river777" });
+    assert.equal(invalidName.status, 400);
+    assert.deepEqual(Object.keys((await invalidName.json()).fields), ["displayName"]);
+    const privilege = await signUp({ username: "云", email: "privilege-name@example.com", displayName: "momo", password: "river777", role: "admin", verified: true });
+    assert.equal(privilege.status, 400);
+    assert.equal((await privilege.json()).error, "invalid_registration_verification");
+    assert.equal(store.credentialPrincipals.size, 6);
+    const duplicate = await signUp({ username: "海", email: "duplicate-momo@example.com", displayName: "momo", password: "river777" });
+    assert.equal(duplicate.status, 400);
+    assert.equal((await duplicate.json()).error, "invalid_registration_verification");
+    const repeatedMomoLogin = await signUp({ username: "momo", email: "repeat-actual-momo@example.com", displayName: "momo", password: "river777" });
+    assert.equal(repeatedMomoLogin.status, 400);
+  });
+});
+
+test("registration maps a reserved public name conflict without exposing private account details", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    store.registerCredentialUser = async () => { throw Object.assign(new Error("secret-email@example.com DB details"), { code: "AUTH_NAME_TAKEN" }); };
+    const response = await registerWithProof(`${baseUrl}/api/auth/register`, { method: "POST",
+      headers: { "Content-Type": "application/json", Origin: "https://dufesh.cn" },
+      body: JSON.stringify({ username: "云", email: "public-conflict@example.com", password: "river777" }) });
+    assert.equal(response.status, 409);
+    assert.deepEqual(await response.json(), { error: "name_conflict", fields: { displayName: "这个名字已被使用" } });
+  });
+});
+
+test("name-change requests derive the account and session from authentication and remain pending", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    const { principal, cookie } = seedLegacyCredential(store);
+    const inputs = [];
+    const receipts = new Map();
+    store.getAccountNameChange = async userId => receipts.get(userId) ?? null;
+    store.requestAccountNameChange = async input => {
+      inputs.push(input);
+      const receipt = { id: "00000000-0000-4000-8000-000000000901", userId: input.userId,
+        username: principal.username, displayName: principal.displayName, requestedUsername: input.username ?? null,
+        requestedDisplayName: input.displayName ?? null, status: "pending", reason: null, createdAt: new Date(0).toISOString(), reviewedAt: null };
+      receipts.set(input.userId, receipt); return receipt;
+    };
+    const headers = { "Content-Type": "application/json", Origin: "https://dufesh.cn", Cookie: cookie };
+    const post = (body, extraHeaders = {}) => fetch(`${baseUrl}/api/auth/name-change`, { method: "POST", headers: { ...headers, ...extraHeaders }, body: JSON.stringify(body) });
+    assert.equal((await fetch(`${baseUrl}/api/auth/name-change`)).status, 401);
+    assert.equal((await post({ displayName: "海风" }, { Origin: "https://attacker.invalid" })).status, 403);
+    assert.equal((await post({ displayName: "海风" }, { "X-Account-Owner": "previous-user" })).status, 409);
+    for (const body of [{ displayName: "海风", userId: "victim" }, { username: "海", role: "admin" }, { schoolAccount: "20260001" }, {}, { displayName: "momo" }]) {
+      assert.equal((await post(body)).status, 400);
+    }
+    assert.equal(inputs.length, 0);
+    assert.equal((await fetch(`${baseUrl}/api/auth/name-change?userId=victim`, { headers })).status, 400);
+    const empty = await fetch(`${baseUrl}/api/auth/name-change`, { headers });
+    assert.deepEqual(await empty.json(), { request: null });
+    const requested = await post({ username: " Ａ ", displayName: " 海风 " });
+    assert.equal(requested.status, 202);
+    assert.match(requested.headers.get("Cache-Control"), /no-store/u);
+    const proposed = (await requested.json()).request;
+    assert.equal(proposed.status, "pending");
+    assert.deepEqual(inputs[0], { userId: principal.id, sessionId: "legacy-fixture-session", username: "A", normalizedUsername: "a", displayName: "海风" });
+    assert.equal(principal.username, "legacy-fixture");
+    assert.equal(principal.displayName, "合成旧用户");
+    const latest = await fetch(`${baseUrl}/api/auth/name-change`, { headers });
+    assert.deepEqual(await latest.json(), { request: proposed });
+    const otherToken = createOpaqueToken();
+    store.sessions.set(tokenDigest(otherToken, config.tokenPepper), { id: "another-session", userId: "another-user" });
+    const other = await fetch(`${baseUrl}/api/auth/name-change`, { headers: { Cookie: `${config.sessionCookie}=${otherToken}` } });
+    assert.deepEqual(await other.json(), { request: null });
+    const staleTab = await post({ displayName: "旧账号草稿" }, { Cookie: `${config.sessionCookie}=${otherToken}`, "X-Account-Owner": principal.id });
+    assert.equal(staleTab.status, 409);
+    assert.deepEqual(await staleTab.json(), { error: "account_changed" });
+    assert.equal(inputs.length, 1);
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const token = createOpaqueToken();
+      store.sessions.set(tokenDigest(token, config.tokenPepper), { id: `renewed-${attempt}`, userId: principal.id });
+      const result = await post({ displayName: "海风" }, { Cookie: `${config.sessionCookie}=${token}`, "X-Forwarded-For": `192.0.2.${attempt}` });
+      assert.equal(result.status, attempt < 3 ? 202 : 429);
+    }
+    const fresh = await post({ displayName: "其他名字" }, { Cookie: `${config.sessionCookie}=${otherToken}` });
+    assert.equal(fresh.status, 202);
+    assert.equal(inputs.at(-1).userId, "another-user");
+    assert.equal(inputs.at(-1).sessionId, "another-session");
+  });
+});
+
+test("name-change dependency conflicts and expired sessions return fixed public errors", async () => {
+  for (const [code, status, error] of [["AUTH_NAME_TAKEN", 409, "name_conflict"], ["AUTH_NAME_CHANGE_CONFLICT", 409, "name_change_conflict"],
+    ["AUTH_NAME_CHANGE_INVALID", 400, "invalid_name_change"], ["AUTH_SESSION_REQUIRED", 401, "authentication_required"]]) {
+    await withServer(async ({ baseUrl, store }) => {
+      const { cookie } = seedLegacyCredential(store);
+      store.requestAccountNameChange = async () => { throw Object.assign(new Error("DB implementation and secret account details"), { code }); };
+      const response = await fetch(`${baseUrl}/api/auth/name-change`, { method: "POST",
+        headers: { "Content-Type": "application/json", Origin: "https://dufesh.cn", Cookie: cookie }, body: JSON.stringify({ displayName: "海风" }) });
+      assert.equal(response.status, status);
+      assert.deepEqual(await response.json(), { error });
+    });
+  }
+});
+
+test("name-mode switching has strict authenticated input and honors server cooldown metadata", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    const { principal, cookie } = seedLegacyCredential(store);
+    const inputs = [];
+    const availableAt = "2026-10-19T00:00:00.000Z";
+    let mode = "name";
+    store.setAccountNameMode = async input => {
+      inputs.push(input);
+      if (mode === "momo" && input.mode !== mode) throw Object.assign(new Error("private internal date"), { code: "AUTH_NAME_MODE_COOLDOWN", availableAt });
+      mode = input.mode;
+      return { accountName: principal.displayName, displayName: mode === "momo" ? "momo" : principal.displayName,
+        nameMode: mode, nameModeChangedAt: "2026-10-12T00:00:00.000Z", nameModeAvailableAt: availableAt };
+    };
+    const headers = { "Content-Type": "application/json", Origin: "https://dufesh.cn", Cookie: cookie };
+    const post = (body, extra = {}) => fetch(`${baseUrl}/api/auth/name-mode`, { method: "POST", headers: { ...headers, ...extra }, body: JSON.stringify(body) });
+    assert.equal((await post({ mode: "momo" }, { Cookie: "" })).status, 401);
+    assert.equal((await post({ mode: "momo" }, { Origin: "https://attacker.invalid" })).status, 403);
+    assert.equal((await post({ mode: "momo" }, { "X-Account-Owner": "previous-user" })).status, 409);
+    for (const body of [{}, [], { mode: "admin" }, { mode: "momo", userId: "victim" }, { mode: "momo", now: "2099-01-01" },
+      { mode: "momo", displayName: "抢名字" }, { mode: "momo", role: "admin" }]) assert.equal((await post(body)).status, 400);
+    assert.equal(inputs.length, 0);
+    const otherToken = createOpaqueToken();
+    store.sessions.set(tokenDigest(otherToken, config.tokenPepper), { id: "mode-other-session", userId: "mode-other-user" });
+    const staleTab = await post({ mode: "momo" }, { Cookie: `${config.sessionCookie}=${otherToken}`, "X-Account-Owner": principal.id });
+    assert.equal(staleTab.status, 409);
+    assert.deepEqual(await staleTab.json(), { error: "account_changed" });
+    assert.equal(inputs.length, 0);
+    const switched = await post({ mode: "momo" });
+    assert.equal(switched.status, 200);
+    assert.equal((await switched.json()).nameMode, "momo");
+    assert.deepEqual(inputs[0], { userId: principal.id, sessionId: "legacy-fixture-session", mode: "momo" });
+    assert.equal(principal.displayName, "合成旧用户");
+    const sameMode = await post({ mode: "momo" });
+    assert.equal(sameMode.status, 200);
+    assert.equal((await sameMode.json()).nameModeAvailableAt, availableAt);
+    const tooSoon = await post({ mode: "name" }, { "X-Forwarded-For": "192.0.2.99" });
+    assert.equal(tooSoon.status, 409);
+    assert.deepEqual(await tooSoon.json(), { error: "name_mode_cooldown", availableAt });
+  });
+});
+
+test("name-mode failures do not expose dependency details or fall back to unauthenticated writes", async () => {
+  for (const [code, status, error] of [["AUTH_NAME_MODE_INVALID", 400, "invalid_name_mode"],
+    ["AUTH_NAME_MODE_NAME_REQUIRED", 409, "name_mode_name_required"], ["AUTH_SESSION_REQUIRED", 401, "authentication_required"]]) {
+    await withServer(async ({ baseUrl, store }) => {
+      const { cookie } = seedLegacyCredential(store);
+      store.setAccountNameMode = async () => { throw Object.assign(new Error("private implementation details"), { code }); };
+      const response = await fetch(`${baseUrl}/api/auth/name-mode`, { method: "POST",
+        headers: { "Content-Type": "application/json", Origin: "https://dufesh.cn", Cookie: cookie }, body: JSON.stringify({ mode: "momo" }) });
+      assert.equal(response.status, status);
+      assert.deepEqual(await response.json(), { error });
+    });
+  }
+});
+
 test("repeated credential failures lock the account even when the password later matches", async () => {
   await withServer(async ({ baseUrl }) => {
     const headers = {
@@ -1930,7 +2156,7 @@ test("authenticated profile updates are whitelisted, normalized, and account-sco
     });
     assert.equal(massAssignment.status, 400);
 
-    const updated = await fetch(`${baseUrl}/api/auth/profile`, {
+    const rename = await fetch(`${baseUrl}/api/auth/profile`, {
       method: "PUT",
       headers: { ...headers, Cookie: cookie },
       body: JSON.stringify({
@@ -1939,10 +2165,17 @@ test("authenticated profile updates are whitelisted, normalized, and account-sco
         schoolAccount: "2026123456",
       }),
     });
+    assert.equal(rename.status, 409);
+    assert.deepEqual(await rename.json(), { error: "name_review_required" });
+    const updated = await fetch(`${baseUrl}/api/auth/profile`, {
+      method: "PUT",
+      headers: { ...headers, Cookie: cookie },
+      body: JSON.stringify({ username: "profile-student", displayName: "profile-student", schoolAccount: " 2026123456 " }),
+    });
     const updatedBody = await updated.json();
     assert.equal(updated.status, 200);
-    assert.equal(updatedBody.profile.username, "海风-2026");
-    assert.equal(updatedBody.profile.displayName, "海风");
+    assert.equal(updatedBody.profile.username, "profile-student");
+    assert.equal(updatedBody.profile.displayName, "profile-student");
     assert.equal(updatedBody.profile.schoolAccount, "2026123456");
     assert.equal(updatedBody.profile.schoolAccountVerified, false);
   });

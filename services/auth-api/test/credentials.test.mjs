@@ -4,6 +4,7 @@ import {
   normalizeEmail,
   normalizeLoginIdentifier,
   normalizeUsername,
+  validateAccountNameChange,
   validateLogin,
   validateNewPassword,
   validateProfileUpdate,
@@ -36,7 +37,7 @@ test("registration validates fields and rejects weak or identity-derived passwor
   assert.ok(weak.fields.password);
 
   const malformed = validateRegistration({
-    username: "a",
+    username: " ",
     email: "not-an-email",
     password: "short",
     schoolAccount: "**",
@@ -47,6 +48,93 @@ test("registration validates fields and rejects weak or identity-derived passwor
     "schoolAccount",
     "username",
   ]);
+});
+
+test("registration and profile accept 1–24 Unicode username code points with unchanged identity normalization", () => {
+  for (const username of ["a", "海", "小影", "𠀀", "𠀀".repeat(24)]) {
+    const registration = validateRegistration({ username, email: "shortnames@example.com", password: "a calm river crosses the harbor" });
+    assert.equal(registration.ok, true, username);
+    const profile = validateProfileUpdate({ username });
+    assert.equal(profile.ok, true, username);
+    assert.equal(profile.value.normalizedUsername, registration.value.normalizedUsername);
+  }
+  assert.equal(validateProfileUpdate({ username: "  Ａ " }).value.normalizedUsername, "a");
+  for (const username of ["", " ", "𠀀".repeat(25), "a b", "<script>", "a@b"]) {
+    assert.equal(validateRegistration({ username, email: "shortnames@example.com", password: "a calm river crosses the harbor" }).ok, false);
+    assert.equal(validateProfileUpdate({ username }).ok, false);
+  }
+});
+
+test("registration and reset share 8–128 Unicode password bounds while legacy login stays compatible", () => {
+  for (const [password, expected] of [["river77", false], ["river777", true], ["😀".repeat(128), true], ["😀".repeat(129), false]]) {
+    assert.equal(validateNewPassword(password, ["a", "learner@example.com"]), expected);
+    assert.equal(validateRegistration({ username: "a", email: "learner@example.com", password }).ok, expected);
+  }
+  assert.deepEqual(validateLogin({ identifier: "a", password: "old" }), { identifier: "a", password: "old" });
+  for (const password of ["12345678", "qwertyui", "password", "00000000", "abcdefgh"]) {
+    assert.equal(validateNewPassword(password), false);
+    assert.equal(validateRegistration({ username: "a", email: "learner@example.com", password }).ok, false);
+  }
+});
+
+test("short username hints do not reject unrelated passwords and longer identities remain protected", () => {
+  for (const username of ["a", "ab", "𠀀𠀁"]) {
+    const password = `${username} river777`;
+    assert.equal(validateNewPassword(password, [username]), true);
+    assert.equal(validateRegistration({ username, email: "learner@example.com", password }).ok, true);
+  }
+  for (const username of ["abc", "𠀀𠀁𠀂"]) {
+    const password = `${username} river777`;
+    assert.equal(validateNewPassword(password, [username]), false);
+    assert.equal(validateRegistration({ username, email: "learner@example.com", password }).ok, false);
+  }
+  assert.equal(validateNewPassword("learner-river777", ["learner@example.com"]), false);
+});
+
+test("optional student number retains its format and unverified contract", () => {
+  for (const schoolAccount of ["", "20261234", "AB-2026_"]) {
+    const registration = validateRegistration({ username: "海", email: "number@example.com", password: "river777", schoolAccount });
+    assert.equal(registration.ok, true);
+    assert.equal(registration.value.schoolAccount, schoolAccount || null);
+    assert.equal(validateProfileUpdate({ schoolAccount }).value.schoolAccount, schoolAccount || null);
+  }
+  const registration = validateRegistration({ username: "海", email: "number@example.com", password: "river777", schoolAccount: "**" });
+  const profile = validateProfileUpdate({ schoolAccount: "**" });
+  assert.match(registration.fields.schoolAccount, /^学号需为 4—32/u);
+  assert.equal(profile.fields.schoolAccount, registration.fields.schoolAccount);
+});
+
+test("registration offers only the canonical momo display name while keeping a distinct login username", () => {
+  const input = { username: "海", email: "number@example.com", password: "river777" };
+  assert.equal(validateRegistration(input).value.displayName, "海");
+  assert.equal(validateRegistration(input).value.nameMode, "name");
+  for (const displayName of ["momo", "MOMO", " ｍｏｍｏ "]) {
+    const result = validateRegistration({ ...input, displayName });
+    assert.equal(result.ok, true);
+    assert.equal(result.value.username, "海");
+    assert.equal(result.value.displayName, "momo");
+    assert.equal(result.value.nameMode, "momo");
+  }
+  assert.equal(validateRegistration({ ...input, username: "MOMO" }).value.displayName, "MOMO");
+  assert.equal(validateRegistration({ ...input, username: "MOMO" }).value.nameMode, "name");
+  for (const displayName of ["海风", "", "momo\nother", "mo\u200bmo", {}, null]) {
+    const result = validateRegistration({ ...input, displayName });
+    assert.equal(result.ok, false);
+    assert.deepEqual(Object.keys(result.fields), ["displayName"]);
+  }
+});
+
+test("name change requests reuse visible-name validation and accept only actual name fields", () => {
+  assert.deepEqual(validateAccountNameChange({ username: " Ａ ", displayName: " 海风 " }), {
+    ok: true, value: { username: "A", normalizedUsername: "a", displayName: "海风" },
+  });
+  assert.match(validateAccountNameChange({ displayName: " ＭＯＭＯ " }).fields.displayName, /展示切换/u);
+  assert.equal(validateAccountNameChange({ displayName: "😀".repeat(40) }).ok, true);
+  for (const input of [null, [], {}, { schoolAccount: "20260001" }, { role: "admin" },
+    { username: "海", userId: "other" }, { displayName: "😀".repeat(41) }, { displayName: "\u200b" },
+    { username: "" }, { displayName: "" }]) {
+    assert.equal(validateAccountNameChange(input).ok, false);
+  }
 });
 
 test("login and reset password validation use bounded scalar input", () => {

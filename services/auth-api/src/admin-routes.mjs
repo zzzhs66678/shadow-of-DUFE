@@ -367,6 +367,65 @@ export function createAdminRequestHandler({
       return true;
     }
 
+    if (url.pathname === "/api/admin/name-changes") {
+      if (request.method !== "GET") { methodNotAllowed(response, "GET"); return true; }
+      const cursor = url.searchParams.get("cursor");
+      const limitValue = url.searchParams.get("limit") ?? "20";
+      const limit = /^\d{1,2}$/u.test(limitValue) ? Number(limitValue) : 0;
+      if (!exactQuery(url.searchParams, new Set(["cursor", "limit"])) || limit < 1 || limit > 50 ||
+          (cursor !== null && (cursor.length < 1 || cursor.length > 512 || !/^[A-Za-z0-9_-]+$/u.test(cursor)))) {
+        sendJson(response, 400, { error: "invalid_name_change_query" }); return true;
+      }
+      try {
+        sendJson(response, 200, await store.listAccountNameChanges({ limit, cursor }));
+      } catch (error) {
+        if (error?.code !== "AUTH_NAME_CHANGE_INVALID") throw error;
+        sendJson(response, 400, { error: "invalid_name_change_query" });
+      }
+      return true;
+    }
+
+    const nameChangeReview = url.pathname.match(/^\/api\/admin\/name-changes\/([0-9a-f-]{36})\/review$/iu);
+    if (nameChangeReview) {
+      if (request.method !== "POST") { methodNotAllowed(response, "POST"); return true; }
+      const body = await readJsonBody(request, 8_192);
+      const reason = typeof body?.reason === "string" ? body.reason.normalize("NFKC").trim() : "";
+      if (!isUuid(nameChangeReview[1]) || !exactQuery(url.searchParams, new Set()) ||
+          !exactObject(body, new Set(["decision", "reason"]), ["decision"]) ||
+          !["approve", "reject"].includes(body.decision) ||
+          (Object.hasOwn(body, "reason") && typeof body.reason !== "string") ||
+          Array.from(reason).length > 500 || /[\p{Cc}\p{Cf}]/u.test(reason) ||
+          (body.decision === "reject" && Array.from(reason).length < 1)) {
+        sendJson(response, 400, { error: "invalid_name_change_review" }); return true;
+      }
+      const rateKey = tokenDigest(`admin-name-change:${session.userId}`, config.tokenPepper);
+      if (!(await (rateLimiters.adminCommunityModeration ?? rateLimiters.write).consume(rateKey))) {
+        response.setHeader("Retry-After", "60"); sendJson(response, 429, { error: "admin_rate_limited" }); return true;
+      }
+      try {
+        const nameChange = await store.reviewAccountNameChange({
+          nameChangeId: nameChangeReview[1], decision: body.decision, reason,
+          actorUserId: session.userId, actorSessionId: session.id, actorElevationTokenHash: elevationTokenHash,
+          requestId, ipHash: tokenDigest(`admin-ip:${clientAddress(request, config)}`, config.tokenPepper),
+          userAgentHash: tokenDigest(`admin-ua:${String(request.headers["user-agent"] ?? "")}`, config.tokenPepper),
+        });
+        if (!nameChange) sendJson(response, 404, { error: "name_change_not_found" });
+        else sendJson(response, 200, { request: nameChange });
+      } catch (error) {
+        const errors = {
+          AUTH_NAME_TAKEN: [409, "name_conflict"],
+          AUTH_NAME_CHANGE_CONFLICT: [409, "name_change_conflict"],
+          AUTH_NAME_REVIEW_REQUIRED: [409, "name_review_required"],
+          AUTH_NAME_CHANGE_INVALID: [400, "invalid_name_change_review"],
+          AUTH_ADMIN_FORBIDDEN: [403, "admin_mfa_required"],
+        };
+        const mapped = errors[error?.code];
+        if (!mapped) throw error;
+        sendJson(response, mapped[0], { error: mapped[1] }, error?.code === "AUTH_ADMIN_FORBIDDEN" ? [clearAdminCookie()] : []);
+      }
+      return true;
+    }
+
     if (url.pathname === "/api/admin/overview") {
       if (request.method !== "GET") {
         methodNotAllowed(response, "GET");

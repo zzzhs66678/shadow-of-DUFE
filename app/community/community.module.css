@@ -72,6 +72,7 @@
 .authorBadge b, .authorBadge small { display: block; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
 .authorBadge b { font-size: 14px; font-weight: 700; line-height: 1.5; }
 .authorBadge small { color: var(--muted); font-size: 11px; line-height: 1.5; }
+.momoMark { display: inline-block; vertical-align: -.18em; margin-inline-start: 4px; color: var(--red); flex-shrink: 0; }
 .authorBadge:hover b { text-decoration: underline; text-underline-offset: 3px; }
 .topicStream, .commentThreads, .replies { list-style: none; padding: 0; margin: 0; }
 .topicStream > li { border-bottom: 1px solid var(--line); scroll-margin-top: 90px; }

@@ -1,3 +1,5 @@
+import { publicAccountNameSql } from "./account-names.mjs";
+
 function iso(value) {
   return value ? new Date(value).toISOString() : null;
 }
@@ -8,6 +10,7 @@ function publicAuthor(row) {
     id: String(row.author_user_id),
     username: row.author_username,
     displayName: row.author_display_name,
+    nameMode: row.author_name_mode ?? "name",
     avatarUrl: row.author_avatar_url,
   };
 }
@@ -84,6 +87,7 @@ function mapSavedTopic(row) {
           id: String(row.author_user_id),
           username: row.author_username,
           displayName: row.author_display_name,
+          nameMode: row.author_name_mode ?? "name",
           avatarUrl: row.author_avatar_url,
         }
       : null,
@@ -98,6 +102,7 @@ function mapBlockedUser(row) {
       id: String(row.blocked_user_id),
       username: row.username,
       displayName: row.display_name,
+      nameMode: row.name_mode ?? "name",
       avatarUrl: row.avatar_url,
     },
     blockedAt: iso(row.blocked_at),
@@ -159,7 +164,7 @@ async function assertElevatedAdmin(client, input) {
     `SELECT
        users.role,
        users.status,
-       COALESCE(users.display_name, users.username) AS actor_label
+       ${publicAccountNameSql("users")} AS actor_label
      FROM app_users AS users
      JOIN user_sessions AS sessions
        ON sessions.id = $2::uuid
@@ -394,7 +399,7 @@ async function communityReportEvidence(client, targetType, targetId) {
     ? await client.query(
         `SELECT topics.title AS evidence_title,
                 topics.body AS evidence_body,
-                COALESCE(authors.display_name, authors.username, '已注销用户') AS evidence_author_label
+                COALESCE(${publicAccountNameSql("authors")}, '已注销用户') AS evidence_author_label
          FROM community_topics AS topics
          LEFT JOIN app_users AS authors ON authors.id = topics.author_user_id
          WHERE topics.id = $1::uuid`,
@@ -404,7 +409,7 @@ async function communityReportEvidence(client, targetType, targetId) {
       ? await client.query(
           `SELECT NULL::text AS evidence_title,
                   comments.body AS evidence_body,
-                  COALESCE(authors.display_name, authors.username, '已注销用户') AS evidence_author_label
+                  COALESCE(${publicAccountNameSql("authors")}, '已注销用户') AS evidence_author_label
            FROM community_comments AS comments
            LEFT JOIN app_users AS authors ON authors.id = comments.author_user_id
            WHERE comments.id = $1::uuid`,
@@ -414,7 +419,7 @@ async function communityReportEvidence(client, targetType, targetId) {
         ? await client.query(
             `SELECT teachers.display_name AS evidence_title,
                     reviews.body AS evidence_body,
-                    COALESCE(authors.display_name, authors.username, reviews.author_label, '已注销用户') AS evidence_author_label
+                    COALESCE(${publicAccountNameSql("authors")}, reviews.author_label, '已注销用户') AS evidence_author_label
              FROM teacher_reviews AS reviews
              JOIN teachers ON teachers.id = reviews.teacher_id
              LEFT JOIN app_users AS authors ON authors.id = reviews.author_user_id
@@ -425,7 +430,7 @@ async function communityReportEvidence(client, targetType, targetId) {
           ? await client.query(
               `SELECT teachers.display_name AS evidence_title,
                       comments.body AS evidence_body,
-                      COALESCE(authors.display_name, authors.username, '已注销用户') AS evidence_author_label
+                      COALESCE(${publicAccountNameSql("authors")}, '已注销用户') AS evidence_author_label
                FROM teacher_review_comments AS comments
                JOIN teacher_reviews AS reviews ON reviews.id = comments.review_id
                JOIN teachers ON teachers.id = reviews.teacher_id
@@ -434,9 +439,9 @@ async function communityReportEvidence(client, targetType, targetId) {
               [targetId],
             )
           : await client.query(
-          `SELECT COALESCE(users.display_name, users.username) AS evidence_title,
+          `SELECT ${publicAccountNameSql("users")} AS evidence_title,
                   NULL::text AS evidence_body,
-                  COALESCE(users.display_name, users.username, '已注销用户') AS evidence_author_label
+                  COALESCE(${publicAccountNameSql("users")}, '已注销用户') AS evidence_author_label
            FROM app_users AS users
            WHERE users.id = $1::uuid`,
           [targetId],
@@ -449,8 +454,8 @@ async function communityReportEvidence(client, targetType, targetId) {
 
 function mentionUsernames(body) {
   const usernames = new Set();
-  const pattern = /(^|[^\p{L}\p{N}_-])@([\p{L}\p{N}_-]{3,24})/gu;
-  for (const match of body.matchAll(pattern)) {
+  const pattern = /(^|[^\p{L}\p{N}\p{M}_-])@([\p{L}\p{N}_-]{1,24})(?![\p{L}\p{N}\p{M}_-])/gu;
+  for (const match of body.normalize("NFKC").matchAll(pattern)) {
     usernames.add(
       match[2].normalize("NFKC").toLocaleLowerCase("en-US"),
     );
@@ -611,7 +616,7 @@ async function lockOwnedTopic(client, topicId, userId) {
   const result = await client.query(
     `SELECT
        topics.*,
-       COALESCE(authors.display_name, authors.username) AS actor_label
+       ${publicAccountNameSql("authors")} AS actor_label
      FROM community_topics AS topics
      LEFT JOIN app_users AS authors ON authors.id = topics.author_user_id
      WHERE topics.id = $1::uuid
@@ -632,7 +637,7 @@ async function lockOwnedComment(client, commentId, userId) {
   const result = await client.query(
     `SELECT
        comments.*,
-       COALESCE(authors.display_name, authors.username) AS actor_label
+       ${publicAccountNameSql("authors")} AS actor_label
      FROM community_comments AS comments
      LEFT JOIN app_users AS authors ON authors.id = comments.author_user_id
      WHERE comments.id = $1::uuid
@@ -733,6 +738,7 @@ function notificationResult(row) {
           id: String(row.actor_user_id),
           username: row.actor_username,
           displayName: row.actor_display_name,
+          nameMode: row.actor_name_mode ?? "name",
           avatarUrl: row.actor_avatar_url,
         }
       : null,
@@ -779,7 +785,8 @@ function selectTopics(replyCutoff = null) {
     topics.updated_at,
     topics.edited_at,
     authors.username AS author_username,
-    authors.display_name AS author_display_name,
+    ${publicAccountNameSql("authors")} AS author_display_name,
+    authors.name_mode AS author_name_mode,
     authors.avatar_url AS author_avatar_url,
     EXISTS (
       SELECT 1
@@ -827,7 +834,8 @@ export function createCommunityStore(pool) {
                 topics.title, left(topics.body, 320) AS body_preview,
                 topics.status, topics.author_user_id,
                 authors.username AS author_username,
-                authors.display_name AS author_display_name,
+                ${publicAccountNameSql("authors")} AS author_display_name,
+                authors.name_mode AS author_name_mode,
                 authors.avatar_url AS author_avatar_url,
                 EXISTS (
                   SELECT 1 FROM community_user_blocks AS blocks
@@ -857,7 +865,7 @@ export function createCommunityStore(pool) {
     async listCommunityBlocks({ userId, cursor = null, limit = 20 }) {
       const result = await pool.query(
         `SELECT blocks.blocked_user_id, blocks.created_at AS blocked_at,
-                users.username, users.display_name, users.avatar_url
+                users.username, ${publicAccountNameSql("users")} AS display_name, users.name_mode, users.avatar_url
          FROM community_user_blocks AS blocks
          JOIN app_users AS users ON users.id = blocks.blocked_user_id
          WHERE blocks.blocker_user_id = $1::uuid
@@ -894,7 +902,7 @@ export function createCommunityStore(pool) {
         `SELECT
            content.id, ${titleSelect} AS title, content.body, content.status,
            content.created_at, content.updated_at,
-           COALESCE(authors.display_name, authors.username, '已注销用户') AS author_label,
+           COALESCE(${publicAccountNameSql("authors")}, '已注销用户') AS author_label,
            ${isTopic ? "content.id" : "content.topic_id"} AS topic_id,
            active_case.id AS case_id, active_case.status AS case_status
          FROM ${table} AS content
@@ -1110,7 +1118,8 @@ export function createCommunityStore(pool) {
         `SELECT
            users.id,
            users.username,
-           users.display_name,
+           ${publicAccountNameSql("users")} AS display_name,
+           users.name_mode,
            users.avatar_url,
            users.created_at,
            (
@@ -1152,6 +1161,7 @@ export function createCommunityStore(pool) {
         id: String(row.id),
         username: row.username,
         displayName: row.display_name,
+        nameMode: row.name_mode ?? "name",
         avatarUrl: row.avatar_url,
         joinedAt: iso(row.created_at),
         topicCount: Number(row.topic_count ?? 0),
@@ -1505,7 +1515,8 @@ export function createCommunityStore(pool) {
            comments.updated_at,
            comments.edited_at,
            authors.username AS author_username,
-           authors.display_name AS author_display_name,
+           ${publicAccountNameSql("authors")} AS author_display_name,
+           authors.name_mode AS author_name_mode,
            authors.avatar_url AS author_avatar_url,
            EXISTS (
              SELECT 1 FROM community_user_blocks AS blocks
@@ -2489,7 +2500,8 @@ export function createCommunityStore(pool) {
            notifications.created_at,
            notifications.read_at,
            actors.username AS actor_username,
-           actors.display_name AS actor_display_name,
+           ${publicAccountNameSql("actors")} AS actor_display_name,
+           actors.name_mode AS actor_name_mode,
            actors.avatar_url AS actor_avatar_url
          FROM community_notifications AS notifications
          LEFT JOIN app_users AS actors ON actors.id = notifications.actor_user_id

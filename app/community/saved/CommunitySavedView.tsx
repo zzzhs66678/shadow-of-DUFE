@@ -11,7 +11,7 @@ import {
   type CommunitySavedTopic,
   type CommunitySession,
 } from "../community-api";
-import { CommunityHeader, Feedback, NotificationsPanel } from "../CommunityShared";
+import { AuthorLabel, CommunityHeader, Feedback, NotificationsPanel } from "../CommunityShared";
 import styles from "../community.module.css";
 
 type SavedTab = "bookmarks" | "blocks";
@@ -139,7 +139,7 @@ export function CommunitySavedView() {
             {bookmarks.map((item) => <li key={item.topicId}>
               <time>{formatCommunityTime(item.bookmarkedAt)}</time>
               <div>
-                {item.status === "available" ? <Link href={item.publicPath}><h3>{item.title}</h3><p>{item.bodyPreview}</p><small>{authorName(item.author)} · 继续阅读</small></Link> : <div className={styles.savedUnavailable}><h3>这条收藏已不可用</h3><p>内容可能已删除、隐藏，或与当前屏蔽关系冲突。正文与作者信息不再展示。</p></div>}
+                {item.status === "available" ? <Link href={item.publicPath}><h3>{item.title}</h3><p>{item.bodyPreview}</p><small><AuthorLabel author={item.author} withUsername /> · 继续阅读</small></Link> : <div className={styles.savedUnavailable}><h3>这条收藏已不可用</h3><p>内容可能已删除、隐藏，或与当前屏蔽关系冲突。正文与作者信息不再展示。</p></div>}
                 <button disabled={busy === `bookmark:${item.topicId}`} onClick={() => void removeBookmark(item)}>{busy === `bookmark:${item.topicId}` ? "正在移除" : "移出收藏"}</button>
               </div>
             </li>)}
@@ -149,7 +149,7 @@ export function CommunitySavedView() {
           <ol className={styles.savedList}>
             {blocks.map((item) => <li key={item.user.id}>
               <time>{formatCommunityTime(item.blockedAt)}</time>
-              <div><div className={styles.blockedIdentity}><i aria-hidden="true">{authorName(item.user).slice(0, 1)}</i><span><h3>{authorName(item.user)}</h3><small>{item.user.username ? `@${item.user.username}` : "账号"}</small></span></div><p>不会再看到这个账号的帖子、回复和通知。</p><button disabled={busy === `block:${item.user.id}`} onClick={() => void unblock(item)}>{busy === `block:${item.user.id}` ? "正在解除" : "解除屏蔽"}</button></div>
+              <div><div className={styles.blockedIdentity}><i aria-hidden="true">{authorName(item.user).slice(0, 1)}</i><span><h3><AuthorLabel author={item.user} /></h3><small>{item.user.username ? `@${item.user.username}` : "账号"}</small></span></div><p>不会再看到这个账号的帖子、回复和通知。</p><button disabled={busy === `block:${item.user.id}`} onClick={() => void unblock(item)}>{busy === `block:${item.user.id}` ? "正在解除" : "解除屏蔽"}</button></div>
             </li>)}
           </ol>
         )}

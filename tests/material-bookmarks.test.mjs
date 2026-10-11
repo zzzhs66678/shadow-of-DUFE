@@ -28,7 +28,7 @@ test("material bookmarks: migrated SQL + real HTTP + existing auth/session/rate 
   await db.waitReady;
   t.after(() => db.close());
   const directory = new URL("../ops/postgres/migrations/", import.meta.url);
-  for (const file of (await readdir(directory)).filter((name) => name.endsWith(".sql") && Number(name.slice(0, 4)) <= 25).sort()) {
+  for (const file of (await readdir(directory)).filter((name) => /^\d{4}_.+\.sql$/u.test(name)).sort()) {
     await db.exec(await readFile(new URL(file, directory), "utf8"));
   }
   await db.query("INSERT INTO app_users (id, status) VALUES ($1, 'active'), ($2, 'active')", [a, b]);

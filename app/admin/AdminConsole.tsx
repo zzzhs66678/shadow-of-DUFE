@@ -11,6 +11,7 @@ import { ModerationDesk } from "./ModerationDesk";
 import { ActiveContentDesk } from "./ActiveContentDesk";
 import { AnnouncementDesk } from "./AnnouncementDesk";
 import { TeacherReviewDesk } from "./TeacherReviewDesk";
+import { AccountNameReview } from "./AccountNameReview";
 
 type AccessState = {
   role: "admin";
@@ -76,6 +77,8 @@ const actionLabels: Record<string, string> = {
   "admin.elevation.created": "管理员完成二次验证",
   "admin.user.status_changed": "用户状态已变更",
   "admin.user.registration_viewed": "已查看用户注册资料",
+  "admin.account_name.approved": "用户改名已批准",
+  "admin.account_name.rejected": "用户改名申请已拒绝",
   "admin.bootstrap.created": "管理员权限已建立",
   "admin.mfa.rotated": "管理员验证器已轮换",
   "admin.community.case_opened": "社区举报已入案",
@@ -178,6 +181,7 @@ export function AdminConsole() {
   const [busy, setBusy] = useState("");
   const [target, setTarget] = useState<AdminUser | null>(null);
   const [registrationUserId, setRegistrationUserId] = useState<string | null>(null);
+  const [nameReviewOpen, setNameReviewOpen] = useState(false);
   const closeRegistration = useCallback(() => setRegistrationUserId(null), []);
   const [reason, setReason] = useState("");
   const closeUserAction = useCallback(() => setTarget(null), []);
@@ -190,6 +194,7 @@ export function AdminConsole() {
 
   const handleMfaExpired = useCallback(() => {
     setRegistrationUserId(null);
+    setNameReviewOpen(false);
     setScreen("elevation");
   }, []);
 
@@ -223,6 +228,9 @@ export function AdminConsole() {
     setUsers(usersPayload.users);
     setUsersCursor(usersPayload.nextCursor);
   }, [loadAudit]);
+  const refreshReviewedNames = useCallback(async () => {
+    await loadDashboard(activeFilters);
+  }, [activeFilters, loadDashboard]);
 
   const loadMoreUsers = useCallback(async () => {
     if (!usersCursor) return;
@@ -588,6 +596,10 @@ export function AdminConsole() {
               </div>
               {usersCursor && <button className={styles.usersMore} onClick={() => void loadMoreUsers()} disabled={busy === "users-more"}>{busy === "users-more" ? "正在加载" : "加载更多"}</button>}
             </section>
+              <details className={styles.trendDisclosure} onToggle={(event) => setNameReviewOpen(event.currentTarget.open)}>
+                <summary>改名申请</summary>
+                {nameReviewOpen && <AccountNameReview onMfaExpired={handleMfaExpired} onReviewed={refreshReviewedNames} />}
+              </details>
 
               <details className={styles.trendDisclosure}><summary>注册趋势 · 最近 30 天</summary>
           <section className={styles.registrationTrend} aria-labelledby="admin-registration-trend-title">

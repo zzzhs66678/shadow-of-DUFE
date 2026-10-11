@@ -117,6 +117,7 @@ export function createApiRateLimiters({ store } = {}) {
     registrationSubmit: persistentOrLocal(store, { scope: "registration-submit", capacity: 10, refillPerSecond: 1 / 60 }),
     resetConfirm: persistentOrLocal(store, { scope: "reset-confirm", capacity: 10, refillPerSecond: 1 / 60 }),
     verificationConfirm: persistentOrLocal(store, { scope: "verification-confirm", capacity: 10, refillPerSecond: 1 / 60 }),
+    nameChange: persistentOrLocal(store, { scope: "account-name-change", capacity: 3, refillPerSecond: 1 / 28_800 }),
     read: persistentOrLocal(store, {
       scope: "api-read-network",
       capacity: 2_400,

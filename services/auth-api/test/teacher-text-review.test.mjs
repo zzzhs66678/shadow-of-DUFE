@@ -37,8 +37,8 @@ async function createDatabase(t, { beforeTextReviews = false } = {}) {
   for (const [index, userId] of [userA, userB, userC].entries()) {
     await database.query(
       `INSERT INTO app_users (id, status, display_name, role, username, normalized_username, registered_via)
-       VALUES ($1, 'active', '文本评价用户', 'user', $2, $2, 'credential')`,
-      [userId, `text-review-${index}`],
+       VALUES ($1, 'active', $3, 'user', $2, $2, 'credential')`,
+      [userId, `text-review-${index}`, `文本评价用户${index}`],
     );
   }
   await database.query(

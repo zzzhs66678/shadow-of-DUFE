@@ -23,13 +23,12 @@ async function databaseFor(t, { beforeMigration = false } = {}) {
   t.after(() => db.close());
   await db.waitReady;
   const files = (await fs.readdir(migrations)).filter((file) =>
-    file.endsWith(".sql") && (file < "0025" || (!beforeMigration && file === migration))).sort();
-  // This community slice does not depend on parallel agents' reserved 0025/26.
+    file.endsWith(".sql") && (!beforeMigration || file < migration)).sort();
   for (const file of files) await db.exec(await fs.readFile(new URL(file, migrations), "utf8"));
   for (const [index, userId] of [viewer, author, replier, blocked, reverseBlocked].entries()) {
     await db.query(`INSERT INTO app_users
       (id, status, role, display_name, username, normalized_username, registered_via)
-      VALUES ($1, 'active', 'user', '时间线测试', $2, $2, 'credential')`, [userId, `timeline-${index}`]);
+      VALUES ($1, 'active', 'user', $3, $2, $2, 'credential')`, [userId, `timeline-${index}`, `时间线测试${index}`]);
   }
   // Adapt PGlite's affectedRows to node-postgres's rowCount (notably SELECT).
   const pool = { async query(sql, values) {
@@ -80,6 +79,10 @@ test("0027 preserves old topics/audit guards and enables one-visible-character b
     await assert.rejects(db.query("UPDATE community_topics SET title = $1", [title]), /community_topics_title_check/u);
   }
   await assert.rejects(db.query("DELETE FROM community_topics"), /soft-deleted/u);
+  // Keep the historical upgrade assertions above, then exercise today's store
+  // against today's complete schema, including name-mode author projections.
+  const remaining = (await fs.readdir(migrations)).filter(file => file.endsWith(".sql") && file > migration).sort();
+  for (const file of remaining) await db.exec(await fs.readFile(new URL(file, migrations), "utf8"));
   const input = validateTopicCreate({ title: "", body: "好" });
   const created = await store.createCommunityTopic({ userId: author, ...input });
   assert.equal(created.title, "好");

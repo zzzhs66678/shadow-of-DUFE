@@ -82,7 +82,7 @@ export function UserRegistration({ userId, elevatedUntil, onClose, onExpired }: 
   const date = (value: string | null | undefined) => value ? new Date(value).toLocaleString("zh-CN") : "暂无记录";
   const sections = registration ? [
     { title: "联系方式", fields: [["邮箱", show(registration.email)], ["邮箱状态", registration.emailVerified ? "已验证" : "未验证"]] },
-    { title: "校园资料", fields: [["校园账号", show(registration.schoolAccount)], ["学号状态", registration.schoolAccountVerified ? "已验证" : "未验证"], ["入学年份", show(registration.profile?.entranceYear)], ["学院", show(registration.profile?.college)], ["专业", show(registration.profile?.majorId)], ["班级", show(registration.profile?.className)]] },
+    { title: "校园资料", fields: [["学号", show(registration.schoolAccount)], ["学号状态", registration.schoolAccountVerified ? "已验证" : "未验证"], ["入学年份", show(registration.profile?.entranceYear)], ["学院", show(registration.profile?.college)], ["专业", show(registration.profile?.majorId)], ["班级", show(registration.profile?.className)]] },
     { title: "账号记录", fields: [["注册时间", date(registration.createdAt)], ["最近登录", date(registration.lastLoginAt)], ["资料同步", date(registration.profile?.updatedAt)], ["注册方式", registration.registeredVia === "credential" ? "邮箱注册" : registration.registeredVia === "oauth" ? "第三方登录" : registration.registeredVia]] },
   ] : [];
 

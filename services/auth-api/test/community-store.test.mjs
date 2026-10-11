@@ -269,6 +269,7 @@ test("public profiles hide blocked accounts and list only public authored conten
     id: profileUserId,
     username: "corridor-student",
     displayName: "回廊同学",
+    nameMode: "name",
     avatarUrl: null,
     joinedAt: "2026-08-01T08:00:00.000Z",
     topicCount: 2,
@@ -773,7 +774,7 @@ test("moderation actions preserve a path to reverse active interventions", () =>
   );
 });
 
-test("topic mentions resolve normalized usernames and create deduplicated notifications", async () => {
+test("topic mentions resolve short and normalized usernames with deduplicated notifications", async () => {
   const calls = [];
   const client = {
     async query(sql, values) {
@@ -802,14 +803,44 @@ test("topic mentions resolve normalized usernames and create deduplicated notifi
   await store.createCommunityTopic({
     userId: viewerId,
     title: "想问问图书馆闭馆时间",
-    body: "@Student_01 你上周去过吗？再次提及 @student_01",
+    body: "@Student_01 你上周去过吗？再次提及 @student_01 @Ａ @a @海 @小影 @𠀀",
     visibility: "public",
   });
   const mention = calls.find(({ sql }) => sql.includes("INSERT INTO community_mentions"));
-  assert.deepEqual(mention.values[0], ["student_01"]);
+  assert.deepEqual(mention.values[0], ["student_01", "a", "海", "小影", "𠀀"]);
   assert.match(mention.sql, /ON CONFLICT DO NOTHING/u);
   assert.match(mention.sql, /INSERT INTO community_notifications/u);
   assert.match(mention.sql, /community_user_blocks/u);
+});
+
+test("mention boundaries reject email and overlong prefixes and retain the ten-recipient cap", async () => {
+  const mentions = [];
+  const client = {
+    async query(sql, values) {
+      if (sql.includes("INSERT INTO community_mentions")) mentions.push(values[0]);
+      if (sql.includes("FROM app_users AS users") && sql.includes("sanctioned")) {
+        return { rowCount: 1, rows: [{ status: "active", sanctioned: false }] };
+      }
+      if (sql.includes("INSERT INTO community_topics")) {
+        return { rowCount: 1, rows: [{ id: topicId, status: "published", visibility: "public", version: 1,
+          created_at: new Date("2026-08-09T08:00:00Z"), updated_at: new Date("2026-08-09T08:00:00Z") }] };
+      }
+      return { rowCount: 0, rows: [] };
+    }, release() {},
+  };
+  const store = createCommunityStore({ async connect() { return client; } });
+  await store.createCommunityTopic({ userId: viewerId, title: "短名字提及边界", visibility: "public",
+    body: `邮箱 mail@a.example 和超长名字 @${"z".repeat(25)} 都不通知；有效名字 @${"𠀀".repeat(24)} @a` });
+  assert.deepEqual(mentions[0], ["𠀀".repeat(24), "a"]);
+  await store.createCommunityTopic({ userId: viewerId, title: "提及数量仍有上限", visibility: "public",
+    body: "@a @Ａ @b @c @d @e @f @g @h @i @j @k" });
+  assert.deepEqual(mentions[1], ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]);
+  await store.createCommunityTopic({ userId: viewerId, title: "组合字符按账号规范化提及", visibility: "public",
+    body: "只通知带重音的账号 @a\u0301，不应误通知普通 a；残留组合符 @a\u0301\u0300 不能截成前缀" });
+  assert.deepEqual(mentions[2], ["á"]);
+  await store.createCommunityTopic({ userId: viewerId, title: "不同账号收到不同提及", visibility: "public",
+    body: "这里同时明确提及普通账号 @a 和带重音账号 @á" });
+  assert.deepEqual(mentions[3], ["a", "á"]);
 });
 
 test("notification reads and mutations remain scoped to the recipient", async () => {

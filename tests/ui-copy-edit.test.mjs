@@ -34,6 +34,8 @@ test("import errors report known state rather than inventing a school-side chang
 test("navigation and form labels describe their actual action", () => {
   assert.match(read("app/admin/AdminConsole.tsx"), /actionLabel="返回首页"/u);
   assert.doesNotMatch(read("app/admin/AdminConsole.tsx"), /actionLabel="安全退出"/u);
-  assert.match(hub, /label="用户名" hint="3–24 个字/u);
+  assert.match(hub, /label="用户名" className="credential-field"/u);
+  assert.doesNotMatch(hub, /label="用户名" hint=/u);
   assert.match(hub, /label="邮箱验证码"/u);
+  assert.match(hub, /label="学号"/u);
 });

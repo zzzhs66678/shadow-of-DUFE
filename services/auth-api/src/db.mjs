@@ -4,6 +4,7 @@ import { createPersonalStore } from "./personal-store.mjs";
 import { createCommunityStore } from "./community-store.mjs";
 import { createMaterialBookmarkStore } from "./material-bookmarks-store.mjs";
 import { createDataFeedbackStore } from "./data-feedback-store.mjs";
+import { accountNameFields, createAccountNameStore } from "./account-names.mjs";
 import { createTeacherReviewStore } from "./teacher-review-store.mjs";
 import { createTeacherStore } from "./teacher-store.mjs";
 
@@ -175,6 +176,7 @@ export function createAuthStore(pool) {
     ...communityStore,
     ...createMaterialBookmarkStore(pool),
     ...createDataFeedbackStore(pool),
+    ...createAccountNameStore({ pool }),
     ...teacherReviewStore,
     ...teacherStore,
     ...createAdminUserDetailsStore(pool),
@@ -356,12 +358,11 @@ export function createAuthStore(pool) {
           await client.query(
             `UPDATE app_users
              SET
-               display_name = COALESCE($2, display_name),
-               avatar_url = COALESCE($3, avatar_url),
+               avatar_url = COALESCE($2, avatar_url),
                last_login_at = now(),
                updated_at = now()
              WHERE id = $1`,
-            [userId, identity.displayName, identity.avatarUrl],
+            [userId, identity.avatarUrl],
           );
           await client.query(
             `UPDATE oauth_identities
@@ -380,10 +381,10 @@ export function createAuthStore(pool) {
           );
         } else {
           const user = await client.query(
-            `INSERT INTO app_users (display_name, avatar_url)
-             VALUES ($1, $2)
+            `INSERT INTO app_users (display_name, avatar_url, name_mode)
+             VALUES (NULL, $1, 'momo')
              RETURNING id`,
-            [identity.displayName, identity.avatarUrl],
+            [identity.avatarUrl],
           );
           userId = user.rows[0].id;
           await client.query(
@@ -494,6 +495,8 @@ export function createAuthStore(pool) {
            users.id AS user_id,
            users.username,
            users.display_name,
+           users.name_mode,
+           users.name_mode_changed_at,
            users.avatar_url,
            users.email,
            users.email_verified_at,
@@ -530,7 +533,7 @@ export function createAuthStore(pool) {
         id: String(result.rows[0].session_id),
         userId: String(result.rows[0].user_id),
         username: result.rows[0].username,
-        displayName: result.rows[0].display_name,
+        ...accountNameFields(result.rows[0]),
         avatarUrl: result.rows[0].avatar_url,
         email: result.rows[0].email,
         emailVerified: Boolean(result.rows[0].email_verified_at),
@@ -557,6 +560,8 @@ export function createAuthStore(pool) {
            id,
            username,
            display_name,
+           name_mode,
+           name_mode_changed_at,
            avatar_url,
            email,
            email_verified_at,
@@ -576,7 +581,7 @@ export function createAuthStore(pool) {
       return {
         id: String(row.id),
         username: row.username,
-        displayName: row.display_name,
+        ...accountNameFields(row),
         avatarUrl: row.avatar_url,
         email: row.email,
         emailVerified: Boolean(row.email_verified_at),
@@ -591,16 +596,22 @@ export function createAuthStore(pool) {
     },
 
     async updateUserProfile(userId, update) {
+      const client = await pool.connect();
       try {
-        const result = await pool.query(
+        await client.query("BEGIN");
+        const current = await client.query(`SELECT username,display_name FROM app_users
+          WHERE id=$1 AND status='active' FOR UPDATE`, [userId]);
+        if (!current.rowCount) { await client.query("ROLLBACK"); return null; }
+        if ((Object.hasOwn(update, "username") && update.username !== current.rows[0].username) ||
+            (Object.hasOwn(update, "displayName") && update.displayName !== current.rows[0].display_name)) {
+          throw Object.assign(new Error("AUTH_NAME_REVIEW_REQUIRED"), { code: "AUTH_NAME_REVIEW_REQUIRED" });
+        }
+        await client.query(
           `UPDATE app_users
            SET
-             username = CASE WHEN $2 THEN $3 ELSE username END,
-             normalized_username = CASE WHEN $2 THEN $4 ELSE normalized_username END,
-             display_name = CASE WHEN $5 THEN $6 ELSE display_name END,
-             school_account = CASE WHEN $7 THEN $8 ELSE school_account END,
+             school_account = CASE WHEN $2 THEN $3 ELSE school_account END,
              school_account_verified_at = CASE
-               WHEN $7 AND school_account IS DISTINCT FROM $8 THEN NULL
+               WHEN $2 AND school_account IS DISTINCT FROM $3 THEN NULL
                ELSE school_account_verified_at
              END,
              updated_at = now()
@@ -609,18 +620,14 @@ export function createAuthStore(pool) {
            RETURNING id`,
           [
             userId,
-            Object.hasOwn(update, "username"),
-            update.username ?? null,
-            update.normalizedUsername ?? null,
-            Object.hasOwn(update, "displayName"),
-            update.displayName ?? null,
             Object.hasOwn(update, "schoolAccount"),
             update.schoolAccount ?? null,
           ],
         );
-        if (result.rowCount === 0) return null;
+        await client.query("COMMIT");
         return this.getUserProfile(userId);
       } catch (error) {
+        await client.query("ROLLBACK");
         if (
           error?.code === "23505" &&
           error?.constraint === "app_users_normalized_username_uidx"
@@ -628,7 +635,7 @@ export function createAuthStore(pool) {
           error.code = "AUTH_USERNAME_TAKEN";
         }
         throw error;
-      }
+      } finally { client.release(); }
     },
 
     async getUserAvatar(userId) {
@@ -1587,6 +1594,8 @@ export function createAuthStore(pool) {
 
     async registerCredentialUser({
       username,
+      displayName = username,
+      nameMode = displayName === "momo" ? "momo" : "name",
       normalizedUsername,
       email,
       normalizedEmail,
@@ -1612,12 +1621,13 @@ export function createAuthStore(pool) {
              normalized_email,
              school_account,
              display_name,
+             name_mode,
              registered_via,
              last_login_at,
              email_verified_at
            )
-           VALUES ($1, $2, $3, $4, $5, $1, 'verified_password', now(), now())
-           RETURNING id, username, display_name, email, school_account,
+           VALUES ($1, $2, $3, $4, $5, $1, $6, 'verified_password', now(), now())
+           RETURNING id, username, display_name, name_mode, name_mode_changed_at, email, school_account,
                      created_at, last_login_at, status`,
           [
             username,
@@ -1625,6 +1635,7 @@ export function createAuthStore(pool) {
             email,
             normalizedEmail,
             schoolAccount,
+            nameMode,
           ],
         );
         const userId = user.rows[0].id;
@@ -1654,7 +1665,7 @@ export function createAuthStore(pool) {
           user: {
             id: String(userId),
             username: user.rows[0].username,
-            displayName: user.rows[0].display_name,
+            ...accountNameFields(user.rows[0]),
             email: user.rows[0].email,
             schoolAccount: user.rows[0].school_account,
             status: user.rows[0].status,
@@ -1673,6 +1684,11 @@ export function createAuthStore(pool) {
           error.code = "AUTH_USERNAME_TAKEN";
         } else if (
           error?.code === "23505" &&
+          error?.constraint === "app_users_public_display_name_uidx"
+        ) {
+          error.code = "AUTH_NAME_TAKEN";
+        } else if (
+          error?.code === "23505" &&
           error?.constraint === "app_users_normalized_email_uidx"
         ) {
           error.code = "AUTH_EMAIL_TAKEN";
@@ -1689,6 +1705,8 @@ export function createAuthStore(pool) {
            users.id,
            users.username,
            users.display_name,
+           users.name_mode,
+           users.name_mode_changed_at,
            users.email,
            users.email_verified_at,
            users.school_account,
@@ -1709,7 +1727,7 @@ export function createAuthStore(pool) {
       return {
         id: String(row.id),
         username: row.username,
-        displayName: row.display_name,
+        ...accountNameFields(row),
         email: row.email,
         emailVerified: Boolean(row.email_verified_at),
         schoolAccount: row.school_account,

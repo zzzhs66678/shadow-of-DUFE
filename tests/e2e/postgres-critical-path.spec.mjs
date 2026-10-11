@@ -209,11 +209,13 @@ test("users and an administrator complete the release browser path", async ({
     const replierUsername = await register(replier, "replier");
     const adminUsername = await register(administrator, "admin");
 
-    const ownerDisplayName = `跨设备同学-${Date.now().toString(36)}`;
+    const ownerDisplayName = ownerUsername;
+    const requestedDisplayName = `跨设备同学-${Date.now().toString(36)}`;
     await owner.getByRole("button", { name: "编辑资料" }).click();
-    await owner.getByLabel("显示名").fill(ownerDisplayName);
-    await owner.getByRole("button", { name: "保存资料" }).click();
-    await expect(owner.getByText("账号资料已保存。")).toBeVisible();
+    await owner.getByLabel("昵称", { exact: true }).fill(requestedDisplayName);
+    await owner.getByRole("button", { name: "提交改名申请", exact: true }).click();
+    await expect(owner.getByText(/改名申请待审核/u)).toBeVisible();
+    await expect(owner.getByRole("heading", { name: ownerDisplayName, exact: true })).toBeVisible();
     const avatar = await sharp({
       create: {
         width: 80,
@@ -233,7 +235,7 @@ test("users and an administrator complete the release browser path", async ({
 
     await login(secondOwner, ownerUsername);
     await expect(
-      secondOwner.getByRole("heading", { name: ownerDisplayName }),
+      secondOwner.getByRole("heading", { name: ownerDisplayName, exact: true }),
     ).toBeVisible();
     await expect(secondOwner.getByRole("button", { name: "删除头像" })).toBeVisible();
 
@@ -459,6 +461,20 @@ test("users and an administrator complete the release browser path", async ({
         .locator("span")
         .filter({ hasText: `@${ownerUsername} ·` }),
     ).toBeVisible();
+
+    const nameReview = await administrator.evaluate(async ({ username, requestedName }) => {
+      const listed = await fetch("/api/admin/name-changes?limit=20", { cache: "no-store" });
+      const queue = await listed.json();
+      const pending = queue.requests?.find(item => item.username === username && item.requestedDisplayName === requestedName);
+      if (!listed.ok || !pending) return { status: listed.status, found: false };
+      const reviewed = await fetch(`/api/admin/name-changes/${pending.id}/review`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision: "approve" }),
+      });
+      return { status: reviewed.status, found: true };
+    }, { username: ownerUsername, requestedName: requestedDisplayName });
+    expect(nameReview).toEqual({ status: 200, found: true });
+    await secondOwner.goto("/?view=me");
+    await expect(secondOwner.getByRole("heading", { name: requestedDisplayName, exact: true })).toBeVisible();
 
     await administrator.getByRole("navigation", { name: "管理功能" }).getByRole("button", { name: "内容审核" }).click();
     await expect(

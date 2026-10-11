@@ -68,7 +68,8 @@ test("email and password policies preserve identity and legacy login", () => {
   assert.notEqual(normalizeEmail("a.b@example.com"), normalizeEmail("ab@example.com"));
   for (const value of ["a@example.com,b@example.com", "A <a@example.com>", "a@example.com\r\nBcc:x@y.com", "a..b@example.com", "\"a,b\"@example.com"]) assert.equal(validEmail(value), false);
   assert.equal(validateNewPassword(password), true);
-  assert.equal(validateNewPassword("a".repeat(14)), false);
+  assert.equal(validateNewPassword("a".repeat(7)), false);
+  assert.equal(validateNewPassword("a".repeat(8)), true);
   assert.equal(validateNewPassword("😀".repeat(128)), true);
   assert.equal(validateNewPassword("😀".repeat(129)), false);
   assert.ok(validateLogin({ identifier: "legacy", password: "old-short-password" }));

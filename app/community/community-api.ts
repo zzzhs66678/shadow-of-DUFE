@@ -3,6 +3,7 @@ export type CommunityAuthor = {
   username: string | null;
   displayName: string | null;
   avatarUrl: string | null;
+  nameMode?: string;
 };
 
 export type CommunityTopic = {
@@ -156,7 +157,12 @@ export function communityErrorMessage(error: unknown) {
 }
 
 export function authorName(author: CommunityAuthor | null) {
+  if (isMomoAuthor(author)) return "momo";
   return author?.displayName || author?.username || "已注销用户";
+}
+
+export function isMomoAuthor(author: CommunityAuthor | null) {
+  return author?.nameMode === "momo" || (author?.nameMode === undefined && author?.displayName === "momo");
 }
 
 export function formatCommunityTime(value: string) {

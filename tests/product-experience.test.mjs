@@ -795,5 +795,5 @@ test("public compliance pages expose filing, privacy, terms, and deletion paths"
   }
   assert.match(privacy, /统一转换为 WebP/);
   assert.match(privacy, /不会保存上传原图和 EXIF/);
-  assert.match(privacy, /邮箱、校园账号、课表、日程、作业、收藏和登录信息不会进入该档案/);
+  assert.match(privacy, /邮箱、学号、课表、日程、作业、收藏和登录信息不会进入该档案/);
 });

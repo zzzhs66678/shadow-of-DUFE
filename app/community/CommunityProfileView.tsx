@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  authorName,
   communityRequest,
   formatCommunityTime,
   type CommunityApiError,
@@ -12,7 +11,7 @@ import {
   type CommunitySession,
   type CommunityTopic,
 } from "./community-api";
-import { AuthorBadge, CommunityHeader } from "./CommunityShared";
+import { AuthorBadge, AuthorLabel, CommunityHeader } from "./CommunityShared";
 import styles from "./community.module.css";
 
 type ProfileKind = "topics" | "comments";
@@ -111,7 +110,7 @@ export function CommunityProfileView({ userId }: { userId: string }) {
         <>
           <section className={styles.profileHero} aria-labelledby="profile-title">
             <AuthorBadge author={profile} />
-            <h1 id="profile-title">{authorName(profile)}</h1>
+            <h1 id="profile-title"><AuthorLabel author={profile} /></h1>
             <p>{profile.username ? `@${profile.username}` : "站内用户"} · {joinedLabel(profile.joinedAt)}</p>
             <dl>
               <div><dt>公开主题</dt><dd>{profile.topicCount}</dd></div>

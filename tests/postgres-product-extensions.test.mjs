@@ -121,7 +121,7 @@ async function fixture(t) {
   for (const name of ["legacy", "owner", "other", "admin", "viewer", "author", "replier", "blocked", "reverseBlocked"]) {
     const userId = randomUUID(), sessionId = randomUUID(), token = createOpaqueToken();
     const username = `pgext-${userId.replaceAll("-", "").slice(0, 16)}`;
-    await owner.query("INSERT INTO app_users(id,role,display_name,username,normalized_username,registered_via) VALUES ($1,$2,'合成测试用户',$3,$3,'credential')", [userId, name === "admin" ? "admin" : "user", username]);
+    await owner.query("INSERT INTO app_users(id,role,display_name,username,normalized_username,registered_via) VALUES ($1,$2,$3,$3,$3,'credential')", [userId, name === "admin" ? "admin" : "user", username]);
     await owner.query("INSERT INTO user_sessions(id,user_id,token_hash,expires_at) VALUES ($1,$2,$3,now()+interval '1 day')", [sessionId, userId, tokenDigest(token, config.tokenPepper)]);
     users[name] = { userId, sessionId, token, cookie: `${config.sessionCookie}=${token}` };
   }
@@ -130,13 +130,15 @@ async function fixture(t) {
   const legacyRows = async () => {
     const result = {};
     for (const table of ["app_users", "user_sessions", "community_topics"]) {
-      result[table] = (await owner.query(`SELECT to_jsonb(row) AS data FROM ${table} AS row ORDER BY id`)).rows;
+      const projection = table === "app_users" ? "to_jsonb(row) - 'name_mode' - 'name_mode_changed_at'" : "to_jsonb(row)";
+      result[table] = (await owner.query(`SELECT ${projection} AS data FROM ${table} AS row ORDER BY id`)).rows;
     }
     return result;
   };
   const before = await legacyRows();
   const legacyColumns = async () => (await owner.query(`SELECT table_name,column_name,data_type,is_nullable,column_default
     FROM information_schema.columns WHERE table_schema='public' AND table_name IN ('app_users','user_sessions','community_topics','community_comments')
+      AND NOT (table_name='app_users' AND column_name IN ('name_mode','name_mode_changed_at'))
     ORDER BY table_name,ordinal_position`)).rows;
   const columnsBefore = await legacyColumns();
   async function migrate() {

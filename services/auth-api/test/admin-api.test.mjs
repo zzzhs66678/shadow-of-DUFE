@@ -481,6 +481,94 @@ async function elevatedCookie(baseUrl, store) {
   }`;
 }
 
+test("name approval queue and mutations require an administrator elevation bound to the current session", async () => {
+  await withAdminServer(async ({ baseUrl, store }) => {
+    let calls = 0;
+    store.listAccountNameChanges = async () => { calls++; return { requests: [], nextCursor: null }; };
+    store.reviewAccountNameChange = async () => { calls++; return null; };
+    for (const [cookie, status] of [["", 401], [baseCookie(store.tokens.userToken), 403], [baseCookie(store.tokens.adminTokenOne), 403]]) {
+      assert.equal((await fetch(`${baseUrl}/api/admin/name-changes`, { headers: { Cookie: cookie } })).status, status);
+      assert.equal((await fetch(`${baseUrl}/api/admin/name-changes/${reportId}/review`, { method: "POST",
+        headers: { Cookie: cookie, Origin: "https://dufesh.cn", "Content-Type": "application/json" },
+        body: JSON.stringify({ decision: "approve" }) })).status, status);
+    }
+    assert.equal(calls, 0);
+    const cookie = await elevatedCookie(baseUrl, store);
+    const mismatch = cookie.replace(baseCookie(store.tokens.adminTokenOne), baseCookie(store.tokens.adminTokenTwo));
+    assert.equal((await fetch(`${baseUrl}/api/admin/name-changes`, { headers: { Cookie: mismatch } })).status, 403);
+    assert.equal(calls, 0);
+  });
+});
+
+test("name approval queue keeps precise store cursors and bounds its strict query", async () => {
+  await withAdminServer(async ({ baseUrl, store }) => {
+    const cookie = await elevatedCookie(baseUrl, store);
+    const cursor = Buffer.from(JSON.stringify({ createdAt: "2026-10-12 00:00:00.123456+00", id: reportId })).toString("base64url");
+    const inputs = [];
+    store.listAccountNameChanges = async input => { inputs.push(input); return { requests: [], nextCursor: cursor }; };
+    const response = await fetch(`${baseUrl}/api/admin/name-changes?limit=12&cursor=${cursor}`, { headers: { Cookie: cookie } });
+    assert.equal(response.status, 200);
+    assert.deepEqual(inputs, [{ limit: 12, cursor }]);
+    assert.deepEqual(await response.json(), { requests: [], nextCursor: cursor });
+    assert.match(response.headers.get("Cache-Control"), /no-store/u);
+    for (const query of ["limit=0", "limit=51", "limit=20&limit=21", "userId=victim", "cursor=", "cursor=a%3Db"]) {
+      assert.equal((await fetch(`${baseUrl}/api/admin/name-changes?${query}`, { headers: { Cookie: cookie } })).status, 400);
+    }
+    assert.equal(inputs.length, 1);
+    store.listAccountNameChanges = async () => { throw Object.assign(new Error("sensitive invalid cursor details"), { code: "AUTH_NAME_CHANGE_INVALID" }); };
+    const invalidStoreCursor = await fetch(`${baseUrl}/api/admin/name-changes?cursor=AA`, { headers: { Cookie: cookie } });
+    assert.equal(invalidStoreCursor.status, 400);
+    assert.deepEqual(await invalidStoreCursor.json(), { error: "invalid_name_change_query" });
+  });
+});
+
+test("name approval validates decisions and visible reasons and passes server actor context into the transaction", async () => {
+  await withAdminServer(async ({ baseUrl, store }) => {
+    const cookie = await elevatedCookie(baseUrl, store);
+    const inputs = [];
+    store.reviewAccountNameChange = async input => { inputs.push(input); return { id: input.nameChangeId, status: input.decision === "approve" ? "approved" : "rejected" }; };
+    const post = (body, extra = {}) => fetch(`${baseUrl}/api/admin/name-changes/${reportId}/review`, { method: "POST",
+      headers: { Cookie: cookie, Origin: "https://dufesh.cn", "Content-Type": "application/json", "User-Agent": "synthetic-admin-agent", ...extra }, body: JSON.stringify(body) });
+    assert.equal((await post({ decision: "approve" }, { Origin: "https://attacker.invalid" })).status, 403);
+    for (const body of [null, {}, { decision: "allow" }, { decision: "reject" }, { decision: "reject", reason: " " },
+      { decision: "approve", reason: 42 }, { decision: "approve", reason: "\u200b" }, { decision: "approve", reason: "😀".repeat(501) },
+      { decision: "approve", role: "admin" }, { decision: "approve", actorUserId: userId }]) assert.equal((await post(body)).status, 400);
+    assert.equal(inputs.length, 0);
+    const approved = await post({ decision: "approve" });
+    assert.equal(approved.status, 200);
+    assert.equal((await approved.json()).request.status, "approved");
+    assert.equal(inputs[0].nameChangeId, reportId);
+    assert.equal(inputs[0].actorUserId, adminId);
+    assert.equal(inputs[0].actorSessionId, "admin-session-1");
+    assert.match(inputs[0].actorElevationTokenHash, /^[0-9a-f]{64}$/u);
+    assert.match(inputs[0].ipHash, /^[0-9a-f]{64}$/u);
+    assert.equal(inputs[0].userAgentHash, tokenDigest("admin-ua:synthetic-admin-agent", tokenPepper));
+    assert.equal(inputs[0].requestId, approved.headers.get("X-Request-Id"));
+    assert.equal(inputs[0].reason, "");
+    const rejected = await post({ decision: "reject", reason: " 驳 " });
+    assert.equal(rejected.status, 200);
+    assert.equal(inputs[1].reason, "驳");
+    const maximumReason = await post({ decision: "reject", reason: "😀".repeat(500) });
+    assert.equal(maximumReason.status, 200);
+    assert.equal(Array.from(inputs[2].reason).length, 500);
+  });
+});
+
+test("name approval respects fresh database authorization and maps conflicts without leaking implementation details", async () => {
+  await withAdminServer(async ({ baseUrl, store }) => {
+    const cookie = await elevatedCookie(baseUrl, store);
+    for (const [code, status, error] of [["AUTH_NAME_TAKEN", 409, "name_conflict"], ["AUTH_NAME_CHANGE_CONFLICT", 409, "name_change_conflict"],
+      ["AUTH_NAME_CHANGE_INVALID", 400, "invalid_name_change_review"], ["AUTH_ADMIN_FORBIDDEN", 403, "admin_mfa_required"]]) {
+      store.reviewAccountNameChange = async () => { throw Object.assign(new Error("sensitive SQL/account/session details"), { code }); };
+      const response = await fetch(`${baseUrl}/api/admin/name-changes/${reportId}/review`, { method: "POST",
+        headers: { Cookie: cookie, Origin: "https://dufesh.cn", "Content-Type": "application/json" }, body: JSON.stringify({ decision: "approve" }) });
+      assert.equal(response.status, status);
+      assert.deepEqual(await response.json(), { error });
+      if (status === 403) assert.match(response.headers.getSetCookie().join(";"), /Max-Age=0/u);
+    }
+  });
+});
+
 test("admin routes reject anonymous and ordinary users before sensitive queries", async () => {
   await withAdminServer(async ({ baseUrl, store }) => {
     const anonymous = await fetch(`${baseUrl}/api/admin/users`);

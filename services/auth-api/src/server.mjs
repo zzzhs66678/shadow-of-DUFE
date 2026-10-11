@@ -27,6 +27,7 @@ import {
   validateLogin,
   validateNewPassword,
   validateProfileUpdate,
+  validateAccountNameChange,
   validateRegistration,
 } from "./credentials.mjs";
 
@@ -360,6 +361,9 @@ export function createAuthServer({
               id: session.userId,
               username: session.username,
               displayName: session.displayName,
+              accountName: session.accountName ?? session.displayName,
+              nameMode: session.nameMode ?? "name",
+              nameModeAvailableAt: session.nameModeAvailableAt ?? null,
               avatarUrl: session.avatarUrl,
               email: session.email,
               emailVerified: session.emailVerified,
@@ -514,6 +518,94 @@ export function createAuthServer({
         return;
       }
 
+      if (url.pathname === "/api/auth/name-mode") {
+        if (request.method !== "POST") { methodNotAllowed(response, "POST"); return; }
+        if (!trustedOrigin(request, config.allowedOrigins)) { sendJson(response, 403, { error: "untrusted_origin" }); return; }
+        const session = await resolveSession(request, store, config);
+        if (!session) { sendJson(response, 401, { error: "authentication_required" }); return; }
+        if (request.headers["x-account-owner"] && request.headers["x-account-owner"] !== session.userId) {
+          sendJson(response, 409, { error: "account_changed" }); return;
+        }
+        let body;
+        try { body = await readJsonBody(request, 2_048); }
+        catch (error) {
+          if (["JSON_CONTENT_TYPE_REQUIRED", "JSON_BODY_INVALID"].includes(error?.code)) {
+            sendJson(response, 400, { error: "invalid_name_mode" }); return;
+          }
+          if (error?.code === "REQUEST_BODY_TOO_LARGE") { sendJson(response, 413, { error: "request_too_large" }); return; }
+          throw error;
+        }
+        if ([...url.searchParams.keys()].length || !body || typeof body !== "object" || Array.isArray(body) ||
+            Object.keys(body).length !== 1 || !["name", "momo"].includes(body.mode)) {
+          sendJson(response, 400, { error: "invalid_name_mode" }); return;
+        }
+        if (!(await (rateLimiters.nameChange ?? rateLimiters.write).consume(tokenDigest(`name-mode:${session.userId}`, config.tokenPepper)))) {
+          response.setHeader("Retry-After", "28800"); sendJson(response, 429, { error: "name_mode_rate_limit_exceeded" }); return;
+        }
+        try {
+          sendJson(response, 200, await store.setAccountNameMode({ userId: session.userId, sessionId: session.id, mode: body.mode }));
+        } catch (error) {
+          if (error?.code === "AUTH_NAME_MODE_COOLDOWN") {
+            sendJson(response, 409, { error: "name_mode_cooldown", availableAt: error.availableAt }); return;
+          }
+          const errors = {
+            AUTH_NAME_MODE_INVALID: [400, "invalid_name_mode"],
+            AUTH_NAME_MODE_NAME_REQUIRED: [409, "name_mode_name_required"],
+            AUTH_SESSION_REQUIRED: [401, "authentication_required"],
+          };
+          const mapped = errors[error?.code]; if (!mapped) throw error;
+          sendJson(response, mapped[0], { error: mapped[1] });
+        }
+        return;
+      }
+
+      if (url.pathname === "/api/auth/name-change") {
+        if (!["GET", "POST"].includes(request.method)) { methodNotAllowed(response, "GET, POST"); return; }
+        if ([...url.searchParams.keys()].length > 0) { sendJson(response, 400, { error: "invalid_name_change_query" }); return; }
+        if (request.method === "POST" && !trustedOrigin(request, config.allowedOrigins)) {
+          sendJson(response, 403, { error: "untrusted_origin" }); return;
+        }
+        const session = await resolveSession(request, store, config);
+        if (!session) { sendJson(response, 401, { error: "authentication_required" }); return; }
+        if (request.headers["x-account-owner"] && request.headers["x-account-owner"] !== session.userId) {
+          sendJson(response, 409, { error: "account_changed" }); return;
+        }
+        if (request.method === "GET") {
+          sendJson(response, 200, { request: await store.getAccountNameChange(session.userId) }); return;
+        }
+        let body;
+        try { body = await readJsonBody(request, 8_192); }
+        catch (error) {
+          if (["JSON_CONTENT_TYPE_REQUIRED", "JSON_BODY_INVALID"].includes(error?.code)) {
+            sendJson(response, 400, { error: "invalid_name_change" }); return;
+          }
+          if (error?.code === "REQUEST_BODY_TOO_LARGE") { sendJson(response, 413, { error: "request_too_large" }); return; }
+          throw error;
+        }
+        const changed = validateAccountNameChange(body);
+        if (!changed.ok) { sendJson(response, 400, { error: "invalid_name_change", fields: changed.fields }); return; }
+        if (!(await (rateLimiters.nameChange ?? rateLimiters.write).consume(tokenDigest(`name-change:${session.userId}`, config.tokenPepper)))) {
+          response.setHeader("Retry-After", "28800");
+          sendJson(response, 429, { error: "name_change_rate_limit_exceeded" }); return;
+        }
+        try {
+          const nameChange = await store.requestAccountNameChange({ userId: session.userId, sessionId: session.id, ...changed.value });
+          sendJson(response, 202, { request: nameChange });
+        } catch (error) {
+          const errors = {
+            AUTH_NAME_TAKEN: [409, "name_conflict"],
+            AUTH_NAME_CHANGE_CONFLICT: [409, "name_change_conflict"],
+            AUTH_NAME_REVIEW_REQUIRED: [409, "name_review_required"],
+            AUTH_NAME_CHANGE_INVALID: [400, "invalid_name_change"],
+            AUTH_SESSION_REQUIRED: [401, "authentication_required"],
+          };
+          const mapped = errors[error?.code];
+          if (!mapped) throw error;
+          sendJson(response, mapped[0], { error: mapped[1] });
+        }
+        return;
+      }
+
       if (url.pathname === "/api/auth/profile") {
         if (request.method !== "GET" && request.method !== "PUT") {
           methodNotAllowed(response, "GET, PUT");
@@ -567,6 +659,17 @@ export function createAuthServer({
           return;
         }
         try {
+          const current = await store.getUserProfile(session.userId);
+          if (!current) { sendJson(response, 404, { error: "profile_not_found" }); return; }
+          // An older client may echo the currently displayed momo label while
+          // saving its school number. That label is not a request to release the
+          // reserved account name or change display mode.
+          if (current.nameMode === "momo" && update.value.displayName === current.displayName &&
+              current.accountName !== current.displayName) delete update.value.displayName;
+          if ((Object.hasOwn(update.value, "username") && update.value.username !== current.username) ||
+              (Object.hasOwn(update.value, "displayName") && update.value.displayName !== (current.accountName ?? current.displayName))) {
+            sendJson(response, 409, { error: "name_review_required" }); return;
+          }
           const profile = await store.updateUserProfile(
             session.userId,
             update.value,
@@ -577,6 +680,9 @@ export function createAuthServer({
             profile ? { profile } : { error: "profile_not_found" },
           );
         } catch (error) {
+          if (error?.code === "AUTH_NAME_REVIEW_REQUIRED") {
+            sendJson(response, 409, { error: "name_review_required" }); return;
+          }
           if (error?.code === "AUTH_USERNAME_TAKEN") {
             sendJson(response, 409, {
               error: "profile_conflict",
@@ -675,7 +781,7 @@ export function createAuthServer({
         }
         const browserToken = parseCookies(request.headers.cookie).get(registrationCookie);
         if (!isUuid(body?.challengeId) || typeof body?.code !== "string" || !/^\d{6}$/u.test(body.code) || !isOpaqueToken(browserToken) ||
-          Object.keys(body).some((key) => !["username", "email", "password", "schoolAccount", "challengeId", "code"].includes(key))) {
+          Object.keys(body).some((key) => !["username", "email", "password", "schoolAccount", "displayName", "challengeId", "code"].includes(key))) {
           sendJson(response, 400, { error: "invalid_registration_verification" }); return;
         }
         if (!(await authLimit(request, registration.value.normalizedEmail, "registrationSubmit"))) {
@@ -697,6 +803,7 @@ export function createAuthServer({
         try {
           registered = await store.registerCredentialUser({
             username: registration.value.username,
+            nameMode: registration.value.nameMode,
             normalizedUsername: registration.value.normalizedUsername,
             email: registration.value.email,
             normalizedEmail: registration.value.normalizedEmail,
@@ -714,6 +821,9 @@ export function createAuthServer({
             sessionExpiresAt,
           });
         } catch (error) {
+          if (error?.code === "AUTH_NAME_TAKEN") {
+            sendJson(response, 409, { error: "name_conflict", fields: { displayName: "这个名字已被使用" } }); return;
+          }
           if (["AUTH_REGISTRATION_PROOF_INVALID", "AUTH_EMAIL_TAKEN", "AUTH_USERNAME_TAKEN"].includes(error?.code)) {
             sendJson(response, 400, { error: "invalid_registration_verification" }); return;
           }
@@ -846,6 +956,9 @@ export function createAuthServer({
               id: principal.id,
               username: principal.username,
               displayName: principal.displayName,
+              accountName: principal.accountName ?? principal.displayName,
+              nameMode: principal.nameMode ?? "name",
+              nameModeAvailableAt: principal.nameModeAvailableAt ?? null,
             },
             session: { expiresAt: sessionExpiresAt.toISOString() },
           },

@@ -1,5 +1,8 @@
 import isEmail from "validator/lib/isEmail.js";
 
+export const USERNAME_POLICY = Object.freeze({ minCodePoints: 1, maxCodePoints: 24 });
+export const PASSWORD_POLICY = Object.freeze({ minCodePoints: 8, maxCodePoints: 128 });
+
 export function validEmail(value) {
   return typeof value === "string" && value.length <= 254 &&
     isEmail(value, { allow_display_name: false, allow_utf8_local_part: false, allow_ip_domain: false }) &&
@@ -7,6 +10,12 @@ export function validEmail(value) {
 }
 
 const COMMON_PASSWORDS = new Set([
+  "12345678",
+  "87654321",
+  "11111111",
+  "00000000",
+  "abcdefgh",
+  "qwertyui",
   "1234567890",
   "123456789",
   "1111111111",
@@ -19,6 +28,16 @@ const COMMON_PASSWORDS = new Set([
 
 function stringValue(value) {
   return typeof value === "string" ? value : "";
+}
+
+function validUsername(username) {
+  const length = Array.from(username).length;
+  return length >= USERNAME_POLICY.minCodePoints && length <= USERNAME_POLICY.maxCodePoints &&
+    /^[\p{L}\p{N}_-]+$/u.test(username);
+}
+
+function usernameError() {
+  return `用户名需为 ${USERNAME_POLICY.minCodePoints}—${USERNAME_POLICY.maxCodePoints} 个汉字、字母、数字、下划线或短横线`;
 }
 
 export function normalizeUsername(value) {
@@ -45,14 +64,20 @@ export function validateRegistration(input) {
     .normalize("NFKC")
     .trim();
   const fields = {};
+  let displayName = username;
+  let nameMode = "name";
+  if (Object.hasOwn(input ?? {}, "displayName")) {
+    const selected = validateProfileUpdate({ displayName: input.displayName });
+    if (!selected.ok || selected.value.displayName.toLocaleLowerCase("en-US") !== "momo") {
+      fields.displayName = "注册时仅可选择 momo 昵称";
+    } else {
+      displayName = "momo";
+      nameMode = "momo";
+    }
+  }
 
-  const usernameLength = Array.from(username).length;
-  if (
-    usernameLength < 3 ||
-    usernameLength > 24 ||
-    !/^[\p{L}\p{N}_-]+$/u.test(username)
-  ) {
-    fields.username = "用户名需为 3—24 个汉字、字母、数字、下划线或短横线";
+  if (!validUsername(username)) {
+    fields.username = usernameError();
   }
 
   if (
@@ -61,14 +86,10 @@ export function validateRegistration(input) {
     fields.email = "请输入有效邮箱";
   }
 
-  const normalizedPassword = password.normalize("NFKC");
-  if (Array.from(password).length < 15 || Array.from(password).length > 128) {
-    fields.password = "密码需为 15—128 个字符，可以使用长句";
-  } else if (
-    COMMON_PASSWORDS.has(normalizedPassword.toLocaleLowerCase("en-US")) ||
-    normalizedPassword.toLocaleLowerCase("en-US").includes(normalizedUsername) ||
-    (email.split("@", 1)[0].length >= 3 && normalizedPassword.toLocaleLowerCase("en-US").includes(email.split("@", 1)[0]))
-  ) {
+  const passwordLength = Array.from(password).length;
+  if (passwordLength < PASSWORD_POLICY.minCodePoints || passwordLength > PASSWORD_POLICY.maxCodePoints) {
+    fields.password = `密码需为 ${PASSWORD_POLICY.minCodePoints}—${PASSWORD_POLICY.maxCodePoints} 个字符，可以使用长句`;
+  } else if (!validateNewPassword(password, [normalizedUsername, email])) {
     fields.password = "请使用不包含用户名、邮箱或常见口令的密码";
   }
 
@@ -78,7 +99,7 @@ export function validateRegistration(input) {
       schoolAccount.length > 32 ||
       !/^[\p{L}\p{N}_-]+$/u.test(schoolAccount))
   ) {
-    fields.schoolAccount = "校园账号需为 4—32 个字母、数字、下划线或短横线";
+    fields.schoolAccount = "学号需为 4—32 个字母、数字、下划线或短横线";
   }
 
   if (Object.keys(fields).length > 0) {
@@ -90,6 +111,8 @@ export function validateRegistration(input) {
     value: {
       username,
       normalizedUsername,
+      displayName,
+      nameMode,
       email,
       normalizedEmail: email,
       password,
@@ -101,7 +124,7 @@ export function validateRegistration(input) {
 export function validateLogin(input) {
   const identifier = normalizeLoginIdentifier(input?.identifier);
   const password = stringValue(input?.password);
-  if (!identifier || identifier.length > 254 || !password || Array.from(password).length > 128) {
+  if (!identifier || identifier.length > 254 || !password || Array.from(password).length > PASSWORD_POLICY.maxCodePoints) {
     return null;
   }
   return { identifier, password };
@@ -109,13 +132,14 @@ export function validateLogin(input) {
 
 export function validateNewPassword(password, identityHints = []) {
   const value = stringValue(password);
-  if (Array.from(value).length < 15 || Array.from(value).length > 128) return false;
+  const length = Array.from(value).length;
+  if (length < PASSWORD_POLICY.minCodePoints || length > PASSWORD_POLICY.maxCodePoints) return false;
   const lower = value.normalize("NFKC").toLocaleLowerCase("en-US");
   if (COMMON_PASSWORDS.has(lower)) return false;
   return !identityHints
     .map((hint) => normalizeLoginIdentifier(hint))
     .map((hint) => hint.split("@", 1)[0])
-    .filter((hint) => hint.length >= 3)
+    .filter((hint) => Array.from(hint).length >= 3)
     .some((hint) => lower.includes(hint));
 }
 
@@ -132,13 +156,8 @@ export function validateProfileUpdate(input) {
   const fields = {};
   if (Object.hasOwn(input, "username")) {
     const username = stringValue(input.username).normalize("NFKC").trim();
-    const length = Array.from(username).length;
-    if (
-      length < 3 ||
-      length > 24 ||
-      !/^[\p{L}\p{N}_-]+$/u.test(username)
-    ) {
-      fields.username = "用户名需为 3—24 个汉字、字母、数字、下划线或短横线";
+    if (!validUsername(username)) {
+      fields.username = usernameError();
     } else {
       value.username = username;
       value.normalizedUsername = normalizeUsername(username);
@@ -165,7 +184,7 @@ export function validateProfileUpdate(input) {
         schoolAccount.length > 32 ||
         !/^[\p{L}\p{N}_-]+$/u.test(schoolAccount))
     ) {
-      fields.schoolAccount = "校园账号需为 4—32 个字母、数字、下划线或短横线";
+      fields.schoolAccount = "学号需为 4—32 个字母、数字、下划线或短横线";
     } else {
       value.schoolAccount = schoolAccount || null;
     }
@@ -176,4 +195,16 @@ export function validateProfileUpdate(input) {
     return { ok: false, fields: { profile: "没有可保存的资料" } };
   }
   return { ok: true, value };
+}
+
+export function validateAccountNameChange(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input) ||
+      Object.keys(input).length === 0 || Object.keys(input).some((key) => !["username", "displayName"].includes(key))) {
+    return { ok: false, fields: { profile: "改名申请仅支持用户名和显示名" } };
+  }
+  const result = validateProfileUpdate(input);
+  if (result.ok && result.value.displayName?.toLocaleLowerCase("en-US") === "momo") {
+    return { ok: false, fields: { displayName: "请使用 momo 展示切换，保留自己的名字" } };
+  }
+  return result;
 }

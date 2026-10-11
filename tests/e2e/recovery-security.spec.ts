@@ -73,10 +73,10 @@ for (const width of [390, 1280]) {
     await expect(page.locator(".credential-gateway")).toContainText("已验证邮箱");
     await expect(form.getByLabel(/^一次性重置码/)).toHaveValue("");
     await form.getByLabel(/^一次性重置码/).fill(recoveryToken);
-    for (const invalidPassword of ["🌊".repeat(14), "x".repeat(129)]) {
+    for (const invalidPassword of ["🌊".repeat(7), "x".repeat(129)]) {
       await form.getByLabel("新密码", { exact: true }).fill(invalidPassword);
       await form.getByRole("button", { name: "保存新密码", exact: true }).click();
-      await expect(page.locator(".credential-feedback").last()).toContainText("15–128");
+      await expect(page.locator(".credential-feedback").last()).toContainText("8–128");
       expect(requests).toHaveLength(1);
     }
     await form.getByLabel("新密码", { exact: true }).fill(newPassword);
