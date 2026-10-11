@@ -232,8 +232,8 @@ export function createAuthServer({
       delivered = true;
     } catch { console.error("Security mail delivery failed"); }
     try {
-      await store.finishSecurityMail({ sendId: reservation, challengeId, delivered });
-    } catch { console.error("Security mail state update failed"); }
+      return (await store.finishSecurityMail({ sendId: reservation, challengeId, delivered })) === true && delivered;
+    } catch { console.error("Security mail state update failed"); return false; }
   }
 
   async function reserveDelivery(email) {
@@ -882,6 +882,9 @@ export function createAuthServer({
           sendJson(response, 409, { error: "email_verification_unavailable" });
           return;
         }
+        if (!passwordService || config.credentialsEnabled === false) {
+          sendJson(response, 503, { error: "personal_security_unavailable" }); return;
+        }
         if (!(await authLimit(request, normalizeEmail(session.email), "emailVerification"))) {
           response.setHeader("Retry-After", "120");
           sendJson(response, 429, {
@@ -889,20 +892,44 @@ export function createAuthServer({
           });
           return;
         }
+        let proof;
+        try { proof = await readJsonBody(request, 8_192); }
+        catch (error) {
+          if (["JSON_CONTENT_TYPE_REQUIRED", "JSON_BODY_INVALID"].includes(error?.code)) {
+            sendJson(response, 400, { error: "current_password_required" }); return;
+          }
+          if (error?.code === "REQUEST_BODY_TOO_LARGE") { sendJson(response, 413, { error: "request_too_large" }); return; }
+          throw error;
+        }
+        if (!proof || Array.isArray(proof) || Object.keys(proof).some((key) => key !== "password") ||
+            !validateLogin({ identifier: session.email, password: proof.password })) {
+          sendJson(response, 400, { error: "current_password_required" }); return;
+        }
+        const principal = await store.getCredentialPrincipal(normalizeEmail(session.email));
+        const passwordMatches = await passwordService.verify(principal?.passwordHash ?? await dummyPasswordHash, proof.password);
+        if (!principal || principal.id !== session.userId || principal.status !== "active" ||
+            (principal.lockedUntil && new Date(principal.lockedUntil).getTime() > Date.now()) || !passwordMatches) {
+          sendJson(response, 401, { error: "invalid_credentials" }); return;
+        }
         const verificationToken = createOpaqueToken();
         const verificationExpiresAt = new Date(
           Date.now() +
             (config.emailVerificationTtlSeconds ?? 86_400) * 1_000,
         );
-        const created = await store.createEmailVerification({
-          userId: session.userId,
-          tokenHash: tokenDigest(verificationToken, config.tokenPepper),
-          expiresAt: verificationExpiresAt,
-        });
-        if (!created) {
-          sendJson(response, 409, { error: "email_verification_unavailable" });
-          return;
+        const tokenHash = tokenDigest(verificationToken, config.tokenPepper);
+        let reservation;
+        if (config.emailVerificationMode === "smtp") {
+          reservation = await reserveDelivery(session.email);
+          if (!reservation) { sendJson(response, 429, { error: "email_verification_rate_limit_exceeded" }); return; }
         }
+        const created = await store.createEmailVerification({ userId: session.userId, sessionId: session.id,
+          tokenHash, expiresAt: verificationExpiresAt, expectedPasswordHash: principal.passwordHash,
+          normalizedEmail: normalizeEmail(session.email) });
+        if (!created) {
+          if (reservation) await store.finishSecurityMail({ sendId: reservation, delivered: false });
+          sendJson(response, 409, { error: "email_verification_unavailable" }); return;
+        }
+        let delivered = config.emailVerificationMode === "response";
         if (config.emailVerificationMode === "smtp") {
           if (!mailDelivery) {
             sendJson(response, 503, {
@@ -911,9 +938,7 @@ export function createAuthServer({
             return;
           }
           try {
-            const reservation = await reserveDelivery(session.email);
-            if (!reservation) { sendJson(response, 429, { error: "email_verification_rate_limit_exceeded" }); return; }
-            await deliverSecurityMail("sendEmailVerification", {
+            delivered = await deliverSecurityMail("sendEmailVerification", {
               to: session.email,
               token: verificationToken,
               expiresAt: verificationExpiresAt,
@@ -925,8 +950,12 @@ export function createAuthServer({
             return;
           }
         }
+        if (!(await store.finishEmailVerificationDelivery({ tokenHash, delivered })) || !delivered) {
+          sendJson(response, 503, { error: "email_verification_delivery_failed" }); return;
+        }
         sendJson(response, 202, {
           ok: true,
+          expiresIn: config.emailVerificationTtlSeconds ?? 86_400,
           ...(config.emailVerificationMode === "response"
             ? { debugToken: verificationToken }
             : {}),
@@ -942,6 +971,9 @@ export function createAuthServer({
         if (!trustedOrigin(request, config.allowedOrigins)) {
           sendJson(response, 403, { error: "untrusted_origin" });
           return;
+        }
+        if ((config.emailVerificationMode ?? "disabled") === "disabled") {
+          sendJson(response, 503, { error: "email_verification_delivery_unavailable" }); return;
         }
         const session = await resolveSession(request, store, config);
         if (!session) {
@@ -974,6 +1006,7 @@ export function createAuthServer({
         }
         const consumed = await store.consumeEmailVerification({
           userId: session.userId,
+          sessionId: session.id,
           tokenHash: tokenDigest(body.token, config.tokenPepper),
         });
         sendJson(
@@ -1034,15 +1067,18 @@ export function createAuthServer({
           sendJson(response, 202, { ok: true });
           void (async () => {
             const target = identifier ? await store.getCredentialPrincipal(identifier) : null;
-            if (target?.status !== "active" || !mailDelivery) return;
+            if (target?.status !== "active" || target.emailVerified !== true || !validEmail(target.email) || !mailDelivery) return;
             const reservation = await reserveDelivery(target.email);
             if (!reservation) return;
             try {
               const token = createOpaqueToken();
               const expiresAt = new Date(Date.now() + config.passwordResetTtlSeconds * 1000);
-              await store.createPasswordReset({ userId: target.id,
-                tokenHash: tokenDigest(token, config.tokenPepper), expiresAt });
-              await deliverSecurityMail("sendPasswordReset", { to: target.email, token, expiresAt }, reservation);
+              const tokenHash = tokenDigest(token, config.tokenPepper);
+              const created = await store.createPasswordReset({ userId: target.id, tokenHash, expiresAt,
+                normalizedEmail: normalizeEmail(target.email), expectedPasswordHash: target.passwordHash });
+              if (!created) { await store.finishSecurityMail({ sendId: reservation, delivered: false }); return; }
+              const delivered = await deliverSecurityMail("sendPasswordReset", { to: target.email, token, expiresAt }, reservation);
+              await store.finishPasswordResetDelivery({ tokenHash, delivered });
             } catch {
               await store.finishSecurityMail({ sendId: reservation, delivered: false });
               console.error("Security password reset request failed");
@@ -1055,17 +1091,19 @@ export function createAuthServer({
           ? await store.getCredentialPrincipal(identifier)
           : null;
         let debugToken;
-        if (principal?.status === "active") {
+        if (principal?.status === "active" && principal.emailVerified === true && validEmail(principal.email)) {
           const resetToken = createOpaqueToken();
           const resetExpiresAt = new Date(
             Date.now() + config.passwordResetTtlSeconds * 1000,
           );
-          await store.createPasswordReset({
+          const tokenHash = tokenDigest(resetToken, config.tokenPepper);
+          const created = await store.createPasswordReset({
             userId: principal.id,
-            tokenHash: tokenDigest(resetToken, config.tokenPepper),
+            tokenHash, normalizedEmail: normalizeEmail(principal.email), expectedPasswordHash: principal.passwordHash,
             expiresAt: resetExpiresAt,
           });
-          if (config.passwordResetMode === "response") {
+          if (created && config.passwordResetMode === "response" &&
+              await store.finishPasswordResetDelivery({ tokenHash, delivered: true })) {
             debugToken = resetToken;
           }
         }
@@ -1088,6 +1126,9 @@ export function createAuthServer({
         if (!trustedOrigin(request, config.allowedOrigins)) {
           sendJson(response, 403, { error: "untrusted_origin" });
           return;
+        }
+        if ((config.passwordResetMode ?? "disabled") === "disabled") {
+          sendJson(response, 503, { error: "password_reset_delivery_unavailable" }); return;
         }
 
         let body;

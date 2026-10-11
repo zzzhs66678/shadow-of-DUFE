@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests/e2e",
-  testMatch: /postgres-critical-path\.spec\.mjs/,
+  testMatch: /postgres-(?:critical-path|recovery-path)\.spec\.mjs/,
   timeout: 180_000,
   expect: { timeout: 15_000 },
   fullyParallel: false,

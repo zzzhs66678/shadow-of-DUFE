@@ -4,9 +4,10 @@ import base from "./playwright.postgres.config";
 
 const env = {
   NODE_ENV: "test", PGHOST: "127.0.0.1", PGPORT: "55439",
-  POSTGRES_DB: "dufesh_production_ci", POSTGRES_USER: "dufesh_security_owner",
+  POSTGRES_DB: process.env.RECOVERY_TEST_DB ?? "dufesh_production_ci", POSTGRES_USER: "dufesh_security_owner",
   POSTGRES_PASSWORD: "synthetic-loopback-fixture",
-  AUTH_DB_USER: "dufesh_security_owner", AUTH_DB_PASSWORD: "synthetic-loopback-fixture",
+  AUTH_DB_USER: process.env.RECOVERY_RUNTIME_USER ?? "dufesh_security_owner",
+  AUTH_DB_PASSWORD: process.env.RECOVERY_RUNTIME_PASSWORD ?? "synthetic-loopback-fixture",
   AUTH_API_PORT: "33137", AUTH_TEST_MAILBOX_PORT: "33138",
   AUTH_TEST_MAILBOX_URL: "http://127.0.0.1:33138",
   AUTH_ALLOWED_ORIGINS: "http://localhost:33139", AUTH_PUBLIC_ORIGIN: "https://dufesh.cn",

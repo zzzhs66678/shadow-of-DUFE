@@ -102,7 +102,7 @@ function createFakeStore() {
     async health() {},
     async reserveSecurityMail() { return "fixture-reservation"; },
     async createRegistrationChallenge(input) { challenges.set(input.id,input); return {sendId:input.id,shouldSend:true,expiresAt:new Date(Date.now()+300000)}; },
-    async finishSecurityMail({sendId,delivered}) { const c=challenges.get(sendId);if(c)c.delivered=delivered; },
+    async finishSecurityMail({sendId,delivered}) { const c=challenges.get(sendId);if(c)c.delivered=delivered; return true; },
     async getOrCreateAnonymousDevice(hash) {
       if (!devices.has(hash)) {
         const number = devices.size + 1;
@@ -183,7 +183,7 @@ function createFakeStore() {
         username: input.username,
         displayName: input.username,
         email: input.email,
-        emailVerified: false,
+        emailVerified: true,
         schoolAccount: input.schoolAccount,
         status: "active",
         passwordHash: input.passwordHash,
@@ -199,7 +199,7 @@ function createFakeStore() {
         displayName: input.username,
         avatarUrl: null,
         email: input.email,
-        emailVerified: false,
+        emailVerified: true,
         schoolAccount: input.schoolAccount,
         schoolAccountVerified: false,
         expiresAt: input.sessionExpiresAt.toISOString(),
@@ -326,7 +326,16 @@ function createFakeStore() {
       return { expiresAt: input.sessionExpiresAt.toISOString() };
     },
     async createPasswordReset(input) {
-      passwordResets.set(input.tokenHash, input.userId);
+      const principal = [...credentialPrincipals.values()].find((p) => p.id === input.userId);
+      if (!principal?.emailVerified || principal.passwordHash !== input.expectedPasswordHash || principal.email !== input.normalizedEmail) return false;
+      for (const [hash, candidate] of passwordResets) if (candidate.userId === input.userId) passwordResets.delete(hash);
+      passwordResets.set(input.tokenHash, { ...input, delivered: false });
+      return true;
+    },
+    async finishPasswordResetDelivery({ tokenHash, delivered }) {
+      const item = passwordResets.get(tokenHash); if (!item) return false;
+      if (!delivered) { passwordResets.delete(tokenHash); return false; }
+      item.delivered = true; return true;
     },
     async createEmailVerification(input) {
       for (const [hash, candidate] of emailVerifications) {
@@ -335,20 +344,24 @@ function createFakeStore() {
       const principal = [...credentialPrincipals.values()].find(
         (candidate) => candidate.id === input.userId,
       );
-      if (!principal || principal.emailVerified) return false;
+      if (!principal || principal.emailVerified || principal.passwordHash !== input.expectedPasswordHash || principal.email !== input.normalizedEmail) return false;
       emailVerifications.set(input.tokenHash, {
-        userId: input.userId,
-        email: principal.email,
+        ...input, email: principal.email, delivered: false,
       });
       return true;
     },
-    async consumeEmailVerification({ userId, tokenHash }) {
+    async finishEmailVerificationDelivery({ tokenHash, delivered }) {
+      const item = emailVerifications.get(tokenHash); if (!item) return false;
+      if (!delivered) { emailVerifications.delete(tokenHash); return false; }
+      item.delivered = true; return true;
+    },
+    async consumeEmailVerification({ userId, sessionId, tokenHash }) {
       const token = emailVerifications.get(tokenHash);
-      if (!token || token.userId !== userId) return false;
+      if (!token || token.userId !== userId || token.sessionId !== sessionId || !token.delivered || token.expiresAt.getTime() <= Date.now()) return false;
       const principal = [...credentialPrincipals.values()].find(
         (candidate) => candidate.id === userId,
       );
-      if (!principal || principal.email !== token.email) return false;
+      if (!principal || principal.email !== token.email || principal.passwordHash !== token.expectedPasswordHash) return false;
       principal.emailVerified = true;
       emailVerifications.delete(tokenHash);
       for (const session of sessions.values()) {
@@ -357,18 +370,19 @@ function createFakeStore() {
       return true;
     },
     async getPasswordResetPrincipal(tokenHash) {
-      const userId = passwordResets.get(tokenHash);
-      if (!userId) return null;
+      const item = passwordResets.get(tokenHash);
+      if (!item?.delivered || item.expiresAt.getTime() <= Date.now()) return null;
       const principal = [...credentialPrincipals.values()].find(
-        (candidate) => candidate.id === userId,
+        (candidate) => candidate.id === item.userId,
       );
-      return principal
+      return principal?.emailVerified && principal.passwordHash === item.expectedPasswordHash && principal.email === item.normalizedEmail
         ? { username: principal.username, email: principal.email }
         : null;
     },
     async consumePasswordReset({ tokenHash, passwordHash }) {
-      const userId = passwordResets.get(tokenHash);
-      if (!userId) return false;
+      const item = passwordResets.get(tokenHash);
+      if (!await this.getPasswordResetPrincipal(tokenHash)) return false;
+      const userId = item.userId;
       const principal = [...credentialPrincipals.values()].find(
         (candidate) => candidate.id === userId,
       );
@@ -469,6 +483,112 @@ function createFakeStore() {
 }
 
 const mailboxes = new Map();
+function seedLegacyCredential(store, email = "legacy@example.com") {
+  const token = createOpaqueToken();
+  const principal = { id: "legacy-fixture-user", username: "legacy-fixture", email,
+    displayName: "合成旧用户", status: "active", emailVerified: false,
+    passwordHash: "test-hash:LegacyHarbor!2026", failedAttempts: 0, lockedUntil: null };
+  store.credentialPrincipals.set(email, principal);
+  store.credentialPrincipals.set(principal.username, principal);
+  store.sessions.set(tokenDigest(token, config.tokenPepper), { id: "legacy-fixture-session",
+    userId: principal.id, email, emailVerified: false, expiresAt: new Date(Date.now()+3600000).toISOString() });
+  return { principal, cookie: `${config.sessionCookie}=${token}` };
+}
+
+test("legacy unverified email cannot issue an anonymous password reset", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    seedLegacyCredential(store);
+    let issued = 0;
+    store.createPasswordReset = async () => { issued++; return true; };
+    const reply = await fetch(`${baseUrl}/api/auth/password/reset/request`, {
+      method: "POST", headers: { Origin: "https://dufesh.cn", "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier: "legacy@example.com" }),
+    });
+    assert.equal(reply.status, 202);
+    assert.deepEqual(await reply.json(), { ok: true });
+    assert.equal(issued, 0);
+  });
+});
+
+test("legacy email verification requires the current password before issuing mail", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    const { cookie } = seedLegacyCredential(store);
+    for (const body of [{}, { password: "wrong" }, { password: "LegacyHarbor!2026", verified: true }]) {
+      const reply = await fetch(`${baseUrl}/api/auth/email/verification/request`, {
+        method: "POST", headers: { Cookie: cookie, Origin: "https://dufesh.cn", "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      assert.equal(reply.status, body.password === "wrong" ? 401 : 400);
+      assert.equal(JSON.stringify(await reply.json()).includes("debugToken"), false);
+    }
+  });
+});
+
+test("disabled recovery modes reject token confirmation as well as issuance", async () => {
+  await withServer(async ({ baseUrl, store }) => {
+    const { cookie } = seedLegacyCredential(store);
+    for (const path of ["password/reset/confirm", "email/verification/confirm"]) {
+      const reply = await fetch(`${baseUrl}/api/auth/${path}`, {
+        method: "POST", headers: { Cookie: cookie, Origin: "https://dufesh.cn", "Content-Type": "application/json" },
+        body: JSON.stringify({ token: createOpaqueToken(), password: "SomeNewHarbor!2026" }),
+      });
+      assert.equal(reply.status, 503);
+    }
+  }, { config: { passwordResetMode: "disabled", emailVerificationMode: "disabled" } });
+});
+
+test("SMTP and delivery-state failures never activate email verification tokens", async () => {
+  for (const failure of ["smtp", "budget", "token-store"]) {
+    let sentToken;
+    await withServer(async ({ baseUrl, store }) => {
+      const { cookie, principal } = seedLegacyCredential(store);
+      if (failure === "budget") store.finishSecurityMail = async () => { throw new Error("synthetic-private-failure"); };
+      if (failure === "token-store") store.finishEmailVerificationDelivery = async () => { throw new Error("synthetic-private-failure"); };
+      const headers = { Cookie: cookie, Origin: "https://dufesh.cn", "Content-Type": "application/json" };
+      const request = await fetch(`${baseUrl}/api/auth/email/verification/request`, {
+        method: "POST", headers, body: JSON.stringify({ password: "LegacyHarbor!2026" }),
+      });
+      assert.ok([500, 503].includes(request.status));
+      const payload = JSON.stringify(await request.json());
+      assert.equal(payload.includes("synthetic-private-failure"), false);
+      assert.equal(payload.includes(sentToken), false);
+      const confirm = await fetch(`${baseUrl}/api/auth/email/verification/confirm`, {
+        method: "POST", headers, body: JSON.stringify({ token: sentToken }),
+      });
+      assert.equal(confirm.status, 400);
+      assert.equal(principal.emailVerified, false);
+    }, { config: { emailVerificationMode: "smtp" }, mailDelivery: {
+      async sendEmailVerification({ token }) { sentToken = token; if (failure === "smtp") throw new Error("synthetic-private-failure"); },
+    } });
+  }
+});
+
+test("a reset token is unusable while SMTP is pending or when delivery fails", async () => {
+  let sentToken;
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  await withServer(async ({ baseUrl, store }) => {
+    const { principal } = seedLegacyCredential(store);
+    principal.emailVerified = true;
+    const headers = { Origin: "https://dufesh.cn", "Content-Type": "application/json" };
+    const request = await fetch(`${baseUrl}/api/auth/password/reset/request`, {
+      method: "POST", headers, body: JSON.stringify({ identifier: principal.email }),
+    });
+    assert.deepEqual(await request.json(), { ok: true });
+    assert.equal(request.status, 202);
+    while (!sentToken) await new Promise((resolve) => setTimeout(resolve, 1));
+    const confirm = () => fetch(`${baseUrl}/api/auth/password/reset/confirm`, {
+      method: "POST", headers, body: JSON.stringify({ token: sentToken, password: "SomeNewHarbor!2026" }),
+    });
+    assert.equal((await confirm()).status, 400);
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    assert.equal((await confirm()).status, 400);
+    assert.equal(principal.passwordHash, "test-hash:LegacyHarbor!2026");
+  }, { config: { passwordResetMode: "smtp" }, mailDelivery: {
+    async sendPasswordReset({ token }) { sentToken = token; await gate; throw new Error("synthetic-private-failure"); },
+  } });
+});
 async function registerWithProof(url, options) {
   const base = new URL(url).origin;
   const body = JSON.parse(options.body);
@@ -1157,7 +1277,7 @@ test("SMTP mode delivers reset and verification tokens without returning them", 
   };
 
   await withServer(
-    async ({ baseUrl }) => {
+    async ({ baseUrl, store }) => {
       const headers = {
         Origin: "https://dufesh.cn",
         "Content-Type": "application/json",
@@ -1172,10 +1292,6 @@ test("SMTP mode delivers reset and verification tokens without returning them", 
         }),
       });
       assert.equal(registration.status, 201);
-      const cookie = registration.headers
-        .getSetCookie()
-        .map((value) => value.split(";", 1)[0])
-        .join("; ");
 
       const reset = await fetch(`${baseUrl}/api/auth/password/reset/request`, {
         method: "POST",
@@ -1191,15 +1307,18 @@ test("SMTP mode delivers reset and verification tokens without returning them", 
       );
       releaseResetDelivery();
 
+      const legacy = seedLegacyCredential(store, "smtp-legacy@example.com");
+
       const verification = await fetch(
         `${baseUrl}/api/auth/email/verification/request`,
         {
           method: "POST",
-          headers: { Origin: "https://dufesh.cn", Cookie: cookie },
+          headers: { ...headers, Cookie: legacy.cookie },
+          body: JSON.stringify({ password: "LegacyHarbor!2026" }),
         },
       );
       assert.equal(verification.status, 202);
-      assert.deepEqual(await verification.json(), { ok: true });
+      assert.deepEqual(await verification.json(), { ok: true, expiresIn: 86_400 });
     },
     {
       config: {
@@ -1212,7 +1331,7 @@ test("SMTP mode delivers reset and verification tokens without returning them", 
 
   assert.deepEqual(deliveries.map(({ type, to }) => ({ type, to })), [
     { type: "reset", to: "smtp-student@example.com" },
-    { type: "verify", to: "smtp-student@example.com" },
+    { type: "verify", to: "smtp-legacy@example.com" },
   ]);
   for (const delivery of deliveries) {
     assert.equal(isOpaqueToken(delivery.token), true);
@@ -1830,7 +1949,7 @@ test("authenticated profile updates are whitelisted, normalized, and account-sco
 });
 
 test("email verification is session-bound, single-use, and updates the account", async () => {
-  await withServer(async ({ baseUrl }) => {
+  await withServer(async ({ baseUrl, store }) => {
     const headers = {
       "Content-Type": "application/json",
       Origin: "https://dufesh.cn",
@@ -1852,7 +1971,7 @@ test("email verification is session-bound, single-use, and updates the account",
         .join("; ");
     };
 
-    const ownerCookie = await register("verified-student", "verify@example.com");
+    const ownerCookie = seedLegacyCredential(store, "verify@example.com").cookie;
     const otherCookie = await register("other-student", "other@example.com");
 
     const untrusted = await fetch(
@@ -1871,7 +1990,8 @@ test("email verification is session-bound, single-use, and updates the account",
       `${baseUrl}/api/auth/email/verification/request`,
       {
         method: "POST",
-        headers: { Origin: "https://dufesh.cn", Cookie: ownerCookie },
+        headers: { ...headers, Cookie: ownerCookie },
+        body: JSON.stringify({ password: "LegacyHarbor!2026" }),
       },
     );
     const requestedBody = await requested.json();
@@ -1882,7 +2002,8 @@ test("email verification is session-bound, single-use, and updates the account",
       `${baseUrl}/api/auth/email/verification/request`,
       {
         method: "POST",
-        headers: { Origin: "https://dufesh.cn", Cookie: ownerCookie },
+        headers: { ...headers, Cookie: ownerCookie },
+        body: JSON.stringify({ password: "LegacyHarbor!2026" }),
       },
     );
     const requestedAgainBody = await requestedAgain.json();

@@ -242,7 +242,7 @@ jobs:
           PGPASSWORD="$POSTGRES_PASSWORD" createdb --host "$PGHOST" --port "$PGPORT" --username "$POSTGRES_USER" dufesh_ci_security_test
           POSTGRES_DB=dufesh_ci_security_test SECURITY_POSTGRES_TEST=true node --test tests/registration-security.test.mjs
       - name: Verify PostgreSQL roles and real auth/community flows
-        run: node --test tests/postgres-runtime-integration.test.mjs tests/postgres-product-extensions.test.mjs
+        run: node --test tests/postgres-runtime-integration.test.mjs tests/postgres-product-extensions.test.mjs tests/account-recovery-security.test.mjs
       - name: Install Chromium for authenticated browser checks
         run: npx playwright install --with-deps chromium
       - name: Run the PostgreSQL-backed browser critical path

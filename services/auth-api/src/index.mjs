@@ -13,8 +13,10 @@ const config = loadConfig();
 const pool = createDatabasePool(config);
 const store = createAuthStore(pool);
 await store.cleanupSecurityState();
+await store.cleanupRecoveryState();
 const securityCleanup = setInterval(() => {
-  void store.cleanupSecurityState().catch(() => console.error("Security state cleanup failed"));
+  void store.cleanupSecurityState().then(() => store.cleanupRecoveryState())
+    .catch(() => console.error("Security state cleanup failed"));
 }, 60_000);
 securityCleanup.unref();
 const rateLimiters = createApiRateLimiters({ store });

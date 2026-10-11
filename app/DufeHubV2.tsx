@@ -5,6 +5,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -6262,6 +6263,8 @@ function MePage({
     resetToken: "",
     registrationCode: "",
   });
+  const [resetConfirmationOpen, setResetConfirmationOpen] = useState(false);
+  const securityFlowGeneration = useRef(0);
   const [registrationChallengeId, setRegistrationChallengeId] = useState("");
   const [registrationSeconds, setRegistrationSeconds] = useState(0);
   useEffect(() => {
@@ -6271,6 +6274,7 @@ function MePage({
   }, [registrationSeconds]);
 
   const requestRegistrationCode = async () => {
+    const generation = securityFlowGeneration.current;
     setAccountBusy("credential-code");
     setCredentialFeedback("");
     try {
@@ -6280,6 +6284,7 @@ function MePage({
         body: JSON.stringify({ email: credentialForm.email }),
       });
       const payload = await response.json() as { error?: string; challengeId: string; retryAfter: number };
+      if (generation !== securityFlowGeneration.current) return;
       if (!response.ok) {
         setCredentialFeedback(response.status === 429 ? "请求太频繁，请稍后再试。" :
           payload.error === "invalid_registration_email" ? "请输入有效邮箱。" : "注册邮件暂时不可用，请稍后再试。");
@@ -6289,8 +6294,8 @@ function MePage({
       setRegistrationSeconds(payload.retryAfter);
       setCredentialForm((current) => ({ ...current, registrationCode: "" }));
       setCredentialFeedback("如果邮箱可用于注册，验证码将发送到邮箱。请在当前浏览器于 5 分钟内完成注册；已有账号请直接登录或找回密码。");
-    } catch { setCredentialFeedback("注册邮件暂时不可用，请稍后再试。"); }
-    finally { setAccountBusy(""); }
+    } catch { if (generation === securityFlowGeneration.current) setCredentialFeedback("注册邮件暂时不可用，请稍后再试。"); }
+    finally { if (generation === securityFlowGeneration.current) setAccountBusy(""); }
   };
   const [credentialFeedback, setCredentialFeedback] = useState("");
   const [profileEditing, setProfileEditing] = useState(false);
@@ -6301,6 +6306,33 @@ function MePage({
   });
   const [profileFeedback, setProfileFeedback] = useState("");
   const [emailVerificationToken, setEmailVerificationToken] = useState("");
+  const [emailVerificationPassword, setEmailVerificationPassword] = useState("");
+  const [emailVerificationOpen, setEmailVerificationOpen] = useState(false);
+  const clearSensitiveAccountInputs = useCallback(() => {
+    securityFlowGeneration.current += 1;
+    setCredentialForm((current) => ({ ...current, password: "", resetToken: "", registrationCode: "" }));
+    setRegistrationChallengeId("");
+    setResetConfirmationOpen(false);
+    setEmailVerificationToken("");
+    setEmailVerificationPassword("");
+    setEmailVerificationOpen(false);
+    setCredentialFeedback("");
+    setProfileFeedback("");
+    setAccountBusy("");
+  }, []);
+  useLayoutEffect(() => {
+    // Keep account details expanded when login completes. Only the sensitive
+    // form state belongs to this account/session; discard it before next input.
+    securityFlowGeneration.current += 1;
+    let active = true;
+    queueMicrotask(() => { if (active) clearSensitiveAccountInputs(); });
+    return () => { active = false; securityFlowGeneration.current += 1; };
+  }, [account.status, account.user?.id, account.session?.expiresAt, clearSensitiveAccountInputs]);
+  useEffect(() => () => { securityFlowGeneration.current += 1; }, []);
+  const changeCredentialMode = (mode: "login" | "register" | "reset") => {
+    clearSensitiveAccountInputs();
+    setCredentialMode(mode);
+  };
   useEffect(() => {
     if (!deleteOpen) return;
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -6329,11 +6361,18 @@ function MePage({
 
   const submitCredentials = async (event: React.FormEvent) => {
     event.preventDefault();
+    const generation = securityFlowGeneration.current;
+    const isResetConfirmation = credentialMode === "reset" && resetConfirmationOpen;
+    if (credentialMode === "register" || isResetConfirmation) {
+      const length = Array.from(credentialForm.password).length;
+      if (length < 15 || length > 128) {
+        setCredentialFeedback("新密码需要 15–128 个字符，可以使用长句。");
+        return;
+      }
+    }
     setAccountBusy(`credential-${credentialMode}`);
     setCredentialFeedback("");
     try {
-      const isResetConfirmation =
-        credentialMode === "reset" && Boolean(credentialForm.resetToken);
       const endpoint =
         credentialMode === "register"
           ? "/api/auth/register"
@@ -6359,7 +6398,7 @@ function MePage({
               }
             : isResetConfirmation
               ? {
-                  token: credentialForm.resetToken,
+                  token: credentialForm.resetToken.trim(),
                   password: credentialForm.password,
                 }
               : { identifier: credentialForm.identifier };
@@ -6374,6 +6413,7 @@ function MePage({
         debugToken?: string;
         fields?: Record<string, string>;
       };
+      if (generation !== securityFlowGeneration.current) return;
 
       if (!response.ok) {
         const fieldMessage = payload.fields
@@ -6389,7 +6429,7 @@ function MePage({
           password_reset_rate_limit_exceeded: "请求太频繁，请稍后再试。",
           password_reset_delivery_unavailable:
             "暂时无法通过邮件找回密码；你的原密码不会被更改。",
-          invalid_password_reset: "重置链接已失效，或新密码不符合要求。",
+          invalid_password_reset: "重置码无效、已使用或已过期，或新密码不符合要求。",
         };
         setCredentialFeedback(
           messages[payload.error ?? ""] || "暂时无法连接账号服务，请稍后再试。",
@@ -6398,23 +6438,17 @@ function MePage({
       }
 
       if (credentialMode === "reset" && !isResetConfirmation) {
-        if (payload.debugToken) {
-          setCredentialForm((current) => ({
-            ...current,
-            resetToken: payload.debugToken ?? "",
-            password: "",
-          }));
-          setCredentialFeedback("已生成一次性重置码，请设置新密码。");
-        } else {
-          setCredentialFeedback(
-            "如果账号存在，重置邮件会在几分钟内到达。",
-          );
-        }
+        setResetConfirmationOpen(true);
+        setCredentialForm((current) => ({ ...current, resetToken: payload.debugToken ?? "", password: "" }));
+        setCredentialFeedback(payload.debugToken
+          ? "已生成一次性重置码，请设置新密码。"
+          : "如果账号可通过已验证邮箱找回，重置邮件会在几分钟内到达。请在邮件注明的有效期内填写重置码。");
         return;
       }
 
       if (credentialMode === "reset") {
         setCredentialMode("login");
+        setResetConfirmationOpen(false);
         setCredentialForm((current) => ({
           ...current,
           password: "",
@@ -6428,9 +6462,9 @@ function MePage({
       setRegistrationChallengeId("");
       onAuthChanged();
     } catch {
-      setCredentialFeedback("账号服务暂时离线，本机课表仍可继续使用。");
+      if (generation === securityFlowGeneration.current) setCredentialFeedback("账号服务暂时离线，本机课表仍可继续使用。");
     } finally {
-      setAccountBusy("");
+      if (generation === securityFlowGeneration.current) setAccountBusy("");
     }
   };
 
@@ -6531,18 +6565,22 @@ function MePage({
   };
 
   const requestEmailVerification = async () => {
+    const generation = securityFlowGeneration.current;
     setAccountBusy("email-verification-request");
     setProfileFeedback("");
     try {
       const response = await fetch("/api/auth/email/verification/request", {
         method: "POST",
         credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: emailVerificationPassword }),
       });
       const payload = (await response.json().catch(() => ({}))) as {
         error?: string;
         debugToken?: string;
         alreadyVerified?: boolean;
       };
+      if (generation !== securityFlowGeneration.current) return;
       if (!response.ok) {
         const messages: Record<string, string> = {
           email_verification_delivery_unavailable:
@@ -6553,6 +6591,9 @@ function MePage({
             "验证邮件请求太频繁，请稍后再试。",
           email_verification_unavailable:
             "当前邮箱无法发起验证，请刷新账号资料后重试。",
+          current_password_required: "请输入当前网站登录密码。",
+          invalid_credentials: "当前密码不正确，请重新输入。",
+          personal_security_unavailable: "账号验证暂时不可用，请稍后再试。",
         };
         setProfileFeedback(
           messages[payload.error ?? ""] || "验证请求没有完成，请稍后再试。",
@@ -6562,21 +6603,25 @@ function MePage({
       if (payload.alreadyVerified) {
         setProfileFeedback("邮箱已经验证。无需重复操作。");
         onAuthChanged();
-      } else if (payload.debugToken) {
-        setEmailVerificationToken(payload.debugToken);
-        setProfileFeedback("已生成邮箱验证码，请继续验证。");
       } else {
-        setProfileFeedback("验证邮件已发送，请在 24 小时内完成验证。");
+        setEmailVerificationOpen(true);
+        setEmailVerificationToken(payload.debugToken ?? "");
+        setProfileFeedback(payload.debugToken ? "已生成邮箱验证令牌，请继续验证。"
+          : "验证邮件已发送，请在当前浏览器、当前账号中，于邮件注明的有效期内填写验证令牌。");
       }
     } catch {
-      setProfileFeedback("账号服务暂时离线，没有发起验证。");
+      if (generation === securityFlowGeneration.current) setProfileFeedback("账号服务暂时离线，没有发起验证。");
     } finally {
-      setAccountBusy("");
+      if (generation === securityFlowGeneration.current) {
+        setEmailVerificationPassword("");
+        setAccountBusy("");
+      }
     }
   };
 
   const confirmEmailVerification = async (event: React.FormEvent) => {
     event.preventDefault();
+    const generation = securityFlowGeneration.current;
     setAccountBusy("email-verification-confirm");
     setProfileFeedback("");
     try {
@@ -6589,21 +6634,23 @@ function MePage({
       const payload = (await response.json().catch(() => ({}))) as {
         error?: string;
       };
+      if (generation !== securityFlowGeneration.current) return;
       if (!response.ok) {
         setProfileFeedback(
           payload.error === "invalid_email_verification"
-            ? "邮箱验证码无效、已使用或已过期。"
+            ? "邮箱验证令牌无效、已使用或已过期。请在申请邮件的浏览器与账号中操作。"
             : "邮箱验证没有完成，请稍后再试。",
         );
         return;
       }
       setEmailVerificationToken("");
+      setEmailVerificationOpen(false);
       setProfileFeedback("邮箱验证完成。");
       onAuthChanged();
     } catch {
-      setProfileFeedback("账号服务暂时离线，邮箱状态没有更改。");
+      if (generation === securityFlowGeneration.current) setProfileFeedback("账号服务暂时离线，邮箱状态没有更改。");
     } finally {
-      setAccountBusy("");
+      if (generation === securityFlowGeneration.current) setAccountBusy("");
     }
   };
 
@@ -6700,7 +6747,10 @@ function MePage({
             type="button"
             className={meStyles.accountToggle}
             aria-expanded={accountOpen}
-            onClick={() => setAccountOpen((current) => !current)}
+            onClick={() => {
+              if (accountOpen) clearSensitiveAccountInputs();
+              setAccountOpen((current) => !current);
+            }}
           >
             {accountOpen
               ? "收起"
@@ -6729,20 +6779,14 @@ function MePage({
                   <button
                     type="button"
                     aria-pressed={credentialMode === "login"}
-                    onClick={() => {
-                      setCredentialMode("login");
-                      setCredentialFeedback("");
-                    }}
+                    onClick={() => changeCredentialMode("login")}
                   >
                     登录
                   </button>
                   <button
                     type="button"
                     aria-pressed={credentialMode === "register"}
-                    onClick={() => {
-                      setCredentialMode("register");
-                      setCredentialFeedback("");
-                    }}
+                    onClick={() => changeCredentialMode("register")}
                   >
                     创建账号
                   </button>
@@ -6787,7 +6831,7 @@ function MePage({
                       />
                     </FormField>
                   ) : (
-                    !credentialForm.resetToken && (
+                    (credentialMode !== "reset" || !resetConfirmationOpen) && (
                       <FormField
                         label={credentialMode === "login" ? "用户名或邮箱" : "账号邮箱"}
                         className="credential-field"
@@ -6814,6 +6858,19 @@ function MePage({
                       </FormField>
                     )
                   )}
+                  {credentialMode === "reset" && (
+                    <p className="credential-feedback">
+                      邮件找回仅适用于已验证邮箱。老账号可登录后自愿补验证；如果忘记密码且邮箱未验证，请联系站长人工恢复。
+                    </p>
+                  )}
+                  {credentialMode === "reset" && resetConfirmationOpen && (
+                    <FormField label="一次性重置码" hint="粘贴邮件中的完整 43 位重置码，请勿转发" className="credential-field">
+                      <input required maxLength={64} autoComplete="one-time-code" spellCheck={false}
+                        value={credentialForm.resetToken}
+                        onChange={(event) => setCredentialForm((current) => ({ ...current, resetToken: event.target.value }))}
+                        placeholder="邮件中的重置码" />
+                    </FormField>
+                  )}
                   {credentialMode === "register" && (
                     <FormField label="邮箱验证码" hint="5 分钟内有效，请在本浏览器完成注册" className="credential-field">
                       <input required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6}
@@ -6826,7 +6883,7 @@ function MePage({
                       </button>
                     </FormField>
                   )}
-                  {(credentialMode !== "reset" || credentialForm.resetToken) && (
+                  {(credentialMode !== "reset" || resetConfirmationOpen) && (
                     <FormField
                       label={credentialMode === "reset" ? "新密码" : "密码"}
                       className="credential-field"
@@ -6889,7 +6946,7 @@ function MePage({
                       ? "登录并同步"
                       : credentialMode === "register"
                         ? "创建账号"
-                        : credentialForm.resetToken
+                        : resetConfirmationOpen
                           ? "保存新密码"
                           : "发送重置邮件"}
                   </button>
@@ -6904,14 +6961,20 @@ function MePage({
                           ? "找回密码"
                           : "暂时无法通过邮件找回密码"
                       }
-                      onClick={() => {
-                        setCredentialMode("reset");
-                        setCredentialFeedback("");
-                      }}
+                      onClick={() => changeCredentialMode("reset")}
                     >
                       {account.passwordResetAvailable
                         ? "忘记密码？"
                         : "暂不支持邮件找回"}
+                    </button>
+                  )}
+                  {credentialMode === "reset" && (
+                    <button type="button" disabled={Boolean(accountBusy)} onClick={() => {
+                      setResetConfirmationOpen((current) => !current);
+                      setCredentialForm((current) => ({ ...current, resetToken: "", password: "" }));
+                      setCredentialFeedback("");
+                    }}>
+                      {resetConfirmationOpen ? "重新申请重置邮件" : "已有重置码"}
                     </button>
                   )}
                 </footer>
@@ -7085,16 +7148,17 @@ function MePage({
                     <div>
                       <b>验证邮箱</b>
                       <p>
-                        验证码仅可使用一次，请勿转发。
+                        老账号仍可正常登录。验证邮箱后可用于找回密码；请确认这是自己的邮箱，验证令牌仅可使用一次，请勿转发。
                       </p>
                     </div>
-                    {emailVerificationToken ? (
+                    {emailVerificationOpen ? (
                       <form onSubmit={confirmEmailVerification}>
-                        <FormField label="邮箱验证码" className="verification-field">
+                        <FormField label="邮箱验证令牌" hint="粘贴邮件中的完整 43 位令牌" className="verification-field">
                           <input
                             required
                             maxLength={64}
                             autoComplete="one-time-code"
+                            spellCheck={false}
                             value={emailVerificationToken}
                             onChange={(event) =>
                               setEmailVerificationToken(event.target.value)
@@ -7110,19 +7174,34 @@ function MePage({
                             ? "正在验证"
                             : "完成验证"}
                         </button>
+                        <button type="button" disabled={Boolean(accountBusy)} onClick={() => {
+                          setEmailVerificationOpen(false);
+                          setEmailVerificationToken("");
+                          setEmailVerificationPassword("");
+                          setProfileFeedback("");
+                        }}>
+                          重新发送验证邮件
+                        </button>
                       </form>
                     ) : account.emailVerificationAvailable ? (
-                      <button
-                        type="button"
-                        disabled={
-                          accountBusy === "email-verification-request"
-                        }
-                        onClick={() => void requestEmailVerification()}
-                      >
-                        {accountBusy === "email-verification-request"
-                          ? "正在生成"
-                          : "发送验证邮件"}
-                      </button>
+                      <form onSubmit={(event) => { event.preventDefault(); void requestEmailVerification(); }}>
+                        <FormField label="当前密码" hint="填写网站登录密码，确认由本人发起验证" className="verification-field">
+                          <input required type="password" maxLength={256} autoComplete="current-password"
+                            value={emailVerificationPassword}
+                            onChange={(event) => setEmailVerificationPassword(event.target.value)} />
+                        </FormField>
+                        <button disabled={Boolean(accountBusy)}>
+                          {accountBusy === "email-verification-request" ? "正在发送" : "发送验证邮件"}
+                        </button>
+                        <button type="button" disabled={Boolean(accountBusy)} onClick={() => {
+                          setEmailVerificationOpen(true);
+                          setEmailVerificationPassword("");
+                          setEmailVerificationToken("");
+                          setProfileFeedback("");
+                        }}>
+                          我已收到验证邮件
+                        </button>
+                      </form>
                     ) : (
                       <small>邮件验证暂未开放</small>
                     )}

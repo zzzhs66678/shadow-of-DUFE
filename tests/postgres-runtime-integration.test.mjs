@@ -1085,13 +1085,16 @@ test("real auth, community, and admin HTTP flows persist on PostgreSQL", {
     const legacyCookie = `${config.sessionCookie}=${legacyToken}`;
     await fixtureOwner.query(`INSERT INTO app_users(id,display_name,email,normalized_email,registered_via)
       VALUES($1,'合成旧账号',$2,$2,'credential')`, [legacyUserId, `ci-legacy-${suffix}@example.com`]);
+    await fixtureOwner.query(`INSERT INTO password_credentials(user_id,password_hash)
+      VALUES($1,$2)`, [legacyUserId, await createPasswordService().hash("LegacyHarbor!2026")]);
     await fixtureOwner.query(`INSERT INTO user_sessions(id,user_id,token_hash,expires_at)
       VALUES($1,$2,$3,now()+interval '1 hour')`, [randomUUID(), legacyUserId, tokenDigest(legacyToken, config.tokenPepper)]);
     const verificationRequest = await fetch(
       `${baseUrl}/api/auth/email/verification/request`,
       {
         method: "POST",
-        headers: { Origin: "https://dufesh.cn", Cookie: legacyCookie },
+        headers: { ...requestHeaders, Cookie: legacyCookie },
+        body: JSON.stringify({ password: "LegacyHarbor!2026" }),
       },
     );
     const verificationRequestBody = await verificationRequest.json();

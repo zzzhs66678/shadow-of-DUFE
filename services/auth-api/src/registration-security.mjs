@@ -103,6 +103,7 @@ export function createRegistrationStore(pool) {
         if (challengeId && delivered && sent.rowCount) await client.query(`UPDATE registration_challenges SET delivered_at=clock_timestamp()
           WHERE id=$1 AND consumed_at IS NULL AND expires_at>clock_timestamp()`, [challengeId]);
         await client.query("COMMIT");
+        return sent.rowCount === 1;
       } catch (error) { await client.query("ROLLBACK"); throw error; }
       finally { client.release(); }
     },

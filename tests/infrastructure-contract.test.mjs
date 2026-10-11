@@ -205,7 +205,12 @@ test("CI drives the authenticated browser critical path through PostgreSQL", asy
   assert.match(workflow, /AUTH_API_DEV_TARGET=http:\/\/127\.0\.0\.1:3100/);
   assert.match(workflow, /http:\/\/localhost:3000\/api\/auth\/health/);
   assert.match(workflow, /playwright\.postgres\.config\.ts/);
-  assert.ok(config.includes("testMatch: /postgres-critical-path\\.spec\\.mjs/"));
+  const configuredMatch = /testMatch:\s*\/([^/\r\n]+)\/([dgimsuvy]*)/u.exec(config);
+  assert.ok(configuredMatch, "native browser configuration must select its own suites");
+  const browserPattern = new RegExp(configuredMatch[1], configuredMatch[2]);
+  assert.ok(browserPattern.test("postgres-critical-path.spec.mjs"));
+  assert.ok(browserPattern.test("postgres-recovery-path.spec.mjs"));
+  assert.equal(browserPattern.test("recovery-security.spec.ts"), false);
   assert.match(config, /workers: 1/);
   assert.match(suite, /register\(owner, "owner"\)/);
   assert.match(suite, /register\(replier, "replier"\)/);

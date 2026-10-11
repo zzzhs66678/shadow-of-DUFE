@@ -11,6 +11,79 @@ import { createRegistrationStore, consumeRegistrationProof } from "./registratio
 
 const { Pool } = pg;
 
+// Recovery operations serialize on the account before credentials, sessions
+// and tokens. Never round password_changed_at through a JavaScript Date.
+async function lockRecoveryPrincipal(client, userId) {
+  const user = await client.query(
+    `SELECT status, normalized_email, email_verified_at
+     FROM app_users WHERE id = $1 FOR UPDATE`,
+    [userId],
+  );
+  if (user.rowCount === 0) return null;
+  const credential = await client.query(
+    `SELECT password_hash FROM password_credentials
+     WHERE user_id = $1 FOR UPDATE`,
+    [userId],
+  );
+  if (credential.rowCount === 0) return null;
+  return { ...user.rows[0], password_hash: credential.rows[0].password_hash };
+}
+
+async function lockRecoverySession(client, userId, sessionId) {
+  if (!sessionId) return false;
+  const session = await client.query(
+    `SELECT id FROM user_sessions
+     WHERE id = $1 AND user_id = $2
+       AND revoked_at IS NULL AND expires_at > clock_timestamp()
+     FOR UPDATE`,
+    [sessionId, userId],
+  );
+  return session.rowCount > 0;
+}
+
+async function finishRecoveryDelivery(pool, table, { tokenHash, delivered }) {
+  if (!["password_reset_tokens", "email_verification_tokens"].includes(table)) {
+    throw new TypeError("Recovery token table is invalid");
+  }
+  const target = await pool.query(`SELECT user_id FROM ${table} WHERE token_hash = $1`, [tokenHash]);
+  if (target.rowCount === 0) return false;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const userId = target.rows[0].user_id;
+    const principal = await lockRecoveryPrincipal(client, userId);
+    if (!principal) { await client.query("ROLLBACK"); return false; }
+    const isVerification = table === "email_verification_tokens";
+    if (isVerification) {
+      const token = await client.query(`SELECT session_id FROM ${table} WHERE token_hash = $1`, [tokenHash]);
+      if (token.rowCount === 0 || !(await lockRecoverySession(client, userId, token.rows[0].session_id))) {
+        await client.query("ROLLBACK"); return false;
+      }
+    }
+    const result = await client.query(
+      `UPDATE ${table} AS tokens
+       SET delivery_status = $2,
+           consumed_at = CASE WHEN $2 = 'failed' THEN clock_timestamp() ELSE NULL END
+       WHERE tokens.token_hash = $1 AND tokens.consumed_at IS NULL
+         AND tokens.delivery_status = 'pending'
+         AND tokens.expires_at > clock_timestamp()
+         AND EXISTS (
+           SELECT 1 FROM app_users AS users
+           INNER JOIN password_credentials AS credentials ON credentials.user_id = users.id
+           WHERE users.id = tokens.user_id AND users.status = 'active'
+             AND users.email_verified_at IS ${isVerification ? "NULL" : "NOT NULL"}
+             AND users.normalized_email = tokens.normalized_email
+             AND credentials.password_changed_at = tokens.credential_version
+         )
+       RETURNING tokens.id`,
+      [tokenHash, delivered === true ? "delivered" : "failed"],
+    );
+    await client.query("COMMIT");
+    return result.rowCount > 0;
+  } catch (error) { await client.query("ROLLBACK"); throw error; }
+  finally { client.release(); }
+}
+
 async function claimAnonymousDevice(client, anonymousDeviceId, userId) {
   const anonymousDevice = await client.query(
     `SELECT claimed_device_id
@@ -1617,6 +1690,7 @@ export function createAuthStore(pool) {
            users.username,
            users.display_name,
            users.email,
+           users.email_verified_at,
            users.school_account,
            users.status,
            credentials.password_hash,
@@ -1637,6 +1711,7 @@ export function createAuthStore(pool) {
         username: row.username,
         displayName: row.display_name,
         email: row.email,
+        emailVerified: Boolean(row.email_verified_at),
         schoolAccount: row.school_account,
         status: row.status,
         passwordHash: row.password_hash,
@@ -1736,10 +1811,16 @@ export function createAuthStore(pool) {
       }
     },
 
-    async createPasswordReset({ userId, tokenHash, expiresAt }) {
+    async createPasswordReset({ userId, tokenHash, expiresAt, expectedPasswordHash, normalizedEmail }) {
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
+        const principal = await lockRecoveryPrincipal(client, userId);
+        if (!principal || principal.status !== "active" || !principal.email_verified_at ||
+            !normalizedEmail || principal.normalized_email !== normalizedEmail ||
+            !expectedPasswordHash || principal.password_hash !== expectedPasswordHash) {
+          await client.query("ROLLBACK"); return false;
+        }
         await client.query(
           `UPDATE password_reset_tokens
            SET consumed_at = COALESCE(consumed_at, now())
@@ -1748,11 +1829,16 @@ export function createAuthStore(pool) {
           [userId],
         );
         await client.query(
-          `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
-           VALUES ($1, $2, $3)`,
+          `INSERT INTO password_reset_tokens
+             (user_id, normalized_email, credential_version, token_hash, expires_at)
+           SELECT users.id, users.normalized_email, credentials.password_changed_at, $2, $3
+           FROM app_users AS users
+           INNER JOIN password_credentials AS credentials ON credentials.user_id = users.id
+           WHERE users.id = $1`,
           [userId, tokenHash, expiresAt],
         );
         await client.query("COMMIT");
+        return true;
       } catch (error) {
         await client.query("ROLLBACK");
         throw error;
@@ -1761,10 +1847,17 @@ export function createAuthStore(pool) {
       }
     },
 
-    async createEmailVerification({ userId, tokenHash, expiresAt }) {
+    async createEmailVerification({ userId, sessionId, tokenHash, expiresAt, expectedPasswordHash, normalizedEmail }) {
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
+        const principal = await lockRecoveryPrincipal(client, userId);
+        if (!principal || principal.status !== "active" || principal.email_verified_at ||
+            !normalizedEmail || principal.normalized_email !== normalizedEmail ||
+            !expectedPasswordHash || principal.password_hash !== expectedPasswordHash ||
+            !(await lockRecoverySession(client, userId, sessionId))) {
+          await client.query("ROLLBACK"); return false;
+        }
         await client.query(
           `UPDATE email_verification_tokens
            SET consumed_at = COALESCE(consumed_at, now())
@@ -1776,17 +1869,17 @@ export function createAuthStore(pool) {
           `INSERT INTO email_verification_tokens (
              user_id,
              normalized_email,
+             session_id,
+             credential_version,
              token_hash,
              expires_at
            )
-           SELECT id, normalized_email, $2, $3
-           FROM app_users
-           WHERE id = $1
-             AND status = 'active'
-             AND normalized_email IS NOT NULL
-             AND email_verified_at IS NULL
-           RETURNING id`,
-          [userId, tokenHash, expiresAt],
+           SELECT users.id, users.normalized_email, $4, credentials.password_changed_at, $2, $3
+           FROM app_users AS users
+           INNER JOIN password_credentials AS credentials ON credentials.user_id = users.id
+           WHERE users.id = $1
+           RETURNING email_verification_tokens.id`,
+          [userId, tokenHash, expiresAt, sessionId],
         );
         await client.query("COMMIT");
         return inserted.rowCount > 0;
@@ -1798,27 +1891,57 @@ export function createAuthStore(pool) {
       }
     },
 
-    async consumeEmailVerification({ userId, tokenHash }) {
+    async finishPasswordResetDelivery(input) {
+      return finishRecoveryDelivery(pool, "password_reset_tokens", input);
+    },
+
+    async finishEmailVerificationDelivery(input) {
+      return finishRecoveryDelivery(pool, "email_verification_tokens", input);
+    },
+
+    async cleanupRecoveryState() {
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
+        await client.query(`DELETE FROM password_reset_tokens
+          WHERE expires_at <= clock_timestamp() OR consumed_at IS NOT NULL`);
+        await client.query(`DELETE FROM email_verification_tokens
+          WHERE expires_at <= clock_timestamp() OR consumed_at IS NOT NULL`);
+        await client.query("COMMIT");
+      } catch (error) { await client.query("ROLLBACK"); throw error; }
+      finally { client.release(); }
+    },
+
+    async consumeEmailVerification({ userId, sessionId, tokenHash }) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const principal = await lockRecoveryPrincipal(client, userId);
+        if (!principal || principal.status !== "active" || principal.email_verified_at ||
+            !(await lockRecoverySession(client, userId, sessionId))) {
+          await client.query("ROLLBACK"); return false;
+        }
         const token = await client.query(
           `UPDATE email_verification_tokens AS tokens
            SET consumed_at = now()
            WHERE tokens.user_id = $1
              AND tokens.token_hash = $2
+             AND tokens.session_id = $3
              AND tokens.consumed_at IS NULL
-             AND tokens.expires_at > now()
+             AND tokens.delivery_status = 'delivered'
+             AND tokens.expires_at > clock_timestamp()
              AND EXISTS (
                SELECT 1
                FROM app_users AS users
+               INNER JOIN password_credentials AS credentials ON credentials.user_id = users.id
                WHERE users.id = tokens.user_id
                  AND users.status = 'active'
                  AND users.email_verified_at IS NULL
                  AND users.normalized_email = tokens.normalized_email
+                 AND credentials.password_changed_at = tokens.credential_version
              )
            RETURNING tokens.user_id`,
-          [userId, tokenHash],
+          [userId, tokenHash, sessionId],
         );
         if (token.rowCount === 0) {
           await client.query("ROLLBACK");
@@ -1853,10 +1976,15 @@ export function createAuthStore(pool) {
         `SELECT users.username, users.email
          FROM password_reset_tokens AS tokens
          INNER JOIN app_users AS users ON users.id = tokens.user_id
+         INNER JOIN password_credentials AS credentials ON credentials.user_id = users.id
          WHERE tokens.token_hash = $1
            AND tokens.consumed_at IS NULL
-           AND tokens.expires_at > now()
+           AND tokens.delivery_status = 'delivered'
+           AND tokens.expires_at > clock_timestamp()
            AND users.status = 'active'
+           AND users.email_verified_at IS NOT NULL
+           AND users.normalized_email = tokens.normalized_email
+           AND credentials.password_changed_at = tokens.credential_version
          LIMIT 1`,
         [tokenHash],
       );
@@ -1872,17 +2000,30 @@ export function createAuthStore(pool) {
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
+        const target = await client.query(`SELECT user_id FROM password_reset_tokens WHERE token_hash = $1`, [tokenHash]);
+        if (target.rowCount === 0) { await client.query("ROLLBACK"); return false; }
+        const principal = await lockRecoveryPrincipal(client, target.rows[0].user_id);
+        if (!principal || principal.status !== "active" || !principal.email_verified_at) {
+          await client.query("ROLLBACK"); return false;
+        }
+        await client.query(`SELECT id FROM user_sessions
+          WHERE user_id = $1 ORDER BY id FOR UPDATE`, [target.rows[0].user_id]);
         const token = await client.query(
-          `UPDATE password_reset_tokens
+          `UPDATE password_reset_tokens AS tokens
            SET consumed_at = now()
-           WHERE token_hash = $1
-             AND consumed_at IS NULL
-             AND expires_at > now()
+           WHERE tokens.token_hash = $1
+             AND tokens.consumed_at IS NULL
+             AND tokens.delivery_status = 'delivered'
+             AND tokens.expires_at > clock_timestamp()
              AND EXISTS (
                SELECT 1
                FROM app_users AS users
-               WHERE users.id = password_reset_tokens.user_id
+               INNER JOIN password_credentials AS credentials ON credentials.user_id = users.id
+               WHERE users.id = tokens.user_id
                  AND users.status = 'active'
+                 AND users.email_verified_at IS NOT NULL
+                 AND users.normalized_email = tokens.normalized_email
+                 AND credentials.password_changed_at = tokens.credential_version
              )
            RETURNING user_id`,
           [tokenHash],
@@ -1898,11 +2039,15 @@ export function createAuthStore(pool) {
              password_hash = $2,
              failed_attempts = 0,
              locked_until = NULL,
-             password_changed_at = now(),
+             password_changed_at = clock_timestamp(),
              updated_at = now()
            WHERE user_id = $1`,
           [userId, passwordHash],
         );
+        await client.query(`UPDATE password_reset_tokens
+          SET consumed_at = COALESCE(consumed_at, now()) WHERE user_id = $1`, [userId]);
+        await client.query(`UPDATE email_verification_tokens
+          SET consumed_at = COALESCE(consumed_at, now()) WHERE user_id = $1`, [userId]);
         await client.query(
           `UPDATE user_sessions
            SET revoked_at = COALESCE(revoked_at, now())
