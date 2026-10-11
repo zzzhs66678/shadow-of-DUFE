@@ -13,6 +13,7 @@ import { AnnouncementDesk } from "./AnnouncementDesk";
 import { TeacherReviewDesk } from "./TeacherReviewDesk";
 import { AccountNameReview } from "./AccountNameReview";
 import { CatalogDesk } from "./CatalogDesk";
+import { WhiteboardDesk } from "../whiteboard/WhiteboardDesk";
 
 type AccessState = {
   role: "admin";
@@ -98,6 +99,10 @@ const actionLabels: Record<string, string> = {
   "admin.catalog.file_staged": "学习资料文件已暂存",
   "admin.catalog.publish": "目录已发布",
   "admin.catalog.rollback": "目录已恢复历史版本",
+  "admin.whiteboard.created": "小白板内容已创建",
+  "admin.whiteboard.updated": "小白板内容已更新",
+  "admin.whiteboard.published": "小白板内容已发布",
+  "admin.whiteboard.withdrawn": "小白板内容已撤下",
 };
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -208,7 +213,7 @@ export function AdminConsole() {
   useEffect(() => {
     const readLocation = () => {
       const [section, review] = window.location.hash.slice(1).split("-");
-      if (["catalog", "users", "review", "notices", "audit"].includes(section)) setWorkspace(section);
+      if (["catalog", "users", "review", "whiteboard", "notices", "audit"].includes(section)) setWorkspace(section);
       if (["reports", "content", "history"].includes(review)) setReviewTab(review);
     };
     const frame = window.requestAnimationFrame(readLocation);
@@ -504,7 +509,7 @@ export function AdminConsole() {
           <aside className={styles.sidebar}>
             <span className={styles.sidebarLabel}>管理</span>
             <nav aria-label="管理功能">
-              {[["catalog", "课程与资料"], ["users", "用户"], ["review", "内容审核"], ["notices", "通知"], ["audit", "操作记录"]].map(([key, label]) => (
+              {[["catalog", "课程与资料"], ["users", "用户"], ["review", "内容审核"], ["whiteboard", "小白板"], ["notices", "通知"], ["audit", "操作记录"]].map(([key, label]) => (
                 <button key={key} aria-pressed={workspace === key} onClick={() => navigate(key)}>{label}</button>
               ))}
             </nav>
@@ -513,7 +518,7 @@ export function AdminConsole() {
           </aside>
           <div className={styles.workspaceBody}>
             <header className={styles.deskHeading}>
-              <div><h1>{{ catalog: "课程与资料", users: "用户管理", review: "内容审核", notices: "通知公告", audit: "操作记录" }[workspace]}</h1></div>
+              <div><h1>{{ catalog: "课程与资料", users: "用户管理", review: "内容审核", whiteboard: "小白板", notices: "通知公告", audit: "操作记录" }[workspace]}</h1></div>
               <div className={styles.watchStatus}><span>验证有效至 {access?.elevatedUntil ? new Date(access.elevatedUntil).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false }) : "—"}</span><button onClick={endWatch} disabled={busy === "leave"}>退出管理</button></div>
             </header>
             {feedback && <div className={styles.feedback} role="status">{feedback}</div>}
@@ -636,6 +641,7 @@ export function AdminConsole() {
               <div hidden={reviewTab !== "content"}><ActiveContentDesk onMfaExpired={handleMfaExpired} onAuditChanged={loadAudit} /></div>
               <div hidden={reviewTab !== "history"}><TeacherReviewDesk onMfaExpired={handleMfaExpired} onAuditChanged={loadAudit} /></div>
             </div>
+            {workspace === "whiteboard" && <WhiteboardDesk onMfaExpired={handleMfaExpired} onAuditChanged={loadAudit} />}
             <div className={styles.panel} hidden={workspace !== "notices"}><AnnouncementDesk onMfaExpired={handleMfaExpired} onAuditChanged={loadAudit} /></div>
             <div className={styles.panel} hidden={workspace !== "audit"}>
             <aside className={styles.auditTrail} aria-labelledby="admin-audit-title">

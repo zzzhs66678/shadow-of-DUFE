@@ -7,6 +7,8 @@ import { DialogActions, DialogBackdrop } from "../DialogBackdrop";
 import { FormField } from "../FormField";
 import { useModalFocus } from "../use-modal-focus";
 import { PublicMasthead } from "../PublicMasthead";
+import { useWallOrigin, useWallSearch, WallReturnLink } from "./WallEntry";
+import { wallFeedHref } from "./wall-navigation";
 import {
   authorName,
   communityErrorMessage,
@@ -32,15 +34,19 @@ export function CommunityHeader({
   onOpenNotifications: () => void;
   current?: "community" | "saved";
 }) {
+  const origin = useWallOrigin();
+  const params = new URLSearchParams(useWallSearch());
+  const loginHref = `/?view=me&wallReturn=${encodeURIComponent(wallFeedHref(origin, params.get("sort") || params.get("from") || "latest"))}`;
   return (
-    <PublicMasthead
+    <><PublicMasthead
+      showCourseReturn={false}
       navigationLabel="东财墙导航"
       items={[
-        { href: "/community", label: "东财墙", current: current === "community" },
+        { href: wallFeedHref(origin), label: "东财墙", current: current === "community" },
         ...(session?.authenticated ? [{ href: "/community/saved", label: "收藏", current: current === "saved" }] : []),
         { href: "/materials", label: "资料", showOnMobile: false },
         { href: "/?view=schedule", label: "课表", showOnMobile: false },
-        ...(!session?.authenticated ? [{ href: "/?view=me", label: "登录" }] : []),
+        ...(!session?.authenticated ? [{ href: loginHref, label: "登录" }] : []),
       ]}
       action={session?.authenticated ? {
         label: "通知",
@@ -48,7 +54,7 @@ export function CommunityHeader({
         badge: unread > 0 ? (unread > 99 ? "99+" : String(unread)) : undefined,
         badgeLabel: unread > 0 ? `${unread} 条未读` : undefined,
       } : undefined}
-    />
+    /><div className={styles.wallReturn}><WallReturnLink origin={origin} /></div></>
   );
 }
 

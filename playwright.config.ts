@@ -49,6 +49,10 @@ export default defineConfig({
     { name: "hub-experience-mobile", testMatch: /hub-experience\.spec\.ts/, use: { viewport: { width: 390, height: 844 }, timezoneId: "Asia/Shanghai" } },
     { name: "hub-experience-desktop", testMatch: /hub-experience\.spec\.ts/, use: { viewport: { width: 1280, height: 900 }, timezoneId: "Asia/Shanghai" } },
     { name: "admin-workspace", testMatch: /admin-workspace\.spec\.ts/ },
+    { name: "whiteboard", testMatch: /whiteboard\.spec\.ts/, use: { viewport: { width: 390, height: 844 }, timezoneId: "Asia/Shanghai" } },
+    { name: "wall-entry", testMatch: /wall-entry\.spec\.ts/ },
+    { name: "home-design", testMatch: /home-design\.spec\.ts/ },
+    { name: "my-design", testMatch: /my-design\.spec\.ts/ },
     {
       name: "desktop",
       testMatch: /accessibility\.spec\.ts/,

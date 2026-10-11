@@ -235,6 +235,14 @@ SELECT format(
     :'runtime_user'
 ) \gexec
 SELECT format(
+    'REVOKE UPDATE, DELETE, TRUNCATE ON whiteboard_actions FROM %I',
+    :'runtime_user'
+) \gexec
+SELECT format(
+    'REVOKE DELETE, TRUNCATE ON whiteboard_entries FROM %I',
+    :'runtime_user'
+) \gexec
+SELECT format(
     'REVOKE UPDATE, DELETE, TRUNCATE ON community_moderation_actions FROM %I',
     :'runtime_user'
 ) \gexec

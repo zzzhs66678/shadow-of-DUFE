@@ -1,60 +1,89 @@
-/* Daily workspace: a small campus-time rail, one next action, no repeated setup panels. */
+/* A campus day sheet with search-first setup and a shared paper rhythm. */
 :global(.page-wrap.today-page.focus-page).workspace { max-width: 1200px; margin-inline: auto; padding: 24px 24px 100px; }
-.workspace :global(.focus-head.focus-head-v5) {
+.workspace { --home-line: #c9c1b5; --home-paper: #fbfaf6; --home-ink: #242724; --home-red: #a62126; }
+.workspace:global(.today-page.focus-page-v5) :global(.focus-head.focus-head-v5) {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 140px;
-  gap: 10px 28px;
+  grid-template-columns: minmax(0, 1fr) 110px;
+  gap: 12px 24px;
   min-height: 0;
-  padding: 12px 0 22px;
-  margin-bottom: 16px;
+  padding: 4px 0 20px;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--home-line);
 }
-.workspace :global(.focus-head.focus-head-v5)::before { display: none; }
-.workspace :global(.focus-head.focus-head-v5 h1) {
-  font: 600 clamp(30px, 4vw, 44px)/1.2 var(--journal-display);
+.workspace:global(.today-page.focus-page-v5) :global(.focus-head.focus-head-v5)::before { display: none; }
+.workspace:global(.today-page.focus-page-v5) :global(.focus-head.focus-head-v5 h1) {
+  font: 700 clamp(30px, 3.5vw, 40px)/1.2 var(--journal-display);
   letter-spacing: -.035em;
-  margin: 8px 0 0;
+  margin: 4px 0 0;
 }
-.workspace :global(.focus-head > div > span) { font-size: 12px; letter-spacing: .025em; }
-.workspace :global(.focus-head > p) { margin: 0; font-size: 13px; grid-column: 1; }
-.workspace :global(.focus-head > button) { display: none; } /* The persistent top bar already provides search. */
-.workspace :global(.campus-time-mark) { border: 0; padding: 0; margin: 0; gap: 16px; grid-column: 2; grid-row: 1 / 3; }
-.workspace :global(.time-mark-head) { flex-direction: column; align-items: flex-end; gap: 10px; }
-.workspace :global(.time-mark-head span) { font-size: 11px; font-weight: 400; color: var(--journal-muted); }
-.workspace :global(.time-mark-head time) { font-size: 28px; font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
-.workspace :global(.campus-pins) { margin: 0; padding-bottom: 0; gap: 8px; }
-.workspace :global(.campus-pins a) { clip-path: none; border-radius: 8px; padding: 8px 12px; font-size: 13px; min-width: 0; }
-.workspace :global(.campus-pins a:focus-visible) { outline: 2px solid var(--journal-red); outline-offset: 3px; }
-.workspace :global(.today-command-deck) { margin: 20px 0 28px; grid-template-rows: auto auto; }
-.workspace :global(.today-command-deck[data-has-agenda="false"]) { grid-template-areas: "main side"; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); grid-template-rows: auto; }
-.workspace :global(.today-command-deck:not(:has(.today-side-stack))) { grid-template-areas: "main"; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; }
-.workspace :global(.today-command-deck[data-has-agenda="true"]:not(:has(.today-side-stack))) { grid-template-areas: "main" "agenda"; grid-template-rows: auto auto; }
-.workspace :global(.now-card) { min-height: 0; padding: 24px; box-shadow: none; border-radius: 0 44px 0 0; }
-.workspace :global(.now-card::before) { display: none; }
-.workspace :global(.now-card > div) { display: flex; flex-direction: row; align-items: flex-start; justify-content: flex-start; gap: 18px; padding: 24px 0; min-height: 0; margin: 0; }
-.workspace :global(.now-card > div > i) { flex: 0 0 44px; width: 44px; height: 44px; font-size: 22px; }
-.workspace :global(.now-card > div > span) { min-width: 0; flex: 1; }
-.workspace :global(.now-card h2) { font: 600 clamp(23px, 2.5vw, 30px)/1.4 var(--journal-display); letter-spacing: -.025em; overflow-wrap: anywhere; margin: 0; }
-.workspace :global(.now-card p) { font-size: 14px; line-height: 1.8; }
-.workspace :global(.now-card > div small), .workspace :global(.now-card header small) { font-size: 12px; }
-.workspace :global(.now-card > footer) { position: static; inset: auto; width: auto; margin-top: 0; padding-top: 0; gap: 12px; }
-.workspace :global(.now-card > footer button) { font-size: 14px; min-height: 44px; }
-.workspace :global(.today-side-stack) { border-radius: 0 0 0 24px; min-height: 0; }
-.workspace :global(.today-side-stack > button) { min-height: 0; padding: 22px; }
-.workspace :global(.today-side-stack b) { font-size: 21px; line-height: 1.5; }
-.workspace :global(.today-side-stack small) { font-size: 13px; line-height: 1.7; }
-.workspace :global(.agenda-glance) { min-height: 0; border-radius: 24px 0 0 0; }
-.workspace :global(.unified-agenda), .workspace :global(.week-ahead), .workspace :global(.study-management) { background: transparent; margin-top: 28px; padding-top: 0; }
-.workspace :global(.unified-agenda > header), .workspace :global(.week-ahead > header) { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 0 0 14px; }
-.workspace :global(.unified-agenda > header > div), .workspace :global(.week-ahead > header > div) { display: flex; align-items: baseline; gap: 10px; }
-.workspace :global(.unified-agenda > div), .workspace :global(.week-ahead > div) { background: transparent; }
-.workspace :global(.week-ahead > div > p) { min-height: 0; padding: 20px 0; margin: 0; font-size: 14px; }
-.workspace :global(.agenda-empty) { display: block; min-height: 0; padding: 20px 0; background: transparent; }
-.workspace :global(.agenda-empty b) { font-size: 16px; }
-.workspace :global(.agenda-empty p) { font-size: 14px; margin: 8px 0; }
-.workspace :global(.agenda-empty button) { width: auto; height: auto; min-height: 44px; margin: 8px 0 0; padding: 0 16px; border: 1px solid var(--journal-line); border-radius: 999px; background: var(--journal-paper-raised); color: var(--journal-red-deep); font-size: 13px; }
-.workspace :global(.unified-agenda > header span), .workspace :global(.week-ahead > header span) { font-size: 13px; }
-.workspace :global(.unified-agenda > header b), .workspace :global(.week-ahead > header b), .workspace :global(.week-ahead > header button) { font-size: 12px; }
-.workspace :global(.timeline-empty) { min-height: 0; }
+.workspace .dayTitle { display: flex; align-items: center; gap: 18px; min-width: 0; }
+.dayTitle > div > span { font: 12px/1.5 var(--journal-body); color: var(--journal-muted); }
+.workspace .dateStamp { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 0 0 56px; border-right: 1px solid var(--home-line); padding-right: 16px; color: var(--home-red); }
+.dateStamp small { font: 11px/1.5 var(--journal-body); }
+.dateStamp b { font: 500 42px/1.05 var(--journal-data, ui-monospace, monospace); letter-spacing: -.05em; font-variant-numeric: tabular-nums; }
+.workspace:global(.today-page.focus-page-v5) :global(.focus-head > div > span) { font-size: 12px; letter-spacing: .025em; }
+.workspace:global(.today-page.focus-page-v5) :global(.focus-head > p) { margin: 0; font-size: 12px; grid-column: 1 / -1; color: var(--journal-muted); padding: 0; border: 0; line-height: 1.7; }
+.workspace:global(.today-page.focus-page-v5) :global(.focus-head > p small) { display: inline; margin-left: 14px; font-size: inherit; }
+.workspace:global(.today-page.focus-page-v5) :global(.focus-head > button) { display: none; } /* The persistent top bar already provides search. */
+.workspace:global(.today-page.focus-page-v5) :global(.campus-time-mark) { border: 0; padding: 0; margin: 0; gap: 0; grid-column: 2; grid-row: 1; align-self: center; }
+.workspace:global(.today-page.focus-page-v5) :global(.time-mark-head) { flex-direction: column; align-items: flex-end; gap: 5px; }
+.workspace:global(.today-page.focus-page-v5) :global(.time-mark-head span) { font-size: 11px; font-weight: 400; color: var(--journal-muted); }
+.workspace:global(.today-page.focus-page-v5) :global(.time-mark-head time) { font-size: 24px; font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
+.workspace:global(.today-page.focus-page-v5) :global(.time-mark-track) { display: none; }
+.workspace:global(.today-page.focus-page-v5) :global(.campus-pins) { margin: 0; padding: 8px 0; gap: 0; border-bottom: 1px solid var(--home-line); }
+.workspace:global(.today-page.focus-page-v5) :global(.campus-pins a) { clip-path: none; border: 0; border-radius: 4px; background: transparent; padding: 8px 16px; font-size: 13px; min-width: 0; min-height: 44px; }
+.workspace:global(.today-page.focus-page-v5) :global(.campus-pins a:hover) { background: #e9e4da; }
+.workspace:global(.today-page.focus-page-v5) :global(.campus-pins a + a) { border-left: 1px solid var(--home-line); }
+.workspace:global(.today-page.focus-page-v5) :global(.campus-pins a:focus-visible) { outline: 2px solid var(--journal-red); outline-offset: 3px; }
+.workspace:global(.today-page.focus-page-v5) :global(.today-command-deck) { margin: 20px 0; gap: 16px; grid-template-rows: auto auto; }
+.workspace:global(.today-page.focus-page-v5) :global(.today-command-deck[data-has-agenda="false"]) { grid-template-areas: "main side"; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); grid-template-rows: auto; }
+.workspace:global(.today-page.focus-page-v5) :global(.today-command-deck:not(:has(.today-side-stack))) { grid-template-areas: "main" "agenda"; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; }
+.workspace:global(.today-page.focus-page-v5) :global(.now-card) { min-height: 0; padding: 22px; box-shadow: none; border-radius: 8px; background: var(--home-paper); border: 1px solid var(--home-line); border-top: 3px solid var(--home-red); }
+.workspace:global(.today-page.focus-page-v5) :global(.now-card::before) { display: none; }
+.workspace:global(.today-page.focus-page-v5) :global(.now-card > header) { padding-bottom: 12px; border-bottom: 1px solid var(--home-line); }
+.workspace:global(.today-page.focus-page-v5) :global(.now-card > header > span) { font-weight: 650; font-size: 12px; }
+.workspace:global(.today-page.focus-page-v5) :global(.now-card > div) { display: flex; flex-direction: row; align-items: flex-start; justify-content: flex-start; gap: 18px; padding: 22px 0; min-height: 0; margin: 0; }
+.workspace:global(.today-page.focus-page-v5) :global(.now-card > div > i) { flex: 0 0 40px; width: 40px; height: 40px; font-size: 17px; border-radius: 6px; background: #ede5d9; color: var(--home-red); font-style: normal; white-space: nowrap; }
+.workspace:global(.today-page.focus-page-v5) :global(.now-card > div > span) { min-width: 0; flex: 1; }
+.workspace:global(.today-page.focus-page-v5) :global(.now-card h2) { font: 650 clamp(22px, 2.5vw, 29px)/1.4 var(--journal-display); letter-spacing: -.025em; overflow-wrap: anywhere; margin: 0; }
+.workspace:global(.today-page.focus-page-v5) :global(.now-card p) { font-size: 13px; line-height: 1.8; margin: 8px 0 4px; }
+.workspace:global(.today-page.focus-page-v5) :global(.now-card > div small), .workspace:global(.today-page.focus-page-v5) :global(.now-card header small) { font-size: 12px; color: #62645e; }
+.workspace:global(.today-page.focus-page-v5) :global(.now-card > footer) { position: static; inset: auto; width: auto; margin-top: 0; padding-top: 0; gap: 10px; border: 0; }
+.workspace:global(.today-page.focus-page-v5) :global(.now-card > footer button) { font-size: 13px; min-height: 44px; border-radius: 6px; }
+.workspace:global(.today-page.focus-page-v5) :global(.today-side-stack) { border-radius: 8px; min-height: 0; border: 1px solid var(--home-line); background: #e9e4da; }
+.workspace:global(.today-page.focus-page-v5) :global(.today-side-stack > button) { background: transparent; color: var(--home-ink); min-height: 0; padding: 22px; }
+.workspace:global(.today-page.focus-page-v5) :global(.today-side-stack b) { font-size: 21px; line-height: 1.5; }
+.workspace:global(.today-page.focus-page-v5) :global(.today-side-stack small) { font-size: 13px; line-height: 1.7; }
+.workspace:global(.today-page.focus-page-v5) :global(.agenda-glance) { min-height: 0; border-radius: 8px; border: 1px solid var(--home-line); background: var(--home-paper); }
+.workspace:global(.today-page.focus-page-v5) :global(.unified-agenda), .workspace:global(.today-page.focus-page-v5) :global(.week-ahead), .workspace:global(.today-page.focus-page-v5) :global(.study-management) { display: block; background: transparent; margin-top: 24px; padding-top: 0; border: 0; }
+.workspace:global(.today-page.focus-page-v5) :global(.unified-agenda > header), .workspace:global(.today-page.focus-page-v5) :global(.week-ahead > header) { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 0 0 14px; }
+.workspace:global(.today-page.focus-page-v5) :global(.unified-agenda > header > div), .workspace:global(.today-page.focus-page-v5) :global(.week-ahead > header > div) { display: flex; align-items: baseline; gap: 10px; }
+.workspace:global(.today-page.focus-page-v5) :global(.unified-agenda > div), .workspace:global(.today-page.focus-page-v5) :global(.week-ahead > div) { background: transparent; }
+.workspace:global(.today-page.focus-page-v5) :global(.unified-agenda > header), .workspace:global(.today-page.focus-page-v5) :global(.week-ahead > header) { border-bottom: 1px solid var(--home-line); }
+.workspace:global(.today-page.focus-page-v5) :global(.unified-agenda[data-empty="true"] > header) { display: none; }
+.workspace:global(.today-page.focus-page-v5) :global(.unified-agenda > header button), .workspace:global(.today-page.focus-page-v5) :global(.week-ahead > header button) { min-height: 44px; color: var(--home-red); }
+.workspace:global(.today-page.focus-page-v5) :global(.agenda-row), .workspace:global(.today-page.focus-page-v5) :global(.week-ahead > div > article) { border: 0; border-bottom: 1px solid var(--home-line); background: transparent; padding: 14px 0; }
+.workspace:global(.today-page.focus-page-v5) :global(.agenda-row strong) { font: 600 15px/1.6 var(--journal-body); }
+.workspace:global(.today-page.focus-page-v5) :global(.agenda-row > time) { font-size: 12px; }
+.workspace:global(.today-page.focus-page-v5) :global(.agenda-row button) { min-height: 44px; }
+.workspace:global(.today-page.focus-page-v5) :global(.agenda-row > button), .workspace:global(.today-page.focus-page-v5) :global(.agenda-row > div > button) { width: auto; padding: 8px 12px; border-radius: 6px; font-size: 12px; }
+.workspace:global(.today-page.focus-page-v5) :global(.week-ahead > div > article > div > button) { background: transparent; border: 0; border-radius: 0; padding: 8px 0; }
+.workspace:global(.today-page.focus-page-v5) :global(.week-ahead > div > article strong) { font: 600 15px/1.6 var(--journal-body); }
+.workspace:global(.today-page.focus-page-v5) :global(.week-ahead > div > p) { min-height: 0; padding: 16px 0; margin: 0; font-size: 13px; border: 0; background: transparent; color: var(--journal-muted); }
+.workspace:global(.today-page.focus-page-v5) :global(.agenda-empty) { display: flex; justify-content: space-between; align-items: center; gap: 16px; min-height: 0; padding: 12px 0; background: transparent; border-block: 1px solid var(--home-line); }
+.workspace:global(.today-page.focus-page-v5) :global(.agenda-empty b) { font-size: 13px; font-weight: 400; color: var(--journal-muted); }
+.workspace:global(.today-page.focus-page-v5) :global(.agenda-empty p) { font-size: 14px; margin: 8px 0; }
+.workspace:global(.today-page.focus-page-v5) :global(.agenda-empty button) { width: auto; height: auto; min-height: 44px; margin: 0; padding: 0 12px; border: 1px solid var(--home-line); border-radius: 6px; background: var(--home-paper); color: var(--home-red); font-size: 13px; }
+.workspace:global(.today-page.focus-page-v5) :global(.unified-agenda > header span), .workspace:global(.today-page.focus-page-v5) :global(.week-ahead > header span) { font-size: 13px; }
+.workspace:global(.today-page.focus-page-v5) :global(.unified-agenda > header b), .workspace:global(.today-page.focus-page-v5) :global(.week-ahead > header b), .workspace:global(.today-page.focus-page-v5) :global(.week-ahead > header button) { font-size: 12px; }
+.workspace:global(.today-page.focus-page-v5) :global(.timeline-empty) { min-height: 0; }
+.workspace:global(.today-page.focus-page-v5) :global(.study-management > header) { padding: 0 0 14px; margin: 0; border: 0; }
+.workspace:global(.today-page.focus-page-v5) :global(.study-management h2) { font: 600 15px/1.6 var(--journal-body); margin: 0; }
+.workspace:global(.today-page.focus-page-v5) :global(.study-management > div) { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; border: 0; }
+.workspace:global(.today-page.focus-page-v5) :global(.study-management > div > button) { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 9px; padding: 14px 8px; min-height: 84px; background: var(--home-paper); border: 1px solid var(--home-line); border-radius: 6px; clip-path: none; }
+.workspace:global(.today-page.focus-page-v5) :global(.study-management > div > button > i) { width: 26px; height: 26px; font-size: 12px; background: #ede5d9; color: var(--home-red); border-radius: 4px; }
+.workspace:global(.today-page.focus-page-v5) :global(.study-management > div > button > b) { font: 500 12px/1.5 var(--journal-body); }
+.workspace:global(.today-page.focus-page-v5) :global(.study-management > div > button:hover) { background: #ede5d9; }
 
 /* Search stays in the same place as the personal desk fills with real content. */
 .discovery { padding: 0 0 4px; }
@@ -94,22 +123,28 @@
   .setupActions { grid-column: 2; grid-row: 1 / 3; }
   .setupCard > small { grid-column: 1; grid-row: 2; }
 }
-
 @media (max-width: 900px) {
-  .workspace :global(.today-command-deck[data-has-agenda="false"]) { grid-template-areas: "main" "side"; grid-template-columns: minmax(0, 1fr); }
+  /* The full agenda below retains every item and action; no second preview on phones. */
+  .workspace:global(.today-page.focus-page-v5) :global(.agenda-glance) { display: none; }
+  .workspace:global(.today-page.focus-page-v5) :global(.today-command-deck) { grid-template-areas: "main" "side"; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; }
+  .workspace:global(.today-page.focus-page-v5) :global(.today-command-deck:not(:has(.today-side-stack))) { grid-template-areas: "main"; }
+  .workspace:global(.today-page.focus-page-v5) :global(.today-command-deck[data-has-agenda="false"]) { grid-template-areas: "main" "side"; grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 760px) {
   :global(.page-wrap.today-page.focus-page).workspace { padding: 14px 14px calc(96px + env(safe-area-inset-bottom)); }
-  .workspace :global(.focus-head.focus-head-v5) { grid-template-columns: minmax(0, 1fr) 86px; gap: 10px 12px; padding-top: 8px; }
-  .workspace :global(.time-mark-head time) { font-size: 23px; }
-  .workspace :global(.campus-pins) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .workspace :global(.campus-pins a) { font-size: 12px; gap: 5px; padding: 8px 6px; justify-content: center; }
-  .workspace :global(.campus-pins i) { display: none; }
-  .workspace :global(.now-card) { padding: 20px; }
-  .workspace :global(.now-card > div) { gap: 12px; padding: 20px 0; }
-  .workspace :global(.now-card > div > i) { flex-basis: 36px; width: 36px; height: 36px; font-size: 19px; }
-  .workspace :global(.now-card > footer) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .workspace :global(.focus-head.focus-head-v5 h1) { font-size: 28px; }
+  .workspace:global(.today-page.focus-page-v5) :global(.focus-head.focus-head-v5) { grid-template-columns: minmax(0, 1fr) 76px; gap: 10px 12px; padding: 4px 0 16px; }
+  .workspace .dayTitle { gap: 14px; }
+  .workspace .dateStamp { flex-basis: 44px; padding-right: 12px; }
+  .dateStamp b { font-size: 36px; }
+  .workspace:global(.today-page.focus-page-v5) :global(.time-mark-head time) { font-size: 21px; }
+  .workspace:global(.today-page.focus-page-v5) :global(.campus-pins) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .workspace:global(.today-page.focus-page-v5) :global(.campus-pins a) { font-size: 12px; gap: 5px; padding: 8px 6px; justify-content: center; }
+  .workspace:global(.today-page.focus-page-v5) :global(.campus-pins i) { display: none; }
+  .workspace:global(.today-page.focus-page-v5) :global(.now-card) { padding: 17px; }
+  .workspace:global(.today-page.focus-page-v5) :global(.now-card > div) { gap: 12px; padding: 18px 0; }
+  .workspace:global(.today-page.focus-page-v5) :global(.now-card > div > i) { flex-basis: 32px; width: 32px; height: 32px; font-size: 14px; }
+  .workspace:global(.today-page.focus-page-v5) :global(.now-card > footer) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .workspace:global(.today-page.focus-page-v5) :global(.agenda-row > button), .workspace:global(.today-page.focus-page-v5) :global(.agenda-row > div) { justify-self: end; }
   .discoveryIntro { align-items: flex-start; gap: 10px; margin-bottom: 12px; }
   .discoveryIntro p { font-size: 14px; max-width: 25em; }
   .discoveryIntro button { padding: 7px 8px; font-size: 13px; gap: 5px; }

@@ -29,17 +29,6 @@
   text-decoration: none;
 }
 
-.wordmark b {
-  font: 600 23px/1 var(--journal-display, "Noto Serif SC", SimSun, serif);
-  letter-spacing: .07em;
-}
-
-.wordmark span {
-  color: var(--dufe-red);
-  font: 700 9px/1.2 var(--journal-data, ui-monospace, monospace);
-  letter-spacing: .14em;
-}
-
 .navigation {
   align-items: stretch;
   align-self: stretch;
@@ -101,11 +90,6 @@
     padding: 0 14px 0 18px;
   }
 
-  .wordmark b {
-    font-size: 18px;
-  }
-
-  .wordmark span,
   .navigation > [data-mobile="hide"] {
     display: none;
   }

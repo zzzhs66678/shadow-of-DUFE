@@ -6,6 +6,7 @@ import { createMaterialBookmarkStore } from "./material-bookmarks-store.mjs";
 import { createDataFeedbackStore } from "./data-feedback-store.mjs";
 import { accountNameFields, createAccountNameStore } from "./account-names.mjs";
 import { createCatalogStore } from "./catalog/store.mjs";
+import { createWhiteboardStore } from "./whiteboard-store.mjs";
 import { createTeacherReviewStore } from "./teacher-review-store.mjs";
 import { createTeacherStore } from "./teacher-store.mjs";
 
@@ -179,6 +180,7 @@ export function createAuthStore(pool, { catalogUploadDir = null } = {}) {
     ...createDataFeedbackStore(pool),
     ...createAccountNameStore({ pool }),
     ...createCatalogStore(pool, { uploadDir: catalogUploadDir }),
+    ...createWhiteboardStore(pool),
     ...teacherReviewStore,
     ...teacherStore,
     ...createAdminUserDetailsStore(pool),

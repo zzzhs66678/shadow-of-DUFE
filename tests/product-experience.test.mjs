@@ -6,6 +6,7 @@ const component = await readFile(
   new URL("../app/DufeHubV2.tsx", import.meta.url),
   "utf8",
 );
+const campusAlbumSource = await readFile(new URL("../app/CampusAlbum.tsx", import.meta.url), "utf8");
 const productStyles = await readFile(
   new URL("../app/product-system.css", import.meta.url),
   "utf8",
@@ -484,11 +485,11 @@ test("the body-first wall composer retains accessible labels, optional title and
     "the social composer still has an accessible text-entry target");
 });
 
-test("wall post primitives retain distinct titles, visible bodies and keyboard menu dismissal", () => {
+test("wall post primitives retain distinct titles, visible bodies and keyboard menu dismissal", async () => {
   assert.match(wallPrimitivesSource, /export function hasDistinctTitle/);
   assert.match(wallPrimitivesSource, /!topic\.body\.trim\(\)\.startsWith\(title\)/);
-  assert.match(communityHubSource, /hasDistinctTitle\(topic\) && <h2>\{topic\.title\}<\/h2>/);
-  assert.match(communityHubSource, /<p>\{topic\.body\}<\/p>/);
+  assert.match(communityHubSource, /<WallPostBody topic=\{topic\}/);
+  assert.match(await readFile(new URL("../app/community/WallPostBody.tsx", import.meta.url), "utf8"), /<p[^>]*>\{topic\.body\}<\/p>/);
   assert.match(communityTopicSource, /hasDistinctTitle\(topic\)/);
   assert.match(wallPrimitivesSource, /<summary aria-label=\{label\}/);
   assert.match(wallPrimitivesSource, /event\.key === "Escape"[\s\S]*ref\.current\.open = false[\s\S]*querySelector\("summary"\)\?\.focus\(\)/);
@@ -527,9 +528,12 @@ test("the daily workspace stays functional while campus photographs live in My",
   const homeSource = component.slice(homeStart, catalogStart);
   const meSource = component.slice(meStart, searchStart);
 
-  assert.match(component, /dufe-tree-avenue-day\.webp/);
-  assert.match(component, /dufe-tree-avenue-night\.webp/);
-  assert.match(component, /dufe-winter-pavilion\.webp/);
+  assert.match(campusAlbumSource, /dufe-tree-avenue-day\.webp/);
+  assert.match(campusAlbumSource, /dufe-tree-avenue-night\.webp/);
+  assert.match(campusAlbumSource, /dufe-winter-pavilion\.webp/);
+  assert.match(component, /return <CampusAlbum \/>/);
+  assert.match(campusAlbumSource, /loading="lazy"/);
+  assert.doesNotMatch(campusAlbumSource, /setInterval|requestAnimationFrame\(.*step|fetch\(/);
   assert.match(component, /dufesh-creators\.webp/);
   assert.match(component, /function CampusAlmanac/);
   assert.match(component, /function CreatorsCorner/);
@@ -544,7 +548,7 @@ test("the daily workspace stays functional while campus photographs live in My",
   assert.doesNotMatch(component, /<i>0[123]<\/i>/);
 });
 
-test("community stays outside primary navigation and uses a quiet today-page exit", () => {
+test("community remains outside the five-item primary navigation with a persistent header and a concise personal entry", () => {
   const homeStart = component.indexOf("function HomePage");
   const catalogStart = component.indexOf("function CatalogPage");
   const meStart = component.indexOf("function MePage");
@@ -552,12 +556,9 @@ test("community stays outside primary navigation and uses a quiet today-page exi
   const homeSource = component.slice(homeStart, catalogStart);
   const meSource = component.slice(meStart, searchStart);
 
-  assert.match(homeSource, /today-community-note/);
-  assert.match(homeSource, /课间有空再看/u);
-  assert.match(meSource, /community-corridor-entry/);
-  assert.match(meSource, /href="\/community"/);
-  assert.match(productStyles, /\.community-corridor-entry/);
-  assert.match(productStyles, /\.today-community-note/);
+  assert.doesNotMatch(homeSource, /today-community-note/);
+  assert.match(component, /<WallEntry view=\{view\} compact/);
+  assert.match(meSource, /<WallEntry/);
   assert.doesNotMatch(component, /id: "community"/);
 });
 

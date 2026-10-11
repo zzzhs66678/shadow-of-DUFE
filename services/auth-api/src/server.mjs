@@ -19,6 +19,7 @@ import { createCommunityRequestHandler } from "./community-routes.mjs";
 import { createMaterialBookmarkRequestHandler } from "./material-bookmarks-routes.mjs";
 import { createDataFeedbackRequestHandler } from "./data-feedback-routes.mjs";
 import { createCatalogRequestHandler } from "./catalog/routes.mjs";
+import { createWhiteboardRequestHandler } from "./whiteboard-routes.mjs";
 import { createTeacherRequestHandler } from "./teacher-routes.mjs";
 import { createAcademicRequestHandler } from "./academic-routes.mjs";
 import {
@@ -209,6 +210,7 @@ export function createAuthServer({
   const handleMaterialBookmarkRequest = createMaterialBookmarkRequestHandler({ store, config });
   const handleDataFeedbackRequest = createDataFeedbackRequestHandler({ store, config, adminSecurity });
   const handleCatalogRequest = createCatalogRequestHandler({ store, config, adminSecurity });
+  const handleWhiteboardRequest = createWhiteboardRequestHandler({ store, config, adminSecurity });
   const handleAcademicRequest = createAcademicRequestHandler({
     store,
     config,
@@ -288,6 +290,7 @@ export function createAuthServer({
         return;
       }
 
+      if (await handleWhiteboardRequest(request, response, url)) return;
       if (await handleDataFeedbackRequest(request, response, url)) return;
       if (await handleMaterialBookmarkRequest(request, response, url)) return;
       if (await handleAdminRequest(request, response, url)) return;

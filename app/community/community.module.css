@@ -22,6 +22,7 @@
 .page :is(a, button, input, textarea, select, summary):focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
 .page :is(h1, h2, h3, p) { overflow-wrap: anywhere; }
 .srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.wallReturn { max-width: 980px; margin: 0 auto; padding: 0 24px; }
 .communityWorkspace { display: grid; grid-template-columns: 200px minmax(0, 680px); gap: 32px; align-items: start; max-width: 980px; margin: 0 auto; padding: 28px 24px 80px; }
 .feedRail { position: sticky; top: 24px; padding: 12px 8px 0 0; }
 .wallSignature { width: 64px; height: 72px; margin-bottom: 24px; border: 2px solid var(--red); color: var(--red); display: grid; place-content: center; font: 800 38px/1 var(--serif, serif); transform: rotate(-3deg); text-align: center; }
@@ -81,11 +82,6 @@
 .topicRow > header, .commentEntry > header, .commentUnavailable > header, .postIdentity { display: flex; align-items: center; gap: 10px; }
 .topicRow > header > .authorBadge, .commentEntry > header > .authorBadge { flex: 1; }
 .topicRow time, .commentEntry time, .commentUnavailable time, .postIdentity time { color: var(--muted); font-size: 11px; white-space: nowrap; }
-.topicLink { color: inherit; display: block; text-decoration: none; padding: 12px 0 8px 50px; }
-.topicLink h2 { font-size: 17px; line-height: 1.55; margin: 0 0 8px; font-weight: 700; }
-.topicLink p { margin: 0; font-size: 15px; line-height: 1.8; white-space: pre-wrap; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 7; overflow: hidden; }
-.topicLink:hover h2 { text-decoration: underline; text-underline-offset: 4px; }
-.readMore { color: var(--red); display: block; margin-top: 6px; font-size: 13px; }
 .replyActivity { margin: 6px 0 0 50px; color: var(--muted); font-size: 11px; }
 .postActions { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-left: 42px; }
 .postActions > button, .postActions > a, .commentEntry > footer > button { display: inline-flex; gap: 7px; align-items: center; justify-content: center; background: transparent; border: 0; border-radius: 20px; color: var(--muted); padding: 7px 8px; min-width: 38px; min-height: 38px; font-size: 12px; text-decoration: none; }
@@ -199,6 +195,7 @@
 @keyframes pulse { 50% { opacity: .35; } }
 @media (max-width: 760px) {
   .communityWorkspace { display: block; max-width: 680px; padding: 0 0 40px; }
+  .wallReturn { padding-inline: 18px; }
   .feedRail { display: none; }
   .feedColumn { border-radius: 0; border-left: 0; border-right: 0; }
   .wallHeading { padding: 14px 18px; }
@@ -209,9 +206,6 @@
   .guestComposer b { font-size: 15px; }
   .guestComposer .primaryAction { padding: 8px 15px; font-size: 13px; }
   .topicRow { padding: 16px 16px 8px; }
-  .topicLink { padding-left: 50px; }
-  .topicLink p { font-size: 14px; }
-  .topicLink h2 { font-size: 16px; }
   .postActions > button, .postActions > a { padding: 7px 5px; min-height: 40px; gap: 5px; }
   .postActions { margin-left: 44px; gap: 2px; }
   .topicCrumb { padding: 8px 16px; }
@@ -232,7 +226,6 @@
   .authorBadge { gap: 8px; }
   .topicRow > header { gap: 5px; }
   .topicRow time { font-size: 10px; }
-  .topicLink { padding-left: 42px; }
   .postActions { margin-left: 35px; }
   .postActions svg { width: 17px; height: 17px; }
   .postActions > :is(button, a) { font-size: 11px; }

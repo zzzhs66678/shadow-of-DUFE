@@ -370,6 +370,7 @@ jobs:
           node --test tests/course-search.test.mjs tests/discovery-navigation.test.mjs tests/competitions-presentation.test.mjs
           node --test tests/hub-experience.test.mjs tests/material-search.test.mjs tests/material-bookmarks.test.mjs tests/data-feedback.test.mjs tests/auth-extensions-integration.test.mjs
           node --test tests/catalog-import.test.mjs tests/catalog-delivery.test.mjs tests/catalog-public-runtime.test.mjs tests/catalog-runtime-acl.test.mjs
+          node --test tests/whiteboard.test.mjs
           node --test tests/performance-budget.test.mjs
           node --test tests/infrastructure-contract.test.mjs
           node --test tests/environment-contract.test.mjs

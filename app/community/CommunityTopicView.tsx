@@ -23,6 +23,7 @@ import {
 import { useModalFocus } from "../use-modal-focus";
 import { hasDistinctTitle, PostMenu, WallIcon } from "./WallPrimitives";
 import { useWallDraft, useWallSending, useWallUnsaved } from "./use-wall-unsaved";
+import { wallFeedHref } from "./wall-navigation";
 import styles from "./community.module.css";
 
 type PageState = "loading" | "ready" | "missing" | "error";
@@ -189,7 +190,8 @@ function TopicContent({ topicId, session, refreshSession }: { topicId: string; s
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
-      setBackTo(new URLSearchParams(window.location.search).get("from") === "replied" ? "/community?sort=replied" : "/community");
+      const params = new URLSearchParams(window.location.search);
+      setBackTo(wallFeedHref(params.get("returnTo"), params.get("from") || "latest"));
       void loadPage();
     });
     return () => window.cancelAnimationFrame(frame);

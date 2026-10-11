@@ -61,8 +61,13 @@ import { scoreCourseSearch } from "./course-search";
 import { discoveryKeys, localHref, pushDiscovery, readDiscovery, restoreDiscoveryPosition, roomContextUrl } from "./discovery-navigation";
 import homeStyles from "./home-workspace.module.css";
 import classSetupStyles from "./class-setup.module.css";
+import shellStyles from "./campus-shell.module.css";
+import { CampusWordmark } from "./CampusWordmark";
 import meStyles from "./my-page.module.css";
+import { CampusAlbum } from "./CampusAlbum";
 import { CompetitionsGateway } from "./competitions/CompetitionsGateway";
+import { Whiteboard } from "./whiteboard/Whiteboard";
+import { WallEntry, WallOriginRestore } from "./community/WallEntry";
 import roomFilterStyles from "./room-time-filter.module.css";
 import { groupRoomsByFloor, roomFloor } from "./room-floors";
 import RoomWeekSchedule from "./RoomWeekSchedule";
@@ -796,97 +801,12 @@ function CampusTimeMark() {
 }
 
 function CampusAlmanac() {
-  return (
-    <section className="campus-almanac" aria-labelledby="campus-almanac-title">
-      <header>
-        <h2 id="campus-almanac-title">校园相册</h2>
-      </header>
-      <div className="campus-almanac-grid">
-        <figure className="campus-scene scene-arrival">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/dufe-welcome-arch.webp"
-            alt="东北财经大学 2024 级新生欢迎拱门和校园主楼"
-            width="1200"
-            height="900"
-            loading="lazy"
-            decoding="async"
-          />
-        </figure>
-        <figure className="campus-scene scene-wayfinding">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/dufe-winter-wayfinding.webp"
-            alt="雪夜里指向笃行楼、之远楼和梅园西路的校园路牌"
-            width="900"
-            height="1200"
-            loading="lazy"
-            decoding="async"
-          />
-        </figure>
-        <figure className="campus-scene scene-avenue-day">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/dufe-tree-avenue-day.webp"
-            alt="白天的东财林荫路，彩色花带悬在树间"
-            width="900"
-            height="1200"
-            loading="lazy"
-            decoding="async"
-          />
-        </figure>
-        <figure className="campus-scene scene-avenue-night">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/dufe-tree-avenue-night.webp"
-            alt="夜晚的东财林荫路，路灯照亮树木和花带"
-            width="900"
-            height="1200"
-            loading="lazy"
-            decoding="async"
-          />
-        </figure>
-        <figure className="campus-scene scene-pavilion">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/dufe-winter-pavilion.webp"
-            alt="雪夜中的东财红亭"
-            width="900"
-            height="1200"
-            loading="lazy"
-            decoding="async"
-          />
-        </figure>
-        <figure className="campus-scene scene-stadium">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/dufe-winter-stadium.webp"
-            alt="雪夜中的东北财经大学体育馆"
-            width="900"
-            height="1200"
-            loading="lazy"
-            decoding="async"
-          />
-        </figure>
-      </div>
-      <figure className="campus-signature">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/images/dufe-winter-stone-sign.webp"
-          alt="雪夜里亮起的东北财经大学校名石"
-          width="1200"
-          height="900"
-          loading="lazy"
-          decoding="async"
-        />
-      </figure>
-    </section>
-  );
+  return <CampusAlbum />;
 }
 
 function KnowledgeTribute() {
   return (
-    <section className="knowledge-tribute">
+    <section className="knowledge-tribute" aria-label="致敬知识分享">
       <figure className="tribute-photo">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -915,37 +835,40 @@ function KnowledgeTribute() {
           Sci-Hub 创办者。本站只收录可合法分享或已获授权的资料。
         </p>
       </div>
-      <nav aria-label="了解 Alexandra Elbakyan">
-        <a
-          className="scihub-link"
-          href="https://sci-hub.ru/"
-          target="_blank"
-          rel="noreferrer nofollow"
-        >
-          Sci-Hub ↗
-        </a>
-        <a
-          href="https://www.nature.com/articles/540507a"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Nature · 2016 年度人物 ↗
-        </a>
-        <a
-          href="https://www.eff.org/deeplinks/2023/09/eff-award-winner-alexandra-asanova-elbakyan"
-          target="_blank"
-          rel="noreferrer"
-        >
-          EFF · 科学知识获取奖 ↗
-        </a>
-        <a
-          href="https://elifesciences.org/articles/32822"
-          target="_blank"
-          rel="noreferrer"
-        >
-          eLife · 学术获取研究 ↗
-        </a>
-      </nav>
+      <details className={meStyles.tributeLinks}>
+        <summary>了解更多 <span aria-hidden="true">›</span></summary>
+        <nav aria-label="了解 Alexandra Elbakyan">
+          <a
+            className="scihub-link"
+            href="https://sci-hub.ru/"
+            target="_blank"
+            rel="noreferrer nofollow"
+          >
+            Sci-Hub ↗
+          </a>
+          <a
+            href="https://www.nature.com/articles/540507a"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Nature · 2016 年度人物 ↗
+          </a>
+          <a
+            href="https://www.eff.org/deeplinks/2023/09/eff-award-winner-alexandra-asanova-elbakyan"
+            target="_blank"
+            rel="noreferrer"
+          >
+            EFF · 科学知识获取奖 ↗
+          </a>
+          <a
+            href="https://elifesciences.org/articles/32822"
+            target="_blank"
+            rel="noreferrer"
+          >
+            eLife · 学术获取研究 ↗
+          </a>
+        </nav>
+      </details>
     </section>
   );
 }
@@ -1859,9 +1782,10 @@ function HubApp({ data: initialData }: { data: SiteData }) {
 
   return (
     <main className="site-shell hub-v2" id="main-content">
-      <header className="topbar hub-topbar">
-        <button className="brand-button" onClick={() => go("home")}>
-          <span>东财之影</span>
+      <WallOriginRestore authenticated={account.status === "authenticated"} />
+      <header className={`topbar hub-topbar ${shellStyles.header}`}>
+        <button className="brand-button" onClick={() => go("home")} aria-label="返回东财之影首页">
+          <CampusWordmark />
         </button>
         <nav aria-label="主导航">
           {nav.map((item) => (
@@ -1878,6 +1802,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           ))}
         </nav>
         <div className="hub-top-actions">
+          <WallEntry view={view} compact />
           <button
             className="command-trigger"
             aria-label="搜索全站"
@@ -2086,7 +2011,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           onLogin={() => {
             if (!account.wechatAvailable) return;
             window.location.assign(
-              "/api/auth/wechat/start?returnTo=%2F%3Fview%3Dme",
+              `/api/auth/wechat/start?returnTo=${encodeURIComponent(localHref(new URL(window.location.href)))}`,
             );
           }}
           onAuthChanged={() => setAuthRevision((current) => current + 1)}
@@ -2658,9 +2583,11 @@ function HomePage({
   return (
     <div className={`page-wrap today-page focus-page focus-page-v5 ${homeStyles.workspace}`} data-has-timetable={hasTimetable}>
       <header className="focus-head focus-head-v5">
-        <div>
-          <span>{dateText}</span>
-          <h1>今天</h1>
+        <div className={homeStyles.dayTitle}>
+          <time className={homeStyles.dateStamp} dateTime={todayISO()} aria-label={dateText}>
+            <small>{new Date().getMonth() + 1}月</small><b>{new Date().getDate()}</b>
+          </time>
+          <div><span>{new Intl.DateTimeFormat("zh-CN", { weekday: "long" }).format(new Date())}</span><h1>今天</h1></div>
         </div>
         <button onClick={() => onSearch()} aria-label="全站搜索">
           <UiIcon name="search" />
@@ -2791,7 +2718,7 @@ function HomePage({
           </article>
         ) : <article className="now-card">
           <header>
-            <span>{primaryClass ? "接下来" : "此刻"}</span>
+            <span>{primaryClass ? primaryClass.weekday === today ? "接下来" : `下一节课 · ${weekdayLabels[primaryClass.weekday % 7]}` : "此刻"}</span>
             <small>
               {primaryClass
                 ? data.periods[primaryClass.block - 1]?.short
@@ -2881,6 +2808,8 @@ function HomePage({
           </div>
         </article>}
       </section>
+
+      <Whiteboard compact />
 
       {todayAgenda.length > 0 && <section className="focus-timeline unified-agenda">
         <header>
@@ -3001,11 +2930,6 @@ function HomePage({
         <button onClick={() => onEditCalendar({ kind: "assignment" })}>＋ 记录作业</button>
       </section>
 
-      <a className="today-community-note" href="/community">
-        <span>课间有空再看</span>
-        <b>东财墙</b>
-        <em>同学们的讨论 →</em>
-      </a>
 
     </div>
   );
@@ -6782,7 +6706,7 @@ function MePage({
   };
 
   return (
-    <div className="page-wrap me-page">
+    <div className={`page-wrap me-page ${meStyles.workspace}`}>
       <header className="workspace-heading">
         <div>
           <h1>我的</h1>
@@ -7471,14 +7395,7 @@ function MePage({
           </>
         )}
       </section>
-      <a className="community-corridor-entry" href="/community">
-        <i aria-hidden="true" />
-        <span>
-          <small>东财墙</small>
-          <b>看看同学们最近在讨论什么</b>
-        </span>
-        <em>进入 →</em>
-      </a>
+      <WallEntry />
       {account.status === "authenticated" && (
         <a className="community-personal-entry" href="/community/saved">
           东财墙收藏与屏蔽 <span aria-hidden="true">→</span>
@@ -7488,10 +7405,10 @@ function MePage({
       <details className={`campus-gateway ${meStyles.campusDetails}`}>
         <summary>
           <span>
-            <small>东财常用</small>
             <b>学校服务</b>
+            <em>图书馆 · 校园码 · 白果云</em>
           </span>
-          <em>图书馆 · 校园码 · 白果云</em>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
         </summary>
         <nav aria-label="东财常用服务">
           <a href={campusLinks.library} target="_blank" rel="noreferrer">

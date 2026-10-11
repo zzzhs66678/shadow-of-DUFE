@@ -1,6 +1,7 @@
 import Link from "next/link";
 import styles from "./public-masthead.module.css";
 import { CourseReturnLink } from "./CourseReturnLink";
+import { CampusWordmark } from "./CampusWordmark";
 
 type MastheadItem = {
   href: string;
@@ -20,15 +21,17 @@ export function PublicMasthead({
   navigationLabel,
   items,
   action,
+  showCourseReturn = true,
 }: {
   navigationLabel: string;
   items: MastheadItem[];
   action?: MastheadAction;
+  showCourseReturn?: boolean;
 }) {
   return (
     <><header className={styles.masthead}>
       <Link href="/" className={styles.wordmark} aria-label="返回东财之影首页">
-        <b>东财之影</b>
+        <CampusWordmark />
       </Link>
       <nav className={styles.navigation} aria-label={navigationLabel}>
         {items.map((item) => (
@@ -50,6 +53,6 @@ export function PublicMasthead({
           </button>
         )}
       </nav>
-    </header><CourseReturnLink /></>
+    </header>{showCourseReturn && <CourseReturnLink />}</>
   );
 }

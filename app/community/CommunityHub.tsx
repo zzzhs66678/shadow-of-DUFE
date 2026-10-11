@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { authorName, communityErrorMessage, communityRequest, formatCommunityTime, type CommunitySession, type CommunityTopic } from "./community-api";
 import { AuthorBadge, CommunityHeader, Feedback, NotificationsPanel, ReportDialog } from "./CommunityShared";
 import { WallComposer } from "./WallComposer";
-import { hasDistinctTitle, PostMenu, shareWallPost, WallIcon } from "./WallPrimitives";
+import { PostMenu, shareWallPost, WallIcon } from "./WallPrimitives";
+import { WallPostBody } from "./WallPostBody";
+import { useWallOrigin, WallLoginLink } from "./WallEntry";
+import { wallFeedHref, wallTopicHref, wallReadingKey } from "./wall-navigation";
 import styles from "./community.module.css";
 
 type FeedState = "loading" | "ready" | "error";
@@ -13,6 +16,11 @@ type FeedSort = "latest" | "replied";
 const readSort = () => new URLSearchParams(window.location.search).get("sort") === "replied" ? "replied" as const : "latest" as const;
 
 export function CommunityHub() {
+  const origin = useWallOrigin();
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
+  const expandedRef = useRef(expandedIds);
+  const pagesLoaded = useRef(1);
+  const restorePosition = useRef<{ y: number; anchor: string; offset: number } | null>(null);
   const [session, setSession] = useState<CommunitySession | null>(null);
   const [topics, setTopics] = useState<CommunityTopic[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -36,6 +44,26 @@ export function CommunityHub() {
       const suffix = cursor ? `&cursor=${encodeURIComponent(cursor)}` : "";
       const payload = await communityRequest<{ items: CommunityTopic[]; nextCursor: string | null }>(`/api/community/topics?sort=${requestedSort}&limit=20${suffix}`);
       if (requestId !== requestSequence.current) return;
+      if (!cursor) {
+        pagesLoaded.current = 1;
+        try {
+          const href = wallFeedHref(new URLSearchParams(location.search).get("returnTo"), requestedSort);
+          const key = wallReadingKey(sessionIdentity.current || "anonymous", href);
+          const saved = JSON.parse(sessionStorage.getItem(key) || "null");
+          if (saved?.restore && Date.now() - saved.time < 3_600_000 && Number.isFinite(saved.y) && Array.isArray(saved.expanded)) {
+            const ids = new Set<string>(saved.expanded.filter((id: unknown) => typeof id === "string").slice(0, 200));
+            expandedRef.current = ids; setExpandedIds(ids);
+            restorePosition.current = { y: saved.y, anchor: typeof saved.anchor === "string" ? saved.anchor : "", offset: Number.isFinite(saved.offset) ? saved.offset : 0 };
+            for (let page = 1; page < Math.min(10, Number(saved.pages) || 1) && payload.nextCursor; page++) {
+              const next = await communityRequest<{ items: CommunityTopic[]; nextCursor: string | null }>(`/api/community/topics?sort=${requestedSort}&limit=20&cursor=${encodeURIComponent(payload.nextCursor)}`);
+              if (requestId !== requestSequence.current) return;
+              payload.items.push(...next.items.filter(item => !payload.items.some(old => old.id === item.id)));
+              payload.nextCursor = next.nextCursor; pagesLoaded.current++;
+            }
+            sessionStorage.setItem(key, JSON.stringify({ ...saved, restore: false }));
+          }
+        } catch { /* A stale or unavailable reading position must not block the feed. */ }
+      } else pagesLoaded.current++;
       setTopics((current) => append ? [...current, ...payload.items.filter((item) => !current.some((old) => old.id === item.id))] : payload.items);
       setNextCursor(payload.nextCursor);
       setFeedState("ready");
@@ -61,6 +89,7 @@ export function CommunityHub() {
         sessionIdentity.current = owner;
         setSession(payload); setSessionFailed(false); setUnread(0);
         if (changed) {
+          expandedRef.current = new Set(); setExpandedIds(new Set()); restorePosition.current = null;
           setTopics([]); setNextCursor(null); setUndoBlock(null); setReportTarget(null);
           setFeedback(""); setNotificationsOpen(false); pending.current.clear(); setBusy("");
           void loadTopics(readSort());
@@ -79,10 +108,7 @@ export function CommunityHub() {
       setNotificationsOpen(new URLSearchParams(window.location.search).get("panel") === "notifications");
       void loadTopics(selected);
     };
-    const frame = requestAnimationFrame(() => {
-      readLocation();
-      void refreshSession();
-    });
+    const frame = requestAnimationFrame(() => { void refreshSession().then(() => { if (active) readLocation(); }); });
     window.addEventListener("popstate", readLocation);
     window.addEventListener("focus", checkSession);
     window.addEventListener("pageshow", checkSession);
@@ -97,6 +123,29 @@ export function CommunityHub() {
       document.removeEventListener("visibilitychange", checkSession);
     };
   }, [loadTopics]);
+
+  useLayoutEffect(() => {
+    if (feedState !== "ready" || !restorePosition.current) return;
+    const position = restorePosition.current; restorePosition.current = null;
+    const frame = requestAnimationFrame(() => {
+      const anchor = document.getElementById(position.anchor);
+      const y = anchor ? anchor.getBoundingClientRect().top + scrollY - position.offset : position.y;
+      window.scrollTo({ top: Math.max(0, y), behavior: "instant" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [feedState, topics]);
+
+  function rememberReading(id: string) {
+    const anchor = document.getElementById(`post-${id}`);
+    try { sessionStorage.setItem(wallReadingKey(sessionIdentity.current || "anonymous", wallFeedHref(origin, sort)), JSON.stringify({
+      time: Date.now(), restore: true, y: scrollY, anchor: `post-${id}`, offset: anchor?.getBoundingClientRect().top || 0,
+      pages: pagesLoaded.current, expanded: [...expandedRef.current],
+    })); } catch {}
+  }
+  function expandPost(id: string, expanded: boolean) {
+    const next = new Set(expandedRef.current); if (expanded) next.add(id); else next.delete(id);
+    expandedRef.current = next; setExpandedIds(next);
+  }
 
   function selectSort(nextSort: FeedSort) {
     if (nextSort === sort && feedState !== "error") return;
@@ -163,16 +212,15 @@ export function CommunityHub() {
       <aside className={styles.feedRail} aria-label="东财墙快捷入口">
         <div className={styles.wallSignature} aria-hidden="true">墙<span>DUFE</span></div>
         <nav>
-          <Link href="/community" aria-current="page"><WallIcon name="reply" />全部帖子</Link>
+          <Link href={wallFeedHref(origin)} aria-current="page"><WallIcon name="reply" />全部帖子</Link>
           {session?.authenticated && <><Link href="/community/saved"><WallIcon name="bookmark" />我的收藏</Link><Link href={`/community/users/${session.user!.id}`}>我的主页</Link></>}
-          <Link href="/?view=me">返回我的</Link>
         </nav>
-        {session?.authenticated ? <a href="#wall-body" className={styles.primaryAction} onClick={() => document.getElementById("wall-body")?.focus()}><WallIcon name="write" />写点什么</a> : <Link className={styles.primaryAction} href="/?view=me">登录发帖</Link>}
+        {session?.authenticated ? <a href="#wall-body" className={styles.primaryAction} onClick={() => document.getElementById("wall-body")?.focus()}><WallIcon name="write" />写点什么</a> : <WallLoginLink className={styles.primaryAction}>登录发帖</WallLoginLink>}
         <div className={styles.railFooter}><Link href="/terms">社区规则</Link><Link href="/privacy">隐私</Link><span>东财之影</span></div>
       </aside>
       <section className={styles.feedColumn} id="community-feed" aria-labelledby="community-title">
         <header className={styles.wallHeading}><div><span className={styles.wallLabel}>同学之间</span><h1 id="community-title">东财墙</h1></div><button className={styles.refreshFeed} disabled={feedState === "loading"} onClick={() => void loadTopics(sort)}>刷新</button></header>
-        {session?.authenticated && session.user ? <WallComposer key={session.user.id} author={session.user} onPublished={(id) => window.location.assign(`/community/topics/${id}?from=latest`)} /> : <div className={styles.guestComposer}><span aria-hidden="true"><WallIcon name="write" /></span><div><b>今天有什么想说的？</b>{sessionFailed && <p>账号状态暂时无法确认，请刷新重试。</p>}</div><Link className={styles.primaryAction} href="/?view=me">登录发帖</Link></div>}
+        {session?.authenticated && session.user ? <WallComposer key={session.user.id} author={session.user} onPublished={(id) => window.location.assign(wallTopicHref(id, "latest", origin))} /> : <div className={styles.guestComposer}><span aria-hidden="true"><WallIcon name="write" /></span><div><b>今天有什么想说的？</b>{sessionFailed && <p>账号状态暂时无法确认，请刷新重试。</p>}</div><WallLoginLink className={styles.primaryAction}>登录发帖</WallLoginLink></div>}
         <nav className={styles.feedSort} aria-label="帖子排序方式"><button aria-pressed={sort === "latest"} onClick={() => selectSort("latest")}>最新发布</button><button aria-pressed={sort === "replied"} onClick={() => selectSort("replied")}>最新回复</button></nav>
         <Feedback message={feedback} />
         {undoBlock && <div className={styles.undoBar}><span>已屏蔽 {undoBlock.name}</span><button onClick={() => void undoBlockAuthor()} disabled={busy === "undo-block"}>撤销</button></div>}
@@ -181,8 +229,10 @@ export function CommunityHub() {
         {feedState === "ready" && topics.length === 0 && <div className={styles.feedState}><WallIcon name="reply" /><b>还没有帖子</b><p>想问的、想分享的，都可以写在这里。</p></div>}
         <ol className={styles.topicStream} aria-label={sort === "latest" ? "最新发布的帖子" : "最新回复的帖子"}>
           {topics.map((topic) => {
-            const href = `/community/topics/${topic.id}?from=${sort}`;
-            return <li key={topic.id} id={`post-${topic.id}`}><article className={styles.topicRow}>
+            const href = wallTopicHref(topic.id, sort, origin);
+            return <li key={topic.id} id={`post-${topic.id}`}><article className={styles.topicRow} onClickCapture={event => {
+              if ((event.target as HTMLElement).closest(`a[href^="/community/topics/"]`)) rememberReading(topic.id);
+            }}>
               <header><AuthorBadge author={topic.author} /><time dateTime={topic.createdAt} suppressHydrationWarning>{formatCommunityTime(topic.createdAt)}</time><PostMenu>
                 <Link href={href}>打开帖子</Link>
                 {session?.authenticated && topic.author?.id !== session.user?.id && <>
@@ -191,10 +241,7 @@ export function CommunityHub() {
                 </>}
               </PostMenu></header>
               {sort === "replied" && topic.lastReplyAt && <p className={styles.replyActivity}>最近回复 · <time dateTime={topic.lastReplyAt} suppressHydrationWarning>{formatCommunityTime(topic.lastReplyAt)}</time></p>}
-              <Link href={href} className={styles.topicLink} aria-label={`查看${authorName(topic.author)}的帖子：${topic.title}`}>
-                {hasDistinctTitle(topic) && <h2>{topic.title}</h2>}<p>{topic.body}</p>
-                {(topic.body.length > 220 || topic.body.split("\n").length > 6) && <span className={styles.readMore}>展开全文</span>}
-              </Link>
+              <WallPostBody topic={topic} href={href} expanded={expandedIds.has(topic.id)} onExpandedChange={expanded => expandPost(topic.id, expanded)} />
               <footer className={styles.postActions}>
                 <Link href={`${href}#discussion`} aria-label={`回复 ${topic.commentCount} 条`}><WallIcon name="reply" /><span>{topic.commentCount || "回复"}</span></Link>
                 <button aria-label={`${topic.liked ? "取消点赞" : "点赞"} ${topic.likeCount}`} aria-pressed={topic.liked} className={topic.liked ? styles.activeAction : undefined} onClick={() => void toggleTopic(topic, "like")} disabled={busy === `like:${topic.id}`}><WallIcon name="heart" /><span>{topic.likeCount || "赞"}</span></button>

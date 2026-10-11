@@ -221,6 +221,34 @@ for (const width of [320, 390, 760, 1280]) {
   test.describe(`东财墙 ${width}px`, () => {
     test.use({ viewport: { width, height: width < 600 ? 844 : 900 } });
 
+    test("长帖原位展开收起，进入讨论再返回保留展开和阅读位置", async ({ page, wall }, testInfo) => {
+      const long = wall.topics.get(ids.replied)!;
+      long.body = Array.from({ length: 24 }, (_, index) => `第 ${index + 1} 段：课程安排和学习经验，正文在信息流中直接阅读。`).join("\n\n");
+      await page.goto("/community?sort=replied");
+      const post = page.locator(`#post-${ids.replied}`);
+      const toggle = post.getByRole("button", { name: "展开全文", exact: true });
+      await expect(toggle).toHaveAttribute("aria-expanded", "false");
+      const body = page.locator(`[id="${await toggle.getAttribute("aria-controls")}"]`);
+      const collapsed = await body.evaluate(el => el.getBoundingClientRect().height);
+      await toggle.focus(); await page.keyboard.press("Enter");
+      await expect(post.getByRole("button", { name: "收起全文", exact: true })).toHaveAttribute("aria-expanded", "true");
+      expect(await body.evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThan(collapsed * 3);
+      await expect(page).toHaveURL(/\/community\?sort=replied$/);
+      await expect(page.locator(`#post-${ids.short}`).getByRole("button", { name: /全文/ })).toHaveCount(0);
+      const discussion = post.getByRole("link", { name: "查看讨论", exact: true });
+      await discussion.scrollIntoViewIfNeeded();
+      const before = await page.evaluate(() => scrollY);
+      await discussion.click();
+      await page.getByRole("link", { name: "返回东财墙", exact: true }).click();
+      await expect(post.getByRole("button", { name: "收起全文", exact: true })).toBeVisible();
+      await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(before - 120);
+      await post.getByRole("button", { name: "收起全文", exact: true }).click();
+      await expect(toggle).toHaveAttribute("aria-expanded", "false");
+      await expect.poll(async () => (await post.boundingBox())!.y).toBeGreaterThan(-50);
+      await auditAndCapture(page, testInfo, "inline-post-reading");
+      expect(wall.mutations).toEqual([]);
+    });
+
     test("最新发布／最新回复、刷新和详情返回保留 URL 排序", async ({ page, wall }, testInfo) => {
       await page.goto("/community");
       await expect(page.getByRole("heading", { level: 1, name: "东财墙", exact: true })).toBeVisible();
@@ -240,7 +268,7 @@ for (const width of [320, 390, 760, 1280]) {
       await expect(page.getByRole("button", { name: "最新回复", exact: true })).toHaveAttribute("aria-pressed", "true");
       await expect(replied.locator(":scope > li").first()).toHaveAttribute("id", `post-${ids.replied}`);
       const first = replied.locator(":scope > li").first();
-      await first.getByRole("link", { name: /^查看测试同学乙的帖子/ }).click();
+      await first.getByRole("link", { name: "查看讨论", exact: true }).click();
       await expect(page).toHaveURL(new RegExp(`/community/topics/${ids.replied}\\?from=replied$`));
       await expect(page.getByRole("heading", { level: 1 })).toHaveText(wall.topics.get(ids.replied)!.title);
       await expect(page.getByRole("link", { name: "返回东财墙", exact: true })).toHaveAttribute("href", "/community?sort=replied");

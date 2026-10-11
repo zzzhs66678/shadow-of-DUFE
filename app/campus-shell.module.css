@@ -1,0 +1,23 @@
+.wordmark {
+  display: inline-block;
+  color: var(--dufe-ink, #242724);
+  font: 700 27px/1.15 var(--journal-display, "Songti SC", SimSun, serif);
+  letter-spacing: -.045em;
+  white-space: nowrap;
+  padding-right: 3px;
+}
+.wordmark em { color: var(--dufe-red-deep, #a62126); font: inherit; text-shadow: 1.5px 1.5px 0 #a6212624; }
+.header:global(.hub-topbar) { gap: 20px; background: var(--journal-paper, #f3f0e8); }
+.header:global(.topbar.hub-topbar)::after { display: none; }
+.header :global(.brand-button) { padding: 8px 0; min-width: 0; border: 0; }
+.header :global(.brand-button)::after { display: none; }
+.header :global(.brand-button):focus-visible { outline: 2px solid var(--dufe-red-deep, #a62126); outline-offset: 4px; }
+.header :global(.hub-top-actions) { gap: 9px; margin-left: 0; }
+.header :global(.command-trigger) { border-radius: 6px; border-color: var(--journal-line, #b8b1a4); background: transparent; min-height: 44px; }
+@media (max-width: 760px) {
+  .wordmark { font-size: 24px; }
+  .header:global(.hub-topbar) { gap: 10px; height: 64px; padding-inline: 14px; }
+  .header :global(.hub-top-actions) { gap: 7px; }
+  .header :global(.command-trigger) { width: 44px; min-width: 44px; height: 44px; padding: 10px; }
+}
+@media (max-width: 360px) { .wordmark { font-size: 22px; } .header:global(.hub-topbar) { gap: 6px; } }

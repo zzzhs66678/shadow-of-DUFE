@@ -331,7 +331,9 @@ test("backup and disk protection have bounded local retention", async () => {
   assert.match(restoreDrill, /--maintenance-db "\$POSTGRES_DB"/);
   assert.match(restoreDrill, /pg_restore/);
   assert.match(restoreDrill, /--exit-on-error/);
-  assert.match(restoreDrill, /migration_count < 29/);
+  assert.match(restoreDrill, /migration_count < 32/);
+  assert.match(restoreDrill, /'whiteboard_entries'/);
+  assert.match(restoreDrill, /'whiteboard_actions'/);
   for (const table of ["material_bookmarks", "material_bookmark_events", "data_feedback", "data_feedback_actions"]) {
     assert.ok(restoreDrill.includes(`'${table}'`), `restore drill checks ${table}`);
   }
