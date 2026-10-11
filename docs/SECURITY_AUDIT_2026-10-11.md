@@ -87,6 +87,7 @@ Docker 映射显示 auth 3100/PostgreSQL 5432 未发布宿主端口，仅网关 
 | Caddy 2.10 二进制 `validate --config ... --adapter caddyfile` | production/staging 均有效；提示部分 header_up 冗余，仍显式覆盖输入。 |
 | Gitleaks `dir . --redact` | 退出 1，3 匹配，见 R11；未忽略或当作全绿。 |
 | Gitleaks `dir dist/client --redact` | 退出 0，未发现匹配；不是所有可能秘密的数学证明。 |
+| Gitleaks `git . --log-opts='9de3008cf8411dd0012e499b1590117d42eac2c7..HEAD' --redact` | 本次代码提交508a115扫描通过，退出0、未发现匹配；不包含生产基线之前的完整历史。 |
 | `git diff --check` | 通过；Windows LF/CRLF 提示不是空白错误。 |
 | 线上受限只读元数据 + SMTP 登录 | 配置/网络/版本/迁移/有效日志设置已核实，SMTP TLS/登录通过，邮件 0 封。 |
 
