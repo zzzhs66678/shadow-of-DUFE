@@ -13,17 +13,25 @@ export function parseCookies(header = "") {
   return cookies;
 }
 
-export function serializeSecureCookie(name, value, maxAgeSeconds) {
+export function serializeSecureCookie(
+  name,
+  value,
+  maxAgeSeconds,
+  { sameSite = "Lax" } = {},
+) {
+  if (!new Set(["Lax", "Strict", "None"]).has(sameSite)) {
+    throw new Error("SameSite must be Lax, Strict, or None");
+  }
   return [
     `${name}=${value}`,
     "Path=/",
     `Max-Age=${Math.max(0, Math.trunc(maxAgeSeconds))}`,
     "HttpOnly",
     "Secure",
-    "SameSite=Lax",
+    `SameSite=${sameSite}`,
   ].join("; ");
 }
 
-export function clearSecureCookie(name) {
-  return serializeSecureCookie(name, "", 0);
+export function clearSecureCookie(name, options) {
+  return serializeSecureCookie(name, "", 0, options);
 }

@@ -7,12 +7,12 @@
 		Referrer-Policy "strict-origin-when-cross-origin"
 		X-Frame-Options "DENY"
 		X-XSS-Protection "0"
-		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+		Strict-Transport-Security "max-age=86400"
 		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), accelerometer=(), gyroscope=(), magnetometer=()"
 		Cross-Origin-Opener-Policy "same-origin"
 		Cross-Origin-Resource-Policy "same-origin"
 		X-Permitted-Cross-Domain-Policies "none"
-		Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data:; media-src 'self'; connect-src 'self'; frame-src 'self'; worker-src 'self' blob:; manifest-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; upgrade-insecure-requests"
 	}
 
 	@course_data path /data/*
@@ -27,8 +27,67 @@
 	@security_text path /.well-known/security.txt
 	header @security_text >Content-Type "text/plain; charset=utf-8"
 
+	handle /api/catalog/* {
+		reverse_proxy production-auth-api:3100 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+
+	handle /resources/files/uploads/* {
+		uri replace /resources/files/uploads/ /api/catalog/files/
+		reverse_proxy production-auth-api:3100 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+
 	handle /api/auth/* {
-		reverse_proxy auth-api:3100
+		reverse_proxy production-auth-api:3100 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+
+	handle /api/admin/* {
+		header {
+			Cache-Control "no-store"
+			X-Robots-Tag "noindex, nofollow, noarchive"
+		}
+		reverse_proxy production-auth-api:3100 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+
+	handle /api/community/* {
+		reverse_proxy production-auth-api:3100 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+
+	@material_bookmarks path /api/material-bookmarks /api/material-bookmarks/*
+	handle @material_bookmarks {
+		reverse_proxy production-auth-api:3100 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+
+	@teacher_api path /api/teachers /api/teachers/*
+	handle @teacher_api {
+		reverse_proxy production-auth-api:3100 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
 	}
 
 	redir /campus-lab /campus-lab/ 308
@@ -40,7 +99,11 @@
 			X-Robots-Tag "noindex, nofollow, noarchive"
 			Referrer-Policy "no-referrer"
 		}
-		reverse_proxy xiaoying:43120
+		reverse_proxy production-xiaoying:43120 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
 	}
 
 	handle_path /resources/files/* {
@@ -51,7 +114,7 @@
 	}
 
 	handle {
-		reverse_proxy app:3000
+		reverse_proxy production-app:3000
 	}
 }
 
@@ -60,9 +123,105 @@ dufesh.cn {
 }
 
 www.dufesh.cn {
-	redir https://dufesh.cn{uri} 308
+	@authentication_submit {
+		method POST PUT PATCH DELETE
+		path /api/* /campus-lab/*
+	}
+	route {
+		respond @authentication_submit 403
+		redir https://dufesh.cn{uri} 308
+	}
 }
 
-http://112.126.75.74 {
-	import dufesh_proxy
+http://dufesh.cn, http://www.dufesh.cn, http://112.126.75.74 {
+	@authentication_submit {
+		method POST PUT PATCH DELETE
+		path /api/* /campus-lab/*
+	}
+	route {
+		respond @authentication_submit 403
+		redir https://dufesh.cn{uri} 308
+	}
+}
+
+# The public staging hostname shares this edge gateway, but its app and auth
+# containers remain isolated behind staging-only network aliases.
+staging.dufesh.cn {
+	encode zstd gzip
+
+	header {
+		-Server
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		X-Frame-Options "DENY"
+		Strict-Transport-Security "max-age=31536000"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Resource-Policy "same-origin"
+		X-Robots-Tag "noindex, nofollow, noarchive"
+	}
+
+	handle /api/catalog/* {
+		reverse_proxy staging-auth-api:3100 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+
+	handle /resources/files/uploads/* {
+		uri replace /resources/files/uploads/ /api/catalog/files/
+		reverse_proxy staging-auth-api:3100 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+
+	handle /api/auth/* {
+		reverse_proxy staging-auth-api:3100 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+
+	handle /api/admin/* {
+		header Cache-Control "no-store"
+		reverse_proxy staging-auth-api:3100 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+
+	handle /api/community/* {
+		reverse_proxy staging-auth-api:3100 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+
+	@material_bookmarks path /api/material-bookmarks /api/material-bookmarks/*
+	handle @material_bookmarks {
+		reverse_proxy staging-auth-api:3100 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+
+	@teacher_api path /api/teachers /api/teachers/*
+	handle @teacher_api {
+		reverse_proxy staging-auth-api:3100 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+
+	handle {
+		reverse_proxy staging-app:3000
+	}
 }

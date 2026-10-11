@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { publicPagePaths } from "../seo";
 import { LegalPage } from "../LegalPage";
 
 export const metadata: Metadata = {
+  alternates: { canonical: publicPagePaths.terms },
   title: "用户协议",
   description: "使用东财之影时适用的服务规则。",
 };
@@ -20,7 +22,7 @@ export default function TermsPage() {
 
       <h2>二、账号与数据</h2>
       <p>
-        用户应妥善保管自己的登录设备，不得转让账号。微信仅用于确认账号身份，个人课表、日程和作业由本站按用户操作保存。用户应在重要安排前自行核对原始信息。
+        用户应妥善保管密码和登录设备，不得转让账号。邮箱用于登录和找回密码；微信开放后可作为另一种登录方式。个人课表、日程和作业由本站按用户操作保存，学号未验证前不代表本站确认了真实学生身份。用户名和自己的昵称修改需经管理员审核；用户可切换展示 momo 或自己的名字，两次切换间隔 7 天。momo 可由多个独立账号使用，不改变账号权限。用户应在重要安排前自行核对原始信息。
       </p>
 
       <h2>三、校园服务操作</h2>

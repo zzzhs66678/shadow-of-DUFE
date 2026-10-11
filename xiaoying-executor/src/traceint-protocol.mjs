@@ -5,7 +5,7 @@ const query = (operationName, source, variables = undefined) => ({
 });
 
 export const TRACEINT_PROTOCOL = Object.freeze({
-  cookieEndpoint: "http://wechat.v2.traceint.com/index.php/urlNew/auth.html",
+  cookieEndpoint: "https://wechat.v2.traceint.com/index.php/urlNew/auth.html",
   authorizationReturnUrl: "https://web.traceint.com/web/index.html",
   graphQlEndpoint: "https://wechat.v2.traceint.com/index.php/graphql/",
   defaultProfile: {

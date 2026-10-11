@@ -23,6 +23,8 @@ export class SeatWatchRunner {
     this.running = true;
     try {
       for (const watch of this.store.listDueSeatWatches(20)) {
+        const leaseToken = this.store.claimSeatWatch(watch.id);
+        if (!leaseToken) continue;
         const preferences = this.store.getUserPreferences(watch.userId);
         try {
           const adapter = this.adapterForUser(watch.userId);
@@ -37,11 +39,12 @@ export class SeatWatchRunner {
                   seatKey: watch.seatKey,
                   date: new Date(this.clock()).toISOString().slice(0, 10),
                 });
-          this.store.finishSeatWatchCheck(watch.id, {
+          const finished = this.store.finishSeatWatchCheck(watch.id, {
             available: status.available,
             intervalMinutes: preferences.monitorIntervalMinutes,
+            leaseToken,
           });
-          if (status.available) {
+          if (finished && status.available) {
             this.store.createNotification(watch.userId, {
               kind: "seat_available",
               title:
@@ -61,6 +64,7 @@ export class SeatWatchRunner {
             available: false,
             errorCode: error?.code || "CHECK_FAILED",
             intervalMinutes: preferences.monitorIntervalMinutes,
+            leaseToken,
           });
         }
       }

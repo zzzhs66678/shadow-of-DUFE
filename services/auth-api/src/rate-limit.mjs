@@ -70,15 +70,192 @@ export function createTokenBucket({
   };
 }
 
-export function createApiRateLimiters() {
+export function createSharedTokenBucket({
+  store,
+  scope,
+  capacity,
+  refillPerSecond,
+}) {
+  if (!store || typeof store.consumeRateLimit !== "function") {
+    throw new TypeError("shared rate limiting requires a persistent store");
+  }
+  if (!/^[a-z][a-z0-9._-]{0,63}$/u.test(scope)) {
+    throw new TypeError("shared rate limit scope is invalid");
+  }
+  if (!Number.isFinite(capacity) || capacity < 1) {
+    throw new TypeError("shared rate limit capacity is invalid");
+  }
+  if (!Number.isFinite(refillPerSecond) || refillPerSecond <= 0) {
+    throw new TypeError("shared rate limit refill rate is invalid");
+  }
+
   return {
-    read: createTokenBucket({
+    async consume(key) {
+      if (typeof key !== "string" || !/^[0-9a-f]{64}$/u.test(key)) {
+        throw new TypeError("shared rate limit key must be a SHA-256 digest");
+      }
+      return store.consumeRateLimit({
+        scope,
+        keyDigest: key,
+        capacity,
+        refillPerSecond,
+      });
+    },
+  };
+}
+
+function persistentOrLocal(store, options) {
+  if (!store) return createTokenBucket(options);
+  return createSharedTokenBucket({ store, ...options });
+}
+
+export function createApiRateLimiters({ store } = {}) {
+  return {
+    authNetwork: persistentOrLocal(store, { scope: "auth-network", capacity: 300, refillPerSecond: 5 }),
+    authAccount: persistentOrLocal(store, { scope: "auth-account", capacity: 20, refillPerSecond: 1 / 60 }),
+    registrationSend: persistentOrLocal(store, { scope: "registration-send", capacity: 5, refillPerSecond: 1 / 720 }),
+    registrationSubmit: persistentOrLocal(store, { scope: "registration-submit", capacity: 10, refillPerSecond: 1 / 60 }),
+    resetConfirm: persistentOrLocal(store, { scope: "reset-confirm", capacity: 10, refillPerSecond: 1 / 60 }),
+    verificationConfirm: persistentOrLocal(store, { scope: "verification-confirm", capacity: 10, refillPerSecond: 1 / 60 }),
+    nameChange: persistentOrLocal(store, { scope: "account-name-change", capacity: 3, refillPerSecond: 1 / 28_800 }),
+    read: persistentOrLocal(store, {
+      scope: "api-read-network",
       capacity: 2_400,
       refillPerSecond: 40,
     }),
-    write: createTokenBucket({
+    write: persistentOrLocal(store, {
+      scope: "api-write-network",
       capacity: 300,
       refillPerSecond: 5,
+    }),
+    credential: persistentOrLocal(store, {
+      scope: "credential",
+      capacity: 10,
+      refillPerSecond: 1 / 12,
+      maxKeys: 20_000,
+      idleTtlMs: 30 * 60_000,
+    }),
+    academicPrincipal: persistentOrLocal(store, {
+      scope: "academic-login-account",
+      capacity: 6,
+      refillPerSecond: 1 / 300,
+      maxKeys: 30_000,
+      idleTtlMs: 2 * 60 * 60_000,
+    }),
+    academicIp: persistentOrLocal(store, {
+      scope: "academic-login-network",
+      capacity: 120,
+      refillPerSecond: 2,
+      maxKeys: 30_000,
+      idleTtlMs: 2 * 60 * 60_000,
+    }),
+    academicSchoolAccount: persistentOrLocal(store, {
+      scope: "academic-school-account", capacity: 4, refillPerSecond: 1 / 300,
+    }),
+    passwordReset: persistentOrLocal(store, {
+      scope: "password-reset",
+      capacity: 4,
+      refillPerSecond: 1 / 60,
+      maxKeys: 20_000,
+      idleTtlMs: 60 * 60_000,
+    }),
+    emailVerification: persistentOrLocal(store, {
+      scope: "email-verification",
+      capacity: 4,
+      refillPerSecond: 1 / 120,
+      maxKeys: 20_000,
+      idleTtlMs: 2 * 60 * 60_000,
+    }),
+    upload: persistentOrLocal(store, {
+      scope: "avatar-upload",
+      capacity: 10,
+      refillPerSecond: 1 / 300,
+      maxKeys: 20_000,
+      idleTtlMs: 2 * 60 * 60_000,
+    }),
+    communityWrite: persistentOrLocal(store, {
+      scope: "community-write-account",
+      capacity: 12,
+      refillPerSecond: 1 / 20,
+      maxKeys: 30_000,
+      idleTtlMs: 2 * 60 * 60_000,
+    }),
+    communityWriteIp: persistentOrLocal(store, {
+      scope: "community-write-network",
+      capacity: 120,
+      refillPerSecond: 1,
+      maxKeys: 30_000,
+      idleTtlMs: 2 * 60 * 60_000,
+    }),
+    communityReaction: persistentOrLocal(store, {
+      scope: "community-reaction-account",
+      capacity: 60,
+      refillPerSecond: 1,
+      maxKeys: 30_000,
+      idleTtlMs: 60 * 60_000,
+    }),
+    communityReactionIp: persistentOrLocal(store, {
+      scope: "community-reaction-network",
+      capacity: 600,
+      refillPerSecond: 10,
+      maxKeys: 30_000,
+      idleTtlMs: 60 * 60_000,
+    }),
+    communityReport: persistentOrLocal(store, {
+      scope: "community-report-account",
+      capacity: 5,
+      refillPerSecond: 1 / 300,
+      maxKeys: 30_000,
+      idleTtlMs: 6 * 60 * 60_000,
+    }),
+    communityReportIp: persistentOrLocal(store, {
+      scope: "community-report-network",
+      capacity: 50,
+      refillPerSecond: 1 / 30,
+      maxKeys: 30_000,
+      idleTtlMs: 6 * 60 * 60_000,
+    }),
+    adminMfa: persistentOrLocal(store, {
+      scope: "admin-mfa",
+      capacity: 5,
+      refillPerSecond: 1 / 60,
+      maxKeys: 10_000,
+      idleTtlMs: 2 * 60 * 60_000,
+    }),
+    adminAnnouncement: persistentOrLocal(store, {
+      scope: "admin-announcement",
+      capacity: 5,
+      refillPerSecond: 1 / 600,
+      maxKeys: 10_000,
+      idleTtlMs: 6 * 60 * 60_000,
+    }),
+    adminCommunityModeration: persistentOrLocal(store, {
+      scope: "admin-community-moderation",
+      capacity: 60,
+      refillPerSecond: 1 / 10,
+      maxKeys: 10_000,
+      idleTtlMs: 2 * 60 * 60_000,
+    }),
+    teacherReviewModeration: persistentOrLocal(store, {
+      scope: "teacher-review-moderation",
+      capacity: 30,
+      refillPerSecond: 1 / 10,
+      maxKeys: 10_000,
+      idleTtlMs: 2 * 60 * 60_000,
+    }),
+    teacherReviewWrite: persistentOrLocal(store, {
+      scope: "teacher-review-write-account",
+      capacity: 6,
+      refillPerSecond: 1 / 300,
+      maxKeys: 30_000,
+      idleTtlMs: 6 * 60 * 60_000,
+    }),
+    teacherReviewIp: persistentOrLocal(store, {
+      scope: "teacher-review-write-network",
+      capacity: 60,
+      refillPerSecond: 1 / 30,
+      maxKeys: 30_000,
+      idleTtlMs: 6 * 60 * 60_000,
     }),
   };
 }

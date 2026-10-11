@@ -1,0 +1,49 @@
+.details {
+  border-top: 1px solid var(--journal-line, #cec6ba);
+  color: var(--journal-ink, #1d1b18);
+  font-size: 13px;
+  line-height: 1.6;
+  margin-top: 12px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.details summary {
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 44px;
+  padding: 11px 0;
+}
+
+.details summary:focus-visible {
+  outline: 2px solid var(--journal-red, #a52325);
+  outline-offset: 3px;
+}
+
+.details p {
+  margin: 4px 0 10px;
+}
+
+.review {
+  background: var(--journal-paper-raised, #fbfaf5);
+  margin: 12px auto;
+  max-width: 1240px;
+  padding: 0 16px 8px;
+  width: calc(100% - 32px);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.list > li {
+  border-top: 1px solid var(--journal-line, #cec6ba);
+  padding: 10px 0;
+}
+
+.list ul {
+  margin: 4px 0 12px;
+  padding-left: 20px;
+}

@@ -69,7 +69,8 @@ async function readPersonalState(database, userId) {
   const plans = [...planMap.values()];
 
   const activitiesResult = await database.query(
-    `SELECT client_id, title, weekday, block, location, notes, color
+    `SELECT client_id, title, weekday, block, location, notes, color,
+            start_time, end_time, event_date::text, repeat_rule
      FROM personal_activities
      WHERE user_id = $1
        AND deleted_at IS NULL
@@ -92,13 +93,23 @@ async function readPersonalState(database, userId) {
     [userId],
   );
 
+  const academicResult = await database.query(
+    `SELECT snapshot
+     FROM user_academic_snapshots
+     WHERE user_id = $1
+       AND deleted_at IS NULL
+     ORDER BY academic_year, term, imported_at, id`,
+    [userId],
+  );
+
   const settingsResult = await database.query(
     `SELECT
        active_plan_client_id,
        preferred_term,
        theme,
        favorite_rooms,
-       recent_rooms
+       recent_rooms,
+       training_plan
      FROM user_settings
      WHERE user_id = $1`,
     [userId],
@@ -126,6 +137,12 @@ async function readPersonalState(database, userId) {
         location: row.location,
         notes: row.notes,
         color: row.color,
+        ...(row.start_time ? {
+          startTime: row.start_time,
+          endTime: row.end_time,
+          repeat: row.repeat_rule,
+          ...(row.event_date ? { date: row.event_date } : {}),
+        } : {}),
       })),
       assignments: assignmentsResult.rows.map((row) => ({
         id: row.client_id,
@@ -135,12 +152,93 @@ async function readPersonalState(database, userId) {
         notes: row.notes,
         completed: row.completed,
       })),
+      academicSnapshots: academicResult.rows.map((row) => row.snapshot),
+      trainingPlan: settings?.training_plan ?? null,
       favoriteRooms: settings?.favorite_rooms ?? [],
       recentRooms: settings?.recent_rooms ?? [],
       preferredTerm: settings?.preferred_term ?? "fall",
       theme: settings?.theme ?? "system",
     },
   };
+}
+
+async function upsertAcademicSnapshots(
+  client,
+  userId,
+  revision,
+  clientUpdatedAt,
+  snapshots,
+) {
+  await client.query(
+    `INSERT INTO user_academic_snapshots (
+       user_id,
+       client_id,
+       academic_year,
+       term,
+       term_label,
+       imported_at,
+       snapshot,
+       revision,
+       client_updated_at
+     )
+     SELECT
+       $1,
+       incoming.client_id,
+       incoming.academic_year,
+       incoming.term,
+       incoming.term_label,
+       incoming.imported_at,
+       incoming.snapshot,
+       $2,
+       $3
+     FROM jsonb_to_recordset($4::jsonb) AS incoming(
+       client_id text,
+       academic_year text,
+       term text,
+       term_label text,
+       imported_at timestamptz,
+       snapshot jsonb
+     )
+     ON CONFLICT (user_id, client_id) DO UPDATE
+     SET
+       academic_year = EXCLUDED.academic_year,
+       term = EXCLUDED.term,
+       term_label = EXCLUDED.term_label,
+       imported_at = EXCLUDED.imported_at,
+       snapshot = EXCLUDED.snapshot,
+       revision = EXCLUDED.revision,
+       client_updated_at = EXCLUDED.client_updated_at,
+       updated_at = now(),
+       deleted_at = NULL`,
+    [
+      userId,
+      revision,
+      clientUpdatedAt,
+      JSON.stringify(
+        snapshots.map((snapshot) => ({
+          client_id: snapshot.id,
+          academic_year: snapshot.academicYear,
+          term: snapshot.term,
+          term_label: snapshot.termLabel,
+          imported_at: snapshot.importedAt,
+          snapshot,
+        })),
+      ),
+    ],
+  );
+
+  await client.query(
+    `UPDATE user_academic_snapshots
+     SET
+       revision = $2,
+       client_updated_at = $3,
+       updated_at = now(),
+       deleted_at = COALESCE(deleted_at, now())
+     WHERE user_id = $1
+       AND NOT (client_id = ANY($4::text[]))
+       AND deleted_at IS NULL`,
+    [userId, revision, clientUpdatedAt, snapshots.map((item) => item.id)],
+  );
 }
 
 async function upsertPlans(client, userId, revision, clientUpdatedAt, plans) {
@@ -278,6 +376,7 @@ async function upsertActivities(
        location,
        notes,
        color,
+       start_time, end_time, event_date, repeat_rule,
        revision,
        client_updated_at
      )
@@ -290,6 +389,7 @@ async function upsertActivities(
        incoming.location,
        incoming.notes,
        incoming.color,
+       incoming.start_time, incoming.end_time, incoming.event_date, incoming.repeat_rule,
        $2,
        $3
      FROM jsonb_to_recordset($4::jsonb) AS incoming(
@@ -299,13 +399,18 @@ async function upsertActivities(
        block smallint,
        location text,
        notes text,
-       color text
+       color text,
+       start_time text, end_time text, event_date date, repeat_rule text
      )
      ON CONFLICT (user_id, client_id) DO UPDATE
      SET
        title = EXCLUDED.title,
-       weekday = EXCLUDED.weekday,
-       block = EXCLUDED.block,
+       weekday = CASE WHEN EXCLUDED.start_time IS NULL AND personal_activities.start_time IS NOT NULL THEN personal_activities.weekday ELSE EXCLUDED.weekday END,
+       block = CASE WHEN EXCLUDED.start_time IS NULL AND personal_activities.start_time IS NOT NULL THEN personal_activities.block ELSE EXCLUDED.block END,
+       start_time = COALESCE(EXCLUDED.start_time, personal_activities.start_time),
+       end_time = COALESCE(EXCLUDED.end_time, personal_activities.end_time),
+       event_date = CASE WHEN EXCLUDED.start_time IS NULL THEN personal_activities.event_date ELSE EXCLUDED.event_date END,
+       repeat_rule = COALESCE(EXCLUDED.repeat_rule, personal_activities.repeat_rule),
        location = EXCLUDED.location,
        notes = EXCLUDED.notes,
        color = EXCLUDED.color,
@@ -326,6 +431,10 @@ async function upsertActivities(
           location: item.location,
           notes: item.notes,
           color: item.color,
+          start_time: item.startTime ?? null,
+          end_time: item.endTime ?? null,
+          event_date: item.date ?? null,
+          repeat_rule: item.repeat ?? null,
         })),
       ),
     ],
@@ -553,6 +662,13 @@ export function createPersonalStore(pool) {
           payload.clientUpdatedAt,
           state.assignments,
         );
+        await upsertAcademicSnapshots(
+          client,
+          userId,
+          revision,
+          payload.clientUpdatedAt,
+          state.academicSnapshots,
+        );
 
         await client.query(
           `INSERT INTO user_settings (
@@ -562,10 +678,11 @@ export function createPersonalStore(pool) {
              theme,
              favorite_rooms,
              recent_rooms,
+             training_plan,
              revision,
              client_updated_at
            )
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
            ON CONFLICT (user_id) DO UPDATE
            SET
              active_plan_client_id = EXCLUDED.active_plan_client_id,
@@ -573,6 +690,7 @@ export function createPersonalStore(pool) {
              theme = EXCLUDED.theme,
              favorite_rooms = EXCLUDED.favorite_rooms,
              recent_rooms = EXCLUDED.recent_rooms,
+             training_plan = EXCLUDED.training_plan,
              revision = EXCLUDED.revision,
              client_updated_at = EXCLUDED.client_updated_at,
              updated_at = now()`,
@@ -583,6 +701,7 @@ export function createPersonalStore(pool) {
             state.theme,
             state.favoriteRooms,
             state.recentRooms,
+            state.trainingPlan,
             revision,
             payload.clientUpdatedAt,
           ],

@@ -1,0 +1,87 @@
+import { defineConfig, devices } from "@playwright/test";
+
+const localBrowserChannel = process.env.CI ? undefined : "chrome";
+const webServerCommand = process.env.CI
+  ? "node server.mjs"
+  : "npm run build && node server.mjs";
+const responsiveViewports = [
+  { name: "mobile-320", viewport: { width: 320, height: 844 } },
+  { name: "mobile-360", viewport: { width: 360, height: 800 } },
+  { name: "mobile-375", viewport: { width: 375, height: 812 } },
+  { name: "mobile-390", viewport: { width: 390, height: 844 } },
+  { name: "mobile-414", viewport: { width: 414, height: 896 } },
+  { name: "tablet-768", viewport: { width: 768, height: 1024 } },
+  { name: "landscape-667", viewport: { width: 667, height: 375 } },
+  { name: "landscape-844", viewport: { width: 844, height: 390 } },
+] as const;
+
+export default defineConfig({
+  testDir: "./tests/e2e",
+  timeout: 45_000,
+  expect: {
+    timeout: 10_000,
+  },
+  fullyParallel: false,
+  // Browser fixtures use isolated contexts and mocked accounts; native database
+  // publication paths retain their separate single-worker configurations.
+  workers: process.env.CI ? 2 : 1,
+  reporter: process.env.CI
+    ? [["line"], ["html", { open: "never" }]]
+    : "line",
+  use: {
+    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000",
+    channel: localBrowserChannel,
+    trace: "retain-on-failure",
+  },
+  webServer: {
+    command: webServerCommand,
+    url: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000",
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+    stdout: "pipe",
+    stderr: "pipe",
+  },
+  projects: [
+    { name: "published-catalog", testMatch: /published-catalog\.spec\.ts/, use: { viewport: { width: 1280, height: 900 }, timezoneId: "Asia/Shanghai" } },
+    { name: "catalog-admin", testMatch: /catalog-admin\.spec\.ts/ },
+    { name: "new-user", testMatch: /new-user\.spec\.ts/, use: { viewport: { width: 390, height: 844 }, timezoneId: "Asia/Shanghai" } },
+    { name: "registration-security", testMatch: /registration-security\.spec\.ts/ },
+    { name: "recovery-security", testMatch: /recovery-security\.spec\.ts/ },
+    { name: "account-name-security", testMatch: /account-name-security\.spec\.ts/ },
+    { name: "hub-experience-mobile", testMatch: /hub-experience\.spec\.ts/, use: { viewport: { width: 390, height: 844 }, timezoneId: "Asia/Shanghai" } },
+    { name: "hub-experience-desktop", testMatch: /hub-experience\.spec\.ts/, use: { viewport: { width: 1280, height: 900 }, timezoneId: "Asia/Shanghai" } },
+    { name: "admin-workspace", testMatch: /admin-workspace\.spec\.ts/ },
+    { name: "whiteboard", testMatch: /whiteboard\.spec\.ts/, use: { viewport: { width: 390, height: 844 }, timezoneId: "Asia/Shanghai" } },
+    { name: "wall-entry", testMatch: /wall-entry\.spec\.ts/ },
+    { name: "home-design", testMatch: /home-design\.spec\.ts/ },
+    { name: "my-design", testMatch: /my-design\.spec\.ts/ },
+    {
+      name: "desktop",
+      testMatch: /accessibility\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "mobile",
+      testMatch: /accessibility\.spec\.ts/,
+      use: { ...devices["Pixel 5"] },
+    },
+    ...responsiveViewports.map(({ name, viewport }) => ({
+      name,
+      testMatch: /responsive\.spec\.ts/,
+      use: { viewport },
+    })),
+    {
+      name: "performance",
+      testMatch: /performance\.spec\.ts/,
+      use: { viewport: { width: 390, height: 844 } },
+    },
+    {
+      name: "academic-import",
+      testMatch: /academic-import\.spec\.ts/,
+      use: {
+        viewport: { width: 390, height: 844 },
+        timezoneId: "Asia/Shanghai",
+      },
+    },
+  ],
+});

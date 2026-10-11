@@ -1,26 +1,12 @@
 import type { MetadataRoute } from "next";
+import { publishedMaterialCatalog } from "./materials/published-materials-server.mjs";
+import { absoluteUrl, publicPagePaths } from "./seo";
+import { competitions, competitionPath } from "./competitions/catalog";
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  const lastModified = new Date("2026-07-30T00:00:00+08:00");
-  return [
-    { url: "https://dufesh.cn/", lastModified, changeFrequency: "daily", priority: 1 },
-    {
-      url: "https://dufesh.cn/privacy",
-      lastModified,
-      changeFrequency: "monthly",
-      priority: 0.4,
-    },
-    {
-      url: "https://dufesh.cn/terms",
-      lastModified,
-      changeFrequency: "monthly",
-      priority: 0.4,
-    },
-    {
-      url: "https://dufesh.cn/account/delete",
-      lastModified,
-      changeFrequency: "monthly",
-      priority: 0.3,
-    },
-  ];
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const { getMaterialPaths } = await publishedMaterialCatalog();
+  // Catalog generation time is not page edit time; omit unverified lastmod.
+  return [...Object.values(publicPagePaths), ...getMaterialPaths(), ...competitions.map(item => competitionPath(item.slug))].map((path) => ({
+    url: absoluteUrl(path),
+  }));
 }

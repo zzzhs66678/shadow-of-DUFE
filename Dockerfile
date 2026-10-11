@@ -1,8 +1,12 @@
-FROM docker.m.daocloud.io/library/node:22-alpine AS dependencies
+ARG NODE_IMAGE=docker.m.daocloud.io/library/node:22-alpine
+
+FROM ${NODE_IMAGE} AS dependencies
 
 WORKDIR /app
+ARG NPM_CONFIG_REGISTRY=https://registry.npmjs.org
 
 COPY package.json package-lock.json ./
+COPY vendor/image-size-disabled ./vendor/image-size-disabled
 RUN npm ci --ignore-scripts --no-audit --no-fund
 
 FROM dependencies AS build
@@ -14,14 +18,19 @@ ENV NEXT_PUBLIC_XIAOYING_URL=$NEXT_PUBLIC_XIAOYING_URL
 COPY . .
 RUN npx vinext build
 
-FROM docker.m.daocloud.io/library/node:22-alpine AS runtime
+FROM ${NODE_IMAGE} AS runtime
 
 WORKDIR /app
+ARG NPM_CONFIG_REGISTRY=https://registry.npmjs.org
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 
 COPY package.json package-lock.json ./
+COPY vendor/image-size-disabled ./vendor/image-size-disabled
+COPY scripts/prune-vinext-runtime.mjs /tmp/prune-vinext-runtime.mjs
 RUN npm ci --omit=dev --omit=optional --ignore-scripts --no-audit --no-fund \
+    && node /tmp/prune-vinext-runtime.mjs \
+    && rm /tmp/prune-vinext-runtime.mjs \
     && npm cache clean --force
 
 COPY --from=build /app/dist ./dist

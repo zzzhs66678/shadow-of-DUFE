@@ -1,0 +1,99 @@
+.trigger {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px dotted currentColor;
+  border-radius: 0;
+  color: #626461;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  min-height: 32px;
+  padding: 4px 3px;
+}
+
+.dialog,
+.page {
+  --feedback-ink: #242922;
+  --feedback-muted: #626461;
+  --feedback-paper: #ffffff;
+  --feedback-line: #d8ddd5;
+  --feedback-accent: #a82b23;
+  --feedback-wash: #f2f5ef;
+  color: var(--feedback-ink);
+  font-family: Arial, "Microsoft YaHei", sans-serif;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.dialog {
+  background: var(--feedback-paper);
+  border-top: 4px solid var(--feedback-accent);
+  box-sizing: border-box;
+  max-height: 90dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 24px;
+  width: min(100%, 520px);
+}
+
+.page {
+  margin: 0 auto;
+  max-width: 900px;
+  padding: 24px 16px 64px;
+}
+
+.heading,
+.actions,
+.filters {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.heading h2,
+.page h1 {
+  font-family: "STSong", "SimSun", serif;
+  font-size: 24px;
+  margin: 0;
+}
+
+.page h1 { font-size: 28px; margin-block: 16px; }
+.dialog h3 { font-size: 18px; margin: 0 0 8px; }
+.hint { color: var(--feedback-muted); font-size: 13px; }
+.context { background: var(--feedback-wash); margin: 16px 0; padding: 12px; }
+.context dt { color: var(--feedback-muted); font-size: 12px; }
+.context dd { font-family: Consolas, "Microsoft YaHei", monospace; font-size: 13px; margin: 0 0 6px; overflow-wrap: anywhere; }
+.field { display: grid; gap: 8px; margin-block: 16px; }
+.field textarea { background: var(--feedback-paper); border: 1px solid var(--feedback-line); border-radius: 4px; box-sizing: border-box; color: inherit; font: inherit; min-height: 100px; padding: 10px; resize: vertical; width: 100%; }
+.dialog button,
+.page button,
+.page select { background: var(--feedback-paper); border: 1px solid var(--feedback-line); border-radius: 4px; color: var(--feedback-ink); cursor: pointer; font: inherit; min-height: 40px; padding: 6px 12px; }
+.dialog .primary,
+.page .primary { background: var(--feedback-accent); border-color: var(--feedback-accent); color: white; }
+.actions { justify-content: flex-end; margin-top: 16px; }
+.error { color: var(--feedback-accent); }
+.receipt { border-left: 3px solid #426438; padding: 12px; }
+.receipt code { overflow-wrap: anywhere; }
+.dialog a,
+.page a { color: var(--feedback-accent); text-decoration: underline; text-underline-offset: 3px; }
+.list { list-style: none; margin: 16px 0; padding: 0; }
+.item { border-bottom: 1px solid var(--feedback-line); padding: 18px 0; }
+.item p { margin: 8px 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.meta { color: var(--feedback-muted); font-size: 13px; }
+.status { background: var(--feedback-wash); font-size: 13px; padding: 2px 8px; }
+.details { border: 1px solid var(--feedback-line); margin-top: 16px; padding: 16px; }
+.log { padding-left: 20px; }
+.log li { margin-bottom: 12px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.trigger:focus-visible,
+.dialog :focus-visible,
+.page :focus-visible { outline: 3px solid #426438; outline-offset: 3px; }
+.dialog button:disabled,
+.page button:disabled,
+.trigger:disabled { cursor: not-allowed; opacity: .6; }
+
+@media (max-width: 680px) {
+  .dialog { max-height: 92dvh; padding: 20px 16px max(20px, env(safe-area-inset-bottom)); }
+  .page { padding-inline: 16px; }
+}

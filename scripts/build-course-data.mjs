@@ -5,6 +5,8 @@ import {
   parseWeeks,
   splitMeetingLocations,
 } from "./course-schedule-logic.mjs";
+import { createCourseCatalogId } from "./course-catalog-id.mjs";
+import { buildCourseCorePayload } from "./course-core-data.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const sourcePath = resolve(
@@ -12,6 +14,7 @@ const sourcePath = resolve(
   ".codex_tmp/course-workbook-analysis/workbook-data.json",
 );
 const outputPath = resolve(root, "public/data/course-data.json");
+const coreOutputPath = resolve(root, "public/data/course-core.json");
 
 const source = JSON.parse(await readFile(sourcePath, "utf8"));
 const sheets = Object.fromEntries(source.sheets.map((sheet) => [sheet.name, sheet]));
@@ -213,11 +216,12 @@ for (const config of Object.values(termConfig)) {
       const building = parseVenue(location);
       const periods = parsePeriods(timeText);
       if (targetBuilding) roomScheduleRows += 1;
+      const scheduleId =
+        meetingIndex === 0
+          ? legacyId
+          : `${legacyId}-m${meetingIndex + 1}`;
       schedules.push({
-        id:
-          meetingIndex === 0
-            ? legacyId
-            : `${legacyId}-m${meetingIndex + 1}`,
+        id: scheduleId,
         sectionId,
         meetingIndex: meetingIndex + 1,
         sourceRow,
@@ -247,6 +251,7 @@ const colleges = [...new Set(majors.map((major) => major.college))]
   }));
 
 const payload = {
+  catalogId: createCourseCatalogId(schedules),
   generatedAt: new Date().toISOString(),
   source: "专业课程按上下学期拆分.xlsx",
   disclaimer:
@@ -287,6 +292,11 @@ const payload = {
 
 await mkdir(dirname(outputPath), { recursive: true });
 await writeFile(outputPath, `${JSON.stringify(payload)}\n`, "utf8");
+await writeFile(
+  coreOutputPath,
+  `${JSON.stringify(buildCourseCorePayload(payload))}\n`,
+  "utf8",
+);
 
 console.log(
   JSON.stringify(
@@ -304,6 +314,7 @@ console.log(
       publicElectives: payload.publicElectives.length,
       unmatchedClassLabels: payload.quality.unmatchedClassLabels,
       outputPath,
+      coreOutputPath,
     },
     null,
     2,

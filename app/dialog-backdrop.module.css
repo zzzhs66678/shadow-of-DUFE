@@ -1,0 +1,50 @@
+.backdrop {
+  align-items: center;
+  background: rgba(16, 17, 15, .58);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
+  position: fixed;
+  z-index: 100;
+}
+
+.critical {
+  background: rgba(16, 17, 15, .62);
+  z-index: 120;
+}
+
+.actions {
+  background: transparent;
+  color: inherit;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 26px;
+}
+
+.actions button {
+  background: transparent;
+  border: 1px solid var(--dufe-line);
+  color: var(--dufe-ink);
+  min-height: 44px;
+  padding: 0 18px;
+}
+
+.actions button:last-child {
+  background: var(--dufe-red);
+  border-color: var(--dufe-red);
+  color: white;
+}
+
+.actions button:disabled {
+  cursor: not-allowed;
+  opacity: .42;
+}
+
+@media (max-width: 680px) {
+  .backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+}

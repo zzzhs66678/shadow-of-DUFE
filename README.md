@@ -4,7 +4,7 @@
 
 - 正式站：[dufesh.cn](https://dufesh.cn)
 - 技术栈：React、TypeScript、vinext、PostgreSQL、Caddy、Docker
-- 课程数据：由 Excel 离线生成到 `public/data/course-data.json`
+- 课程数据：由 Excel 离线生成完整 `public/data/course-data.json`，并同步生成首页轻量 `public/data/course-core.json`
 - VIP 校园服务：独立的 `xiaoying-executor`，通过主站子路径隔离运行
 
 ## 开始维护
@@ -69,3 +69,24 @@ npm audit --omit=dev --audit-level=high
 4. 切换 release 后检查 HTTPS、健康接口、安全响应头和容器日志。
 
 不得提交密码、Cookie、SSH 私钥、AppSecret、邀请码、验证码、主密钥或本地数据库。
+
+### 生产环境文件
+
+仓库不提供可直接上线的默认密钥。先从以下四份无秘密模板创建服务器文件，并把每份权限设为 `600`：
+
+- `ops/postgres/postgres.env.example` → `/srv/apps/dufesh/shared/config/postgres.env`
+- `services/auth-api/auth.env.example` → `/srv/apps/dufesh/shared/config/auth.env`
+- `xiaoying-executor/xiaoying.env.example` → `/srv/apps/dufesh/shared/config/xiaoying.env`
+- `ops/postgres/backup.env.example` → `/srv/apps/dufesh/shared/config/backup.env`
+
+模板中的密码、pepper、MFA 密钥、小影主密钥和邀请码故意留空；未替换时相应服务或迁移必须失败关闭。各数据库角色使用互不相同的随机密码。`AUTH_WECHAT_MODE` 在真实微信适配和凭据就绪前保持 `disabled`，不得把 mock 当作正式登录。启用账号邮件时把对应投递模式设为 `smtp`，并配置 `AUTH_SMTP_HOST`、端口、安全模式、账号、密码和纯邮箱发件地址；465 使用隐式 TLS，587 仍强制 STARTTLS。
+
+密钥可在管理员本机生成，不把命令输出写入 shell 历史或聊天记录：
+
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
+```
+
+首次发布按 `docs/DEPLOYMENT_CHECKLIST.md` 逐项验证迁移、角色权限、管理员 TOTP、备份恢复、健康检查和回滚；不要仅因容器成功启动就放行。
+
+具体的发布提交绑定、镜像标签、原子切换、管理员一次性初始化与回滚顺序见 `docs/OPERATIONS_RUNBOOK.md`。当前 14 项交付状态见 `docs/FINAL_DELIVERY_REPORT.md`。运维命令只在 CI、staging 和人工审批都通过后执行；本仓库不会自动触发生产部署。

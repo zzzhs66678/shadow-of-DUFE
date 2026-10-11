@@ -1,11 +1,18 @@
 "use client";
 
+import Link from "next/link";
+
 import {
+  lazy,
+  Suspense,
+  useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type CSSProperties,
+  type ReactNode,
 } from "react";
 import {
   DndContext,
@@ -23,14 +30,63 @@ import {
 import {
   clearPersonalSyncMetadata,
   loadPersonalSyncMetadata,
+  mergeInitialPersonalState,
   savePersonalSyncMetadata,
   synchronizePersonalState,
+  normalizeAcademicTrainingPlan,
+  type AcademicSnapshot,
+  type AcademicTrainingPlan,
   type PersonalSyncState,
 } from "./personal-sync";
+import { FormField } from "./FormField";
+import { loadPublishedCourseCore, loadPublishedCourseFull, loadPublishedMaterials } from "./published-catalog";
+import { DataFeedback } from "./DataFeedback";
+import { MomoMark } from "./community/MomoMark";
+import { useModalFocus } from "./use-modal-focus";
+import { activityTimes, activityTimeLabel, activityTimesOverlap, activityStart, activityBlock, activityOccursOn, activityListOrder, clockMinutes, eventWeekDate, validEventTimes, validEventDate } from "./personal-events";
+import { TeacherRecordLink } from "./TeacherRecordLink";
+import { TeachingSectionLinks } from "./TeachingSectionLinks";
+import { authoritativeSchedules, isSameScheduledMeeting, mergePersonalSchedules, scheduledMeetingsOverlap as schedulesOverlap } from "./schedule-reconciliation";
+import { academicCourseOptions } from "./academic-course-options";
+import { calendarDraftChanged } from "./calendar-draft";
+import { scheduleConflictDetails } from "./schedule-conflicts";
+import { summarizeAcademicChanges, type AcademicImportBaseline, type AcademicChangeSummary } from "./academic-change-summary";
+import { AcademicChangeReview, ScheduleConflictReview } from "./HubChangeDetails";
+import scheduleStyles from "./personal-timetable.module.css";
+import academicStyles from "./academic-windows.module.css";
+import courseStyles from "./course-center.module.css";
+import { courseWorkspaceTabs, type CourseWorkspaceTab } from "./course-workspace";
+import { useCourseWorkspace } from "./use-course-workspace";
+import { scoreCourseSearch } from "./course-search";
+import { discoveryKeys, localHref, pushDiscovery, readDiscovery, restoreDiscoveryPosition, roomContextUrl } from "./discovery-navigation";
+import homeStyles from "./home-workspace.module.css";
+import classSetupStyles from "./class-setup.module.css";
+import shellStyles from "./campus-shell.module.css";
+import { CampusWordmark } from "./CampusWordmark";
+import meStyles from "./my-page.module.css";
+import { CampusAlbum } from "./CampusAlbum";
+import { CompetitionsGateway } from "./competitions/CompetitionsGateway";
+import { Whiteboard } from "./whiteboard/Whiteboard";
+import { WallEntry, WallOriginRestore } from "./community/WallEntry";
+import roomFilterStyles from "./room-time-filter.module.css";
+import { groupRoomsByFloor, roomFloor } from "./room-floors";
+import RoomWeekSchedule from "./RoomWeekSchedule";
+import {
+  anonymousPersonalScope,
+  migrateLegacyPersonalStorage,
+  readPersonalStorage,
+  removePersonalStorage,
+  userPersonalScope,
+  writePersonalStorage,
+  type PersonalStorageScope,
+} from "./personal-storage";
 
 type Term = "fall" | "spring";
 type View = "home" | "catalog" | "schedule" | "rooms" | "me";
 type SearchKind = "all" | "course" | "material" | "teacher" | "room";
+const WorkspaceTeachers = lazy(() => import("./teachers/TeacherExplorer").then((module) => ({ default: module.TeacherExplorer })));
+const WorkspaceMaterials = lazy(() => import("./materials/MaterialsExplorer").then((module) => ({ default: module.MaterialsExplorer })));
+const COURSE_CATALOG_ID = /^course-v1:[0-9a-f]{64}$/u;
 
 type Major = { id: string; college: string; name: string; aliases: string[] };
 type Course = {
@@ -53,6 +109,8 @@ type Schedule = {
   sourceRow?: string;
   term: Term;
   courseId: string;
+  courseCode?: string;
+  sectionCode?: string;
   title: string;
   teacher: string;
   weekday: number;
@@ -63,8 +121,10 @@ type Schedule = {
   building: string;
   room: string;
   classNames: string;
+  origin?: "catalog" | "academic";
 };
 type SiteData = {
+  catalogId: string;
   disclaimer: string;
   periods: Array<{ block: number; label: string; short: string; time: string }>;
   buildings: string[];
@@ -80,6 +140,98 @@ type SiteData = {
   schedules: Schedule[];
   quality: { roomScheduleRows: number };
 };
+type CourseCorePayload = {
+  version: 1;
+  catalogId: string;
+  disclaimer: string;
+  periods: SiteData["periods"];
+  buildings: string[];
+  colleges: SiteData["colleges"];
+  majors: Major[];
+  quality: SiteData["quality"];
+  courseTitles: Array<[courseId: string, title: string]>;
+  dictionaries: {
+    teachers: string[];
+    timeTexts: string[];
+    venues: string[];
+    rooms: string[];
+  };
+  schedules: Array<
+    [
+      id: string,
+      term: 0 | 1,
+      courseIndex: number,
+      teacherIndex: number,
+      weekday: number,
+      block: number,
+      weeks: number[] | null,
+      timeTextIndex: number,
+      venueIndex: number,
+      roomIndex: number,
+    ]
+  >;
+};
+
+function inflateCourseCore(payload: CourseCorePayload): SiteData {
+  if (payload.version !== 1) throw new Error("unsupported course core version");
+  if (!COURSE_CATALOG_ID.test(payload.catalogId)) {
+    throw new Error("invalid course catalog identity");
+  }
+  const courses = payload.courseTitles.map(([id, title]) => ({
+    id,
+    title,
+    college: "",
+    category: "",
+    property: "",
+    credits: "",
+    textbook: "",
+    publisher: "",
+    author: "",
+    terms: [],
+    teachers: [],
+  }));
+  const schedules = payload.schedules.map(
+    ([
+      id,
+      encodedTerm,
+      courseIndex,
+      teacherIndex,
+      weekday,
+      block,
+      weeks,
+      timeTextIndex,
+      venueIndex,
+      roomIndex,
+    ]): Schedule => ({
+      id,
+      term: encodedTerm === 0 ? "fall" : "spring",
+      courseId: courses[courseIndex]?.id ?? "",
+      title: courses[courseIndex]?.title ?? "课程",
+      teacher: payload.dictionaries.teachers[teacherIndex] ?? "",
+      weekday,
+      block,
+      periods: [],
+      weeks: weeks ?? [],
+      timeText: payload.dictionaries.timeTexts[timeTextIndex] ?? "",
+      building: payload.dictionaries.venues[venueIndex] ?? "",
+      room: payload.dictionaries.rooms[roomIndex] ?? "",
+      classNames: "",
+    }),
+  );
+
+  return {
+    catalogId: payload.catalogId,
+    disclaimer: payload.disclaimer,
+    periods: payload.periods,
+    buildings: payload.buildings,
+    colleges: payload.colleges,
+    majors: payload.majors,
+    courses,
+    majorCourses: [],
+    schedules,
+    quality: payload.quality,
+  };
+}
 type Profile = {
   entranceYear: number;
   college: string;
@@ -92,6 +244,10 @@ type PersonalActivity = {
   title: string;
   weekday: number;
   block: number;
+  startTime?: string;
+  endTime?: string;
+  date?: string;
+  repeat?: "none" | "weekly";
   location: string;
   notes: string;
   color: "red" | "blue" | "green" | "amber";
@@ -111,6 +267,8 @@ type SavedState = {
   activePlanId: string;
   activities: PersonalActivity[];
   assignments: Assignment[];
+  academicSnapshots: AcademicSnapshot[];
+  trainingPlan: AcademicTrainingPlan | null;
   favoriteRooms: string[];
   recentRooms: string[];
 };
@@ -123,15 +281,45 @@ type AccountDevice = {
   active: boolean;
   current: boolean;
 };
+type AccountNameChange = {
+  id: string;
+  userId: string;
+  requestedUsername: string | null;
+  requestedDisplayName: string | null;
+  status: "pending" | "approved" | "rejected" | "cancelled";
+  reason: string | null;
+  createdAt: string;
+  reviewedAt: string | null;
+};
 type AccountState = {
   status: "loading" | "anonymous" | "authenticated";
-  user: { id: string; displayName: string | null; avatarUrl: string | null } | null;
+  user: {
+    id: string;
+    username?: string | null;
+    displayName: string | null;
+    accountName?: string | null;
+    nameMode?: "name" | "momo";
+    nameModeChangedAt?: string | null;
+    nameModeAvailableAt?: string | null;
+    avatarUrl: string | null;
+    email?: string | null;
+    emailVerified?: boolean;
+    schoolAccount?: string | null;
+    schoolAccountVerified?: boolean;
+    createdAt?: string;
+    lastLoginAt?: string | null;
+    status?: string;
+    role?: "user" | "moderator" | "admin";
+  } | null;
   session: { expiresAt: string; deviceId: string | null } | null;
+  credentialsAvailable: boolean;
+  passwordResetAvailable: boolean;
+  emailVerificationAvailable: boolean;
   wechatAvailable: boolean;
 };
 type CloudSyncStatus = "local" | "syncing" | "synced" | "conflict" | "offline";
 type CalendarEditorRequest =
-  | { kind: "activity"; weekday?: number; block?: number; id?: string }
+  | { kind: "activity"; date?: string; weekday?: number; block?: number; id?: string }
   | { kind: "assignment"; courseId?: string; id?: string };
 type SearchItem = {
   key: string;
@@ -139,18 +327,27 @@ type SearchItem = {
   title: string;
   meta: string;
   course?: Course;
+  material?: Material;
   teacher?: string;
   room?: string;
+  building?: string;
 };
 type Material = {
   id: string;
   courseTitle: string;
   courseIds: string[];
+  teachers?: string[];
+  colleges?: string[];
+  terms?: string[];
+  years?: number[];
+  tags?: string[];
   category: string;
   name: string;
   kind: string;
   extension: string;
   sizeBytes: number;
+  catalogedAt?: string;
+  description?: string;
   previewable: boolean;
   previewUrl: string;
   downloadUrl: string;
@@ -159,26 +356,18 @@ type MaterialManifest = {
   previewLimitBytes: number;
   materials: Material[];
 };
+type MaterialsLoadStatus = "idle" | "loading" | "ready" | "error";
 
-const STORAGE_KEY = "dufesh:student-profile:v2";
 const campusLinks = {
   library:
     "https://web.traceint.com/web/index.html#/pages/index/index?r=1785318814",
   campusCard:
     "https://sso.dufe.edu.cn/app.php/open_apps/person_card/index?sessionid=",
   ginkgo: "https://ginkgostu.dufe.edu.cn/notice/system",
+  ginkgoPlugin: "https://github.com/zzzhs66678/DUFE-Ginkgo-Downloader/releases/download/v0.1.0/DUFE-Ginkgo-Downloader-v0.1.0.zip",
 } as const;
-const xiaoyingServiceUrl = process.env.NEXT_PUBLIC_XIAOYING_URL?.trim() ?? "";
 const weekdayLabels = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 const weekdayShort = ["一", "二", "三", "四", "五", "六", "日"];
-const courseAliases: Record<string, string[]> = {
-  中级财务会计: ["中财"],
-  宏观经济学: ["宏经"],
-  微观经济学: ["微经"],
-  高等数学: ["高数"],
-  概率论与数理统计: ["概统", "概率论"],
-  线性代数: ["线代"],
-};
 const emptySavedState: SavedState = {
   profile: null,
   skipped: false,
@@ -186,9 +375,60 @@ const emptySavedState: SavedState = {
   activePlanId: "default",
   activities: [],
   assignments: [],
+  academicSnapshots: [],
+  trainingPlan: null,
   favoriteRooms: [],
   recentRooms: [],
 };
+
+function normalizeSavedState(value: unknown): SavedState {
+  const parsed =
+    value && typeof value === "object"
+      ? (value as Partial<SavedState>)
+      : {};
+  const plans =
+    Array.isArray(parsed.plans) && parsed.plans.length > 0
+      ? parsed.plans
+      : emptySavedState.plans;
+  const activePlanId = plans.some((plan) => plan.id === parsed.activePlanId)
+    ? parsed.activePlanId!
+    : plans[0].id;
+
+  return {
+    profile: parsed.profile ?? null,
+    skipped: Boolean(parsed.skipped),
+    plans: plans.map((plan) => ({
+      ...plan,
+      scheduleIds: Array.isArray(plan.scheduleIds) ? plan.scheduleIds : [],
+    })),
+    activePlanId,
+    activities: Array.isArray(parsed.activities) ? parsed.activities : [],
+    assignments: Array.isArray(parsed.assignments) ? parsed.assignments : [],
+    academicSnapshots: Array.isArray(parsed.academicSnapshots)
+      ? parsed.academicSnapshots
+      : [],
+    trainingPlan: normalizeAcademicTrainingPlan(parsed.trainingPlan),
+    favoriteRooms: Array.isArray(parsed.favoriteRooms)
+      ? parsed.favoriteRooms
+      : [],
+    recentRooms: Array.isArray(parsed.recentRooms) ? parsed.recentRooms : [],
+  };
+}
+
+function hasMeaningfulSavedState(value: SavedState) {
+  return Boolean(
+    value.profile ||
+      value.skipped ||
+      value.plans.length > 1 ||
+      value.plans.some((plan) => plan.scheduleIds.length > 0) ||
+      value.activities.length > 0 ||
+      value.assignments.length > 0 ||
+      value.academicSnapshots.length > 0 ||
+      value.trainingPlan !== null ||
+      value.favoriteRooms.length > 0 ||
+      value.recentRooms.length > 0,
+  );
+}
 
 function toPersonalSyncState(
   saved: SavedState,
@@ -209,6 +449,8 @@ function fromPersonalSyncState(state: PersonalSyncState): SavedState {
     activePlanId: state.activePlanId,
     activities: state.activities,
     assignments: state.assignments,
+    academicSnapshots: state.academicSnapshots,
+    trainingPlan: state.trainingPlan,
     favoriteRooms: state.favoriteRooms,
     recentRooms: state.recentRooms,
   };
@@ -222,6 +464,7 @@ function todayISO() {
 }
 
 function formatFileSize(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "大小未标注";
   if (bytes >= 1024 * 1024 * 1024) {
     return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
   }
@@ -253,23 +496,112 @@ function scheduleWeeksLabel(schedule: Schedule) {
     .join("、")}周`;
 }
 
-function schedulesOverlap(first: Schedule, second: Schedule) {
-  if (
-    first.weekday !== second.weekday ||
-    first.block !== second.block ||
-    first.term !== second.term
-  ) {
-    return false;
-  }
-  const firstWeeks = first.weeks ?? [];
-  const secondWeeks = second.weeks ?? [];
-  if (!firstWeeks.length || !secondWeeks.length) return true;
-  const secondSet = new Set(secondWeeks);
-  return firstWeeks.some((week) => secondSet.has(week));
+function schedulesFromAcademicSnapshot(
+  snapshot: AcademicSnapshot | undefined,
+): Schedule[] {
+  if (!snapshot) return [];
+  return snapshot.sections.flatMap((section) =>
+    section.meetings.map((meeting, meetingIndex) => ({
+      id: meeting.id,
+      sectionId: section.id,
+      meetingIndex,
+      sourceRow: `${section.courseCode}:${section.sectionCode}`,
+      term: snapshot.term,
+      courseId: `academic:${section.courseCode}:${section.sectionCode}`,
+      courseCode: section.courseCode,
+      sectionCode: section.sectionCode,
+      title: section.courseName,
+      teacher: section.teachers.join(" / "),
+      weekday: meeting.weekday,
+      block: meeting.block,
+      periods: meeting.periods,
+      weeks: meeting.weeks,
+      timeText: meeting.timeText,
+      building: [meeting.campus, meeting.building]
+        .filter(Boolean)
+        .join(" · "),
+      room: meeting.room,
+      classNames: section.sectionCode,
+      origin: "academic" as const,
+    })),
+  );
+}
+
+function academicMeetingCount(snapshot: AcademicSnapshot) {
+  return snapshot.sections.reduce(
+    (count, section) => count + section.meetings.length,
+    0,
+  );
+}
+
+function shanghaiClock(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  return {
+    date: `${value("year")}-${value("month")}-${value("day")}`,
+    time: `${value("hour")}:${value("minute")}`,
+  };
+}
+
+function upcomingAcademicExams(
+  snapshot: AcademicSnapshot | undefined,
+  now = new Date(),
+) {
+  if (snapshot?.examStatus) return [];
+  const current = shanghaiClock(now);
+  return [...(snapshot?.exams ?? [])]
+    .filter(
+      (exam) =>
+        !exam.date ||
+        exam.date > current.date ||
+        (exam.date === current.date &&
+          (!exam.endTime || exam.endTime >= current.time)),
+    )
+    .sort((left, right) =>
+      `${left.date || "9999-12-31"}T${left.startTime || "23:59"}`.localeCompare(
+        `${right.date || "9999-12-31"}T${right.startTime || "23:59"}`,
+      ),
+    );
+}
+
+function latestAcademicSnapshot(
+  snapshots: AcademicSnapshot[],
+  term: Term,
+) {
+  return snapshots
+    .filter((snapshot) => snapshot.term === term)
+    .sort(
+      (left, right) =>
+        right.academicYear.localeCompare(left.academicYear) ||
+        Date.parse(right.importedAt) - Date.parse(left.importedAt),
+    )[0];
+}
+
+function compactAcademicYear(value: string) {
+  const match = value.match(/^20(\d{2})-20(\d{2})$/u);
+  return match ? `${match[1]}–${match[2]}` : value;
 }
 
 function normalize(value: string) {
   return value.toLocaleLowerCase("zh-CN").replace(/[\s·•—_\-（）()]/g, "");
+}
+
+function normalizeCourseCode(value: string) {
+  return value.trim().toLocaleUpperCase("zh-CN");
+}
+
+function formatPlanCredits(value: number | null) {
+  if (value === null) return "学分未标注";
+  return `${Number.isInteger(value) ? value : value.toFixed(1)} 学分`;
 }
 
 function splitClasses(value: string) {
@@ -344,13 +676,6 @@ function courseMark(title: string) {
   return clean.slice(0, 2).toUpperCase();
 }
 
-function aliasesForCourse(course: Course) {
-  const title = normalize(course.title);
-  return Object.entries(courseAliases)
-    .filter(([canonical]) => title.includes(normalize(canonical)))
-    .flatMap(([, aliases]) => aliases);
-}
-
 function viewFromLocation(): View {
   if (typeof window === "undefined") return "home";
   const value = new URL(window.location.href).searchParams.get("view");
@@ -377,34 +702,273 @@ function Wordmark() {
           <br />
           之影
         </strong>
-        <span>学生学习与空间入口</span>
+        <span>课表 · 教室 · 资料</span>
       </div>
+    </div>
+  );
+}
+
+type UiIconName = "home" | "schedule" | "rooms" | "catalog" | "search" | "user";
+
+function UiIcon({ name }: { name: UiIconName }) {
+  const paths: Record<UiIconName, React.ReactNode> = {
+    home: (
+      <>
+        <path d="M3.5 9.5 10 4l6.5 5.5" />
+        <path d="M5.5 8.5v7.5h9V8.5" />
+        <path d="M8.5 16v-4h3v4" />
+      </>
+    ),
+    schedule: (
+      <>
+        <rect x="3.5" y="4.5" width="13" height="12" rx="2" />
+        <path d="M6.5 3v3M13.5 3v3M3.5 8h13M7.5 11h1M11.5 11h1M7.5 14h1M11.5 14h1" />
+      </>
+    ),
+    rooms: (
+      <>
+        <path d="M4 17V5.5L10 3l6 2.5V17" />
+        <path d="M2.5 17h15M7 7h1M12 7h1M7 10h1M12 10h1M8.5 17v-4h3v4" />
+      </>
+    ),
+    catalog: (
+      <>
+        <path d="M4 4.5h5a2 2 0 0 1 2 2V17H6a2 2 0 0 1-2-2Z" />
+        <path d="M16 4.5h-3a2 2 0 0 0-2 2V17h3a2 2 0 0 0 2-2Z" />
+      </>
+    ),
+    search: (
+      <>
+        <circle cx="9" cy="9" r="5" />
+        <path d="m13 13 4 4" />
+      </>
+    ),
+    user: (
+      <>
+        <circle cx="10" cy="7" r="3" />
+        <path d="M4.5 17c.6-3 2.4-4.5 5.5-4.5s4.9 1.5 5.5 4.5" />
+      </>
+    ),
+  };
+
+  return (
+    <svg
+      className="ui-icon"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {paths[name]}
+    </svg>
+  );
+}
+
+function CampusTimeMark() {
+  const now = new Date();
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  const dayProgress = Math.max(0, Math.min(1, (minutes - 360) / 960));
+  const displayTime = new Intl.DateTimeFormat("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(now);
+
+  return (
+    <aside
+      className="campus-time-mark"
+      style={
+        {
+          "--day-progress": dayProgress,
+          "--sun-x": `${4 + dayProgress * 92}%`,
+        } as CSSProperties
+      }
+      aria-label={`校园时间 ${displayTime}`}
+    >
+      <div className="time-mark-head">
+        <span>校园时间</span>
+        <time dateTime={now.toISOString()}>{displayTime}</time>
+      </div>
+      <div className="time-mark-track" aria-hidden="true">
+        <i />
+      </div>
+    </aside>
+  );
+}
+
+function CampusAlmanac() {
+  return <CampusAlbum />;
+}
+
+function KnowledgeTribute() {
+  return (
+    <section className="knowledge-tribute" aria-label="致敬知识分享">
+      <figure className="tribute-photo">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/alexandra-elbakyan.jpg"
+          alt="Alexandra Elbakyan 在 2010 年 Humanity+ 峰会上"
+          width="500"
+          height="669"
+          loading="lazy"
+          decoding="async"
+        />
+        <figcaption>
+          Apneet Jolly ·{" "}
+          <a
+            href="https://commons.wikimedia.org/wiki/File:Alexandra_Elbakyan_(cropped).jpg"
+            target="_blank"
+            rel="noreferrer"
+          >
+            CC BY 2.0
+          </a>
+        </figcaption>
+      </figure>
+      <div className="tribute-copy">
+        <span>致敬 · Alexandra Elbakyan</span>
+        <h2>希望每个人都能更容易地接近知识。</h2>
+        <p>
+          Sci-Hub 创办者。本站只收录可合法分享或已获授权的资料。
+        </p>
+      </div>
+      <details className={meStyles.tributeLinks}>
+        <summary>了解更多 <span aria-hidden="true">›</span></summary>
+        <nav aria-label="了解 Alexandra Elbakyan">
+          <a
+            className="scihub-link"
+            href="https://sci-hub.ru/"
+            target="_blank"
+            rel="noreferrer nofollow"
+          >
+            Sci-Hub ↗
+          </a>
+          <a
+            href="https://www.nature.com/articles/540507a"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Nature · 2016 年度人物 ↗
+          </a>
+          <a
+            href="https://www.eff.org/deeplinks/2023/09/eff-award-winner-alexandra-asanova-elbakyan"
+            target="_blank"
+            rel="noreferrer"
+          >
+            EFF · 科学知识获取奖 ↗
+          </a>
+          <a
+            href="https://elifesciences.org/articles/32822"
+            target="_blank"
+            rel="noreferrer"
+          >
+            eLife · 学术获取研究 ↗
+          </a>
+        </nav>
+      </details>
+    </section>
+  );
+}
+
+function CreatorsCorner({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+      if (event.key === "Tab") {
+        event.preventDefault();
+        closeRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+      previous?.focus();
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="creators-backdrop"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section
+        className="creators-darkroom"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="creators-title"
+      >
+        <button
+          ref={closeRef}
+          className="creators-close"
+          onClick={onClose}
+          aria-label="关闭创作者合影"
+        >
+          关闭 ×
+        </button>
+        <figure>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/dufesh-creators.webp"
+            alt="东财之影的三位创作者在船上合影"
+            width="900"
+            height="1200"
+            decoding="async"
+          />
+        </figure>
+        <div>
+          <span>幕后</span>
+          <h2 id="creators-title">课余，我们仨在做这个网站。</h2>
+        </div>
+      </section>
     </div>
   );
 }
 
 export function DufeHubV2() {
   const [data, setData] = useState<SiteData | null>(null);
-  const [materials, setMaterials] = useState<Material[]>([]);
+  const [dataError, setDataError] = useState(false);
   useEffect(() => {
     let live = true;
-    fetch("/data/course-data.json")
-      .then((response) => response.json() as Promise<SiteData>)
-      .then((payload) => live && setData(payload));
-    fetch("/data/resource-manifest.json")
-      .then((response) =>
-        response.ok
-          ? (response.json() as Promise<MaterialManifest>)
-          : Promise.reject(new Error("resource manifest unavailable")),
-      )
-      .then((payload) => live && setMaterials(payload.materials))
-      .catch(() => {
-        if (live) setMaterials([]);
-      });
+    loadPublishedCourseCore<CourseCorePayload>()
+      .then((payload) => live && setData(inflateCourseCore(payload)))
+      .catch(() => live && setDataError(true));
     return () => {
       live = false;
     };
   }, []);
+  if (dataError) {
+    return (
+      <main className="data-loading data-error" role="alert">
+        <Wordmark />
+        <div>
+          <strong>课程数据没有加载成功</strong>
+          <p>检查网络连接后重新加载页面。</p>
+          <button onClick={() => window.location.reload()}>重新加载</button>
+        </div>
+      </main>
+    );
+  }
   if (!data) {
     return (
       <main className="data-loading" aria-live="polite">
@@ -413,18 +977,28 @@ export function DufeHubV2() {
           <span>正在加载课程数据</span>
           <i />
         </div>
-        <p>稍等一下，马上就好。</p>
       </main>
     );
   }
-  return <HubApp data={data} materials={materials} />;
+  return <HubApp data={data} />;
 }
 
-function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) {
+type FullDataStatus = "idle" | "loading" | "ready" | "error";
+
+function HubApp({ data: initialData }: { data: SiteData }) {
+  const [data, setData] = useState(initialData);
+  const [fullDataStatus, setFullDataStatus] =
+    useState<FullDataStatus>("idle");
+  const fullDataRequestRef = useRef<Promise<void> | null>(null);
   const [view, setView] = useState<View>("home");
   const [term, setTerm] = useState<Term>("fall");
+  const [previewScope, setPreviewScope] = useState("");
   const [saved, setSaved] = useState<SavedState>(emptySavedState);
   const [hydrated, setHydrated] = useState(false);
+  const [personalScope, setPersonalScope] =
+    useState<PersonalStorageScope>(anonymousPersonalScope);
+  const [anonymousImportAvailable, setAnonymousImportAvailable] =
+    useState(false);
   const [cloudUserId, setCloudUserId] = useState("");
   const [cloudSyncReady, setCloudSyncReady] = useState(false);
   const [cloudSyncStatus, setCloudSyncStatus] =
@@ -434,28 +1008,130 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
     status: "loading",
     user: null,
     session: null,
+    credentialsAvailable: true,
+    passwordResetAvailable: false,
+    emailVerificationAvailable: false,
     wechatAvailable: false,
   });
+  const [authRevision, setAuthRevision] = useState(0);
+  useEffect(() => {
+    window.dispatchEvent(new Event("dufesh:auth-changed"));
+  }, [account.status, account.user?.id]);
   const [accountDevices, setAccountDevices] = useState<AccountDevice[]>([]);
   const [onboarding, setOnboarding] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [creatorsOpen, setCreatorsOpen] = useState(false);
+  const personalOwner = `${personalScope.kind === "user" ? personalScope.userId : "anonymous"}:${account.user?.id ?? "anonymous"}`;
+  const personalOwnerRef = useRef(personalOwner);
+  const [academicImportOwner, setAcademicImportOwner] = useState("");
+  const academicImportOpen = academicImportOwner === personalOwner;
+  const setAcademicImportOpen = (open: boolean) => setAcademicImportOwner(open ? personalOwner : "");
+  const [academicUpdates, setAcademicUpdates] = useState<{
+    owner: string; schoolAccount: string; baselines: Record<string, AcademicImportBaseline>;
+    summary: AcademicChangeSummary | null;
+  } | null>(null);
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [materialsStatus, setMaterialsStatus] =
+    useState<MaterialsLoadStatus>("idle");
   const [query, setQuery] = useState("");
   const [searchKind, setSearchKind] = useState<SearchKind>("all");
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  const [college, setCollege] = useState(data.colleges[0]?.name ?? "");
-  const [majorId, setMajorId] = useState(data.colleges[0]?.majorIds[0] ?? "");
-  const [year, setYear] = useState(1);
+  const [selectedMeetingId, setSelectedMeetingId] = useState("");
+  const [college, setCollege] = useState("");
+  const [majorId, setMajorId] = useState("");
+  const [year, setYear] = useState(0);
   const [building, setBuilding] = useState(data.buildings[0]);
   const [date, setDate] = useState(todayISO);
   const [block, setBlock] = useState(currentBlock);
-  const [roomQuery, setRoomQuery] = useState("");
+  const [selectedRoom, setSelectedRoom] = useState("");
+  const [roomFloorChoice, setRoomFloorChoice] = useState("");
   const [coursePoolQuery, setCoursePoolQuery] = useState("");
-  const [calendarEditor, setCalendarEditor] =
-    useState<CalendarEditorRequest | null>(null);
+  const [calendarSession, setCalendarSession] =
+    useState<{ owner: string; request: CalendarEditorRequest } | null>(null);
+  const calendarEditor = calendarSession?.owner === personalOwner ? calendarSession.request : null;
+  const setCalendarEditor = (request: CalendarEditorRequest | null) =>
+    setCalendarSession(request ? { owner: personalOwner, request } : null);
   const savedRef = useRef(saved);
   const termRef = useRef(term);
   const syncQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const materialsRequestRef = useRef<Promise<void> | null>(null);
   const [addFeedback, setAddFeedback] = useState("");
+
+  useEffect(() => {
+    personalOwnerRef.current = personalOwner;
+    // Hidden immediately by the owner guards above; discard rather than resurrect
+    // a previous account's open editor/summary if this account switches back later.
+    queueMicrotask(() => {
+      setCalendarSession((current) => current?.owner === personalOwner ? current : null);
+      setAcademicUpdates((current) => current?.owner === personalOwner ? current : null);
+      setAcademicImportOwner((current) => current === personalOwner ? current : "");
+      setOnboarding(false);
+    });
+  }, [personalOwner]);
+
+  const loadFullData = useCallback(() => {
+    if (fullDataRequestRef.current) return fullDataRequestRef.current;
+    setFullDataStatus("loading");
+    const request = loadPublishedCourseFull<SiteData>(initialData.catalogId)
+      .then((payload) => {
+        if (
+          !COURSE_CATALOG_ID.test(payload.catalogId) ||
+          payload.catalogId !== initialData.catalogId
+        ) {
+          throw new Error("course catalog identity mismatch");
+        }
+        setData(payload);
+        setSelectedCourse((current) =>
+          current
+            ? payload.courses.find((course) => course.id === current.id) ??
+              current
+            : null,
+        );
+        setFullDataStatus("ready");
+      })
+      .catch(() => {
+        setFullDataStatus("error");
+        fullDataRequestRef.current = null;
+      });
+    fullDataRequestRef.current = request;
+    return request;
+  }, [initialData.catalogId]);
+
+  const loadMaterials = useCallback(() => {
+    if (materialsRequestRef.current) return materialsRequestRef.current;
+    setMaterialsStatus("loading");
+    const request = loadPublishedMaterials<MaterialManifest>()
+      .then((payload) => {
+        setMaterials(payload.materials);
+        setMaterialsStatus("ready");
+      })
+      .catch(() => {
+        setMaterials([]);
+        setMaterialsStatus("error");
+        materialsRequestRef.current = null;
+      });
+    materialsRequestRef.current = request;
+    return request;
+  }, []);
+
+  useEffect(() => {
+    if (typeof window.requestIdleCallback === "function") {
+      const handle = window.requestIdleCallback(
+        () => void loadMaterials(),
+        { timeout: 3500 },
+      );
+      return () => window.cancelIdleCallback(handle);
+    }
+    const timer = window.setTimeout(() => void loadMaterials(), 1200);
+    return () => window.clearTimeout(timer);
+  }, [loadMaterials]);
+
+  useEffect(() => {
+    if (commandOpen || selectedCourse) {
+      void loadMaterials();
+      void loadFullData();
+    }
+  }, [commandOpen, loadFullData, loadMaterials, selectedCourse]);
 
   const courses = useMemo(
     () => new Map(data.courses.map((item) => [item.id, item])),
@@ -472,49 +1148,137 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
   const activePlan =
     saved.plans.find((plan) => plan.id === saved.activePlanId) ??
     saved.plans[0];
-  const activeSchedules = useMemo(
+  const manualSchedules = useMemo(
     () =>
       (activePlan?.scheduleIds ?? [])
         .map((id) => schedules.get(id))
-        .filter((item): item is Schedule => Boolean(item)),
-    [activePlan, schedules],
+        .filter((item): item is Schedule => Boolean(item) && item?.term === term),
+    [activePlan, schedules, term],
+  );
+  const academicSnapshot = useMemo(
+    () => latestAcademicSnapshot(saved.academicSnapshots, term),
+    [saved.academicSnapshots, term],
+  );
+  const fallAcademicSnapshot = useMemo(
+    () => latestAcademicSnapshot(saved.academicSnapshots, "fall"),
+    [saved.academicSnapshots],
+  );
+  const springAcademicSnapshot = useMemo(
+    () => latestAcademicSnapshot(saved.academicSnapshots, "spring"),
+    [saved.academicSnapshots],
+  );
+  const officialSchedules = useMemo(
+    () => academicSnapshot ? schedulesFromAcademicSnapshot(academicSnapshot) : undefined,
+    [academicSnapshot],
+  );
+  const activeSchedules = useMemo(
+    () => authoritativeSchedules(officialSchedules, manualSchedules),
+    [officialSchedules, manualSchedules],
+  );
+  const planningSchedules = useMemo(
+    () => mergePersonalSchedules(officialSchedules ?? [], manualSchedules),
+    [officialSchedules, manualSchedules],
+  );
+  const scheduleScope = `${personalScope.kind === "user" ? personalScope.userId : "anonymous"}:${term}:${academicSnapshot?.importedAt ?? "manual"}`;
+  const showPlanning = !academicSnapshot || previewScope === scheduleScope;
+  function setShowPlanning(value: boolean) {
+    setPreviewScope(value ? scheduleScope : "");
+  }
+  const upcomingExams = useMemo(
+    () => upcomingAcademicExams(academicSnapshot),
+    [academicSnapshot],
   );
 
-  useEffect(() => {
-    let restored = emptySavedState;
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        restored = {
-          ...emptySavedState,
-          ...parsed,
-          activities: Array.isArray(parsed.activities) ? parsed.activities : [],
-          assignments: Array.isArray(parsed.assignments)
-            ? parsed.assignments
-            : [],
-          favoriteRooms: Array.isArray(parsed.favoriteRooms)
-            ? parsed.favoriteRooms
-            : [],
-          recentRooms: Array.isArray(parsed.recentRooms)
-            ? parsed.recentRooms
-            : [],
-        };
-      }
-    } catch {
-      /* damaged local data falls back safely */
+  function applyAcademicImport(result: {
+    snapshot: AcademicSnapshot;
+    trainingPlan: AcademicTrainingPlan | null;
+    schoolAccount: string;
+    warning?: AcademicImportWarning;
+    warnings?: AcademicImportWarning[];
+  }) {
+    if (personalOwnerRef.current !== personalOwner) return;
+    const { snapshot, trainingPlan, warning } = result;
+    const importWarnings = [...new Set([
+      ...(result.warnings ?? []),
+      ...(warning ? [warning] : []),
+    ])];
+    setAcademicUpdates((current) => {
+      const sameAccount = current?.owner === personalOwner && current.schoolAccount === result.schoolAccount;
+      const baselines = sameAccount ? current.baselines : {};
+      const key = JSON.stringify([snapshot.id, snapshot.academicYear, snapshot.term]);
+      const baseline: AcademicImportBaseline = { owner: personalOwner, schoolAccount: result.schoolAccount,
+        snapshot, trainingPlan, warnings: importWarnings };
+      const summary = summarizeAcademicChanges(baselines[key] ?? null, baseline);
+      return { owner: personalOwner, schoolAccount: result.schoolAccount, baselines: { ...baselines, [key]: baseline },
+        summary: summary?.changes.length ? summary : sameAccount ? current.summary : null };
+    });
+    const previousSnapshot = saved.academicSnapshots.find(
+      (item) => item.id === snapshot.id,
+    );
+    const effectiveSnapshot =
+      snapshot.examStatus === "unavailable" &&
+      previousSnapshot &&
+      previousSnapshot.exams.length > 0
+        ? {
+            ...snapshot,
+            exams: previousSnapshot.exams,
+            examStatus: "stale" as const,
+          }
+        : snapshot;
+    setSaved((state) => ({
+      ...state,
+      academicSnapshots: [
+        ...state.academicSnapshots.filter((item) => item.id !== effectiveSnapshot.id),
+        effectiveSnapshot,
+      ]
+        .sort((left, right) =>
+          left.academicYear.localeCompare(right.academicYear),
+        )
+        .slice(-12),
+      trainingPlan: trainingPlan ?? state.trainingPlan,
+    }));
+    setTerm(effectiveSnapshot.term);
+    setPreviewScope("");
+    setAcademicImportOpen(false);
+    const details = [`${effectiveSnapshot.sections.length} 门课`];
+    details.push(
+      importWarnings.some((item) => item.startsWith("academic_exam_"))
+        ? effectiveSnapshot.examStatus === "stale"
+          ? "考试沿用上次数据"
+          : "考试安排未同步"
+        : `${effectiveSnapshot.exams.length} 项考试`,
+    );
+    if (trainingPlan) details.push(`培养方案 ${trainingPlan.courses.length} 门课程`);
+    if (importWarnings.includes("academic_plan_not_found")) {
+      details.push("当前账号没有可读取的培养方案");
+    } else if (importWarnings.includes("academic_plan_format_changed")) {
+      details.push("培养方案本次未更新");
+    } else if (importWarnings.includes("academic_plan_unavailable")) {
+      details.push("培养方案暂时未同步");
     }
+    setAddFeedback(
+      `${effectiveSnapshot.academicYear} ${effectiveSnapshot.termLabel}：${details.join("、")}`,
+    );
+    window.setTimeout(() => setAddFeedback(""), 4_500);
+  }
+
+  useEffect(() => {
+    migrateLegacyPersonalStorage(localStorage);
+    const restored = normalizeSavedState(
+      readPersonalStorage(localStorage, anonymousPersonalScope),
+    );
     queueMicrotask(() => {
+      setPersonalScope(anonymousPersonalScope);
       setSaved(restored);
+      savedRef.current = restored;
       setHydrated(true);
-      if (!restored.profile && !restored.skipped) setOnboarding(true);
     });
   }, []);
 
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
-  }, [hydrated, saved]);
+    writePersonalStorage(localStorage, personalScope, saved);
+  }, [hydrated, personalScope, saved]);
 
   useEffect(() => {
     savedRef.current = saved;
@@ -532,38 +1296,83 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           cache: "no-store",
           signal: controller.signal,
         });
-        if (!response.ok) return;
+        if (!response.ok) throw new Error("session_status_unavailable");
         const session = (await response.json()) as {
           authenticated: boolean;
           user: {
             id: string;
+            username?: string | null;
             displayName: string | null;
             avatarUrl: string | null;
+            email?: string | null;
+            emailVerified?: boolean;
+            schoolAccount?: string | null;
+            schoolAccountVerified?: boolean;
+            createdAt?: string;
+            lastLoginAt?: string | null;
+            status?: string;
+            role?: "user" | "moderator" | "admin";
           } | null;
           session?: { expiresAt: string; deviceId: string | null };
-          login?: { wechatAvailable: boolean };
+          login?: {
+            credentialsAvailable?: boolean;
+            passwordResetAvailable?: boolean;
+            emailVerificationAvailable?: boolean;
+            wechatAvailable?: boolean;
+          };
         };
         if (!session.authenticated || !session.user?.id) {
+          setCloudUserId("");
+          setCloudSyncReady(false);
+          setCloudSyncStatus("local");
+          setCloudSyncedAt("");
+          setAccountDevices([]);
+          setAnonymousImportAvailable(false);
           setAccount({
             status: "anonymous",
             user: null,
             session: null,
+            credentialsAvailable:
+              session.login?.credentialsAvailable ?? false,
+            passwordResetAvailable:
+              session.login?.passwordResetAvailable ?? false,
+            emailVerificationAvailable:
+              session.login?.emailVerificationAvailable ?? false,
             wechatAvailable: session.login?.wechatAvailable ?? false,
           });
           return;
         }
 
         const userId = session.user.id;
+        const userScope = userPersonalScope(userId);
+        const localAccountState = normalizeSavedState(
+          readPersonalStorage(localStorage, userScope),
+        );
+        const anonymousState = normalizeSavedState(
+          readPersonalStorage(localStorage, anonymousPersonalScope),
+        );
+        const canImportAnonymous = hasMeaningfulSavedState(anonymousState);
         const localAtStart = toPersonalSyncState(
-          savedRef.current,
+          localAccountState,
           termRef.current,
         );
+        setPersonalScope(userScope);
+        setSaved(localAccountState);
+        savedRef.current = localAccountState;
+        setOnboarding(false);
+        setAnonymousImportAvailable(canImportAnonymous);
         setCloudUserId(userId);
         setCloudSyncStatus("syncing");
         setAccount({
           status: "authenticated",
           user: session.user,
           session: session.session ?? null,
+          credentialsAvailable:
+            session.login?.credentialsAvailable ?? false,
+          passwordResetAvailable:
+            session.login?.passwordResetAvailable ?? false,
+          emailVerificationAvailable:
+            session.login?.emailVerificationAvailable ?? false,
           wechatAvailable: session.login?.wechatAvailable ?? false,
         });
         const devicesResponse = await fetch("/api/auth/devices", {
@@ -580,10 +1389,13 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
         const result = await synchronizePersonalState({
           userId,
           localState: localAtStart,
-          priorMetadata: loadPersonalSyncMetadata(),
+          priorMetadata: loadPersonalSyncMetadata(userId),
           signal: controller.signal,
         });
-        if (!result) return;
+        if (!result) {
+          setCloudSyncStatus("offline");
+          return;
+        }
         savePersonalSyncMetadata(result.metadata);
         setCloudSyncedAt(result.metadata.syncedAt);
         setCloudSyncStatus(
@@ -604,7 +1416,15 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           setCloudSyncStatus("offline");
           setAccount((current) =>
             current.status === "loading"
-              ? { ...current, status: "anonymous" }
+              ? {
+                  status: "anonymous",
+                  user: null,
+                  session: null,
+                  credentialsAvailable: true,
+                  passwordResetAvailable: false,
+                  emailVerificationAvailable: false,
+                  wechatAvailable: false,
+                }
               : current,
           );
           console.warn("个人数据暂未同步，将保留本机数据。");
@@ -613,11 +1433,11 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
     })();
 
     return () => controller.abort();
-  }, [hydrated]);
+  }, [authRevision, hydrated]);
 
   useEffect(() => {
     if (!hydrated || !cloudSyncReady || !cloudUserId) return;
-    const metadata = loadPersonalSyncMetadata();
+    const metadata = loadPersonalSyncMetadata(cloudUserId);
     if (metadata?.pendingConflicts.length) return;
 
     const timer = window.setTimeout(() => {
@@ -632,7 +1452,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           const result = await synchronizePersonalState({
             userId: cloudUserId,
             localState: localAtStart,
-            priorMetadata: loadPersonalSyncMetadata(),
+            priorMetadata: loadPersonalSyncMetadata(cloudUserId),
           });
           if (!result) return;
           savePersonalSyncMetadata(result.metadata);
@@ -664,52 +1484,102 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
   }, [term]);
 
   useEffect(() => {
-    const syncView = () => setView(viewFromLocation());
+    const syncView = () => {
+      setView(viewFromLocation());
+      const state = readDiscovery(window.location.search);
+      setSelectedRoom(state.room);
+      setSelectedCourse(courses.get(state.course) ?? null);
+      setSelectedMeetingId(state.meeting);
+      if (state.building && data.buildings.includes(state.building)) setBuilding(state.building);
+      if (state.date && validEventDate(state.date)) setDate(state.date);
+      if (state.block) setBlock(state.block);
+      setRoomFloorChoice(state.floor);
+      if (state.room) setTerm(state.term);
+    };
+    const restore = () => { syncView(); restoreDiscoveryPosition(); };
     syncView();
-    window.addEventListener("popstate", syncView);
-    return () => window.removeEventListener("popstate", syncView);
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, [courses, data.buildings]);
+
+  const closeCourse = useCallback(() => {
+    if (window.history.state?.hubLayer === "course" && window.history.state?.hubParent) {
+      window.history.back();
+    } else {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("course");
+      url.searchParams.delete("meeting");
+      window.history.replaceState(window.history.state, "", localHref(url));
+      setSelectedCourse(null);
+      setSelectedMeetingId("");
+    }
   }, []);
+
+  useEffect(() => {
+    if (view === "catalog" || view === "schedule" || view === "rooms") {
+      void loadFullData();
+    }
+  }, [loadFullData, view]);
+
+  useEffect(() => {
+    if (onboarding) void loadFullData();
+  }, [loadFullData, onboarding]);
 
   useEffect(() => {
     function handleShortcut(event: KeyboardEvent) {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
+        if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
         setCommandOpen(true);
       }
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && !event.defaultPrevented) {
         setCommandOpen(false);
-        setSelectedCourse(null);
+        if (new URLSearchParams(window.location.search).has("course")) closeCourse();
       }
     }
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
-  }, []);
+  }, [closeCourse]);
 
   const searchItems = useMemo(() => {
     const needle = normalize(query);
     if (!needle) return [] as SearchItem[];
     const items: Array<SearchItem & { score: number }> = [];
-    for (const course of data.courses) {
-      const title = normalize(course.title);
-      const aliases = aliasesForCourse(course).map(normalize);
+    for (const material of materials) {
+      const title = normalize(material.name);
+      const courseTitle = normalize(material.courseTitle);
       const haystack = normalize(
         [
-          course.title,
-          course.id,
-          course.college,
-          ...course.teachers,
-          ...aliases,
+          material.name,
+          material.courseTitle,
+          ...material.courseIds,
+          ...(material.teachers ?? []),
+          ...(material.tags ?? []),
+          material.kind,
+          material.extension,
         ].join(" "),
       );
       if (!haystack.includes(needle)) continue;
-      const score =
-        title === needle
-          ? 0
-          : aliases.includes(needle)
-            ? 1
+      items.push({
+        key: `material-${material.id}`,
+        kind: "material",
+        title: material.name,
+        meta: `${material.courseTitle} · ${material.kind} · ${formatFileSize(material.sizeBytes)}`,
+        material,
+        score:
+          title === needle
+            ? 0
             : title.includes(needle)
-              ? 2
-              : 3;
+              ? 1
+              : courseTitle === needle
+                ? 2
+                : 3,
+      });
+    }
+    for (const course of data.courses) {
+      const relevance = scoreCourseSearch(course, query);
+      if (relevance < 0) continue;
+      const score = (1000 - relevance) / 250;
       items.push({
         key: `course-${course.id}`,
         kind: "course",
@@ -718,15 +1588,6 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
         course,
         score,
       });
-      if (course.textbook)
-        items.push({
-          key: `material-${course.id}`,
-          kind: "material",
-          title: `${course.title} · 教材`,
-          meta: `${course.textbook}${course.author ? ` · ${course.author}` : ""}`,
-          course,
-          score: score + 0.5,
-        });
     }
     const teacherSet = new Set<string>();
     const roomSet = new Set<string>();
@@ -741,7 +1602,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           key: `teacher-${schedule.teacher}`,
           kind: "teacher",
           title: schedule.teacher,
-          meta: "查看任课课程与时间",
+          meta: "查看教师档案、教学班与评价",
           teacher: schedule.teacher,
           score: normalize(schedule.teacher) === needle ? 0 : 2,
         });
@@ -755,6 +1616,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           title: fullRoom,
           meta: "查看今天哪些时段有课",
           room: schedule.room,
+          building: schedule.building,
           score: 2,
         });
       }
@@ -765,7 +1627,7 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
         (a, b) => a.score - b.score || a.title.localeCompare(b.title, "zh-CN"),
       )
       .slice(0, 18);
-  }, [data.courses, data.schedules, query, searchKind]);
+  }, [data.courses, data.schedules, materials, query, searchKind]);
 
   const currentWeek = schoolWeek(new Date(), term);
   const nowWeekday = new Date().getDay() || 7;
@@ -782,8 +1644,12 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
     .sort((a, b) => a.weekday - b.weekday || a.block - b.block)[0];
 
   function go(next: View) {
+    setSelectedRoom("");
+    setSelectedCourse(null);
+    setSelectedMeetingId("");
     setView(next);
     const url = new URL(window.location.href);
+    discoveryKeys.forEach((key) => url.searchParams.delete(key));
     if (next === "home") url.searchParams.delete("view");
     else url.searchParams.set("view", next);
     window.history.pushState({ view: next }, "", `${url.pathname}${url.search}${url.hash}`);
@@ -793,6 +1659,42 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
         ? "auto"
         : "smooth",
     });
+  }
+
+  function openCourse(course: Course, meetingId = "") {
+    const url = new URL(window.location.href);
+    url.searchParams.set("course", course.id);
+    if (meetingId) url.searchParams.set("meeting", meetingId);
+    else url.searchParams.delete("meeting");
+    pushDiscovery(url, "course");
+    setSelectedMeetingId(meetingId);
+    setSelectedCourse(course);
+  }
+
+  function changeRoom(key: string, destination?: { building: string; floor: string }) {
+    if (!key && window.history.state?.hubLayer === "room" && window.history.state?.hubParent) {
+      window.history.back();
+      return;
+    }
+    const parent = roomContextUrl(window.location.href, {
+      building: destination?.building ?? building, date, block,
+      floor: destination?.floor ?? roomFloorChoice, term,
+    });
+    window.history.replaceState(window.history.state, "", localHref(parent));
+    const url = new URL(parent);
+    url.searchParams.delete("course");
+    url.searchParams.delete("meeting");
+    if (key) {
+      url.searchParams.set("view", "rooms");
+      url.searchParams.set("room", key);
+      url.searchParams.set("room-building", key.split("|")[0]);
+      url.searchParams.set("room-floor", roomFloor(key.split("|")[1]));
+      pushDiscovery(url, "room");
+    } else {
+      url.searchParams.delete("room");
+      window.history.replaceState({}, "", localHref(url));
+    }
+    setSelectedRoom(key);
   }
 
   function updateActivePlan(transform: (ids: string[]) => string[]) {
@@ -809,16 +1711,22 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
   function addSchedules(ids: string[], label?: string) {
     const existing = new Set(activePlan?.scheduleIds ?? []);
     const uniqueIds = [...new Set(ids)];
-    const additions = uniqueIds.filter((id) => !existing.has(id));
+    const additions = uniqueIds.filter((id) => {
+      const candidate = schedules.get(id);
+      return candidate && !existing.has(id) && !planningSchedules.some(
+        (active) => isSameScheduledMeeting(candidate, active),
+      );
+    });
     if (additions.length) {
       updateActivePlan((current) => [...current, ...additions]);
+      setShowPlanning(true);
     }
     const schedule = schedules.get(uniqueIds[0]);
     const title = label || schedule?.title || "课程";
     setAddFeedback(
       additions.length
-        ? `${title}的 ${additions.length} 个时段已加入课表`
-        : `${title} 已在课表中`,
+        ? `${title}的 ${additions.length} 个时段已加入${academicSnapshot ? "选课方案" : "课表"}`
+        : `${title} 已在${academicSnapshot ? "教务课表或选课方案" : "课表"}中`,
     );
     window.setTimeout(() => setAddFeedback(""), additions.length ? 1700 : 1300);
     if (additions.length && "vibrate" in navigator) navigator.vibrate(28);
@@ -828,42 +1736,56 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
     addSchedules([id]);
   }
 
-  function openSearch(kind: SearchKind = "all") {
+  function openSearch(kind: SearchKind = "all", searchQuery?: string) {
     setSearchKind(kind);
+    if (searchQuery !== undefined) setQuery(searchQuery.trim());
     setCommandOpen(true);
+  }
+
+  function openOnboarding() {
+    setOnboarding(true);
+    void loadFullData();
   }
 
   function selectSearchItem(item: SearchItem) {
     setCommandOpen(false);
+    if (item.material) {
+      window.location.assign(`/materials/${encodeURIComponent(item.material.id)}`);
+      return;
+    }
     if (item.course) {
-      setSelectedCourse(item.course);
+      openCourse(item.course);
       return;
     }
     if (item.teacher) {
-      setCoursePoolQuery(item.teacher);
-      go("schedule");
+      window.location.assign(`/teachers?q=${encodeURIComponent(item.teacher)}`);
       return;
     }
-    if (item.room) {
-      setRoomQuery(item.room);
+    if (item.room && item.building) {
       go("rooms");
+      setBuilding(item.building);
+      const floor = roomFloor(item.room);
+      setRoomFloorChoice(floor);
+      changeRoom(`${item.building}|${item.room}`, { building: item.building, floor });
     }
   }
 
-  const nav: Array<{ id: View; label: string; icon: string }> = [
-    { id: "schedule", label: "我的课表", icon: "▦" },
-    { id: "rooms", label: "空教室", icon: "◇" },
-    { id: "home", label: "今日学习台", icon: "⌂" },
-    { id: "catalog", label: "课程与资料", icon: "⌕" },
-    { id: "me", label: "我的", icon: "○" },
+  const nav: Array<{ id: View; label: string; icon: UiIconName }> = [
+    { id: "schedule", label: "我的课表", icon: "schedule" },
+    { id: "rooms", label: "空教室", icon: "rooms" },
+    { id: "home", label: "今天", icon: "home" },
+    { id: "catalog", label: "课程", icon: "catalog" },
+    { id: "me", label: "我的", icon: "user" },
   ];
+  const fullDataRequired =
+    view === "catalog" || view === "schedule" || view === "rooms";
 
   return (
     <main className="site-shell hub-v2" id="main-content">
-      <header className="topbar hub-topbar">
-        <button className="brand-button" onClick={() => go("home")}>
-          <span>东财之影</span>
-          <small>今天学什么，去哪里学</small>
+      <WallOriginRestore authenticated={account.status === "authenticated"} />
+      <header className={`topbar hub-topbar ${shellStyles.header}`}>
+        <button className="brand-button" onClick={() => go("home")} aria-label="返回东财之影首页">
+          <CampusWordmark />
         </button>
         <nav aria-label="主导航">
           {nav.map((item) => (
@@ -871,13 +1793,22 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
               key={item.id}
               className={view === item.id ? "active" : ""}
               onClick={() => go(item.id)}
+              aria-label={item.label}
+              aria-current={view === item.id ? "page" : undefined}
             >
-              {item.label}
+              <UiIcon name={item.icon} />
+              <span>{item.label}</span>
             </button>
           ))}
         </nav>
         <div className="hub-top-actions">
-          <button className="command-trigger" onClick={() => openSearch()}>
+          <WallEntry view={view} compact />
+          <button
+            className="command-trigger"
+            aria-label="搜索全站"
+            onClick={() => openSearch()}
+          >
+            <UiIcon name="search" />
             <span>搜索全站</span>
             <kbd>⌘ K</kbd>
           </button>
@@ -885,14 +1816,28 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
             <button
               className={term === "fall" ? "active" : ""}
               onClick={() => setTerm("fall")}
+              title={
+                fallAcademicSnapshot
+                  ? `${fallAcademicSnapshot.academicYear} ${fallAcademicSnapshot.termLabel}`
+                  : "上学期"
+              }
             >
-              <span>☀</span>上学期
+              {fallAcademicSnapshot
+                ? `${compactAcademicYear(fallAcademicSnapshot.academicYear)} 秋`
+                : "上学期"}
             </button>
             <button
               className={term === "spring" ? "active" : ""}
               onClick={() => setTerm("spring")}
+              title={
+                springAcademicSnapshot
+                  ? `${springAcademicSnapshot.academicYear} ${springAcademicSnapshot.termLabel}`
+                  : "下学期"
+              }
             >
-              <span>☾</span>下学期
+              {springAcademicSnapshot
+                ? `${compactAcademicYear(springAcademicSnapshot.academicYear)} 春`
+                : "下学期"}
             </button>
           </div>
           <button
@@ -907,6 +1852,14 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
         </div>
       </header>
 
+      {view !== "home" && view !== "me" && (
+        <ExamRail exams={upcomingExams} onOpen={() => go("schedule")} />
+      )}
+
+      {academicUpdates?.owner === personalOwner && academicUpdates.summary && (
+        <AcademicChangeReview summary={academicUpdates.summary} />
+      )}
+
       {view === "home" && (
         <HomePage
           data={data}
@@ -915,9 +1868,12 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           nextClass={nextClass}
           week={currentWeek}
           term={term}
+          academicSnapshot={academicSnapshot}
+          upcomingExams={upcomingExams}
           onGo={go}
           onSearch={openSearch}
-          onSetup={() => setOnboarding(true)}
+          onSetup={openOnboarding}
+          personalReady={hydrated}
           onEditCalendar={setCalendarEditor}
           onToggleAssignment={(id) =>
             setSaved((state) => ({
@@ -929,7 +1885,10 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
               ),
             }))
           }
-          onDeleteCalendar={(kind, id) =>
+          onDeleteCalendar={(kind, id) => {
+            const activity = saved.activities.find((item) => item.id === id);
+            if (kind === "activity" && !window.confirm(`删除日程“${activity?.title ?? ""}”？${activity?.repeat !== "none" ? "这会删除每周重复的整项日程。" : ""}`)) return;
+            if (kind === "assignment" && !window.confirm(`删除作业“${saved.assignments.find((item) => item.id === id)?.title ?? ""}”？`)) return;
             setSaved((state) => ({
               ...state,
               activities:
@@ -940,11 +1899,33 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
                 kind === "assignment"
                   ? state.assignments.filter((item) => item.id !== id)
                   : state.assignments,
-            }))
-          }
+            }));
+          }}
         />
       )}
-      {view === "catalog" && (
+      {fullDataRequired && fullDataStatus !== "ready" && (
+        <div className="page-wrap deferred-data-page" role="status">
+          <div className="quiet-empty">
+            <b>
+              {fullDataStatus === "error"
+                ? "完整课程数据没有加载成功"
+                : "正在打开完整课程库"}
+            </b>
+            <p>
+              {fullDataStatus === "error"
+                ? "检查网络后重试，今天页面仍可继续使用。"
+                : "可以先看看今天的安排。"}
+            </p>
+            {fullDataStatus === "error" && (
+              <div>
+                <button onClick={() => void loadFullData()}>重新加载</button>
+                <button onClick={() => go("home")}>回到今日</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      {view === "catalog" && fullDataStatus === "ready" && (
         <CatalogPage
           data={data}
           term={term}
@@ -955,31 +1936,40 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           year={year}
           setYear={setYear}
           courses={courses}
-          onCourse={setSelectedCourse}
-          onSearch={openSearch}
+          activeSchedules={activeSchedules}
+          academicSnapshot={academicSnapshot}
+          trainingPlan={saved.trainingPlan}
+          onCourse={openCourse}
+          onAcademicImport={() => setAcademicImportOpen(true)}
         />
       )}
-      {view === "schedule" && (
+      {view === "schedule" && fullDataStatus === "ready" && (
         <SchedulePage
+          key={term}
           data={data}
           term={term}
           saved={saved}
           setSaved={setSaved}
           activePlan={activePlan}
-          activeSchedules={activeSchedules}
+          activeSchedules={showPlanning ? planningSchedules : activeSchedules}
+          showPlanning={showPlanning}
+          onPlanningChange={setShowPlanning}
+          academicSnapshot={academicSnapshot}
+          trainingPlan={saved.trainingPlan}
           courses={courses}
           query={coursePoolQuery}
           setQuery={setCoursePoolQuery}
-          onCourse={setSelectedCourse}
+          onCourse={openCourse}
           onAdd={addSchedule}
           onRemove={(id) =>
             updateActivePlan((ids) => ids.filter((item) => item !== id))
           }
-          onSetup={() => setOnboarding(true)}
+          onSetup={openOnboarding}
+          onOpenCourses={() => go("catalog")}
           onEditCalendar={setCalendarEditor}
         />
       )}
-      {view === "rooms" && (
+      {view === "rooms" && fullDataStatus === "ready" && (
         <RoomsPage
           data={data}
           term={term}
@@ -989,9 +1979,15 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           setDate={setDate}
           block={block}
           setBlock={setBlock}
-          query={roomQuery}
-          setQuery={setRoomQuery}
-          nextClass={nextClass}
+          selectedRoom={selectedRoom}
+          setSelectedRoom={changeRoom}
+          floorChoice={roomFloorChoice}
+          setFloorChoice={setRoomFloorChoice}
+          onLesson={(id) => {
+            const meeting = schedules.get(id);
+            const course = meeting && courses.get(meeting.courseId);
+            if (meeting && course) openCourse(course, meeting.id);
+          }}
           saved={saved}
           setSaved={setSaved}
         />
@@ -1000,25 +1996,57 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
         <MePage
           data={data}
           saved={saved}
-          setSaved={setSaved}
-          onSetup={() => setOnboarding(true)}
+          onClearLocal={() => {
+            if (account.status === "authenticated" && account.user?.id) {
+              clearPersonalSyncMetadata(account.user.id);
+              removePersonalStorage(localStorage, userPersonalScope(account.user.id));
+              // Never put an empty state through the cloud write effect. A fresh
+              // bootstrap pulls the account's cloud state without a local base.
+              window.location.reload();
+              return;
+            }
+            setSaved(emptySavedState);
+          }}
+          onSetup={openOnboarding}
+          academicSnapshot={academicSnapshot}
+          trainingPlan={saved.trainingPlan}
+          upcomingExams={upcomingExams}
+          onOpenExams={() => go("schedule")}
+          onOpenCourses={() => go("catalog")}
           account={account}
           devices={accountDevices}
           syncStatus={cloudSyncStatus}
           syncedAt={cloudSyncedAt}
+          anonymousImportAvailable={anonymousImportAvailable}
           onLogin={() => {
             if (!account.wechatAvailable) return;
             window.location.assign(
-              "/api/auth/wechat/start?returnTo=%2F%3Fview%3Dme",
+              `/api/auth/wechat/start?returnTo=${encodeURIComponent(localHref(new URL(window.location.href)))}`,
             );
           }}
+          onAuthChanged={() => setAuthRevision((current) => current + 1)}
           onLogout={async () => {
             const response = await fetch("/api/auth/logout", {
               method: "POST",
               credentials: "same-origin",
             });
             if (!response.ok) return;
-            clearPersonalSyncMetadata();
+            const signedOutUserId = cloudUserId || account.user?.id || "";
+            if (signedOutUserId) {
+              clearPersonalSyncMetadata(signedOutUserId);
+              removePersonalStorage(
+                localStorage,
+                userPersonalScope(signedOutUserId),
+              );
+            }
+            const anonymousState = normalizeSavedState(
+              readPersonalStorage(localStorage, anonymousPersonalScope),
+            );
+            setPersonalScope(anonymousPersonalScope);
+            setSaved(anonymousState);
+            savedRef.current = anonymousState;
+            setOnboarding(false);
+            setAnonymousImportAvailable(false);
             setCloudUserId("");
             setCloudSyncReady(false);
             setCloudSyncStatus("local");
@@ -1028,6 +2056,9 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
               status: "anonymous",
               user: null,
               session: null,
+              credentialsAvailable: account.credentialsAvailable,
+              passwordResetAvailable: account.passwordResetAvailable,
+              emailVerificationAvailable: account.emailVerificationAvailable,
               wechatAvailable: account.wechatAvailable,
             });
           }}
@@ -1043,7 +2074,14 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
               currentSessionRevoked: boolean;
             };
             if (result.currentSessionRevoked) {
-              clearPersonalSyncMetadata();
+              const revokedUserId = cloudUserId || account.user?.id || "";
+              if (revokedUserId) {
+                clearPersonalSyncMetadata(revokedUserId);
+                removePersonalStorage(
+                  localStorage,
+                  userPersonalScope(revokedUserId),
+                );
+              }
               window.location.reload();
               return;
             }
@@ -1061,8 +2099,22 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
               }),
             });
             if (!response.ok) return false;
-            clearPersonalSyncMetadata();
-            setSaved(emptySavedState);
+            const deletedUserId = cloudUserId || account.user?.id || "";
+            if (deletedUserId) {
+              clearPersonalSyncMetadata(deletedUserId);
+              removePersonalStorage(
+                localStorage,
+                userPersonalScope(deletedUserId),
+              );
+            }
+            const anonymousState = normalizeSavedState(
+              readPersonalStorage(localStorage, anonymousPersonalScope),
+            );
+            setPersonalScope(anonymousPersonalScope);
+            setSaved(anonymousState);
+            savedRef.current = anonymousState;
+            setOnboarding(false);
+            setAnonymousImportAvailable(false);
             setCloudUserId("");
             setCloudSyncReady(false);
             setCloudSyncStatus("local");
@@ -1072,12 +2124,36 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
               status: "anonymous",
               user: null,
               session: null,
+              credentialsAvailable: account.credentialsAvailable,
+              passwordResetAvailable: account.passwordResetAvailable,
+              emailVerificationAvailable: account.emailVerificationAvailable,
               wechatAvailable: account.wechatAvailable,
             });
             return true;
           }}
+          onImportAnonymousData={() => {
+            if (!cloudUserId) return;
+            const anonymousState = normalizeSavedState(
+              readPersonalStorage(localStorage, anonymousPersonalScope),
+            );
+            const merged = mergeInitialPersonalState(
+              toPersonalSyncState(anonymousState, term),
+              toPersonalSyncState(savedRef.current, term),
+            );
+            const mergedSaved = fromPersonalSyncState(merged);
+            setSaved(mergedSaved);
+            savedRef.current = mergedSaved;
+            setOnboarding(false);
+            removePersonalStorage(localStorage, anonymousPersonalScope);
+            setAnonymousImportAvailable(false);
+          }}
+          onKeepAnonymousDataSeparate={() => {
+            setAnonymousImportAvailable(false);
+            setOnboarding(false);
+          }}
           onResolveSyncConflict={(choice) => {
-            const metadata = loadPersonalSyncMetadata();
+            if (!cloudUserId) return;
+            const metadata = loadPersonalSyncMetadata(cloudUserId);
             if (!metadata?.pendingConflicts.length) return;
             savePersonalSyncMetadata({
               ...metadata,
@@ -1098,8 +2174,8 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
       <footer className="hub-footer">
         <Wordmark />
         <div>
-          <strong>非官方学生工具</strong>
-          <p>课程、教室与通知请以东北财经大学官方系统为准。</p>
+          <strong>学生自建 · 非官方</strong>
+          <p>课程、教室和通知如有变动，以学校官方系统为准。</p>
         </div>
         <div className="footer-links">
           <a href="/privacy">隐私政策</a>
@@ -1123,6 +2199,15 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
             辽ICP备2026016653号-1
           </a>
         </div>
+        <button
+          className="backstage-ticket"
+          onClick={() => setCreatorsOpen(true)}
+          aria-haspopup="dialog"
+          aria-label="打开创作者合影"
+        >
+          <span>幕后</span>
+          <b>谁在捣鼓这个网站？</b>
+        </button>
       </footer>
 
       <nav className="mobile-nav" aria-label="手机主导航">
@@ -1131,10 +2216,11 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
             key={item.id}
             className={view === item.id ? "active" : ""}
             onClick={() => go(item.id)}
+            aria-current={view === item.id ? "page" : undefined}
           >
-            <b>{item.icon}</b>
+            <b><UiIcon name={item.icon} /></b>
             <span>
-              {item.label.replace("与资料", "").replace("今日学习台", "今日")}
+              {item.label}
             </span>
           </button>
         ))}
@@ -1147,29 +2233,77 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           kind={searchKind}
           setKind={setSearchKind}
           items={searchItems}
+          loading={fullDataStatus === "idle" || fullDataStatus === "loading" || materialsStatus === "idle" || materialsStatus === "loading"}
+          unavailable={fullDataStatus === "error" || materialsStatus === "error"}
+          onRetry={() => { void loadFullData(); void loadMaterials(); }}
           onSelect={selectSearchItem}
           onClose={() => setCommandOpen(false)}
         />
       )}
-      {selectedCourse && (
+      {selectedCourse && fullDataStatus !== "ready" && (
+        <div
+          className="modal-backdrop drawer-backdrop"
+          onMouseDown={closeCourse}
+        >
+          <aside
+            className="course-drawer"
+            onMouseDown={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="course-data-loading-title"
+          >
+            <header>
+              <span>课程号 {selectedCourse.id}</span>
+              <button
+                onClick={closeCourse}
+                aria-label="关闭课程详情"
+              >
+                ×
+              </button>
+            </header>
+            <div className="quiet-empty">
+              <b id="course-data-loading-title">
+                {fullDataStatus === "error"
+                  ? "教学班数据没有加载成功"
+                  : `正在打开${selectedCourse.title}`}
+              </b>
+              <p>
+                {fullDataStatus === "error"
+                  ? "检查网络后重试，课程详情不会使用不完整数据。"
+                  : "正在加载上课安排…"}
+              </p>
+              {fullDataStatus === "error" && (
+                <button onClick={() => void loadFullData()}>重新加载</button>
+              )}
+            </div>
+          </aside>
+        </div>
+      )}
+      {selectedCourse && fullDataStatus === "ready" && (
         <CourseDrawer
+          key={`${selectedCourse.id}:${selectedMeetingId}`}
+          selectedMeetingId={selectedMeetingId}
+          fromRoom={Boolean(selectedRoom)}
+          catalogId={data.catalogId}
           course={selectedCourse}
           materials={materials.filter(
             (item) =>
-              item.courseIds.includes(selectedCourse.id) ||
-              item.courseTitle === selectedCourse.title,
+              item.courseIds.includes(selectedCourse.id),
           )}
+          materialsStatus={materialsStatus}
           offerings={data.schedules.filter(
             (item) => item.term === term && item.courseId === selectedCourse.id,
           )}
           activeIds={new Set(activePlan?.scheduleIds ?? [])}
-          activeSchedules={activeSchedules}
+          activeSchedules={planningSchedules}
+          addTarget={academicSnapshot ? "选课方案" : "课表"}
           onAddMany={addSchedules}
-          onClose={() => setSelectedCourse(null)}
+          onClose={closeCourse}
         />
       )}
       {calendarEditor && (
         <CalendarEditor
+          key={personalOwner}
           request={calendarEditor}
           saved={saved}
           setSaved={setSaved}
@@ -1184,33 +2318,104 @@ function HubApp({ data, materials }: { data: SiteData; materials: Material[] }) 
           <span>{addFeedback}</span>
         </div>
       )}
-      {onboarding && (
+      {onboarding && fullDataStatus !== "ready" && (
+        <ClassSetupFrame onClose={() => setOnboarding(false)}>
+          <div className={classSetupStyles.preview} role={fullDataStatus === "error" ? "alert" : "status"}>
+            <strong>{fullDataStatus === "error" ? "班级课程暂时没能加载" : "正在读取班级课程…"}</strong>
+            <p>{fullDataStatus === "error" ? "可以重试，或关闭后继续查资料、找空教室。" : "准备好后即可选择具体班级。你也可以随时关闭。"}</p>
+          </div>
+          {fullDataStatus === "error" && <div className={classSetupStyles.actions}>
+            <button onClick={() => void loadFullData()}>重新加载</button>
+            <button onClick={() => setOnboarding(false)}>先关闭</button>
+          </div>}
+        </ClassSetupFrame>
+      )}
+      {onboarding && fullDataStatus === "ready" && (
         <Onboarding
+          key={personalOwner}
           data={data}
           term={term}
           initial={saved.profile}
+          storageHint={account.status === "authenticated" ? "账号同步状态可在“我的”查看。" : "保存在当前浏览器，可随时在“我的”调整。"}
+          onOpenCourses={() => {
+            setOnboarding(false);
+            go("catalog");
+          }}
           onSkip={() => {
-            setSaved((state) => ({ ...state, skipped: true }));
             setOnboarding(false);
           }}
           onSave={(profile, scheduleIds) => {
-            setSaved((state) => ({
-              ...state,
-              profile,
-              skipped: false,
-              plans: state.plans.map((plan) =>
-                plan.id === state.activePlanId
-                  ? { ...plan, scheduleIds }
-                  : plan,
-              ),
-            }));
+            setShowPlanning(true);
+            setSaved((state) => {
+              const current = state.plans.find((plan) => plan.id === state.activePlanId);
+              // Profile-only edits must not clear a timetable. A different class
+              // becomes a new plan instead of overwriting existing selections.
+              if (!profile.className || !scheduleIds.length ||
+                  (current && current.scheduleIds.length === scheduleIds.length && scheduleIds.every((id) => current.scheduleIds.includes(id)))) {
+                return { ...state, profile, skipped: false };
+              }
+              if (current && !current.scheduleIds.length) {
+                return { ...state, profile, skipped: false,
+                  plans: state.plans.map((plan) => plan.id === current.id ? { ...plan, scheduleIds } : plan) };
+              }
+              const id = `class-plan-${Date.now()}`;
+              return { ...state, profile, skipped: false, activePlanId: id,
+                plans: [...state.plans, { id, name: `${profile.className}选课`, scheduleIds }] };
+            });
             setCollege(profile.college);
             setMajorId(profile.majorId);
             setOnboarding(false);
+            setAddFeedback(scheduleIds.length ? `${profile.className} 的课程已添加，可在课表中调整。` : "专业设置已保存，可继续手动选课。");
+            window.setTimeout(() => setAddFeedback(""), 4500);
           }}
         />
       )}
+      {academicImportOpen && (
+        <AcademicImportDialog
+          existing={academicSnapshot}
+          onClose={() => setAcademicImportOpen(false)}
+          onImported={applyAcademicImport}
+        />
+      )}
+      <CreatorsCorner
+        open={creatorsOpen}
+        onClose={() => setCreatorsOpen(false)}
+      />
     </main>
+  );
+}
+
+function ExamRail({
+  exams,
+  onOpen,
+}: {
+  exams: ReturnType<typeof upcomingAcademicExams>;
+  onOpen: () => void;
+}) {
+  const next = exams[0];
+  if (!next) return null;
+  const date = next.date
+    ? new Intl.DateTimeFormat("zh-CN", {
+        month: "numeric",
+        day: "numeric",
+        weekday: "short",
+        timeZone: "Asia/Shanghai",
+      }).format(new Date(`${next.date}T00:00:00+08:00`))
+    : "日期待定";
+  const time = [next.startTime, next.endTime].filter(Boolean).join("–");
+  return (
+    <section className={academicStyles.examRail} aria-label="下一场考试">
+      <span>考试</span>
+      <strong>{next.courseName || next.courseCode}</strong>
+      <p>
+        {date}
+        {time ? ` · ${time}` : " · 时间待定"}
+        {next.location ? ` · ${next.location}` : ""}
+      </p>
+      <button onClick={onOpen}>
+        {exams.length > 1 ? `查看 ${exams.length} 场安排` : "查看安排"}
+      </button>
+    </section>
   );
 }
 
@@ -1221,9 +2426,12 @@ function HomePage({
   nextClass,
   week,
   term,
+  academicSnapshot,
+  upcomingExams,
   onGo,
   onSearch,
   onSetup,
+  personalReady,
   onEditCalendar,
   onToggleAssignment,
   onDeleteCalendar,
@@ -1234,9 +2442,12 @@ function HomePage({
   nextClass?: Schedule;
   week: ReturnType<typeof schoolWeek>;
   term: Term;
+  academicSnapshot?: AcademicSnapshot;
+  upcomingExams: ReturnType<typeof upcomingAcademicExams>;
   onGo: (view: View) => void;
-  onSearch: (kind?: SearchKind) => void;
+  onSearch: (kind?: SearchKind, query?: string) => void;
   onSetup: () => void;
+  personalReady: boolean;
   onEditCalendar: (request: CalendarEditorRequest) => void;
   onToggleAssignment: (id: string) => void;
   onDeleteCalendar: (
@@ -1247,42 +2458,27 @@ function HomePage({
   const profileMajor = data.majors.find(
     (item) => item.id === saved.profile?.majorId,
   );
+  const [searchQuery, setSearchQuery] = useState("");
+  const hasTimetable = activeSchedules.some((item) => item.term === term) || Boolean(academicSnapshot);
+  const hasScheduledCourses = activeSchedules.some((item) => item.term === term);
+  const confirmedEmptyTimetable = academicSnapshot?.sections.length === 0;
   const today = weekdayNumber(new Date());
   const nowBlock = currentBlock();
+  const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
   const todayCourses = activeSchedules
     .filter(
       (item) =>
-        item.weekday === today &&
+        item.term === term && item.weekday === today &&
         week.state === "active" &&
         scheduleOccursInWeek(item, week.week),
     )
     .sort((a, b) => a.block - b.block);
   const todayActivities = saved.activities
-    .filter((item) => item.weekday === today)
-    .sort((a, b) => a.block - b.block);
+    .filter((item) => activityOccursOn(item, todayISO()))
+    .sort((a, b) => activityStart(a) - activityStart(b));
   const todayAssignments = saved.assignments.filter(
     (item) => !item.completed && item.dueDate === todayISO(),
   );
-  const freeByBuilding = data.buildings
-    .map((name) => {
-      const all = data.schedules.filter(
-        (item) => item.term === term && item.building === name && item.room,
-      );
-      const rooms = new Set(all.map((item) => item.room));
-      const busy = new Set(
-        all
-          .filter(
-            (item) =>
-              item.weekday === today &&
-              item.block === nowBlock &&
-              week.state === "active" &&
-              scheduleOccursInWeek(item, week.week),
-          )
-          .map((item) => item.room),
-      );
-      return { name, free: Math.max(rooms.size - busy.size, 0) };
-    })
-    .sort((a, b) => b.free - a.free);
   const dateText = new Intl.DateTimeFormat("zh-CN", {
     month: "long",
     day: "numeric",
@@ -1294,7 +2490,6 @@ function HomePage({
       : week.state === "active"
         ? `第 ${week.week} 周`
         : "学期已结束";
-  const bestBuilding = freeByBuilding[0];
   const nextAssignment = saved.assignments
     .filter((item) => !item.completed)
     .sort(
@@ -1311,7 +2506,7 @@ function HomePage({
     ...todayCourses.map((item) => ({
       key: `course-${item.id}`,
       kind: "course" as const,
-      order: item.block * 100,
+      order: activityStart(item),
       eyebrow: data.periods[item.block - 1]?.short || `第 ${item.block} 大节`,
       title: item.title,
       meta: `${item.building}${item.room} · ${item.teacher || "教师未标注"}`,
@@ -1320,8 +2515,8 @@ function HomePage({
     ...todayActivities.map((item) => ({
       key: `activity-${item.id}`,
       kind: "activity" as const,
-      order: item.block * 100 + 1,
-      eyebrow: data.periods[item.block - 1]?.short || `第 ${item.block} 大节`,
+      order: activityStart(item),
+      eyebrow: activityTimeLabel(item),
       title: item.title,
       meta: `${item.location || "未设置地点"} · 个人日程`,
       item,
@@ -1329,7 +2524,7 @@ function HomePage({
     ...todayAssignments.map((item) => ({
       key: `assignment-${item.id}`,
       kind: "assignment" as const,
-      order: 999,
+      order: 1440,
       eyebrow: "今天截止",
       title: item.title,
       meta: data.courses.find((course) => course.id === item.courseId)?.title ||
@@ -1352,19 +2547,19 @@ function HomePage({
       .map((item) => ({
         key: `future-course-${iso}-${item.id}`,
         kind: "course" as const,
-        order: item.block,
+        order: activityStart(item),
         title: item.title,
         meta: `${data.periods[item.block - 1]?.short} · ${item.building}${item.room}`,
         item,
       }));
     const activities = saved.activities
-      .filter((item) => item.weekday === weekday)
+      .filter((item) => activityOccursOn(item, iso))
       .map((item) => ({
         key: `future-activity-${iso}-${item.id}`,
         kind: "activity" as const,
-        order: item.block + 0.1,
+        order: activityStart(item),
         title: item.title,
-        meta: `${data.periods[item.block - 1]?.short} · ${item.location || "个人日程"}`,
+        meta: `${activityTimeLabel(item)} · ${item.location || "个人日程"}`,
         item,
       }));
     const assignments = saved.assignments
@@ -1372,7 +2567,7 @@ function HomePage({
       .map((item) => ({
         key: `future-assignment-${item.id}`,
         kind: "assignment" as const,
-        order: 99,
+        order: 1440,
         title: item.title,
         meta: `${data.courses.find((course) => course.id === item.courseId)?.title || "未关联课程"} · 截止`,
         item,
@@ -1392,48 +2587,28 @@ function HomePage({
   const primaryClass =
     todayCourses.find((item) => item.block >= nowBlock) ?? nextClass;
   const nextThree = todayAgenda
-    .filter((item) => item.order >= nowBlock * 100 || item.kind === "assignment")
+    .filter((item) => item.kind === "assignment" ||
+      clockMinutes(activityTimes(item.item)[1]) > new Date().getHours() * 60 + new Date().getMinutes())
     .slice(0, 3);
-  const campusSuggestion =
-    assignmentDays !== null && assignmentDays <= 2
-      ? {
-          label: "作业提醒",
-          title:
-            assignmentDays < 0
-              ? `${nextAssignment?.title}已经逾期`
-              : assignmentDays === 0
-                ? `${nextAssignment?.title}今天截止`
-                : `${nextAssignment?.title}只剩 ${assignmentDays} 天`,
-          detail: assignmentCourse?.title || "课程任务",
-          action: "查看作业",
-          onClick: () =>
-            nextAssignment &&
-            onEditCalendar({ kind: "assignment", id: nextAssignment.id }),
-        }
-      : {
-          label: "去自习",
-          title: primaryClass
-            ? `下一站 ${primaryClass.building}${primaryClass.room}`
-            : `${bestBuilding?.name || "教学楼"}当前有 ${bestBuilding?.free ?? 0} 间可用教室`,
-          detail: primaryClass
-            ? `${data.periods[primaryClass.block - 1]?.time} · 提前查看同楼空教室`
-            : `${bestBuilding?.free ?? 0} 间教室在当前节次可用`,
-          action: "查看空教室",
-          onClick: () => onGo("rooms"),
-        };
 
   return (
-    <div className="page-wrap today-page focus-page focus-page-v5">
+    <div className={`page-wrap today-page focus-page focus-page-v5 ${homeStyles.workspace}`} data-has-timetable={hasTimetable}>
       <header className="focus-head focus-head-v5">
-        <div>
-          <span>{dateText}</span>
-          <h1>今日学习台</h1>
+        <div className={homeStyles.dayTitle}>
+          <time className={homeStyles.dateStamp} dateTime={todayISO()} aria-label={dateText}>
+            <small>{new Date().getMonth() + 1}月</small><b>{new Date().getDate()}</b>
+          </time>
+          <div><span>{new Intl.DateTimeFormat("zh-CN", { weekday: "long" }).format(new Date())}</span><h1>今天</h1></div>
         </div>
         <button onClick={() => onSearch()} aria-label="全站搜索">
-          ⌕
+          <UiIcon name="search" />
         </button>
         <p>
-          {term === "fall" ? "上学期" : "下学期"} · {weekText}
+          {academicSnapshot
+            ? `${academicSnapshot.academicYear} ${academicSnapshot.termLabel}`
+            : term === "fall"
+              ? "上学期"
+              : "下学期"} · {weekText}
           {saved.profile && (
             <small>
               {profileMajor?.name ?? "我的专业"} ·{" "}
@@ -1441,59 +2616,136 @@ function HomePage({
             </small>
           )}
         </p>
+        <CampusTimeMark />
       </header>
 
-      <nav className="campus-pins" aria-label="东财常用服务">
-        <span>校园直达</span>
-        <a href={campusLinks.library} target="_blank" rel="noreferrer">
-          <i>座</i>
-          我去图书馆
-          <em>↗</em>
-        </a>
-        <a href={campusLinks.campusCard} target="_blank" rel="noreferrer">
-          <i>码</i>
-          校园码
-          <em>↗</em>
-        </a>
-        <a href={campusLinks.ginkgo} target="_blank" rel="noreferrer">
-          <i>果</i>
-          白果云
-          <em>↗</em>
-        </a>
-      </nav>
+      <section className={homeStyles.discovery} aria-label="课程、教师与资料检索">
+        <div className={homeStyles.discoveryIntro}>
+          <p>{hasTimetable ? "课程、教师和资料，随时查。" : "查课程、看教师评价，找资料和空教室。"}</p>
+          <button onClick={() => onGo("rooms")}><UiIcon name="rooms" />找空教室 <span aria-hidden="true">→</span></button>
+        </div>
+        <form className={homeStyles.search} role="search" onSubmit={(event) => {
+          event.preventDefault();
+          onSearch("all", searchQuery);
+        }}>
+          <span aria-hidden="true"><UiIcon name="search" /></span>
+          <input aria-label="搜索课程、教师和资料" name="home-search" autoComplete="off"
+            value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="搜课程、教师、资料…" />
+          <button type="submit">搜索</button>
+        </form>
+        <div className={homeStyles.browse}>
+          <span>也可以浏览</span>
+          <button onClick={() => onGo("catalog")}>全校课程</button>
+          <Link href="/teachers">教师评价</Link>
+          <Link href="/materials">课程资料</Link>
+        </div>
+      </section>
 
-      {!saved.profile && (
-        <button className="focus-setup" onClick={onSetup}>
-          <span>选择专业和班级后，可直接生成本学期课表</span>
-          <b>开始设置 →</b>
-        </button>
+      {academicSnapshot?.examStatus && (
+        <section className={academicStyles.meExamSummary} aria-label="考试安排未同步">
+          <div>
+            <span>考试安排</span>
+            <strong>
+              {academicSnapshot.examStatus === "stale" ? "本次未更新" : "尚未同步"}
+            </strong>
+            <p>课表已保存；考试页未能确认，请在“课程”中重新更新。</p>
+          </div>
+          <button onClick={() => onGo("catalog")}>去更新</button>
+        </section>
       )}
 
-      <section className="today-command-deck" aria-label="今日关键信息">
-        <article className="now-card">
+      {upcomingExams.length > 0 && (
+        <section className={academicStyles.examNotice} aria-label="最近考试">
           <header>
-            <span>{primaryClass ? "接下来" : "此刻"}</span>
+            <div>
+              <span>最近考试</span>
+              <strong>{upcomingExams.length} 场已安排</strong>
+            </div>
+            <button onClick={() => onGo("schedule")}>全部安排 →</button>
+          </header>
+          <div>
+            {upcomingExams.slice(0, 2).map((exam) => (
+              <article key={exam.id}>
+                <time dateTime={exam.date || undefined}>
+                  <b>
+                    {exam.date
+                      ? new Intl.DateTimeFormat("zh-CN", {
+                          month: "numeric",
+                          day: "numeric",
+                        }).format(new Date(`${exam.date}T00:00:00+08:00`))
+                      : "待定"}
+                  </b>
+                  <small>
+                    {[exam.startTime, exam.endTime]
+                      .filter(Boolean)
+                      .join("–") || "时间待定"}
+                  </small>
+                </time>
+                <div>
+                  <strong>{exam.courseName || exam.courseCode}</strong>
+                  <p>
+                    {exam.location ||
+                      [exam.campus, exam.building, exam.room]
+                        .filter(Boolean)
+                        .join(" · ") ||
+                      "考场待定"}
+                  </p>
+                </div>
+                {(exam.seat || exam.examNumber) && (
+                  <dl>
+                    {exam.seat && (
+                      <div>
+                        <dt>座位</dt>
+                        <dd>{exam.seat}</dd>
+                      </div>
+                    )}
+                    {exam.examNumber && (
+                      <div>
+                        <dt>考号</dt>
+                        <dd>{exam.examNumber}</dd>
+                      </div>
+                    )}
+                  </dl>
+                )}
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="today-command-deck" aria-label="今日关键信息" data-has-agenda={nextThree.length > 0}>
+        {!personalReady ? <article className={homeStyles.setupCard} aria-live="polite"><h2>正在读取你的课表…</h2></article> : !hasTimetable ? (
+          <article className={homeStyles.setupCard}>
+            <div>
+              <span className={homeStyles.setupMark} aria-hidden="true"><UiIcon name="schedule" /></span>
+              <div><h2>添加你的课表</h2><p>按班级带入课程，或自己选择教学班。</p></div>
+            </div>
+            <div className={homeStyles.setupActions}>
+              <button onClick={onSetup}>按班级添加 <span aria-hidden="true">→</span></button>
+              <button onClick={() => onGo("schedule")}>手动选课</button>
+            </div>
+            <small>不登录也能使用；班级课程可按个人选课调整。</small>
+          </article>
+        ) : <article className="now-card">
+          <header>
+            <span>{primaryClass ? primaryClass.weekday === today ? "接下来" : `下一节课 · ${weekdayLabels[primaryClass.weekday % 7]}` : "此刻"}</span>
             <small>
               {primaryClass
                 ? data.periods[primaryClass.block - 1]?.short
-                : "今天没有后续课程"}
+                : hasScheduledCourses || confirmedEmptyTimetable ? "课后时间" : "时段待定"}
             </small>
           </header>
           <div>
-            <i>{primaryClass ? courseMark(primaryClass.title) : "空"}</i>
+            <i aria-hidden="true">{primaryClass ? courseMark(primaryClass.title) : "课"}</i>
             <span>
               <h2>
                 {primaryClass
                   ? primaryClass.title
-                  : saved.profile
-                    ? "把今天留给自己的安排"
-                    : "先告诉我你在哪个班"}
+                  : hasScheduledCourses || confirmedEmptyTimetable ? "今天没有后续课程" : "课程时段尚未安排"}
               </h2>
-              <p>
-                {primaryClass
-                  ? `${data.periods[primaryClass.block - 1]?.time} · ${primaryClass.building}${primaryClass.room}`
-                  : "选好班级后，下一节课会出现在这里。"}
-              </p>
+              {primaryClass && <p>{`${data.periods[primaryClass.block - 1]?.time} · ${primaryClass.building}${primaryClass.room}`}</p>}
+              {!primaryClass && <p>{!hasScheduledCourses && !confirmedEmptyTimetable ? "已导入课程尚未安排上课时段，可在课表中核对。" : "可以安排自习、记录作业，或查找空教室。"}</p>}
               {primaryClass && (
                 <small>
                   {primaryClass.teacher || "教师未标注"} ·{" "}
@@ -1504,11 +2756,11 @@ function HomePage({
           </div>
           <footer>
             <button onClick={() => onGo("schedule")}>打开课表</button>
-            <button onClick={() => onGo("rooms")}>附近空教室</button>
+            <button onClick={() => onEditCalendar({ kind: "activity" })}>添加日程</button>
           </footer>
-        </article>
+        </article>}
 
-        <div className="today-side-stack">
+        {nextAssignment && <div className="today-side-stack">
           {nextAssignment && (
             <button
               className="assignment-glance"
@@ -1528,15 +2780,9 @@ function HomePage({
               <small>{assignmentCourse?.title || "未关联课程"} →</small>
             </button>
           )}
-          <button className="campus-suggestion" onClick={campusSuggestion.onClick}>
-            <span>{campusSuggestion.label}</span>
-            <b>{campusSuggestion.title}</b>
-            <small>{campusSuggestion.detail}</small>
-            <em>{campusSuggestion.action} →</em>
-          </button>
-        </div>
+        </div>}
 
-        <article className="agenda-glance">
+        {nextThree.length > 0 && <article className="agenda-glance">
           <header>
             <div>
               <span>今天余下</span>
@@ -1567,15 +2813,16 @@ function HomePage({
               ))
             ) : (
               <div className="agenda-glance-empty">
-                <b>没有必须处理的事项</b>
-                <small>可以去看看当前可用的自习空间。</small>
+                <b>暂无安排</b>
               </div>
             )}
           </div>
-        </article>
+        </article>}
       </section>
 
-      <section className="focus-timeline unified-agenda">
+      <Whiteboard compact />
+
+      {todayAgenda.length > 0 && <section className="focus-timeline unified-agenda">
         <header>
           <div>
             <span>今天</span>
@@ -1590,7 +2837,7 @@ function HomePage({
             todayAgenda.map((agenda) => (
               <article
                 key={agenda.key}
-                className={`agenda-row ${agenda.kind} ${agenda.order < nowBlock * 100 ? "past" : ""}`}
+                className={`agenda-row ${agenda.kind} ${agenda.kind !== "assignment" && clockMinutes(activityTimes(agenda.item)[1]) <= nowMinutes ? "past" : ""}`}
               >
                 <time>{agenda.eyebrow}</time>
                 <span>
@@ -1632,20 +2879,18 @@ function HomePage({
           ) : (
             <div className="agenda-empty">
               <b>今天还没有安排</b>
-              <p>上课、自习、社团都可以记在这里。</p>
               <button onClick={() => onEditCalendar({ kind: "activity" })}>
-                添加第一项日程
+                添加日程
               </button>
             </div>
           )}
         </div>
-      </section>
+      </section>}
 
-      <section className="week-ahead">
+      {upcomingAgenda.length > 0 && <section className="week-ahead">
         <header>
           <div>
             <span>接下来七天</span>
-            <b>已有安排</b>
           </div>
           <button onClick={() => onGo("schedule")}>管理全部 →</button>
         </header>
@@ -1681,112 +2926,22 @@ function HomePage({
             <p>接下来七天还没有安排。</p>
           )}
         </div>
+      </section>}
+
+      <nav className="campus-pins" aria-label="东财常用服务">
+        <span>校园直达</span>
+        <a href={campusLinks.library} target="_blank" rel="noreferrer">我去图书馆 <em>↗</em></a>
+        <a href={campusLinks.campusCard} target="_blank" rel="noreferrer">校园码 <em>↗</em></a>
+        <a href={campusLinks.ginkgo} target="_blank" rel="noreferrer">白果云 <em>↗</em></a>
+      </nav>
+
+      <section className={homeStyles.personalTools} aria-label="日程与作业">
+        <h2>日程与作业</h2>
+        <button onClick={() => onEditCalendar({ kind: "activity" })}>＋ 添加日程</button>
+        <button onClick={() => onEditCalendar({ kind: "assignment" })}>＋ 记录作业</button>
       </section>
 
-      <section className="study-management">
-        <header>
-          <span>编辑</span>
-          <h2>管理学习安排</h2>
-        </header>
-        <div>
-          <button onClick={() => onGo("schedule")}>
-            <i>表</i>
-            <b>编辑我的课表</b>
-            <span>添加、移除课程或导出图片</span>
-          </button>
-          <button onClick={() => onEditCalendar({ kind: "activity" })}>
-            <i>程</i>
-            <b>添加个人日程</b>
-            <span>自习、社团、考试或生活安排</span>
-          </button>
-          <button onClick={() => onEditCalendar({ kind: "assignment" })}>
-            <i>交</i>
-            <b>添加课程作业</b>
-            <span>记录截止日期并自动倒计时</span>
-          </button>
-        </div>
-      </section>
 
-      <figure className="campus-window">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/images/dufe-campus-commons.webp"
-          alt="东北财经大学校园正门与主楼"
-          width="1280"
-          height="805"
-          loading="lazy"
-          decoding="async"
-        />
-        <figcaption>
-          <span>东北财经大学 · 大连</span>
-          <b>下一节课、空教室和资料，都从今天继续。</b>
-          <a
-            href="https://commons.wikimedia.org/wiki/File:Dongbei_University_of_Finance_%26_Economy.jpg"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Yoshi Canopus · CC BY-SA 3.0 ↗
-          </a>
-        </figcaption>
-      </figure>
-
-      <section className="knowledge-tribute">
-        <figure className="tribute-photo">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/alexandra-elbakyan.jpg"
-            alt="Alexandra Elbakyan 在 2010 年 Humanity+ 峰会上"
-          />
-          <figcaption>
-            Apneet Jolly ·{" "}
-            <a
-              href="https://commons.wikimedia.org/wiki/File:Alexandra_Elbakyan_(cropped).jpg"
-              target="_blank"
-              rel="noreferrer"
-            >
-              CC BY 2.0
-            </a>
-          </figcaption>
-        </figure>
-        <div className="tribute-copy">
-          <span>致敬 · Alexandra Elbakyan</span>
-          <h2>愿知识更容易抵达每一个人。</h2>
-          <p>
-            她在 2011 年创建 Sci-Hub，让学术获取问题进入全球公共讨论。本站致敬她推动知识可及的愿望，只收录可合法分享或已获授权的资料。
-          </p>
-        </div>
-        <nav aria-label="了解 Alexandra Elbakyan">
-          <a
-            className="scihub-link"
-            href="https://sci-hub.ru/"
-            target="_blank"
-            rel="noreferrer nofollow"
-          >
-            Sci-Hub · 访问网站 ↗
-          </a>
-          <a
-            href="https://www.nature.com/articles/540507a"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Nature · 2016 年度人物 ↗
-          </a>
-          <a
-            href="https://www.eff.org/deeplinks/2023/09/eff-award-winner-alexandra-asanova-elbakyan"
-            target="_blank"
-            rel="noreferrer"
-          >
-            EFF · 科学知识获取奖 ↗
-          </a>
-          <a
-            href="https://elifesciences.org/articles/32822"
-            target="_blank"
-            rel="noreferrer"
-          >
-            eLife · 学术获取研究 ↗
-          </a>
-        </nav>
-      </section>
     </div>
   );
 }
@@ -1801,8 +2956,11 @@ function CatalogPage({
   year,
   setYear,
   courses,
+  activeSchedules,
+  academicSnapshot,
+  trainingPlan,
   onCourse,
-  onSearch,
+  onAcademicImport,
 }: {
   data: SiteData;
   term: Term;
@@ -1813,116 +2971,976 @@ function CatalogPage({
   year: number;
   setYear: (v: number) => void;
   courses: Map<string, Course>;
+  activeSchedules: Schedule[];
+  academicSnapshot?: AcademicSnapshot;
+  trainingPlan: AcademicTrainingPlan | null;
   onCourse: (c: Course) => void;
-  onSearch: (kind?: SearchKind) => void;
+  onAcademicImport: () => void;
 }) {
-  const collegeMajors = data.majors.filter((item) => item.college === college);
-  const selected = data.majors.find((item) => item.id === majorId);
-  const items = data.majorCourses
-    .filter(
-      (item) =>
-        item.majorId === majorId && item.term === term && item.year === year,
-    )
-    .map((item) => courses.get(item.courseId))
-    .filter((item): item is Course => Boolean(item))
-    .filter(
-      (item, index, all) =>
-        all.findIndex((other) => other.id === item.id) === index,
-    )
-    .sort((a, b) => a.title.localeCompare(b.title, "zh-CN"));
+  const workspace = useCourseWorkspace(
+    academicSnapshot || activeSchedules.length ? "mine" : "catalog",
+  );
+  const { tab: mode, query } = workspace.state;
+  const [ranking, setRanking] = useState<"personal" | "all">("personal");
+  const [planOpen, setPlanOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  const selectTab = (tab: CourseWorkspaceTab) => {
+    setPlanOpen(false);
+    workspace.update({ tab }, true);
+  };
+  const collegeMajors = data.majors.filter(
+    (item) => !college || item.college === college,
+  );
+  const selectedMajorIds = new Set(
+    majorId
+      ? [majorId]
+      : collegeMajors.map((item) => item.id),
+  );
+  const relatedCourseIds = new Set(
+    data.majorCourses
+      .filter(
+        (item) =>
+          item.term === term &&
+          (!year || item.year === year) &&
+          (!college && !majorId ? true : selectedMajorIds.has(item.majorId)),
+      )
+      .map((item) => item.courseId),
+  );
+  const termCourseIds = new Set(
+    data.majorCourses
+      .filter((item) => item.term === term)
+      .map((item) => item.courseId),
+  );
+  const academicCourseCodes = new Set(
+    (academicSnapshot?.sections ?? []).map((section) =>
+      normalizeCourseCode(section.courseCode),
+    ),
+  );
+  const planCourseCodes = new Set(
+    (trainingPlan?.courses ?? []).map((course) =>
+      normalizeCourseCode(course.courseCode),
+    ),
+  );
+  const catalogMatchesByCode = new Map<string, Course[]>();
+  for (const course of data.courses) {
+    const code = normalizeCourseCode(course.id);
+    catalogMatchesByCode.set(code, [
+      ...(catalogMatchesByCode.get(code) ?? []),
+      course,
+    ]);
+  }
+  const uniqueCatalogCourse = (courseCode: string) => {
+    const matches = catalogMatchesByCode.get(normalizeCourseCode(courseCode));
+    return matches?.length === 1 ? matches[0] : undefined;
+  };
+  const courseSearchScore = (course: Course) => {
+    return scoreCourseSearch(course, query);
+  };
+  const catalogItems = data.courses
+    .filter((course) => {
+      const belongsToCurrentTerm =
+        termCourseIds.has(course.id) || course.terms.includes(term);
+      if (!belongsToCurrentTerm) return false;
+      if ((college || majorId || year) && !relatedCourseIds.has(course.id)) {
+        return false;
+      }
+      return courseSearchScore(course) >= 0;
+    })
+    .sort((left, right) => {
+      const relevance = courseSearchScore(right) - courseSearchScore(left);
+      if (relevance) return relevance;
+      if (ranking === "personal") {
+        const personalScore = (course: Course) => {
+          const code = normalizeCourseCode(course.id);
+          if (academicCourseCodes.has(code)) return 2;
+          if (planCourseCodes.has(code)) return 1;
+          return 0;
+        };
+        const personalized = personalScore(right) - personalScore(left);
+        if (personalized) return personalized;
+      }
+      return left.title.localeCompare(right.title, "zh-CN");
+    });
+  const visibleCatalogItems = showAll
+    ? catalogItems
+    : catalogItems.slice(0, 24);
+  const manualCourseGroups = new Map<string, Schedule[]>();
+  for (const schedule of activeSchedules.filter(
+    (item) => item.origin !== "academic",
+  )) {
+    manualCourseGroups.set(schedule.courseId, [
+      ...(manualCourseGroups.get(schedule.courseId) ?? []),
+      schedule,
+    ]);
+  }
+  const currentPlanCourseCount = (trainingPlan?.courses ?? []).filter((course) =>
+    academicCourseCodes.has(normalizeCourseCode(course.courseCode)),
+  ).length;
+  const importedAt = academicSnapshot
+    ? new Intl.DateTimeFormat("zh-CN", {
+        month: "numeric",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(academicSnapshot.importedAt))
+    : "";
   return (
-    <div className="page-wrap catalog-page-v2">
-      <header className="workspace-heading catalog-heading">
-        <div>
-          <h1>课程与资料</h1>
-          <p>按专业浏览四年课程，或直接搜索课程资料。</p>
+    <div className={`page-wrap catalog-page-v2 ${courseStyles.page}`}>
+      <header className={courseStyles.hero}>
+        <div className={courseStyles.heroCopy}>
+          <span>{academicSnapshot?.termLabel || (term === "fall" ? "上学期" : "下学期")}</span>
+          <h1>课程</h1>
         </div>
-        <button onClick={() => onSearch("material")}>⌕ 搜索资料</button>
+        <section className={courseStyles.importStatus} aria-label="教务数据状态">
+          <span>{academicSnapshot ? "教务数据已导入" : "尚未导入教务数据"}</span>
+          <strong>
+            {academicSnapshot
+              ? `${academicSnapshot.academicYear} ${academicSnapshot.termLabel}`
+              : "本学期课表与考试"}
+          </strong>
+          <small>
+            {academicSnapshot
+              ? `${academicSnapshot.sections.length} 门课 · ${academicSnapshot.examStatus ? (academicSnapshot.examStatus === "stale" ? "考试未更新" : "考试未同步") : `${academicSnapshot.exams.length} 项考试`} · ${importedAt}`
+              : "课表、考试、培养方案一起导入。"}
+          </small>
+          <button onClick={onAcademicImport}>
+            {academicSnapshot ? "更新教务数据" : "导入教务数据"}
+          </button>
+        </section>
       </header>
-      <div className="catalog-workspace">
-        <aside>
-          <label>选择学院</label>
-          {data.colleges.map((item, index) => (
-            <button
-              key={item.name}
-              className={college === item.name ? "active" : ""}
-              onClick={() => {
-                setCollege(item.name);
-                setMajorId(item.majorIds[0] ?? "");
-              }}
-            >
-              <i>{String(index + 1).padStart(2, "0")}</i>
-              <span>{item.name}</span>
-            </button>
-          ))}
-        </aside>
-        <section>
-          <div className="catalog-selector">
+
+      <div className={courseStyles.objectNav} role="tablist" aria-label="课程、教师与资料">
+        {courseWorkspaceTabs.map((tab, index) => (
+          <button
+            key={tab}
+            id={`course-tab-${tab}`}
+            type="button"
+            role="tab"
+            aria-selected={mode === tab}
+            aria-controls={`course-panel-${tab}`}
+            tabIndex={mode === tab ? 0 : -1}
+            className={mode === tab ? courseStyles.activeNav : ""}
+            onClick={() => selectTab(tab)}
+            onKeyDown={(event) => {
+              const targetIndex = event.key === "ArrowRight" ? (index + 1) % 4
+                : event.key === "ArrowLeft" ? (index + 3) % 4
+                  : event.key === "Home" ? 0 : event.key === "End" ? 3 : -1;
+              if (targetIndex < 0) return;
+              event.preventDefault();
+              const target = courseWorkspaceTabs[targetIndex];
+              selectTab(target);
+              document.getElementById(`course-tab-${target}`)?.focus();
+            }}
+          >
+            <span>{{ mine: "我的课程", catalog: "课程库", teachers: "教师评价", materials: "学习资料" }[tab]}</span>
+            {tab === "mine" && <small>{academicSnapshot?.sections.length ?? manualCourseGroups.size} 门</small>}
+          </button>
+        ))}
+      </div>
+
+      {courseWorkspaceTabs.filter((tab) => tab !== mode).map((tab) => (
+        <section key={tab} id={`course-panel-${tab}`} role="tabpanel" aria-labelledby={`course-tab-${tab}`} hidden />
+      ))}
+      <section id={`course-panel-${mode}`} role="tabpanel" aria-labelledby={`course-tab-${mode}`} className={courseStyles.workspacePanel} tabIndex={0}>
+      {!workspace.ready ? <p className={courseStyles.loading} role="status">正在加载…</p> : mode === "teachers" ? (
+        <Suspense fallback={<p className={courseStyles.loading} role="status">正在加载教师…</p>}>
+          <WorkspaceTeachers
+            key={`teachers-${workspace.revision}`}
+            embedded
+            initialQuery={workspace.state.teachers.q}
+            initialCollege={workspace.state.teachers.college}
+            onSearchChange={(teachers) => workspace.update({ teachers })}
+          />
+        </Suspense>
+      ) : mode === "materials" ? (
+        <Suspense fallback={<p className={courseStyles.loading} role="status">正在加载资料…</p>}>
+          <WorkspaceMaterials
+            key={`materials-${workspace.revision}`}
+            embedded
+            initialSearch={workspace.state.materials}
+            onSearchChange={(materials) => workspace.update({ materials })}
+          />
+        </Suspense>
+      ) : <>
+
+      {trainingPlan && (
+        <section className={courseStyles.planStrip} aria-label="培养方案概况">
+          <div>
+            <span>培养方案</span>
+            <strong>{trainingPlan.majorName || trainingPlan.planName}</strong>
+            <p>
+              已修 {formatPlanCredits(trainingPlan.earnedCredits ?? null)} / 要求 {formatPlanCredits(trainingPlan.requiredCredits)}
+              {currentPlanCourseCount > 0 ? ` · 本学期 ${currentPlanCourseCount} 门` : ""}
+            </p>
+          </div>
+          <button
+            aria-expanded={planOpen}
+            onClick={() => setPlanOpen((current) => !current)}
+          >
+            {planOpen ? "收起培养方案" : "查看培养方案课程"}
+          </button>
+        </section>
+      )}
+
+      <label className={courseStyles.searchField}>
+        <span>{planOpen ? "搜索培养方案" : mode === "mine" ? "搜索我的课程" : "搜索全校课程"}</span>
+        <UiIcon name="search" />
+        <input
+          value={query}
+          onChange={(event) => {
+            workspace.update({ query: event.target.value });
+            setShowAll(false);
+          }}
+          placeholder="课程名或课程号"
+        />
+      </label>
+
+      {planOpen && trainingPlan ? (
+        <TrainingPlanWindow
+          key={trainingPlan.planNumber}
+          trainingPlan={trainingPlan}
+          academicSnapshot={academicSnapshot}
+          coursesByCode={new Map([...catalogMatchesByCode].filter(([, matches]) => matches.length === 1).map(([code, matches]) => [code, matches[0]]))}
+          offeringsByCourse={new Map()}
+          activeAcademicCourseCodes={academicCourseCodes}
+          onCourse={onCourse}
+          searchQuery={query}
+          initialFilter="all"
+        />
+      ) : mode === "mine" ? (
+        <section className={courseStyles.results} aria-labelledby="my-course-title">
+          <header className={courseStyles.resultsHeader}>
+            <div>
+              <span>{academicSnapshot ? "正式教务" : "本机课表"}</span>
+              <h2 id="my-course-title">我的课程</h2>
+            </div>
+            <strong>
+              {(academicSnapshot?.sections.length ?? 0) + manualCourseGroups.size} 门
+            </strong>
+          </header>
+          <div className={courseStyles.myCourseRows}>
+            {(academicSnapshot?.sections ?? [])
+              .filter(
+                (section) =>
+                  scoreCourseSearch({ id: section.courseCode, title: section.courseName, teachers: section.teachers }, query) >= 0,
+              )
+              .map((section) => {
+                const catalogCourse = uniqueCatalogCourse(section.courseCode);
+                return (
+                  <article key={section.id}>
+                    <span>正式教务 · {section.sectionCode || "教学班未标注"}</span>
+                    <h3>{section.courseName}</h3>
+                    <p>
+                      {section.courseCode}
+                      {section.teachers.length ? ` · ${section.teachers.join(" / ")}` : ""}
+                    </p>
+                    <div>
+                      {section.meetings.length
+                        ? section.meetings.map((meeting) => (
+                            <small key={meeting.id}>
+                              {weekdayLabels[meeting.weekday % 7]} {meeting.timeText} · {[meeting.building, meeting.room].filter(Boolean).join(" ") || "地点待定"} · {meeting.weekText || "周次待定"}
+                            </small>
+                          ))
+                        : <small>上课时间待定</small>}
+                    </div>
+                    {catalogCourse && (
+                      <button onClick={() => onCourse(catalogCourse)}>课程详情</button>
+                    )}
+                  </article>
+                );
+              })}
+            {[...manualCourseGroups.entries()]
+              .filter(([, meetings]) => {
+                const course = courses.get(meetings[0]?.courseId);
+                return scoreCourseSearch(course ?? { id: meetings[0]?.courseId ?? "", title: meetings[0]?.title ?? "" }, query) >= 0;
+              })
+              .map(([courseId, meetings]) => {
+                const course = courses.get(courseId);
+                return (
+                  <article key={`manual-${courseId}`}>
+                    <span>手动加入课表</span>
+                    <h3>{course?.title || meetings[0]?.title || courseId}</h3>
+                    <p>{courseId}</p>
+                    <div>
+                      {meetings.map((meeting) => (
+                        <small key={meeting.id}>
+                          {weekdayLabels[meeting.weekday % 7]} {meeting.timeText} · {meeting.building}{meeting.room}
+                        </small>
+                      ))}
+                    </div>
+                    {course && <button onClick={() => onCourse(course)}>课程详情</button>}
+                  </article>
+                );
+              })}
+          </div>
+          {!academicSnapshot?.sections.length && !manualCourseGroups.size && (
+            <div className={courseStyles.emptyState}>
+              <strong>还没有本学期课程</strong>
+              <p>可以导入教务课表，也可以去课程库手动选课。</p>
+              <div>
+                <button onClick={onAcademicImport}>导入教务数据</button>
+                <button onClick={() => selectTab("catalog")}>浏览课程库</button>
+              </div>
+            </div>
+          )}
+        </section>
+      ) : (
+        <section className={courseStyles.catalogArea} aria-labelledby="catalog-title">
+          <form className={courseStyles.filters} onSubmit={(event) => event.preventDefault()}>
+            <label>
+              <span>学院</span>
+              <select
+                value={college}
+                onChange={(event) => {
+                  setCollege(event.target.value);
+                  setMajorId("");
+                  setShowAll(false);
+                }}
+              >
+                <option value="">全部学院</option>
+                {data.colleges.map((item) => (
+                  <option key={item.name} value={item.name}>{item.name}</option>
+                ))}
+              </select>
+            </label>
             <label>
               <span>专业</span>
               <select
                 value={majorId}
-                onChange={(event) => setMajorId(event.target.value)}
+                onChange={(event) => {
+                  setMajorId(event.target.value);
+                  setShowAll(false);
+                }}
               >
+                <option value="">全部专业</option>
                 {collegeMajors.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
+                  <option key={item.id} value={item.id}>{item.name}</option>
                 ))}
               </select>
             </label>
-            <div>
-              {[1, 2, 3, 4].map((item) => (
+            <fieldset>
+              <legend>年级</legend>
+              {[0, 1, 2, 3, 4].map((item) => (
                 <button
+                  type="button"
                   key={item}
-                  className={year === item ? "active" : ""}
-                  onClick={() => setYear(item)}
+                  aria-pressed={year === item}
+                  onClick={() => {
+                    setYear(item);
+                    setShowAll(false);
+                  }}
                 >
-                  大{"一二三四"[item - 1]}
+                  {item === 0 ? "全部" : `大${"一二三四"[item - 1]}`}
                 </button>
               ))}
+            </fieldset>
+          </form>
+          <header className={courseStyles.resultsHeader}>
+            <div>
+              <span>课程库</span>
+              <h2 id="catalog-title">
+                {majorId
+                  ? data.majors.find((item) => item.id === majorId)?.name
+                  : college || "全校课程"}
+              </h2>
             </div>
-          </div>
-          <div className="major-summary">
-            <p>{college}</p>
-            <h2>{selected?.name}</h2>
-            <span>
-              {term === "fall" ? "上学期" : "下学期"} · 大{"一二三四"[year - 1]}{" "}
-              · {items.length} 门课程
-            </span>
-          </div>
-          <div className="course-card-grid">
-            {items.map((course, index) => (
-              <button key={course.id} onClick={() => onCourse(course)}>
-                <i>{courseMark(course.title)}</i>
-                <span>
-                  <small>{course.property || course.category || "课程"}</small>
-                  <strong>{course.title}</strong>
-                  <p>
-                    {course.teachers.slice(0, 2).join(" / ") || "查看课程信息"}
-                  </p>
-                </span>
-                <b>{String(index + 1).padStart(2, "0")}</b>
+            <div className={courseStyles.rankSwitch} aria-label="课程排序">
+              <button
+                aria-pressed={ranking === "personal"}
+                onClick={() => setRanking("personal")}
+              >
+                与我相关
               </button>
-            ))}
-          </div>
-          {!items.length && (
-            <div className="quiet-empty">
-              <b>没找到这门课</b>
-              <p>切换年级或学期继续查看。</p>
+              <button
+                aria-pressed={ranking === "all"}
+                onClick={() => setRanking("all")}
+              >
+                全校相关
+              </button>
             </div>
+          </header>
+          <p className={courseStyles.resultCount} aria-live="polite">
+            {catalogItems.length} 门课程
+          </p>
+          <div className={courseStyles.courseRows}>
+            {visibleCatalogItems.map((course) => {
+              const code = normalizeCourseCode(course.id);
+              const isCurrent = academicCourseCodes.has(code);
+              const isPlan = planCourseCodes.has(code);
+              return (
+                <article key={course.id}>
+                  <i aria-hidden="true">{courseMark(course.title)}</i>
+                  <div>
+                    <span>{course.property || course.category || "课程"}</span>
+                    <strong>{course.title}</strong>
+                    <p>
+                      {course.id}
+                      {course.teachers.length ? ` · ${course.teachers.slice(0, 2).join(" / ")}` : ""}
+                    </p>
+                  </div>
+                  <b data-current={isCurrent || undefined}>
+                    {isCurrent ? "本学期" : isPlan ? "培养方案" : ""}
+                  </b>
+                  <button onClick={() => onCourse(course)}>查看课程</button>
+                </article>
+              );
+            })}
+          </div>
+          {!catalogItems.length && (
+            <p className={courseStyles.empty}>没有找到课程，试试清空筛选或换个关键词。</p>
+          )}
+          {!showAll && catalogItems.length > visibleCatalogItems.length && (
+            <button
+              className={courseStyles.moreButton}
+              onClick={() => setShowAll(true)}
+            >
+              显示其余 {catalogItems.length - visibleCatalogItems.length} 门
+            </button>
           )}
         </section>
-      </div>
+      )}
+      </>}
+      </section>
     </div>
   );
 }
 
+function academicImportErrorMessage(code: string) {
+  const messages: Record<string, string> = {
+    academic_credentials_invalid: "请填写完整的教务账号和密码。",
+    academic_invalid_credentials: "教务账号或密码不正确。",
+    academic_sms_invalid: "短信验证码不正确或已经失效。",
+    academic_sms_destination_invalid: "请填写正确的手机号。",
+    academic_sms_phone_invalid: "手机号与学校账号绑定信息不一致。",
+    academic_sms_phone_unavailable: "学校账号没有可用手机号，请先在统一用户中心补充。",
+    academic_sms_not_sent: "请先获取短信验证码。",
+    academic_sms_send_failed: "学校短信验证码暂时发送失败，请稍后重试。",
+    academic_sso_verification_invalid: "请先完成学校拼图验证。",
+    academic_sso_protocol_changed: "暂时无法完成学校登录，请稍后再试。",
+    academic_transaction_expired: "本次教务登录已经超时，请重新连接。",
+    academic_additional_auth_required:
+      "学校要求额外验证，目前还不支持这一步，暂时无法导入。",
+    academic_session_not_ready:
+      "VPN 已登录，但教务系统没有返回课表，请稍后再试。",
+    academic_format_changed:
+      "课表暂时读不完整，本次未导入，已有课表未改动。",
+    academic_exam_format_changed:
+      "考试安排暂时读不完整。课表照常导入，考试标为未同步。",
+    academic_exam_unavailable:
+      "暂时连不上考试查询。课表照常导入，考试标为未同步。",
+    academic_plan_not_found: "当前学生账号没有可读取的培养方案。",
+    academic_plan_format_changed:
+      "培养方案暂时读不完整，本次未更新培养方案。",
+    academic_plan_unavailable:
+      "暂时连不上培养方案查询，课表和考试会继续导入。",
+    academic_protocol_changed:
+      "暂时无法完成学校登录，请稍后再试。",
+    academic_timetable_empty: "教务系统返回的本学期课表为空。",
+    academic_upstream_timeout: "学校系统响应超时，请稍后再试。",
+    academic_upstream_unavailable: "学校 VPN 或教务系统当前不可用。",
+    academic_rate_limit_exceeded: "尝试次数较多，请五分钟后再试。",
+    academic_import_unavailable: "教务导入暂不可用，请稍后再试。",
+    academic_request_invalid: "本次导入请求已失效，请重新连接。",
+    academic_response_invalid: "学校登录后的跳转异常，请重新连接后再试。",
+    academic_login_failed: "学校没有确认登录，请重新连接。",
+    untrusted_origin: "当前页面无法发起教务导入，请刷新后重试。",
+    academic_import_failed: "服务返回了无法识别的结果，请重新连接。",
+  };
+  return messages[code] ?? "导入没有完成，请稍后重试。";
+}
+
+type AcademicSsoChallenge = {
+  backgroundImage: string;
+  pieceImage: string;
+  width: number;
+  height: number;
+  pieceWidth: number;
+  maxOffset: number;
+};
+
+type AcademicImportWarning =
+  | "academic_exam_format_changed"
+  | "academic_exam_unavailable"
+  | "academic_plan_not_found"
+  | "academic_plan_format_changed"
+  | "academic_plan_unavailable";
+
+function AcademicImportDialog({
+  existing,
+  onClose,
+  onImported,
+}: {
+  existing?: AcademicSnapshot;
+  onClose: () => void;
+  onImported: (result: {
+    snapshot: AcademicSnapshot;
+    trainingPlan: AcademicTrainingPlan | null;
+    schoolAccount: string;
+    warning?: AcademicImportWarning;
+    warnings?: AcademicImportWarning[];
+  }) => void;
+}) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [smsCode, setSmsCode] = useState("");
+  const [transactionId, setTransactionId] = useState("");
+  const [maskedPhone, setMaskedPhone] = useState("");
+  const [smsDestination, setSmsDestination] = useState<"" | "enter" | "choose">("");
+  const [smsPhone, setSmsPhone] = useState("");
+  const [smsPhoneIndex, setSmsPhoneIndex] = useState("0");
+  const [phoneOptions, setPhoneOptions] = useState<
+    Array<{ index: number; label: string }>
+  >([]);
+  const [ssoChallenge, setSsoChallenge] = useState<AcademicSsoChallenge>();
+  const [ssoOffset, setSsoOffset] = useState(0);
+  const [ssoTouched, setSsoTouched] = useState(false);
+  const [importRetryAvailable, setImportRetryAvailable] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState("");
+
+  async function submit(
+    endpoint:
+      | "/api/auth/academic/connect"
+      | "/api/auth/academic/sms/send"
+      | "/api/auth/academic/sms"
+      | "/api/auth/academic/sso",
+    body: Record<string, string>,
+  ) {
+    setBusy(true);
+    setFeedback("");
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const result = (await response.json()) as
+        | {
+            status: "sms_destination_required";
+            transactionId: string;
+            destination: "enter" | "choose";
+            phoneOptions: Array<{ index: number; label: string }>;
+          }
+        | {
+            status: "sms_required";
+            transactionId: string;
+            maskedPhone: string;
+          }
+        | {
+            status: "sso_verification_required";
+            transactionId: string;
+            challenge: AcademicSsoChallenge;
+            verificationFailed?: boolean;
+          }
+        | {
+            status: "imported";
+            snapshot: AcademicSnapshot;
+            trainingPlan: AcademicTrainingPlan;
+          }
+        | {
+            status: "partial_imported";
+            snapshot: AcademicSnapshot;
+            trainingPlan: AcademicTrainingPlan | null;
+            warning: AcademicImportWarning;
+            warnings?: AcademicImportWarning[];
+          }
+        | { error: string; retryable?: boolean; stage?: string };
+      if (!response.ok || "error" in result) {
+        const retryable = "error" in result && result.retryable === true;
+        const errorCode =
+          "error" in result ? result.error : "academic_import_failed";
+        if (
+          errorCode === "academic_transaction_expired" ||
+          errorCode === "academic_request_invalid"
+        ) {
+          restart();
+          setFeedback(academicImportErrorMessage(errorCode));
+          return;
+        }
+        const importStageReached =
+          "stage" in result &&
+          [
+            "timetable_fetch",
+            "timetable_parse",
+            "exam_fetch",
+            "exam_parse",
+            "plan_fetch",
+            "plan_parse",
+          ].includes(
+            result.stage ?? "",
+          );
+        if (retryable && ssoChallenge && importStageReached) {
+          setSsoChallenge(undefined);
+          setImportRetryAvailable(true);
+        } else {
+          setImportRetryAvailable(ssoChallenge ? false : retryable);
+        }
+        setFeedback(
+          retryable && ssoChallenge && importStageReached
+            ? `${academicImportErrorMessage(errorCode)} 学校登录仍有效，可直接重试读取。`
+            : retryable && ssoChallenge
+            ? "学校验证请求中断，请再提交一次拼图。"
+            : retryable
+            ? "学校登录仍有效，可直接重试读取。"
+            : academicImportErrorMessage(errorCode),
+        );
+        return;
+      }
+      if (result.status === "sms_destination_required") {
+        setImportRetryAvailable(false);
+        setTransactionId(result.transactionId);
+        setSmsDestination(result.destination);
+        setPhoneOptions(result.phoneOptions);
+        setSmsPhone("");
+        setSmsPhoneIndex(String(result.phoneOptions[0]?.index ?? 0));
+        setSmsCode("");
+        return;
+      }
+      if (result.status === "sms_required") {
+        setImportRetryAvailable(false);
+        setTransactionId(result.transactionId);
+        setSmsDestination("");
+        setMaskedPhone(result.maskedPhone);
+        setSmsCode("");
+        return;
+      }
+      if (result.status === "sso_verification_required") {
+        setImportRetryAvailable(false);
+        setTransactionId(result.transactionId);
+        setSmsDestination("");
+        setSsoChallenge(result.challenge);
+        setSsoOffset(0);
+        setSsoTouched(false);
+        setFeedback(
+          result.verificationFailed ? "位置没有对齐，请再试一次。" : "",
+        );
+        return;
+      }
+      if (result.status === "partial_imported") {
+        onImported({
+          snapshot: result.snapshot,
+          trainingPlan: result.trainingPlan,
+          schoolAccount: username.trim(),
+          warning: result.warning,
+          warnings: result.warnings,
+        });
+        return;
+      }
+      onImported({
+        snapshot: result.snapshot,
+        trainingPlan: result.trainingPlan,
+        schoolAccount: username.trim(),
+      });
+    } catch {
+      setFeedback("网络连接中断，教务密码没有保存，请重新尝试。");
+    } finally {
+      setPassword("");
+      setBusy(false);
+    }
+  }
+
+  function restart() {
+    setTransactionId("");
+    setSmsDestination("");
+    setMaskedPhone("");
+    setSmsPhone("");
+    setSmsPhoneIndex("0");
+    setPhoneOptions([]);
+    setSsoChallenge(undefined);
+    setSsoOffset(0);
+    setSsoTouched(false);
+    setSmsCode("");
+    setImportRetryAvailable(false);
+    setFeedback("");
+  }
+
+  return (
+    <div
+      className="modal-backdrop academic-import-backdrop"
+      onMouseDown={() => !busy && onClose()}
+    >
+      <section
+        className="academic-import-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="academic-import-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <header>
+          <div>
+            <span>教务导入</span>
+            <h2 id="academic-import-title">
+              {ssoChallenge
+                ? "完成学校验证"
+                : smsDestination
+                ? "选择短信号码"
+                : transactionId
+                  ? importRetryAvailable
+                    ? "继续读取教务数据"
+                    : "输入短信验证码"
+                  : "导入教务数据"}
+            </h2>
+          </div>
+          <button onClick={onClose} disabled={busy} aria-label="关闭教务导入">
+            ×
+          </button>
+        </header>
+
+        {!transactionId ? (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void submit("/api/auth/academic/connect", {
+                username,
+                password,
+              });
+            }}
+          >
+            {existing && (
+              <p className="academic-import-current">
+                当前：{existing.academicYear} {existing.termLabel} ·{" "}
+                {existing.sections.length} 门课 · {academicMeetingCount(existing)} 个时段 · {existing.examStatus ? (existing.examStatus === "stale" ? "考试未更新" : "考试未同步") : `${existing.exams.length} 项考试`}
+              </p>
+            )}
+            <FormField label="教务账号" hint="填写学校学号，不是本站用户名。">
+              <input
+                name="academic-username"
+                autoComplete="off"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                maxLength={80}
+                required
+              />
+            </FormField>
+            <FormField
+              label="教务密码"
+              hint="仅用于本次导入，不会保存。"
+            >
+              <input
+                name="academic-password"
+                type="password"
+                autoComplete="off"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                maxLength={256}
+                required
+              />
+            </FormField>
+            {feedback && <p className="academic-import-error" role="alert">{feedback}</p>}
+            <button type="submit" disabled={busy || !username.trim() || !password}>
+              {busy ? "正在登录并读取教务…" : existing ? "更新教务数据" : "登录并自动导入"}
+            </button>
+            <small className="academic-import-note">
+              通过学校 VPN 登录，可能需要短信或拼图验证。本站只保存课表、考试和培养方案。
+            </small>
+          </form>
+        ) : smsDestination ? (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void submit("/api/auth/academic/sms/send", {
+                transactionId,
+                ...(smsDestination === "enter"
+                  ? { phone: smsPhone }
+                  : { phoneIndex: smsPhoneIndex }),
+              });
+            }}
+          >
+            <p className="academic-import-current">
+              {smsDestination === "enter"
+                ? "学校账号未返回绑定号码，请填写接收验证码的手机号。"
+                : "选择一个学校账号中的号码。"}
+            </p>
+            {smsDestination === "enter" ? (
+              <FormField
+                label="手机号"
+                hint="仅用于本次学校验证，不会保存。"
+              >
+                <input
+                  name="academic-sms-phone"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  value={smsPhone}
+                  onChange={(event) => setSmsPhone(event.target.value.slice(0, 30))}
+                  maxLength={30}
+                  required
+                  autoFocus
+                />
+              </FormField>
+            ) : (
+              <FormField label="接收号码">
+                <select
+                  name="academic-sms-phone-option"
+                  value={smsPhoneIndex}
+                  onChange={(event) => setSmsPhoneIndex(event.target.value)}
+                  autoFocus
+                >
+                  {phoneOptions.map((option) => (
+                    <option key={option.index} value={option.index}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+            )}
+            {feedback && <p className="academic-import-error" role="alert">{feedback}</p>}
+            <button
+              type="submit"
+              disabled={
+                busy ||
+                (smsDestination === "enter"
+                  ? smsPhone.trim().length < 6
+                  : phoneOptions.length === 0)
+              }
+            >
+              {busy ? "正在发送…" : "发送验证码"}
+            </button>
+            <button
+              className="academic-import-restart"
+              type="button"
+              disabled={busy}
+              onClick={restart}
+            >
+              返回重新登录
+            </button>
+          </form>
+        ) : ssoChallenge ? (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void submit("/api/auth/academic/sso", {
+                transactionId,
+                verifyCode: String(ssoOffset),
+              });
+            }}
+          >
+            <p className="academic-import-current">
+              拖动拼图，使图块对准缺口。
+            </p>
+            <div
+              className="academic-sso-puzzle"
+              style={
+                {
+                  "--academic-piece-left": `${(ssoOffset / ssoChallenge.width) * 100}%`,
+                  "--academic-piece-width": `${(ssoChallenge.pieceWidth / ssoChallenge.width) * 100}%`,
+                  aspectRatio: `${ssoChallenge.width} / ${ssoChallenge.height}`,
+                } as CSSProperties
+              }
+            >
+              {/* The school returns short-lived data URLs that cannot use the image optimizer. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={ssoChallenge.backgroundImage} alt="学校验证拼图" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className="academic-sso-piece"
+                src={ssoChallenge.pieceImage}
+                alt=""
+              />
+            </div>
+            <label className="academic-sso-slider">
+              <span>拖动图块</span>
+              <input
+                type="range"
+                min="0"
+                max={ssoChallenge.maxOffset}
+                step="1"
+                value={ssoOffset}
+                onChange={(event) => {
+                  setSsoOffset(Number(event.target.value));
+                  setSsoTouched(true);
+                }}
+                aria-label="拖动拼图图块"
+              />
+            </label>
+            {feedback && <p className="academic-import-error" role="alert">{feedback}</p>}
+            <button type="submit" disabled={busy || !ssoTouched}>
+              {busy ? "正在验证并读取…" : "验证并完成导入"}
+            </button>
+            <button
+              className="academic-import-restart"
+              type="button"
+              disabled={busy}
+              onClick={restart}
+            >
+              返回重新登录
+            </button>
+          </form>
+        ) : (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void submit("/api/auth/academic/sms", {
+                transactionId,
+                ...(importRetryAvailable ? {} : { code: smsCode }),
+              });
+            }}
+          >
+            <p className="academic-import-current">
+              学校已向 {maskedPhone || "绑定手机"} 发送验证码。
+            </p>
+            {!importRetryAvailable && (
+              <FormField label="短信验证码">
+                <input
+                  name="academic-sms"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={smsCode}
+                  onChange={(event) =>
+                    setSmsCode(event.target.value.replace(/\D/gu, "").slice(0, 8))
+                  }
+                  minLength={4}
+                  maxLength={8}
+                  required
+                  autoFocus
+                />
+              </FormField>
+            )}
+            {feedback && <p className="academic-import-error" role="alert">{feedback}</p>}
+            <button
+              type="submit"
+              disabled={busy || (!importRetryAvailable && smsCode.length < 4)}
+            >
+              {busy
+                ? "正在读取教务数据…"
+                : importRetryAvailable
+                  ? "直接重试读取"
+                  : "验证并完成导入"}
+            </button>
+            <button
+              className="academic-import-restart"
+              type="button"
+              disabled={busy}
+              onClick={restart}
+            >
+              返回重新登录
+            </button>
+          </form>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function AcademicScheduleCard({ schedule }: { schedule: Schedule }) {
+  return (
+    <article className={`academic-schedule-card ${scheduleStyles.lesson}`} aria-label={`教务导入：${schedule.title}`} title={`教务导入 · ${schedule.building}${schedule.room}`}>
+      <strong>{schedule.title}</strong>
+      <small className={scheduleStyles.room}>{schedule.building.split(" · ").at(-1)}{schedule.room}</small>
+      {schedule.teacher && <span className={scheduleStyles.teacher}>{schedule.teacher}</span>}
+      <small className={scheduleStyles.weeks}>{scheduleWeeksLabel(schedule)}</small>
+    </article>
+  );
+}
+
 function DraggableScheduleCard({
+  catalogId,
   schedule,
   onOpen,
   onRemove,
 }: {
+  catalogId: string;
   schedule: Schedule;
   onOpen: () => void;
   onRemove: () => void;
@@ -1931,6 +3949,7 @@ function DraggableScheduleCard({
     attributes,
     listeners,
     setNodeRef,
+    setActivatorNodeRef,
     transform,
     isDragging,
   } = useDraggable({ id: `schedule:${schedule.id}` });
@@ -1943,21 +3962,32 @@ function DraggableScheduleCard({
     <article
       ref={setNodeRef}
       style={style}
-      className={`draggable-schedule ${isDragging ? "dragging" : ""}`}
-      {...attributes}
+      className={`draggable-schedule ${scheduleStyles.lesson} ${isDragging ? "dragging" : ""}`}
+      aria-label={`手动添加：${schedule.title}`}
+      title={`手动添加 · ${schedule.building}${schedule.room}`}
     >
       <button
         className="schedule-card-main"
+        ref={setActivatorNodeRef}
         onClick={onOpen}
+        {...attributes}
         {...listeners}
       >
         <strong>{schedule.title}</strong>
-        <span>{schedule.teacher}</span>
-        <small>
+        <small className={scheduleStyles.room}>
           {schedule.building}
           {schedule.room}
         </small>
       </button>
+      {schedule.teacher && (
+        <TeacherRecordLink
+          className="schedule-card-teacher-link"
+          catalogId={catalogId}
+          scheduleId={schedule.id}
+          teacherName={schedule.teacher}
+        />
+      )}
+      <small className={scheduleStyles.weeks}>{scheduleWeeksLabel(schedule)}</small>
       <button
         className="schedule-card-remove"
         data-export-ignore="true"
@@ -1987,6 +4017,391 @@ function ScheduleTrash({ active }: { active: boolean }) {
   );
 }
 
+type TrainingPlanFilter = "current" | "pending" | "completed" | "all";
+
+function TrainingPlanWindow({
+  trainingPlan,
+  academicSnapshot,
+  coursesByCode,
+  offeringsByCourse,
+  activeAcademicCourseCodes,
+  onCourse,
+  onAdd,
+  searchQuery,
+  initialFilter,
+}: {
+  trainingPlan: AcademicTrainingPlan;
+  academicSnapshot?: AcademicSnapshot;
+  coursesByCode: Map<string, Course>;
+  offeringsByCourse: Map<string, Schedule[]>;
+  activeAcademicCourseCodes: Set<string>;
+  onCourse: (course: Course) => void;
+  onAdd?: (id: string) => void;
+  searchQuery?: string;
+  initialFilter?: TrainingPlanFilter;
+}) {
+  const rootCategoryCodes = trainingPlan.categories
+    .filter((category) => !category.parentCode && !/通识|公共选修|全校选修/.test(category.name))
+    .map((category) => category.code);
+  const [expanded, setExpanded] = useState(true);
+  const [filter, setFilter] = useState<TrainingPlanFilter>(() =>
+    initialFilter ?? (activeAcademicCourseCodes.size ? "current" : "pending"),
+  );
+  const [localPlanQuery, setPlanQuery] = useState("");
+  const planQuery = searchQuery ?? localPlanQuery;
+  const [openCategoryCodes, setOpenCategoryCodes] = useState<Set<string>>(
+    () => new Set(rootCategoryCodes.slice(0, 1)),
+  );
+  const filterCounts = useMemo(() => {
+    const counts = {
+      current: 0,
+      pending: 0,
+      completed: 0,
+      all: trainingPlan.courses.length,
+    };
+    for (const course of trainingPlan.courses) {
+      const current = activeAcademicCourseCodes.has(
+        normalizeCourseCode(course.courseCode),
+      );
+      const completed = course.completionStatus === "passed";
+      if (current) counts.current += 1;
+      if (completed) counts.completed += 1;
+      if (!current && !completed) counts.pending += 1;
+    }
+    return counts;
+  }, [activeAcademicCourseCodes, trainingPlan.courses]);
+  const filteredCourses = useMemo(() => {
+    const needle = normalize(planQuery);
+    return trainingPlan.courses.filter((course) => {
+      const current = activeAcademicCourseCodes.has(
+        normalizeCourseCode(course.courseCode),
+      );
+      const completed = course.completionStatus === "passed";
+      const matchesFilter =
+        filter === "all" ||
+        (filter === "current" && current) ||
+        (filter === "completed" && completed) ||
+        (filter === "pending" && !current && !completed);
+      return (
+        matchesFilter &&
+        (!needle || scoreCourseSearch({ id: course.courseCode, title: course.courseName }, planQuery) >= 0 || normalize(course.categoryName).includes(needle))
+      );
+    });
+  }, [activeAcademicCourseCodes, filter, planQuery, trainingPlan.courses]);
+  const categoryTree = useMemo(() => {
+    const categoryByCode = new Map(
+      trainingPlan.categories.map((category) => [category.code, category]),
+    );
+    const childrenByParent = new Map<
+      string | null,
+      AcademicTrainingPlan["categories"]
+    >();
+    for (const category of trainingPlan.categories) {
+      const parentCode =
+        category.parentCode && categoryByCode.has(category.parentCode)
+          ? category.parentCode
+          : null;
+      const siblings = childrenByParent.get(parentCode);
+      if (siblings) siblings.push(category);
+      else childrenByParent.set(parentCode, [category]);
+    }
+    const coursesByCategory = new Map<
+      string,
+      AcademicTrainingPlan["courses"]
+    >();
+    for (const course of filteredCourses) {
+      const grouped = coursesByCategory.get(course.categoryCode);
+      if (grouped) grouped.push(course);
+      else coursesByCategory.set(course.categoryCode, [course]);
+    }
+    const countByCode = new Map<string, number>();
+    function countCourses(code: string, visiting = new Set<string>()): number {
+      if (countByCode.has(code)) return countByCode.get(code) ?? 0;
+      if (visiting.has(code)) return 0;
+      const nextVisiting = new Set(visiting).add(code);
+      const count =
+        (coursesByCategory.get(code)?.length ?? 0) +
+        (childrenByParent.get(code) ?? []).reduce(
+          (total, child) => total + countCourses(child.code, nextVisiting),
+          0,
+        );
+      countByCode.set(code, count);
+      return count;
+    }
+    for (const category of trainingPlan.categories) countCourses(category.code);
+    return {
+      childrenByParent,
+      coursesByCategory,
+      countByCode,
+      roots: childrenByParent.get(null) ?? [],
+    };
+  }, [filteredCourses, trainingPlan.categories]);
+  const earnedCredits = trainingPlan.earnedCredits ?? null;
+  const progress =
+    earnedCredits === null
+      ? 0
+      : Math.min(
+          100,
+          Math.max(0, (earnedCredits / trainingPlan.requiredCredits) * 100),
+        );
+  const planTerm = academicSnapshot
+    ? `${academicSnapshot.academicYear} ${academicSnapshot.termLabel}`
+    : "当前学期未同步";
+  const filterLabels: Array<{
+    id: TrainingPlanFilter;
+    label: string;
+  }> = [
+    { id: "current", label: "本学期" },
+    { id: "pending", label: "待选" },
+    { id: "completed", label: "已修" },
+    { id: "all", label: "全部" },
+  ];
+
+  function toggleCategory(code: string) {
+    setOpenCategoryCodes((current) => {
+      const next = new Set(current);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      return next;
+    });
+  }
+
+  function renderPlanCourse(
+    planCourse: AcademicTrainingPlan["courses"][number],
+  ) {
+    const normalizedCode = normalizeCourseCode(planCourse.courseCode);
+    const catalogCourse = coursesByCode.get(normalizedCode);
+    const offerings = catalogCourse
+      ? offeringsByCourse.get(catalogCourse.id) ?? []
+      : [];
+    const sectionIds = [
+      ...new Set(offerings.map((item) => item.sectionId ?? item.id)),
+    ];
+    const isCurrent = activeAcademicCourseCodes.has(normalizedCode);
+    const status = planCourse.completionStatus ?? "unknown";
+    const statusLabel = {
+      passed: "已修",
+      in_progress: "在修",
+      failed: "未通过",
+      not_taken: "未修",
+      unknown: "待确认",
+    }[status];
+    const attributeLabel = {
+      required: "必修",
+      limited: "限选",
+      elective: "选修",
+      unknown: "性质待确认",
+    }[planCourse.attribute];
+    return (
+      <article
+        className={academicStyles.planCourse}
+        key={`${planCourse.categoryCode}\u0000${planCourse.courseCode}`}
+      >
+        {catalogCourse ? (
+          <button
+            className={academicStyles.planCourseMain}
+            onClick={() => onCourse(catalogCourse)}
+          >
+            <strong>{planCourse.courseName}</strong>
+            <span>
+              {planCourse.courseCode} · {formatPlanCredits(planCourse.credits)} ·{" "}
+              {attributeLabel}
+            </span>
+            {planCourse.completedTerm && (
+              <small>修读于 {planCourse.completedTerm}</small>
+            )}
+          </button>
+        ) : (
+          <div className={academicStyles.planCourseMain}>
+            <strong>{planCourse.courseName}</strong>
+            <span>
+              {planCourse.courseCode} · {formatPlanCredits(planCourse.credits)} ·{" "}
+              {attributeLabel}
+            </span>
+            {planCourse.completedTerm && (
+              <small>修读于 {planCourse.completedTerm}</small>
+            )}
+          </div>
+        )}
+        <div className={academicStyles.planCourseAction}>
+          <small data-status={status}>{statusLabel}</small>
+          {isCurrent ? (
+            <span>本学期</span>
+          ) : status === "passed" ? (
+            <span>已完成</span>
+          ) : offerings.length && catalogCourse && onAdd ? (
+            <button
+              onClick={() => {
+                if (sectionIds.length > 1) {
+                  onCourse(catalogCourse);
+                  return;
+                }
+                offerings.forEach((item) => onAdd(item.id));
+              }}
+              aria-label={
+                sectionIds.length > 1
+                  ? `选择${planCourse.courseName}的教学班`
+                  : `将${planCourse.courseName}加入${academicSnapshot ? "选课方案" : "课表"}`
+              }
+            >
+              {sectionIds.length > 1 ? `${sectionIds.length} 个班` : academicSnapshot ? "加入方案" : "加入课表"}
+            </button>
+          ) : (
+            <span className={academicStyles.mutedAction}>本学期未开</span>
+          )}
+        </div>
+      </article>
+    );
+  }
+
+  function renderCategory(
+    category: AcademicTrainingPlan["categories"][number],
+    depth = 0,
+  ): ReactNode {
+    const count = categoryTree.countByCode.get(category.code) ?? 0;
+    const children = (categoryTree.childrenByParent.get(category.code) ?? []).filter(
+      (child) =>
+        (categoryTree.countByCode.get(child.code) ?? 0) > 0 ||
+        (filter === "all" && !planQuery.trim()),
+    );
+    const directCourses =
+      categoryTree.coursesByCategory.get(category.code) ?? [];
+    const showEmpty = filter === "all" && !planQuery.trim();
+    if (!count && !showEmpty) return null;
+    const hasContents = directCourses.length > 0 || children.length > 0;
+    const isOpen = Boolean(planQuery.trim()) || openCategoryCodes.has(category.code);
+    const categoryEarnedCredits = category.earnedCredits ?? null;
+    const categoryRequiredCredits = category.requiredCredits ?? null;
+    const creditLabel =
+      categoryEarnedCredits !== null && categoryRequiredCredits !== null
+        ? `已修 ${formatPlanCredits(categoryEarnedCredits)} / ${formatPlanCredits(categoryRequiredCredits)}`
+        : categoryEarnedCredits !== null
+          ? `已修 ${formatPlanCredits(categoryEarnedCredits)}`
+          : categoryRequiredCredits !== null
+            ? `要求 ${formatPlanCredits(categoryRequiredCredits)}`
+            : "学分要求未单列";
+    return (
+      <section
+        className={academicStyles.planGroup}
+        key={category.code}
+        style={{ "--plan-depth": depth } as CSSProperties}
+      >
+        <button
+          className={academicStyles.planGroupToggle}
+          onClick={() => hasContents && toggleCategory(category.code)}
+          aria-expanded={hasContents ? isOpen : undefined}
+          disabled={!hasContents}
+        >
+          <span>
+            <strong>{category.name}</strong>
+            <small>{creditLabel}</small>
+          </span>
+          <span>
+            {count} 门 <b aria-hidden="true">{isOpen ? "−" : "+"}</b>
+          </span>
+        </button>
+        {hasContents && isOpen && (
+          <div className={academicStyles.planGroupBody}>
+            {directCourses.map(renderPlanCourse)}
+            {children.map((child) => renderCategory(child, depth + 1))}
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  return (
+    <section
+      className={academicStyles.planWindow}
+      aria-labelledby="plan-window-title"
+      data-testid="training-plan-window"
+    >
+      <header className={academicStyles.planHeader}>
+        <div>
+          <span>培养方案 · {planTerm}</span>
+          <h2 id="plan-window-title">
+            {trainingPlan.majorName || trainingPlan.planName}
+          </h2>
+          <p>
+            {trainingPlan.cohortYear} 级 · {trainingPlan.courses.length} 门课程
+          </p>
+        </div>
+        <button onClick={() => setExpanded((current) => !current)}>
+          {expanded ? "收起" : "查看课程"}
+        </button>
+      </header>
+      <div className={academicStyles.planProgress}>
+        <div>
+          <strong>{earnedCredits === null ? "—" : earnedCredits}</strong>
+          <span>
+            {earnedCredits === null ? "已修学分待学校返回" : "已修学分"}
+          </span>
+        </div>
+        <div>
+          <span>
+            要求 {formatPlanCredits(trainingPlan.requiredCredits)}
+          </span>
+          <div
+            className={academicStyles.creditRail}
+            role={earnedCredits === null ? undefined : "progressbar"}
+            aria-label={earnedCredits === null ? undefined : "培养方案学分进度"}
+            aria-valuemin={earnedCredits === null ? undefined : 0}
+            aria-valuemax={
+              earnedCredits === null ? undefined : trainingPlan.requiredCredits
+            }
+            aria-valuenow={earnedCredits === null ? undefined : earnedCredits}
+          >
+            <i style={{ width: `${progress}%` }} />
+          </div>
+        </div>
+      </div>
+      {expanded && (
+        <div className={academicStyles.planBody}>
+          <div className={academicStyles.planTools}>
+            <div role="group" aria-label="筛选培养方案课程">
+              {filterLabels.map((item) => (
+                <button
+                  key={item.id}
+                  className={filter === item.id ? academicStyles.activeFilter : ""}
+                  onClick={() => setFilter(item.id)}
+                  aria-pressed={filter === item.id}
+                >
+                  {item.label} <small>{filterCounts[item.id]}</small>
+                </button>
+              ))}
+            </div>
+            {searchQuery === undefined && <input
+              type="search"
+              value={planQuery}
+              onChange={(event) => setPlanQuery(event.target.value)}
+              aria-label="搜索培养方案课程"
+              placeholder="课程名称或课程号"
+            />}
+          </div>
+          <div className={academicStyles.planIndex}>
+            {categoryTree.roots.some(
+              (category) =>
+                (categoryTree.countByCode.get(category.code) ?? 0) > 0 ||
+                (filter === "all" && !planQuery.trim()),
+            ) ? (
+              categoryTree.roots.map((category) => renderCategory(category))
+            ) : (
+              <div className={academicStyles.planEmptyResult}>
+                <strong>这里暂时没有课程</strong>
+                <p>
+                  {filter === "current"
+                    ? "本学期课表中的课程没有匹配到培养方案；可以查看待选或全部课程。"
+                    : "换一个筛选条件或课程关键词。"}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function SchedulePage({
   data,
   term,
@@ -1994,6 +4409,10 @@ function SchedulePage({
   setSaved,
   activePlan,
   activeSchedules,
+  showPlanning,
+  onPlanningChange,
+  academicSnapshot,
+  trainingPlan,
   courses,
   query,
   setQuery,
@@ -2001,6 +4420,7 @@ function SchedulePage({
   onAdd,
   onRemove,
   onSetup,
+  onOpenCourses,
   onEditCalendar,
 }: {
   data: SiteData;
@@ -2009,6 +4429,10 @@ function SchedulePage({
   setSaved: React.Dispatch<React.SetStateAction<SavedState>>;
   activePlan?: Plan;
   activeSchedules: Schedule[];
+  showPlanning: boolean;
+  onPlanningChange: (value: boolean) => void;
+  academicSnapshot?: AcademicSnapshot;
+  trainingPlan: AcademicTrainingPlan | null;
   courses: Map<string, Course>;
   query: string;
   setQuery: (v: string) => void;
@@ -2016,6 +4440,7 @@ function SchedulePage({
   onAdd: (id: string) => void;
   onRemove: (id: string) => void;
   onSetup: () => void;
+  onOpenCourses: () => void;
   onEditCalendar: (request: CalendarEditorRequest) => void;
 }) {
   const [finderMode, setFinderMode] = useState<"search" | "major" | "time">(
@@ -2037,14 +4462,32 @@ function SchedulePage({
     Math.min(5, Math.max(1, new Date().getDay())),
   );
   const [finderBlock, setFinderBlock] = useState(currentBlock);
-  const [visibleLimit, setVisibleLimit] = useState(80);
+  const [visibleWindow, setVisibleWindow] = useState({ key: "", limit: 40 });
   const [exporting, setExporting] = useState(false);
   const [finderOpen, setFinderOpen] = useState(false);
   const [mobileScheduleView, setMobileScheduleView] = useState<
     "agenda" | "week"
   >("week");
+  const [showFullWeek, setShowFullWeek] = useState(false);
+  const todayWeekday = weekdayNumber(new Date());
+  const visibleWeekdays = [1, 2, 3, 4, 5, 6, 7].filter((day) =>
+    day <= 5 || showFullWeek || activeSchedules.some((item) => item.weekday === day) ||
+    saved.activities.some((item) => activityOccursOn(item, eventWeekDate(day))),
+  );
   const [draggingScheduleId, setDraggingScheduleId] = useState("");
   const [lastRemovedId, setLastRemovedId] = useState("");
+  const sortedExams = useMemo(
+    () =>
+      academicSnapshot?.examStatus
+        ? []
+        : [...(academicSnapshot?.exams ?? [])].sort(
+        (left, right) =>
+          `${left.date}T${left.startTime || "00:00"}`.localeCompare(
+            `${right.date}T${right.startTime || "00:00"}`,
+          ),
+        ),
+    [academicSnapshot],
+  );
   const timetableRef = useRef<HTMLElement>(null);
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
@@ -2053,20 +4496,55 @@ function SchedulePage({
     }),
     useSensor(KeyboardSensor),
   );
-  const needle = normalize(query);
+  const offeringsByCourse = useMemo(() => {
+    const grouped = new Map<string, Schedule[]>();
+    for (const schedule of data.schedules) {
+      if (schedule.term !== term) continue;
+      const offerings = grouped.get(schedule.courseId);
+      if (offerings) offerings.push(schedule);
+      else grouped.set(schedule.courseId, [schedule]);
+    }
+    return grouped;
+  }, [data.schedules, term]);
+  const coursesByCode = useMemo(
+    () =>
+      new Map(
+        [...courses.values()].map((course) => [
+          normalizeCourseCode(course.id),
+          course,
+        ]),
+      ),
+    [courses],
+  );
+  const finderKey = JSON.stringify([
+    term,
+    finderMode,
+    finderBlock,
+    finderCollege,
+    finderMajor,
+    finderWeekday,
+    finderYear,
+    query,
+  ]);
+  const visibleLimit =
+    visibleWindow.key === finderKey ? visibleWindow.limit : 40;
+  function resetFinderWindow() {
+    setVisibleWindow({ key: "", limit: 40 });
+  }
+  const activeAcademicCourseCodes = useMemo(
+    () =>
+      new Set(
+        (academicSnapshot?.sections ?? []).map((section) =>
+          normalizeCourseCode(section.courseCode),
+        ),
+      ),
+    [academicSnapshot],
+  );
   const searchPool = data.courses.filter(
     (course) =>
       course.terms.includes(term) &&
-      (!needle ||
-        normalize(
-          [
-            course.title,
-            course.id,
-            ...course.teachers,
-            ...aliasesForCourse(course),
-          ].join(" "),
-        ).includes(needle)),
-  );
+      scoreCourseSearch(course, query) >= 0,
+  ).sort((left, right) => scoreCourseSearch(right, query) - scoreCourseSearch(left, query));
   const majorCourseIds = new Set(
     data.majorCourses
       .filter(
@@ -2104,8 +4582,7 @@ function SchedulePage({
       activeSchedules.some(
         (other) =>
           other.id !== item.id &&
-          other.weekday === item.weekday &&
-          other.block === item.block,
+          schedulesOverlap(item, other),
       )
     )
       conflicts.add(item.id);
@@ -2140,7 +4617,7 @@ function SchedulePage({
             schedule: item,
           })),
         ...saved.activities
-          .filter((item) => item.weekday === weekday)
+          .filter((item) => activityOccursOn(item, dateISO(day)))
           .map((item) => ({
             id: `activity-${item.id}`,
             kind: "activity" as const,
@@ -2149,10 +4626,11 @@ function SchedulePage({
             meta: item.location || "个人日程",
             activity: item,
           })),
-      ].sort((a, b) => a.block - b.block),
+      ].sort((a, b) => activityStart(a.kind === "activity" ? a.activity : a.schedule) - activityStart(b.kind === "activity" ? b.activity : b.schedule)),
     };
   });
   function newPlan() {
+    onPlanningChange(true);
     const id = `plan-${Date.now()}`;
     setSaved((state) => ({
       ...state,
@@ -2210,7 +4688,7 @@ function SchedulePage({
           node.dataset.exportIgnore !== "true",
       });
       const link = document.createElement("a");
-      link.download = `${activePlan?.name ?? "我的课表"}-${todayISO()}.png`;
+      link.download = `${academicSnapshot && !showPlanning ? "教务课表" : activePlan?.name ?? "我的课表"}-${todayISO()}.png`;
       link.href = dataUrl;
       link.click();
     } finally {
@@ -2218,36 +4696,46 @@ function SchedulePage({
     }
   }
   return (
-    <div className="page-wrap schedule-page clean-workspace">
+    <div className={`page-wrap schedule-page clean-workspace ${scheduleStyles.workspace}`}>
       <header className="workspace-heading">
         <div>
           <h1>我的课表</h1>
           <p>
-            {saved.profile?.className || "按自己的节奏排一张课表。"}
+            {academicSnapshot
+              ? `${academicSnapshot.academicYear} ${academicSnapshot.termLabel} · ${showPlanning ? "选课预览，不代表教务选课结果" : "教务导入"}`
+              : saved.profile?.className || "还没导入教务课表，也可以手动选课。"}
           </p>
         </div>
         <div className="schedule-heading-actions">
+          <button onClick={onOpenCourses}>课程中心</button>
           <button onClick={() => onEditCalendar({ kind: "activity" })}>
             ＋ 添加日程
           </button>
           <button onClick={() => onEditCalendar({ kind: "assignment" })}>
             ＋ 添加作业
           </button>
-          <button onClick={onSetup}>
+          <button className="secondary" onClick={onSetup}>
             {saved.profile ? "修改班级" : "导入班级课程"}
           </button>
         </div>
       </header>
       <div className="plan-tabs">
+        {academicSnapshot && (
+          <button className={!showPlanning ? "active" : ""} aria-pressed={!showPlanning} onClick={() => onPlanningChange(false)}>
+            教务课表
+          </button>
+        )}
         {saved.plans.map((plan) => (
           <button
             key={plan.id}
-            className={saved.activePlanId === plan.id ? "active" : ""}
-            onClick={() =>
-              setSaved((state) => ({ ...state, activePlanId: plan.id }))
-            }
+            className={showPlanning && saved.activePlanId === plan.id ? "active" : ""}
+            aria-pressed={showPlanning && saved.activePlanId === plan.id}
+            onClick={() => {
+              onPlanningChange(true);
+              setSaved((state) => ({ ...state, activePlanId: plan.id }));
+            }}
           >
-            {plan.name}
+            {academicSnapshot && plan.name === "默认课表" ? "手动选课" : plan.name}
             <small>{plan.scheduleIds.length}</small>
           </button>
         ))}
@@ -2278,36 +4766,54 @@ function SchedulePage({
             <div className="finder-tabs">
               <button
                 className={finderMode === "search" ? "active" : ""}
-                onClick={() => setFinderMode("search")}
+                onClick={() => {
+                  resetFinderWindow();
+                  setFinderMode("search");
+                }}
               >
-                全校搜索
+                全校
               </button>
               <button
                 className={finderMode === "major" ? "active" : ""}
-                onClick={() => setFinderMode("major")}
+                onClick={() => {
+                  resetFinderWindow();
+                  setFinderMode("major");
+                }}
               >
-                按专业
+                专业
               </button>
               <button
                 className={finderMode === "time" ? "active" : ""}
-                onClick={() => setFinderMode("time")}
+                onClick={() => {
+                  resetFinderWindow();
+                  setFinderMode("time");
+                }}
               >
-                按时间
+                时间
               </button>
             </div>
             {finderMode === "search" && (
               <input
+                aria-label="搜索全校课程"
+                name="course-search"
+                autoComplete="off"
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="课程、简称或教师"
+                onChange={(event) => {
+                  resetFinderWindow();
+                  setQuery(event.target.value);
+                }}
+                placeholder="课程、简称或教师…"
               />
             )}
             {finderMode === "major" && (
               <div className="major-finder">
                 <select
+                  aria-label="选择学院"
+                  name="finder-college"
                   value={finderCollege}
                   onChange={(event) => {
                     const value = event.target.value;
+                    resetFinderWindow();
                     setFinderCollege(value);
                     setFinderMajor(
                       data.colleges.find((item) => item.name === value)
@@ -2320,8 +4826,13 @@ function SchedulePage({
                   ))}
                 </select>
                 <select
+                  aria-label="选择专业"
+                  name="finder-major"
                   value={finderMajor}
-                  onChange={(event) => setFinderMajor(event.target.value)}
+                  onChange={(event) => {
+                    resetFinderWindow();
+                    setFinderMajor(event.target.value);
+                  }}
                 >
                   {finderMajors.map((item) => (
                     <option key={item.id} value={item.id}>
@@ -2334,7 +4845,10 @@ function SchedulePage({
                     <button
                       key={item}
                       className={finderYear === item ? "active" : ""}
-                      onClick={() => setFinderYear(item)}
+                      onClick={() => {
+                        resetFinderWindow();
+                        setFinderYear(item);
+                      }}
                     >
                       大{"一二三四"[item - 1]}
                     </button>
@@ -2349,7 +4863,10 @@ function SchedulePage({
                     <button
                       key={item}
                       className={finderWeekday === index + 1 ? "active" : ""}
-                      onClick={() => setFinderWeekday(index + 1)}
+                      onClick={() => {
+                        resetFinderWindow();
+                        setFinderWeekday(index + 1);
+                      }}
                     >
                       周{item}
                     </button>
@@ -2360,7 +4877,10 @@ function SchedulePage({
                     <button
                       key={item.block}
                       className={finderBlock === item.block ? "active" : ""}
-                      onClick={() => setFinderBlock(item.block)}
+                      onClick={() => {
+                        resetFinderWindow();
+                        setFinderBlock(item.block);
+                      }}
                     >
                       {item.short}
                     </button>
@@ -2370,24 +4890,24 @@ function SchedulePage({
             )}
             <p>
               {finderMode === "search"
-                ? "全校课程"
+                ? `全校课程 · ${poolAll.length} 个结果`
                 : finderMode === "major"
-                  ? `大${"一二三四"[finderYear - 1]}课程`
-                  : `周${weekdayShort[finderWeekday - 1]} · ${data.periods[finderBlock - 1]?.short}`}{" "}
-              · {poolAll.length} 个结果
+                  ? `大${"一二三四"[finderYear - 1]}课程 · ${poolAll.length} 个结果`
+                  : `周${weekdayShort[finderWeekday - 1]} · ${data.periods[finderBlock - 1]?.short} · ${poolAll.length} 个结果`}
             </p>
           </header>
           <div>
             {pool.length ? (
               pool.map((course) => {
-                const offerings = data.schedules.filter(
-                  (item) =>
-                    item.term === term &&
-                    item.courseId === course.id &&
-                    (finderMode !== "time" ||
-                      (item.weekday === finderWeekday &&
-                        item.block === finderBlock)),
-                );
+                const courseOfferings = offeringsByCourse.get(course.id) ?? [];
+                const offerings =
+                  finderMode === "time"
+                    ? courseOfferings.filter(
+                        (item) =>
+                          item.weekday === finderWeekday &&
+                          item.block === finderBlock,
+                      )
+                    : courseOfferings;
                 const first = offerings[0];
                 const sectionIds = [
                   ...new Set(
@@ -2408,7 +4928,7 @@ function SchedulePage({
                         <strong>{course.title}</strong>
                         <small>
                           {first
-                            ? `${sectionIds.length} 个班次 · ${teacherCount || 1} 位教师`
+                            ? `${sectionIds.length} 个教学班 · ${teacherCount || 1} 位教师`
                             : course.teachers.slice(0, 2).join(" / ") ||
                               course.id}
                         </small>
@@ -2426,7 +4946,7 @@ function SchedulePage({
                         }}
                         aria-label={
                           sectionIds.length > 1
-                            ? `选择${course.title}的教师和班次`
+                            ? `选择${course.title}的教师和教学班`
                             : `添加${course.title}`
                         }
                       >
@@ -2437,14 +4957,16 @@ function SchedulePage({
                 );
               })
             ) : (
-              <p className="pool-empty">这个条件下没有找到课程。</p>
+              <p className="pool-empty">没找到课程，换个关键词或条件试试。</p>
             )}
             {pool.length < poolAll.length && (
               <button
                 className="load-more-courses"
-                onClick={() => setVisibleLimit((value) => value + 80)}
+                onClick={() =>
+                  setVisibleWindow({ key: finderKey, limit: visibleLimit + 40 })
+                }
               >
-                再显示 80 门
+                再显示 40 门
                 <small>
                   已显示 {pool.length} / {poolAll.length}
                 </small>
@@ -2458,7 +4980,8 @@ function SchedulePage({
         >
           <header>
             <div>
-              <h2>{activePlan?.name ?? "我的课表"}</h2>
+              <h2>{academicSnapshot ? showPlanning ? "选课预览" : "教务课表" : activePlan?.name ?? "我的课表"}</h2>
+              {academicSnapshot && showPlanning && <small>含手动课程，不计入今日上课提醒。</small>}
             </div>
             <div className="timetable-tools">
               <p>
@@ -2470,7 +4993,7 @@ function SchedulePage({
                 data-export-ignore="true"
                 onClick={() => setFinderOpen(true)}
               >
-                ＋ 添加课程
+                {academicSnapshot ? "＋ 预选课程" : "＋ 添加课程"}
               </button>
               <button
                 data-export-ignore="true"
@@ -2490,7 +5013,7 @@ function SchedulePage({
               className={mobileScheduleView === "week" ? "active" : ""}
               onClick={() => setMobileScheduleView("week")}
             >
-              五天
+              一周
             </button>
             <button
               className={mobileScheduleView === "agenda" ? "active" : ""}
@@ -2515,16 +5038,19 @@ function SchedulePage({
                       <button
                         key={entry.id}
                         className={entry.kind}
-                        onClick={() =>
-                          entry.kind === "course"
-                            ? onCourse(courses.get(entry.schedule.courseId)!)
-                            : onEditCalendar({
-                                kind: "activity",
-                                id: entry.activity.id,
-                              })
-                        }
+                        onClick={() => {
+                          if (entry.kind === "course") {
+                            const course = courses.get(entry.schedule.courseId);
+                            if (course) onCourse(course);
+                            return;
+                          }
+                          onEditCalendar({
+                            kind: "activity",
+                            id: entry.activity.id,
+                          });
+                        }}
                       >
-                        <time>{data.periods[entry.block - 1]?.short}</time>
+                        <time>{entry.kind === "activity" ? activityTimeLabel(entry.activity) : data.periods[entry.block - 1]?.short}</time>
                         <span>
                           <strong>{entry.title}</strong>
                           <small>{entry.meta}</small>
@@ -2533,7 +5059,7 @@ function SchedulePage({
                       </button>
                     ))
                   ) : (
-                    <p>没有课程或日程</p>
+                    <p>这几天没有课或日程</p>
                   )}
                 </div>
               </article>
@@ -2542,11 +5068,23 @@ function SchedulePage({
           <div
             className={`week-overview-scroll ${mobileScheduleView === "week" ? "mobile-active" : ""}`}
           >
-          <div className="week-grid">
+          <div className={scheduleStyles.gridTools}>
+          <div className={scheduleStyles.sourceLegend} aria-label="课程来源">
+            <span><i className={scheduleStyles.officialSwatch} aria-hidden="true" />教务导入</span>
+            <span><i className={scheduleStyles.manualSwatch} aria-hidden="true" />手动添加</span>
+          </div>
+          <button type="button" className={scheduleStyles.weekToggle} data-export-ignore="true"
+            aria-pressed={showFullWeek} onClick={() => setShowFullWeek((value) => !value)}>
+            {showFullWeek ? "隐藏空白周末" : "显示完整七天"}
+          </button>
+          </div>
+          <div className={`week-grid ${scheduleStyles.grid}`} style={{ gridTemplateColumns: `28px repeat(${visibleWeekdays.length}, minmax(0, 1fr))` }}>
             <div className="grid-corner">节次</div>
-            {weekdayShort.slice(0, 5).map((day) => (
-              <div className="day-head" key={day}>
-                周{day}
+            {visibleWeekdays.map((day) => (
+              <div className="day-head" key={day}
+                aria-current={day === todayWeekday ? "date" : undefined}
+                title={day === todayWeekday ? "今天" : undefined}>
+                周{weekdayShort[day - 1]}
               </div>
             ))}
             {[1, 2, 3, 4].flatMap((itemBlock) => [
@@ -2554,34 +5092,48 @@ function SchedulePage({
                 <b>{itemBlock}</b>
                 <span>{data.periods[itemBlock - 1]?.short}</span>
               </div>,
-              ...[1, 2, 3, 4, 5].map((weekday) => {
+              ...visibleWeekdays.map((weekday) => {
                 const cell = activeSchedules.filter(
                   (item) =>
                     item.weekday === weekday && item.block === itemBlock,
                 );
                 const personal = saved.activities.filter(
                   (item) =>
-                    item.weekday === weekday && item.block === itemBlock,
-                );
+                    activityOccursOn(item, eventWeekDate(weekday)) && activityBlock(activityTimes(item)[0]) === itemBlock,
+                ).sort((a, b) => activityStart(a) - activityStart(b));
+                const dateWeek = schoolWeek(new Date(`${eventWeekDate(weekday)}T12:00:00`), term);
+                const activityConflicts = new Set(personal.filter((item) =>
+                  saved.activities.some((other) => other.id !== item.id && activityOccursOn(other, eventWeekDate(weekday)) && activityTimesOverlap(item, other)) ||
+                  activeSchedules.some((course) => course.weekday === weekday && dateWeek.state === "active" && scheduleOccursInWeek(course, dateWeek.week) && activityTimesOverlap(item, course)),
+                ).map((item) => item.id));
                 return (
                   <div
-                    className={`schedule-cell ${cell.length + personal.length > 1 ? "conflict" : ""}`}
+                    className={`schedule-cell ${cell.some((first, index) => cell.slice(index + 1).some((second) => schedulesOverlap(first, second))) || activityConflicts.size > 0 ? "conflict" : ""}`}
                     key={`${weekday}-${itemBlock}`}
                     onDoubleClick={() =>
                       onEditCalendar({
                         kind: "activity",
                         weekday,
+                        date: eventWeekDate(weekday),
                         block: itemBlock,
                       })
                     }
                   >
                     {cell.map((item) => (
-                      <DraggableScheduleCard
-                        key={item.id}
-                        schedule={item}
-                        onOpen={() => onCourse(courses.get(item.courseId)!)}
-                        onRemove={() => removeSchedule(item.id)}
-                      />
+                      item.origin === "academic" ? (
+                        <AcademicScheduleCard key={item.id} schedule={item} />
+                      ) : (
+                        <DraggableScheduleCard
+                          key={item.id}
+                          catalogId={data.catalogId}
+                          schedule={item}
+                          onOpen={() => {
+                            const course = courses.get(item.courseId);
+                            if (course) onCourse(course);
+                          }}
+                          onRemove={() => removeSchedule(item.id)}
+                        />
+                      )
                     ))}
                     {personal.map((item) => (
                       <button
@@ -2592,7 +5144,9 @@ function SchedulePage({
                         }
                       >
                         <strong>{item.title}</strong>
-                        <span>个人日程</span>
+                        <span>{activityTimeLabel(item)}</span>
+                        <span>{item.repeat === "none" ? item.date : "每周"}</span>
+                        {activityConflicts.has(item.id) && <small>时间有重叠</small>}
                         <small>{item.location || "未设置地点"}</small>
                       </button>
                     ))}
@@ -2604,6 +5158,7 @@ function SchedulePage({
                           onEditCalendar({
                             kind: "activity",
                             weekday,
+                            date: eventWeekDate(weekday),
                             block: itemBlock,
                           })
                         }
@@ -2620,9 +5175,82 @@ function SchedulePage({
           </div>
           {!activeSchedules.length && (
             <div className="timetable-empty">
-              <b>课表还是空的</b>
-              <p>点“添加课程”开始选课。</p>
+              <b>这张课表还是空的</b>
+              <p>从“课程”导入教务课表，或点“添加课程”手动选课。</p>
+              <button onClick={onOpenCourses}>打开课程中心</button>
             </div>
+          )}
+          {academicSnapshot?.examStatus && (
+            <section className={academicStyles.meExamSummary} aria-label="考试安排未同步">
+              <div>
+                <span>考试安排</span>
+                <strong>
+                  {academicSnapshot.examStatus === "stale" ? "本次未更新" : "尚未同步"}
+                </strong>
+                <p>课表已导入；考试页未能确认，不能当作没有考试。</p>
+              </div>
+              <button onClick={onOpenCourses}>去课程更新</button>
+            </section>
+          )}
+          {sortedExams.length > 0 && (
+            <section className="academic-exam-panel" data-export-ignore="true">
+              <header>
+                <div>
+                  <span>正式教务</span>
+                  <h3>考试安排</h3>
+                </div>
+              </header>
+              <div className="academic-exam-list">
+                {sortedExams.map((exam) => (
+                  <article key={exam.id}>
+                    <time dateTime={exam.date || undefined}>
+                      {exam.date
+                        ? new Intl.DateTimeFormat("zh-CN", {
+                            month: "long",
+                            day: "numeric",
+                            weekday: "short",
+                          }).format(new Date(`${exam.date}T00:00:00+08:00`))
+                        : "日期待定"}
+                      <small>
+                        {[exam.startTime, exam.endTime]
+                          .filter(Boolean)
+                          .join("–") || "时间待定"}
+                      </small>
+                    </time>
+                    <div>
+                      <strong>{exam.courseName || exam.courseCode}</strong>
+                      <p>
+                        {exam.location ||
+                          [exam.campus, exam.building, exam.room]
+                            .filter(Boolean)
+                            .join(" · ") ||
+                          "考场待定"}
+                      </p>
+                    </div>
+                    <dl className={academicStyles.examIdentifiers}>
+                      {exam.seat && (
+                        <div>
+                          <dt>座位</dt>
+                          <dd>{exam.seat}</dd>
+                        </div>
+                      )}
+                      {exam.examNumber && (
+                        <div>
+                          <dt>考号</dt>
+                          <dd>{exam.examNumber}</dd>
+                        </div>
+                      )}
+                      {!exam.seat && !exam.examNumber && (
+                        <div>
+                          <dt>状态</dt>
+                          <dd>{exam.status || "已同步"}</dd>
+                        </div>
+                      )}
+                    </dl>
+                  </article>
+                ))}
+              </div>
+            </section>
           )}
           <section className="personal-planner">
             <header>
@@ -2650,8 +5278,8 @@ function SchedulePage({
                 ...saved.activities.map((item) => ({
                   key: `activity-${item.id}`,
                   kind: "activity" as const,
-                  order: item.weekday * 100 + item.block,
-                  label: `周${weekdayShort[item.weekday - 1]} · ${data.periods[item.block - 1]?.short}`,
+                  order: activityListOrder(item),
+                  label: `${item.repeat === "none" ? item.date : `每周${weekdayShort[item.weekday - 1]}`} · ${activityTimeLabel(item)}`,
                   title: item.title,
                   meta: item.location || "未设置地点",
                   completed: false,
@@ -2715,7 +5343,8 @@ function SchedulePage({
                       </button>
                       <button
                         className="danger"
-                        onClick={() =>
+                        onClick={() => {
+                          if (entry.kind === "activity" && !window.confirm(`删除日程“${entry.item.title}”？${entry.item.repeat !== "none" ? "这会删除每周重复的整项日程。" : ""}`)) return;
                           setSaved((state) => ({
                             ...state,
                             activities:
@@ -2730,8 +5359,8 @@ function SchedulePage({
                                     (item) => item.id !== entry.item.id,
                                   )
                                 : state.assignments,
-                          }))
-                        }
+                          }));
+                        }}
                       >
                         删除
                       </button>
@@ -2741,7 +5370,6 @@ function SchedulePage({
               {!saved.activities.length && !saved.assignments.length && (
                 <div className="planner-empty">
                   <b>还没有个人安排</b>
-                  <p>活动和作业会按时间排在一起。</p>
                 </div>
               )}
             </div>
@@ -2761,6 +5389,26 @@ function SchedulePage({
           ) : null}
         </DragOverlay>
       </DndContext>
+      {trainingPlan ? (
+        <TrainingPlanWindow
+          key={trainingPlan.planNumber}
+          trainingPlan={trainingPlan}
+          academicSnapshot={academicSnapshot}
+          coursesByCode={coursesByCode}
+          offeringsByCourse={offeringsByCourse}
+          activeAcademicCourseCodes={activeAcademicCourseCodes}
+          onCourse={onCourse}
+          onAdd={onAdd}
+        />
+      ) : (
+        <section className={academicStyles.planWindowEmpty}>
+          <div>
+            <span>培养方案</span>
+            <strong>导入后可查看待选课程与已修学分</strong>
+          </div>
+          <button onClick={onOpenCourses}>打开课程中心</button>
+        </section>
+      )}
       {lastRemovedId && (
         <div className="remove-undo" role="status">
           <span>课程已从当前课表移除</span>
@@ -2794,28 +5442,24 @@ function CalendarEditor({
     request.kind === "assignment"
       ? saved.assignments.find((item) => item.id === request.id)
       : undefined;
-  const activeCourseIds = [
-    ...new Set(activeSchedules.map((item) => item.courseId)),
-  ];
-  const courseChoices = activeCourseIds
-    .map((id) => courses.get(id))
-    .filter((item): item is Course => Boolean(item));
+  const courseChoices = academicCourseOptions(activeSchedules, courses,
+    assignment?.courseId ?? (request.kind === "assignment" ? request.courseId : undefined));
   const [title, setTitle] = useState(
     activity?.title ?? assignment?.title ?? "",
   );
-  const [weekday, setWeekday] = useState(
-    activity?.weekday ??
-      (request.kind === "activity" ? request.weekday : undefined) ??
-      Math.min(5, Math.max(1, new Date().getDay())),
-  );
-  const [block, setBlock] = useState(
-    activity?.block ??
-      (request.kind === "activity" ? request.block : undefined) ??
-      currentBlock(),
-  );
+  const initialTimes = activityTimes(activity ?? {
+    block: (request.kind === "activity" ? request.block : undefined) ?? currentBlock(),
+  });
+  const [startTime, setStartTime] = useState(initialTimes[0]);
+  const [endTime, setEndTime] = useState(initialTimes[1]);
+  const [eventDate, setEventDate] = useState(activity?.date ??
+    (activity ? eventWeekDate(activity.weekday) :
+      request.kind === "activity" ? request.date ?? (request.weekday ? eventWeekDate(request.weekday) : todayISO()) : todayISO()));
+  const [repeat, setRepeat] = useState<"none" | "weekly">(activity?.repeat ?? (activity ? "weekly" : "none"));
+  const [eventError, setEventError] = useState("");
   const [location, setLocation] = useState(activity?.location ?? "");
   const [color, setColor] = useState<PersonalActivity["color"]>(
-    activity?.color ?? "blue",
+    activity?.color ?? "red",
   );
   const [courseId, setCourseId] = useState(
     assignment?.courseId ??
@@ -2832,8 +5476,32 @@ function CalendarEditor({
   const [notes, setNotes] = useState(
     activity?.notes ?? assignment?.notes ?? "",
   );
+  const draft: Record<string, string | number> = request.kind === "activity"
+    ? { title, notes, startTime, endTime, eventDate, repeat, location, color }
+    : { title, notes, courseId, dueDate };
+  const [initialDraft] = useState(draft);
+  const dirty = calendarDraftChanged(initialDraft, draft);
+  const completedRef = useRef(false);
+  function requestClose() {
+    if (dirty && !window.confirm("还有未保存的内容，放弃修改并关闭？")) return;
+    completedRef.current = true;
+    onClose();
+  }
+  const dialogRef = useModalFocus<HTMLFormElement>(true, requestClose);
+  useEffect(() => {
+    if (!dirty) return;
+    const protectDraft = (event: BeforeUnloadEvent) => {
+      if (completedRef.current) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", protectDraft);
+    return () => window.removeEventListener("beforeunload", protectDraft);
+  }, [dirty]);
 
   function remove() {
+    if (request.kind === "activity" && !window.confirm(`删除日程“${activity?.title ?? title}”？${repeat === "weekly" ? "这会删除每周重复的整项日程。" : ""}`)) return;
+    if (request.kind === "assignment" && !window.confirm(`删除作业“${assignment?.title ?? title}”？`)) return;
     setSaved((state) => ({
       ...state,
       activities:
@@ -2845,6 +5513,7 @@ function CalendarEditor({
           ? state.assignments.filter((item) => item.id !== request.id)
           : state.assignments,
     }));
+    completedRef.current = true;
     onClose();
   }
 
@@ -2853,11 +5522,22 @@ function CalendarEditor({
     const cleanTitle = title.trim();
     if (!cleanTitle) return;
     if (request.kind === "activity") {
+      if (!validEventDate(eventDate) || !validEventTimes(startTime, endTime)) {
+        setEventError("请选择有效日期和同一天的时间，结束时间须晚于开始时间。");
+        return;
+      }
       const next: PersonalActivity = {
         id: activity?.id ?? `activity-${Date.now()}`,
         title: cleanTitle,
-        weekday,
-        block,
+        weekday: new Date(`${eventDate}T12:00:00`).getDay() || 7,
+        block: activityBlock(startTime),
+        startTime,
+        endTime,
+        // A legacy weekly event has no start boundary. Keep it that way
+        // unless the user changes its date or repetition.
+        ...(activity && !activity.date && repeat === "weekly" && eventDate === eventWeekDate(activity.weekday)
+          ? {} : { date: eventDate }),
+        repeat,
         location: location.trim(),
         notes: notes.trim(),
         color,
@@ -2886,30 +5566,35 @@ function CalendarEditor({
           : [...state.assignments, next],
       }));
     }
+    completedRef.current = true;
     onClose();
   }
 
   return (
-    <div className="modal-backdrop calendar-editor-backdrop" onMouseDown={onClose}>
+    <div className="modal-backdrop calendar-editor-backdrop" onMouseDown={requestClose}>
       <form
+        ref={dialogRef}
         className="calendar-editor"
         onSubmit={save}
         onMouseDown={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="calendar-editor-title"
       >
         <header>
           <div>
             <span>{request.kind === "activity" ? "个人日程" : "课程任务"}</span>
-            <h2>
+            <h2 id="calendar-editor-title">
               {request.id
                 ? request.kind === "activity"
-                  ? "编辑活动"
+                  ? "编辑日程"
                   : "编辑作业"
                 : request.kind === "activity"
-                  ? "添加活动"
+                  ? "添加日程"
                   : "添加作业"}
             </h2>
           </div>
-          <button type="button" onClick={onClose} aria-label="关闭">
+          <button type="button" onClick={requestClose} aria-label="关闭">
             ×
           </button>
         </header>
@@ -2917,13 +5602,15 @@ function CalendarEditor({
         <label className="editor-title">
           <span>标题</span>
           <input
-            autoFocus
+            name="calendar-title"
+            autoComplete="off"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             placeholder={
               request.kind === "activity" ? "例如：社团例会" : "例如：完成第三章习题"
             }
             required
+            maxLength={request.kind === "activity" ? 120 : 160}
           />
         </label>
 
@@ -2931,35 +5618,39 @@ function CalendarEditor({
           <>
             <div className="editor-grid">
               <label>
-                <span>星期</span>
-                <select
-                  value={weekday}
-                  onChange={(event) => setWeekday(Number(event.target.value))}
-                >
-                  {weekdayShort.slice(0, 5).map((day, index) => (
-                    <option key={day} value={index + 1}>
-                      周{day}
-                    </option>
-                  ))}
-                </select>
+                <span>日期</span>
+                <input type="date" name="calendar-date" value={eventDate} required min="2000-01-01" max="2100-12-31"
+                  onChange={(event) => { setEventDate(event.target.value); setEventError(""); }} />
               </label>
               <label>
-                <span>时间段</span>
-                <select
-                  value={block}
-                  onChange={(event) => setBlock(Number(event.target.value))}
-                >
-                  {[1, 2, 3, 4].map((item) => (
-                    <option key={item} value={item}>
-                      第 {item} 大节
-                    </option>
-                  ))}
+                <span>重复</span>
+                <select name="calendar-repeat" value={repeat}
+                  onChange={(event) => setRepeat(event.target.value as "none" | "weekly")}>
+                  <option value="none">不重复</option>
+                  <option value="weekly">每周{validEventDate(eventDate) ? weekdayShort[(new Date(`${eventDate}T12:00:00`).getDay() || 7) - 1] : ""}</option>
                 </select>
               </label>
             </div>
+            <div className="editor-time-range">
+              <label><span>开始时间</span>
+                <input type="time" name="calendar-start" value={startTime} required step="60"
+                  aria-describedby="event-time-help" aria-invalid={Boolean(eventError)}
+                  onChange={(event) => { setStartTime(event.target.value); setEventError(""); }} />
+              </label>
+              <label><span>结束时间</span>
+                <input type="time" name="calendar-end" value={endTime} required step="60"
+                  aria-describedby="event-time-help" aria-invalid={Boolean(eventError)}
+                  onChange={(event) => { setEndTime(event.target.value); setEventError(""); }} />
+              </label>
+            </div>
+            <small id="event-time-help">暂不支持跨天。</small>
+            {eventError && <p role="alert">{eventError}</p>}
             <label>
               <span>地点</span>
               <input
+                name="calendar-location"
+                maxLength={200}
+                autoComplete="off"
                 value={location}
                 onChange={(event) => setLocation(event.target.value)}
                 placeholder="例如：图书馆三楼"
@@ -2973,7 +5664,8 @@ function CalendarEditor({
                   type="button"
                   className={`${item} ${color === item ? "active" : ""}`}
                   onClick={() => setColor(item)}
-                  aria-label={`选择${item}颜色`}
+                  aria-pressed={color === item}
+                  aria-label={`选择${({ red: "朱红", blue: "炭墨", green: "松针", amber: "金色" } as const)[item]}`}
                 />
               ))}
             </fieldset>
@@ -2983,6 +5675,7 @@ function CalendarEditor({
             <label>
               <span>关联课程</span>
               <select
+                name="assignment-course"
                 value={courseId}
                 onChange={(event) => setCourseId(event.target.value)}
               >
@@ -2998,6 +5691,7 @@ function CalendarEditor({
               <span>截止日期</span>
               <input
                 type="date"
+                name="assignment-due-date"
                 value={dueDate}
                 onChange={(event) => setDueDate(event.target.value)}
                 required
@@ -3009,6 +5703,9 @@ function CalendarEditor({
         <label>
           <span>备注</span>
           <textarea
+            name="calendar-notes"
+            maxLength={4000}
+            autoComplete="off"
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
             placeholder="选填"
@@ -3023,7 +5720,7 @@ function CalendarEditor({
             </button>
           )}
           <span />
-          <button type="button" onClick={onClose}>
+          <button type="button" onClick={requestClose}>
             取消
           </button>
           <button type="submit">保存</button>
@@ -3042,9 +5739,11 @@ function RoomsPage({
   setDate,
   block,
   setBlock,
-  query,
-  setQuery,
-  nextClass,
+  selectedRoom,
+  setSelectedRoom,
+  floorChoice,
+  setFloorChoice,
+  onLesson,
   saved,
   setSaved,
 }: {
@@ -3056,46 +5755,22 @@ function RoomsPage({
   setDate: (v: string) => void;
   block: number;
   setBlock: (v: number) => void;
-  query: string;
-  setQuery: (v: string) => void;
-  nextClass?: Schedule;
+  selectedRoom: string;
+  setSelectedRoom: (v: string) => void;
+  floorChoice: string;
+  setFloorChoice: (value: string) => void;
+  onLesson: (id: string) => void;
   saved: SavedState;
   setSaved: React.Dispatch<React.SetStateAction<SavedState>>;
 }) {
-  type RoomStartMode = "now" | "next" | "manual";
-  type RoomDuration = "one" | "two" | "until-class";
-  const [startMode, setStartMode] = useState<RoomStartMode>("now");
-  const [duration, setDuration] = useState<RoomDuration>("one");
-  const [floorChoice, setFloorChoice] = useState("");
-  const [selectedRoom, setSelectedRoom] = useState("");
+  const roomListScrollRef = useRef(0);
+  const roomDatePickerRef = useRef<HTMLDetailsElement>(null);
   const selectedDate = new Date(`${date}T12:00:00`);
   const weekday = selectedDate.getDay() || 7;
   const selectedWeek = schoolWeek(selectedDate, term);
   const activeThisWeek = (item: Schedule) =>
     selectedWeek.state === "active" &&
     scheduleOccursInWeek(item, selectedWeek.week);
-  const nextClassToday =
-    nextClass &&
-    nextClass.weekday === weekday &&
-    selectedWeek.state === "active" &&
-    scheduleOccursInWeek(nextClass, selectedWeek.week)
-      ? nextClass
-      : undefined;
-  const targetBlocks =
-    duration === "one"
-      ? [block]
-      : duration === "two"
-        ? block < 4
-          ? [block, block + 1]
-          : []
-        : nextClassToday
-          ? nextClassToday.block > block
-            ? Array.from(
-                { length: nextClassToday.block - block },
-                (_, index) => block + index,
-              )
-            : []
-          : Array.from({ length: 5 - block }, (_, index) => block + index);
   const roomSchedules = data.schedules.filter(
     (item) =>
       item.term === term && data.buildings.includes(item.building) && item.room,
@@ -3126,38 +5801,36 @@ function RoomsPage({
   }
 
   function conflictFor(buildingName: string, room: string) {
-    if (!targetBlocks.length) return undefined;
     return (schedulesByRoom.get(roomKey(buildingName, room)) ?? [])
       .filter(
         (item) =>
           item.weekday === weekday &&
-          targetBlocks.includes(item.block) &&
+          item.block === block &&
           activeThisWeek(item),
       )
       .sort((a, b) => a.block - b.block)[0];
   }
 
   function roomIsAvailable(buildingName: string, room: string) {
-    return targetBlocks.length > 0 && !conflictFor(buildingName, room);
+    return selectedWeek.state === "active" && !conflictFor(buildingName, room);
   }
 
   function roomNextUse(buildingName: string, room: string) {
-    const afterBlock = Math.max(block, ...targetBlocks);
     return (schedulesByRoom.get(roomKey(buildingName, room)) ?? [])
       .filter(
         (item) =>
           item.weekday === weekday &&
-          item.block > afterBlock &&
+          item.block > block &&
           activeThisWeek(item),
       )
-      .sort((a, b) => a.block - b.block)[0];
+      .sort((a, b) => a.block - b.block || activityStart(a) - activityStart(b))[0];
   }
 
   function availableUntil(buildingName: string, room: string) {
     const next = roomNextUse(buildingName, room);
     return next
-      ? `可用至 ${data.periods[next.block - 1]?.time.split("–")[0]}`
-      : "今天后面都空着";
+      ? `下节课 ${activityTimes(next)[0]}`
+      : "";
   }
 
   const occupied = new Map(
@@ -3170,15 +5843,7 @@ function RoomsPage({
   const unavailableRooms = new Set(
     rooms.filter((room) => !roomIsAvailable(building, room)),
   );
-  const floors = new Map<string, string[]>();
-  for (const room of rooms) {
-    const floor = room.match(/\d/)?.[0] ?? "?";
-    if (!floors.has(floor)) floors.set(floor, []);
-    floors.get(floor)!.push(room);
-  }
-  const sortedFloors = [...floors.entries()].sort(
-    (a, b) => Number(b[0]) - Number(a[0]),
-  );
+  const sortedFloors = groupRoomsByFloor(rooms);
   const defaultFloor =
     sortedFloors.find(([floor]) => floor === "1")?.[0] ??
     sortedFloors.at(-1)?.[0] ??
@@ -3188,96 +5853,10 @@ function RoomsPage({
     : defaultFloor;
   const activeFloorRooms =
     sortedFloors.find(([floor]) => floor === activeFloor)?.[1] ?? [];
-  const needle = normalize(query);
-  const visibleActiveRooms = activeFloorRooms.filter(
-    (room) => !needle || normalize(room).includes(needle),
-  );
-
-  const recommendations = data.buildings
-    .flatMap((buildingName) =>
-      (roomsByBuilding.get(buildingName) ?? []).map((room) => {
-        const key = roomKey(buildingName, room);
-        const nextUse = roomNextUse(buildingName, room);
-        const favorite = saved.favoriteRooms.includes(key);
-        const recentIndex = saved.recentRooms.indexOf(key);
-        let score = nextUse?.block ?? 5;
-        if (buildingName === nextClassToday?.building) score += 30;
-        if (buildingName === building) score += 12;
-        if (favorite) score += 22;
-        if (recentIndex >= 0) score += Math.max(0, 8 - recentIndex);
-        const reason = favorite
-          ? "你收藏过"
-          : buildingName === nextClassToday?.building
-            ? "和下一节课同楼"
-            : recentIndex >= 0
-              ? "最近看过"
-              : nextUse
-                ? "空闲时间更长"
-                : "今天后面没有排课";
-        return {
-          key,
-          building: buildingName,
-          room,
-          score,
-          favorite,
-          reason,
-          until: availableUntil(buildingName, room),
-        };
-      }),
-    )
-    .filter((item) => roomIsAvailable(item.building, item.room))
-    .sort(
-      (a, b) =>
-        b.score - a.score ||
-        a.building.localeCompare(b.building, "zh-CN") ||
-        a.room.localeCompare(b.room, "zh-CN", { numeric: true }),
-    )
-    .slice(0, 3);
-
-  const startOptions: Array<{
-    id: RoomStartMode;
-    label: string;
-    detail: string;
-  }> = [
-    { id: "now", label: "现在", detail: "从当前大节开始" },
-    { id: "next", label: "下一大节", detail: "提前找好位置" },
-    { id: "manual", label: "自己选时间", detail: "用下方日期和节次" },
-  ];
-  const durationOptions: Array<{
-    id: RoomDuration;
-    label: string;
-    detail: string;
-  }> = [
-    { id: "one", label: "一大节", detail: "够上一轮自习" },
-    { id: "two", label: "连续两大节", detail: "中途不用换教室" },
-    {
-      id: "until-class",
-      label: "直到我的下节课",
-      detail: nextClassToday ? `空到去${nextClassToday.building}` : "今天剩余时间",
-    },
-  ];
-  const periodLabel = targetBlocks.length
-    ? targetBlocks
-        .map((item) => data.periods[item - 1]?.short)
-        .filter(Boolean)
-        .join("、")
-    : "今天没有足够的连续时段";
   const selectedPeriod = data.periods[block - 1];
-  const startLabel =
-    startMode === "now"
-      ? `现在 · ${selectedPeriod?.short}`
-      : startMode === "next"
-        ? `下一大节 · ${selectedPeriod?.short}`
-        : `${date.replaceAll("-", "/")} · ${selectedPeriod?.short}`;
-  const durationLabel =
-    duration === "one"
-      ? "一大节"
-      : duration === "two"
-        ? "连续两大节"
-        : "直到我的下节课";
-  const querySummary = targetBlocks.length
-    ? `${startLabel} · ${durationLabel}`
-    : periodLabel;
+  const queryTimeRange = selectedPeriod?.time;
+  const dateLabel = date === todayISO() ? "今天" : date === dateISO(dateAtOffset(1)) ? "明天" : `${selectedDate.getMonth() + 1}/${selectedDate.getDate()}`;
+  const isCurrentQuery = date === todayISO() && block === currentBlock();
   const selectedRoomInfo = selectedRoom
     ? {
         key: selectedRoom,
@@ -3288,9 +5867,10 @@ function RoomsPage({
 
   function selectRoom(buildingName: string, room: string) {
     const key = roomKey(buildingName, room);
+    roomListScrollRef.current = window.scrollY;
     setSelectedRoom(key);
     setBuilding(buildingName);
-    setFloorChoice(room.match(/\d/)?.[0] ?? "");
+    setFloorChoice(roomFloor(room));
     setSaved((state) => ({
       ...state,
       recentRooms: [key, ...state.recentRooms.filter((item) => item !== key)].slice(
@@ -3298,6 +5878,15 @@ function RoomsPage({
         8,
       ),
     }));
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }
+
+  function closeRoomSchedule() {
+    if (selectedRoomInfo) setFloorChoice(roomFloor(selectedRoomInfo.room));
+    setSelectedRoom("");
+    window.requestAnimationFrame(() =>
+      window.scrollTo({ top: roomListScrollRef.current, behavior: "auto" }),
+    );
   }
 
   function toggleFavorite(key: string) {
@@ -3309,43 +5898,81 @@ function RoomsPage({
     }));
   }
 
-  function chooseStart(nextMode: RoomStartMode) {
-    setStartMode(nextMode);
-    if (nextMode === "now") {
-      setDate(todayISO());
-      setBlock(currentBlock());
-      return;
-    }
-    if (nextMode === "next") {
-      const current = currentBlock();
-      if (current < 4) {
-        setDate(todayISO());
-        setBlock(current + 1);
-      } else {
-        setDate(dateISO(dateAtOffset(1)));
-        setBlock(1);
-      }
+  function chooseRoomDate(nextDate: string) {
+    if (!validEventDate(nextDate)) return;
+    setDate(nextDate);
+    if (roomDatePickerRef.current) {
+      roomDatePickerRef.current.open = false;
+      roomDatePickerRef.current.querySelector("summary")?.focus();
     }
   }
 
+  if (selectedRoomInfo) {
+    return (
+      <div className="page-wrap rooms-page living-spaces rooms-v5 room-week-focus">
+        <RoomWeekSchedule
+          building={selectedRoomInfo.building}
+          room={selectedRoomInfo.room}
+          date={date}
+          week={selectedWeek.state === "active" ? selectedWeek.week : null}
+          selectedWeekday={weekday}
+          periods={data.periods}
+          favorite={saved.favoriteRooms.includes(selectedRoomInfo.key)}
+          onBack={closeRoomSchedule}
+          onLesson={onLesson}
+          onToggleFavorite={() => toggleFavorite(selectedRoomInfo.key)}
+          feedbackAction={<DataFeedback target={{ type: "room", room: selectedRoomInfo.key }} />}
+          lessons={(schedulesByRoom.get(selectedRoomInfo.key) ?? [])
+            .filter(activeThisWeek)
+            .map((item) => ({
+              ...item,
+              periodLabel: data.periods[item.block - 1]?.short ?? "",
+            }))}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="page-wrap rooms-page living-spaces rooms-v5">
-      <header className="map-heading">
-        <div>
-          <span>校园空间</span>
+    <div className={`page-wrap rooms-page living-spaces rooms-v5 ${roomFilterStyles.compactPage}`}>
+      <section className={roomFilterStyles.filter} aria-label="查询时间">
+        <header className={roomFilterStyles.heading}>
           <h1>空教室</h1>
-          <p>
-            {nextClass
-              ? `下一节在 ${nextClass.building}${nextClass.room}，先找个顺路的位置。`
-              : "看看哪间教室正好适合你。"}
-          </p>
+          <div className={roomFilterStyles.dateActions}>
+            {!isCurrentQuery && <button className={roomFilterStyles.reset} type="button" onClick={() => {
+              setDate(todayISO());
+              setBlock(currentBlock());
+            }}>回到当前</button>}
+            <details className={roomFilterStyles.datePicker} ref={roomDatePickerRef} onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.preventDefault();
+                event.currentTarget.open = false;
+                event.currentTarget.querySelector("summary")?.focus();
+              }
+            }}>
+              <summary aria-label="选择查询日期" title={`${date} ${weekdayLabels[weekday % 7]}`}>{dateLabel} <span aria-hidden="true">⌄</span></summary>
+              <div className={roomFilterStyles.datePopover}>
+                <div>
+                  <button type="button" onClick={() => chooseRoomDate(todayISO())}>今天</button>
+                  <button type="button" onClick={() => chooseRoomDate(dateISO(dateAtOffset(1)))}>明天</button>
+                </div>
+                <label>
+                  <span>日期</span>
+                  <input type="date" name="room-date" value={date} min="2000-01-01" max="2100-12-31" onChange={(event) => chooseRoomDate(event.target.value)} />
+                </label>
+              </div>
+            </details>
+          </div>
+        </header>
+        <div className={roomFilterStyles.periods} role="group" aria-label="选择时段">
+          {data.periods.map((item) => (
+              <button type="button" key={item.block} aria-pressed={block === item.block} title={`${item.time} · ${item.short}`} onClick={() => setBlock(item.block)}>
+                {item.time.split("–")[0]}
+              </button>
+          ))}
         </div>
-        <div className="room-current-context" aria-label="当前查询时间">
-          <span>{weekdayLabels[weekday % 7]} · {date.replaceAll("-", "/")}</span>
-          <strong>{selectedPeriod?.short}</strong>
-          <small>{selectedPeriod?.time}</small>
-        </div>
-      </header>
+        {selectedWeek.state !== "active" && <p role="status">这个日期不在当前学期内，暂时无法判断空闲。</p>}
+      </section>
 
       <nav className="building-tabs" aria-label="选择教学楼">
         {data.buildings.map((item) => {
@@ -3356,6 +5983,8 @@ function RoomsPage({
             <button
               key={item}
               className={building === item ? "active" : ""}
+              aria-pressed={building === item}
+              aria-label={`${item}，${available.length} 间空闲`}
               onClick={() => {
                 setBuilding(item);
                 setFloorChoice("");
@@ -3370,6 +5999,21 @@ function RoomsPage({
       </nav>
 
       <section className="indoor-map">
+        <header className="floor-map-heading">
+          <div>
+            <span>{building} · {activeFloor === "?" ? "楼层未标注" : `${activeFloor} 层`}</span>
+            <h2>
+              {activeFloorRooms.filter((room) => roomIsAvailable(building, room)).length} 间可用
+            </h2>
+            <p className={roomFilterStyles.queryContext} aria-label="当前查询时间" aria-live="polite">
+              {dateLabel} · {queryTimeRange}
+            </p>
+          </div>
+          <div className={roomFilterStyles.legend}>
+            <span><i className="free" />空闲</span>
+            <span><i className="busy" />有课</span>
+          </div>
+        </header>
         <nav className="floor-selector" aria-label="选择楼层">
           <span>楼层</span>
           {sortedFloors.map(([floor, floorRooms]) => {
@@ -3381,41 +6025,20 @@ function RoomsPage({
                 key={floor}
                 className={activeFloor === floor ? "active" : ""}
                 aria-pressed={activeFloor === floor}
+                aria-label={`${floor === "?" ? "楼层未标注" : `${floor} 层`}，${free} 间空闲，共 ${floorRooms.length} 间`}
                 onClick={() => setFloorChoice(floor)}
               >
-                <b>{floor}F</b>
+                <b>{floor === "?" ? "其他" : `${floor}F`}</b>
                 <small>{free}</small>
+                <span className={roomFilterStyles.floorAvailability} aria-hidden="true">
+                  <i style={{ width: `${Math.round((free / floorRooms.length) * 100)}%` }} />
+                </span>
               </button>
             );
           })}
         </nav>
 
         <div className="floor-canvas">
-          <header>
-            <div>
-              <span>
-                {building} · {activeFloor} 层
-              </span>
-              <h2>
-                {
-                  visibleActiveRooms.filter((room) =>
-                    roomIsAvailable(building, room),
-                  ).length
-                }{" "}
-                间可用
-              </h2>
-            </div>
-            <div className="map-legend">
-              <span>
-                <i className="free" />
-                空闲
-              </span>
-              <span>
-                <i className="busy" />
-                有课
-              </span>
-            </div>
-          </header>
           <div className="floor-corridor">
             <div className="corridor-line">
               <span>楼层入口</span>
@@ -3423,29 +6046,28 @@ function RoomsPage({
               <span>教室区</span>
             </div>
             <div className="floor-rooms-v5">
-              {visibleActiveRooms.length ? (
-                visibleActiveRooms.map((room, index) => {
+              {activeFloorRooms.length ? (
+                activeFloorRooms.map((room, index) => {
                   const lesson = occupied.get(room);
                   const available = !unavailableRooms.has(room);
                   const key = roomKey(building, room);
+                  const roomNote = available ? availableUntil(building, room) : selectedWeek.state !== "active" ? "暂无该日期课表" : lesson?.title || "有课";
                   return (
                     <button
                       key={room}
-                      className={`${available ? "free" : "busy"} ${selectedRoom === key ? "selected" : ""} ${saved.favoriteRooms.includes(key) ? "favorite" : ""}`}
+                      id={`room-tile-${key}`}
+                      className={`${available ? "free" : "busy"} ${saved.favoriteRooms.includes(key) ? "favorite" : ""}`}
+                      aria-label={`${room}，${available ? "空闲" : "不可用"}${roomNote ? `，${roomNote}` : ""}，查看一周课表`}
                       style={{ "--room-order": index } as CSSProperties}
                       onClick={() => selectRoom(building, room)}
                     >
                       <strong>{room}</strong>
-                      <span>
-                        {available
-                          ? availableUntil(building, room)
-                          : lesson?.title || "这段时间不连续空闲"}
-                      </span>
+                      {roomNote && <span>{roomNote}</span>}
                     </button>
                   );
                 })
               ) : (
-                <p>这一层没有匹配的教室。</p>
+                <p>这一层暂无教室。</p>
               )}
             </div>
           </div>
@@ -3464,33 +6086,9 @@ function RoomsPage({
                 : ""}
               {weekdayLabels[weekday % 7]} · {data.periods[block - 1]?.short}
             </b>
-            <p>
-              {nextClass
-                ? `下一节在${nextClass.building}，同楼的教室已经排在前面。`
-                : "绿色教室符合你刚刚选择的时间。"}
-            </p>
           </div>
-          {selectedRoomInfo && (
-            <div className="selected-room-card">
-              <span>刚刚查看</span>
-              <b>{selectedRoomInfo.building}{selectedRoomInfo.room}</b>
-              <small>
-                {availableUntil(
-                  selectedRoomInfo.building,
-                  selectedRoomInfo.room,
-                )}
-              </small>
-              <button onClick={() => toggleFavorite(selectedRoomInfo.key)}>
-                {saved.favoriteRooms.includes(selectedRoomInfo.key)
-                  ? "★ 已收藏"
-                  : "☆ 设为常用"}
-              </button>
-            </div>
-          )}
-          <p>{data.disclaimer}</p>
         </aside>
       </section>
-
       {(saved.favoriteRooms.length > 0 || saved.recentRooms.length > 0) && (
         <nav className="room-memory" aria-label="常用和最近查看的教室">
           <span>{saved.favoriteRooms.length ? "常用" : "最近看过"}</span>
@@ -3513,157 +6111,6 @@ function RoomsPage({
         </nav>
       )}
 
-      <details className="room-tools">
-        <summary>
-          <span>
-            <b>换时间或按时长找</b>
-            <small>{querySummary}</small>
-          </span>
-          <i aria-hidden="true">展开</i>
-        </summary>
-        <div className="room-tools-body">
-          <section className="room-intents" aria-label="空教室高级筛选">
-            <div className="room-intent-groups">
-              <div className="room-intent-group">
-                <p><span>时间快捷选择</span></p>
-                <div>
-                  {startOptions.map((item) => (
-                    <button
-                      key={item.id}
-                      className={startMode === item.id ? "active" : ""}
-                      onClick={() => chooseStart(item.id)}
-                    >
-                      <b>{item.label}</b>
-                      <span>{item.detail}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="room-intent-group">
-                <p><span>连续空闲</span></p>
-                <div>
-                  {durationOptions.map((item) => (
-                    <button
-                      key={item.id}
-                      className={duration === item.id ? "active" : ""}
-                      disabled={item.id === "two" && block >= 4}
-                      onClick={() => setDuration(item.id)}
-                    >
-                      <b>{item.label}</b>
-                      <span>{item.detail}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="map-time">
-            <label>
-              <span>日期</span>
-              <input
-                type="date"
-                value={date}
-                onChange={(event) => {
-                  setDate(event.target.value);
-                  setStartMode("manual");
-                }}
-              />
-            </label>
-            <div className="manual-periods">
-              <span>起始节次</span>
-              <div>
-                {data.periods.map((item) => (
-                  <button
-                    key={item.block}
-                    className={block === item.block ? "active" : ""}
-                    onClick={() => {
-                      setBlock(item.block);
-                      setStartMode("manual");
-                    }}
-                  >
-                    <b>{item.short}</b>
-                    <span>{item.time}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-            <label>
-              <span>教室号</span>
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="例如 301"
-              />
-            </label>
-          </section>
-
-          <section className="room-recommendations">
-            <header>
-              <div>
-                <span>可选建议</span>
-                <h2>{recommendations.length ? "可以先看这三间" : "这段时间没有合适的教室"}</h2>
-              </div>
-              <small>{weekdayLabels[weekday % 7]} · {querySummary}</small>
-            </header>
-            <div>
-              {recommendations.map((item) => (
-                <article key={item.key}>
-                  <button
-                    className="recommendation-main"
-                    onClick={() => selectRoom(item.building, item.room)}
-                  >
-                    <span>{item.reason}</span>
-                    <strong>{item.building}{item.room}</strong>
-                    <small>{item.until}</small>
-                  </button>
-                  <button
-                    className={item.favorite ? "favorite active" : "favorite"}
-                    onClick={() => toggleFavorite(item.key)}
-                    aria-label={item.favorite ? "取消收藏" : "收藏教室"}
-                  >
-                    {item.favorite ? "★" : "☆"}
-                  </button>
-                </article>
-              ))}
-              {!recommendations.length && (
-                <p>换一个起始节次，或者只查一大节试试。</p>
-              )}
-            </div>
-          </section>
-        </div>
-      </details>
-
-      <section className="floor-overview">
-        <header>
-          <h2>整栋楼一览</h2>
-          <span>点按楼层进入详细视图</span>
-        </header>
-        <div>
-          {sortedFloors.map(([floor, floorRooms]) => {
-            const free = floorRooms.filter((room) =>
-              roomIsAvailable(building, room),
-            );
-            return (
-              <button
-                key={floor}
-                className={activeFloor === floor ? "active" : ""}
-                onClick={() => setFloorChoice(floor)}
-              >
-                <b>{floor}F</b>
-                <span>{free.length} 间空闲</span>
-                <i
-                  style={
-                    {
-                      "--fill": `${Math.round((free.length / Math.max(1, floorRooms.length)) * 100)}%`,
-                    } as CSSProperties
-                  }
-                />
-              </button>
-            );
-          })}
-        </div>
-      </section>
     </div>
   );
 }
@@ -3671,36 +6118,205 @@ function RoomsPage({
 function MePage({
   data,
   saved,
-  setSaved,
+  onClearLocal,
   onSetup,
+  academicSnapshot,
+  trainingPlan,
+  upcomingExams,
+  onOpenExams,
+  onOpenCourses,
   account,
   devices,
   syncStatus,
   syncedAt,
+  anonymousImportAvailable,
   onLogin,
+  onAuthChanged,
   onLogout,
   onRevokeDevice,
   onDeleteAccount,
+  onImportAnonymousData,
+  onKeepAnonymousDataSeparate,
   onResolveSyncConflict,
 }: {
   data: SiteData;
   saved: SavedState;
-  setSaved: React.Dispatch<React.SetStateAction<SavedState>>;
+  onClearLocal: () => void;
   onSetup: () => void;
+  academicSnapshot?: AcademicSnapshot;
+  trainingPlan: AcademicTrainingPlan | null;
+  upcomingExams: ReturnType<typeof upcomingAcademicExams>;
+  onOpenExams: () => void;
+  onOpenCourses: () => void;
   account: AccountState;
   devices: AccountDevice[];
   syncStatus: CloudSyncStatus;
   syncedAt: string;
+  anonymousImportAvailable: boolean;
   onLogin: () => void;
+  onAuthChanged: () => void;
   onLogout: () => Promise<void>;
   onRevokeDevice: (deviceId: string) => Promise<void>;
   onDeleteAccount: () => Promise<boolean>;
+  onImportAnonymousData: () => void;
+  onKeepAnonymousDataSeparate: () => void;
   onResolveSyncConflict: (choice: "local" | "cloud") => void;
 }) {
   const major = data.majors.find((item) => item.id === saved.profile?.majorId);
+  const currentAcademicCodes = new Set(
+    (academicSnapshot?.sections ?? []).map((section) =>
+      normalizeCourseCode(section.courseCode),
+    ),
+  );
+  const currentPlanCourses = (trainingPlan?.courses ?? []).filter((course) =>
+    currentAcademicCodes.has(normalizeCourseCode(course.courseCode)),
+  );
+  const [accountOpen, setAccountOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletePhrase, setDeletePhrase] = useState("");
   const [accountBusy, setAccountBusy] = useState("");
+  const [credentialMode, setCredentialMode] = useState<
+    "login" | "register" | "reset"
+  >("login");
+  const [credentialForm, setCredentialForm] = useState({
+    username: "",
+    email: "",
+    identifier: "",
+    password: "",
+    schoolAccount: "",
+    resetToken: "",
+    registrationCode: "",
+  });
+  const [resetConfirmationOpen, setResetConfirmationOpen] = useState(false);
+  const [useMomoName, setUseMomoName] = useState(false);
+  const securityFlowGeneration = useRef(0);
+  const [registrationChallengeId, setRegistrationChallengeId] = useState("");
+  const [registrationSeconds, setRegistrationSeconds] = useState(0);
+  useEffect(() => {
+    if (registrationSeconds <= 0) return;
+    const timer = setTimeout(() => setRegistrationSeconds((value) => Math.max(0, value - 1)), 1000);
+    return () => clearTimeout(timer);
+  }, [registrationSeconds]);
+
+  const requestRegistrationCode = async () => {
+    const generation = securityFlowGeneration.current;
+    setAccountBusy("credential-code");
+    setCredentialFeedback("");
+    try {
+      const response = await fetch("/api/auth/register/challenge", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: credentialForm.email }),
+      });
+      const payload = await response.json() as { error?: string; challengeId: string; retryAfter: number };
+      if (generation !== securityFlowGeneration.current) return;
+      if (!response.ok) {
+        setCredentialFeedback(response.status === 429 ? "请求太频繁，请稍后再试。" :
+          payload.error === "invalid_registration_email" ? "请输入有效邮箱。" : "注册邮件暂时不可用，请稍后再试。");
+        return;
+      }
+      setRegistrationChallengeId(payload.challengeId);
+      setRegistrationSeconds(payload.retryAfter);
+      setCredentialForm((current) => ({ ...current, registrationCode: "" }));
+      setCredentialFeedback("如果邮箱可用于注册，验证码将发送到邮箱。请在当前浏览器于 5 分钟内完成注册；已有账号请直接登录或找回密码。");
+    } catch { if (generation === securityFlowGeneration.current) setCredentialFeedback("注册邮件暂时不可用，请稍后再试。"); }
+    finally { if (generation === securityFlowGeneration.current) setAccountBusy(""); }
+  };
+  const [credentialFeedback, setCredentialFeedback] = useState("");
+  const [profileEditing, setProfileEditing] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    username: "",
+    displayName: "",
+    schoolAccount: "",
+  });
+  const [profileFeedback, setProfileFeedback] = useState("");
+  const [nameChange, setNameChange] = useState<AccountNameChange | null>(null);
+  const [nameChangeFeedback, setNameChangeFeedback] = useState("");
+  const [nameChangeLoading, setNameChangeLoading] = useState(false);
+  const [nameModeFeedback, setNameModeFeedback] = useState("");
+  const [nameModeConfirm, setNameModeConfirm] = useState<"name" | "momo" | null>(null);
+  const [nameModeNow, setNameModeNow] = useState(0);
+  const ownAccountName = account.user?.accountName !== undefined
+    ? account.user.accountName ?? ""
+    : account.user?.displayName ?? account.user?.username ?? "";
+  const currentNameMode = account.user?.nameMode ?? "name";
+  const nameModeAvailableAt = account.user?.nameModeAvailableAt ? Date.parse(account.user.nameModeAvailableAt) : 0;
+  const nameModeCoolingDown = Number.isFinite(nameModeAvailableAt) && nameModeAvailableAt > nameModeNow;
+  const [emailVerificationToken, setEmailVerificationToken] = useState("");
+  const [emailVerificationPassword, setEmailVerificationPassword] = useState("");
+  const [emailVerificationOpen, setEmailVerificationOpen] = useState(false);
+  const clearSensitiveAccountInputs = useCallback(() => {
+    securityFlowGeneration.current += 1;
+    setCredentialForm((current) => ({ ...current, password: "", resetToken: "", registrationCode: "" }));
+    setRegistrationChallengeId("");
+    setResetConfirmationOpen(false);
+    setEmailVerificationToken("");
+    setEmailVerificationPassword("");
+    setEmailVerificationOpen(false);
+    setCredentialFeedback("");
+    setProfileFeedback("");
+    setNameChangeFeedback("");
+    setNameChange(null);
+    setNameChangeLoading(false);
+    setNameModeFeedback("");
+    setNameModeConfirm(null);
+    setProfileEditing(false);
+    setProfileForm({ username: "", displayName: "", schoolAccount: "" });
+    setUseMomoName(false);
+    setAccountBusy("");
+  }, []);
+  useLayoutEffect(() => {
+    // Keep account details expanded when login completes. Only the sensitive
+    // form state belongs to this account/session; discard it before next input.
+    securityFlowGeneration.current += 1;
+    let active = true;
+    queueMicrotask(() => { if (active) clearSensitiveAccountInputs(); });
+    return () => { active = false; securityFlowGeneration.current += 1; };
+  }, [account.status, account.user?.id, account.session?.expiresAt, clearSensitiveAccountInputs]);
+  useEffect(() => () => { securityFlowGeneration.current += 1; }, []);
+  useEffect(() => {
+    if (!accountOpen || account.status !== "authenticated") return;
+    const update = () => setNameModeNow(Date.now());
+    const first = setTimeout(update, 0);
+    const timer = setInterval(update, 1000);
+    return () => { clearTimeout(first); clearInterval(timer); };
+  }, [accountOpen, account.status]);
+  useEffect(() => {
+    if (!accountOpen || account.status !== "authenticated" || !account.user?.id) return;
+    let active = true;
+    const controller = new AbortController();
+    void (async () => {
+      await Promise.resolve();
+      if (!active) return;
+      const generation = securityFlowGeneration.current;
+      setNameChangeLoading(true);
+      try {
+        const response = await fetch("/api/auth/name-change", { credentials: "same-origin", cache: "no-store", signal: controller.signal, headers: { "X-Account-Owner": account.user?.id ?? "" } });
+        if (response.status === 409 && active && generation === securityFlowGeneration.current) {
+          clearSensitiveAccountInputs();
+          onAuthChanged();
+          return;
+        }
+        if (!response.ok) throw new Error("name_change_unavailable");
+        const payload = await response.json() as { request?: AccountNameChange | null };
+        if (active && generation === securityFlowGeneration.current) setNameChange(payload.request ?? null);
+      } catch { if (active && generation === securityFlowGeneration.current) setNameChangeFeedback("改名申请暂时无法读取，请稍后再试。"); }
+      finally { if (active && generation === securityFlowGeneration.current) setNameChangeLoading(false); }
+    })();
+    return () => { active = false; controller.abort(); };
+  }, [accountOpen, account.status, account.user?.id, account.session?.expiresAt, clearSensitiveAccountInputs, onAuthChanged]);
+  const changeCredentialMode = (mode: "login" | "register" | "reset") => {
+    clearSensitiveAccountInputs();
+    setCredentialMode(mode);
+  };
+  useEffect(() => {
+    if (!deleteOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setDeleteOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [deleteOpen]);
   const syncCopy = {
     local: ["只在本机", "登录后可在不同设备继续使用"],
     syncing: ["正在同步", "刚才的修改正在保存"],
@@ -3719,49 +6335,456 @@ function MePage({
     offline: ["暂时离线", "本机修改仍会保留，联网后再同步"],
   }[syncStatus];
 
+  const submitCredentials = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const generation = securityFlowGeneration.current;
+    const isResetConfirmation = credentialMode === "reset" && resetConfirmationOpen;
+    if (credentialMode === "register") {
+      const username = credentialForm.username.normalize("NFKC").trim();
+      const length = Array.from(username).length;
+      if (length < 1 || length > 24 || !/^[\p{L}\p{N}_-]+$/u.test(username)) {
+        setCredentialFeedback("用户名需要 1–24 个字符，可用汉字、字母、数字、下划线或短横线。");
+        return;
+      }
+    }
+    if (credentialMode === "register" || isResetConfirmation) {
+      const length = Array.from(credentialForm.password).length;
+      if (length < 8 || length > 128) {
+        setCredentialFeedback("新密码需要 8–128 个字符。");
+        return;
+      }
+    }
+    setAccountBusy(`credential-${credentialMode}`);
+    setCredentialFeedback("");
+    try {
+      const endpoint =
+        credentialMode === "register"
+          ? "/api/auth/register"
+          : credentialMode === "login"
+            ? "/api/auth/login"
+            : isResetConfirmation
+              ? "/api/auth/password/reset/confirm"
+              : "/api/auth/password/reset/request";
+      const body =
+        credentialMode === "register"
+          ? {
+              username: credentialForm.username,
+              ...(useMomoName ? { displayName: "momo" } : {}),
+              email: credentialForm.email,
+              password: credentialForm.password,
+              schoolAccount: credentialForm.schoolAccount,
+              challengeId: registrationChallengeId,
+              code: credentialForm.registrationCode,
+            }
+          : credentialMode === "login"
+            ? {
+                identifier: credentialForm.identifier,
+                password: credentialForm.password,
+              }
+            : isResetConfirmation
+              ? {
+                  token: credentialForm.resetToken.trim(),
+                  password: credentialForm.password,
+                }
+              : { identifier: credentialForm.identifier };
+      const response = await fetch(endpoint, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        debugToken?: string;
+        fields?: Record<string, string>;
+      };
+      if (generation !== securityFlowGeneration.current) return;
+
+      if (!response.ok) {
+        const fieldMessage = payload.fields
+          ? Object.values(payload.fields)[0]
+          : "";
+        const messages: Record<string, string> = {
+          invalid_credentials: "用户名、邮箱或密码不正确。",
+          invalid_registration: fieldMessage || "请检查注册信息。",
+          invalid_registration_verification: "验证码无效、已过期或注册信息不可用，请检查后重新申请。",
+          registration_unavailable: "注册邮件暂时不可用，请稍后再试。",
+          registration_conflict: fieldMessage || "用户名或邮箱已被使用。",
+          name_conflict: fieldMessage || "这个名字已被使用，请换一个。",
+          credential_rate_limit_exceeded: "尝试次数过多，请稍后再试。",
+          password_reset_rate_limit_exceeded: "请求太频繁，请稍后再试。",
+          password_reset_delivery_unavailable:
+            "暂时无法通过邮件找回密码；你的原密码不会被更改。",
+          invalid_password_reset: "重置码无效、已使用或已过期，或新密码不符合要求。",
+        };
+        setCredentialFeedback(
+          messages[payload.error ?? ""] || "暂时无法连接账号服务，请稍后再试。",
+        );
+        return;
+      }
+
+      if (credentialMode === "reset" && !isResetConfirmation) {
+        setResetConfirmationOpen(true);
+        setCredentialForm((current) => ({ ...current, resetToken: payload.debugToken ?? "", password: "" }));
+        setCredentialFeedback(payload.debugToken
+          ? "已生成一次性重置码，请设置新密码。"
+          : "如果账号可通过已验证邮箱找回，重置邮件会在几分钟内到达。请在邮件注明的有效期内填写重置码。");
+        return;
+      }
+
+      if (credentialMode === "reset") {
+        setCredentialMode("login");
+        setResetConfirmationOpen(false);
+        setCredentialForm((current) => ({
+          ...current,
+          password: "",
+          resetToken: "",
+        }));
+        setCredentialFeedback("密码已更新，请重新登录。所有旧设备已退出。");
+        return;
+      }
+
+      setCredentialForm((current) => ({ ...current, password: "", registrationCode: "" }));
+      setRegistrationChallengeId("");
+      onAuthChanged();
+    } catch {
+      if (generation === securityFlowGeneration.current) setCredentialFeedback("账号服务暂时离线，本机课表仍可继续使用。");
+    } finally {
+      if (generation === securityFlowGeneration.current) setAccountBusy("");
+    }
+  };
+
+  const saveAccountProfile = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setAccountBusy("profile");
+    setProfileFeedback("");
+    try {
+      const response = await fetch("/api/auth/profile", {
+        method: "PUT",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ schoolAccount: profileForm.schoolAccount }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        fields?: Record<string, string>;
+      };
+      if (!response.ok) {
+        const fieldMessage = payload.fields
+          ? Object.values(payload.fields)[0]
+          : "";
+        setProfileFeedback(
+          fieldMessage ||
+            (payload.error === "profile_conflict"
+              ? "这个用户名已被使用。"
+              : "资料暂时无法保存，请稍后再试。"),
+        );
+        return;
+      }
+      setProfileEditing(false);
+      setProfileFeedback("学号已保存。");
+      onAuthChanged();
+    } catch {
+      setProfileFeedback("账号服务暂时离线，资料没有更改。");
+    } finally {
+      setAccountBusy("");
+    }
+  };
+
+  const submitAccountNameChange = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const generation = securityFlowGeneration.current;
+    const username = profileForm.username.normalize("NFKC").trim();
+    const displayName = profileForm.displayName.normalize("NFKC").trim();
+    if ((username || account.user?.username) && (Array.from(username).length < 1 || Array.from(username).length > 24 || !/^[\p{L}\p{N}_-]+$/u.test(username))) {
+      setNameChangeFeedback("用户名需要 1–24 个字符，可用汉字、字母、数字、下划线或短横线。");
+      return;
+    }
+    if (Array.from(displayName).length < 1 || Array.from(displayName).length > 40 || /[\p{Cc}\p{Cf}]/u.test(displayName)) {
+      setNameChangeFeedback("昵称需要 1–40 个可见字符。");
+      return;
+    }
+    if (displayName.toLowerCase() === "momo" && ownAccountName.toLowerCase() !== "momo") {
+      setNameChangeFeedback("想使用 momo，请使用昵称切换；自己的名字会为你保留。");
+      return;
+    }
+    const body = {
+      ...(username !== (account.user?.username ?? "") ? { username } : {}),
+      ...(displayName !== ownAccountName ? { displayName } : {}),
+    };
+    if (!Object.keys(body).length) { setNameChangeFeedback("请先填写想改的名字。"); return; }
+    setAccountBusy("name-change");
+    setNameChangeFeedback("");
+    try {
+      const response = await fetch("/api/auth/name-change", { method: "POST", credentials: "same-origin", cache: "no-store", headers: { "Content-Type": "application/json", "X-Account-Owner": account.user?.id ?? "" }, body: JSON.stringify(body) });
+      const payload = await response.json() as { request?: AccountNameChange; error?: string; fields?: Record<string, string> };
+      if (generation !== securityFlowGeneration.current) return;
+      if (!response.ok) {
+        if (payload.error === "account_changed") {
+          clearSensitiveAccountInputs();
+          setNameChangeFeedback("登录账号已变化，请核对当前账号后重新操作。");
+          onAuthChanged();
+          return;
+        }
+        const message = payload.fields ? Object.values(payload.fields)[0] : "";
+        setNameChangeFeedback(message || (payload.error === "account_changed" ? "登录账号已变化，请刷新后重新操作。" : payload.error === "name_conflict" ? "这个名字已被使用，请换一个。" : payload.error === "name_change_conflict" ? "已有待审核的申请，请等待管理员处理。" : response.status === 429 ? "改名申请太频繁，请稍后再试。" : "改名申请暂时无法提交，请稍后再试。"));
+        return;
+      }
+      setNameChange(payload.request ?? null);
+      setNameChangeFeedback("改名申请已提交，管理员通过后生效。当前名字保持不变。");
+    } catch { if (generation === securityFlowGeneration.current) setNameChangeFeedback("改名申请暂时无法提交，请稍后再试。"); }
+    finally { if (generation === securityFlowGeneration.current) setAccountBusy(""); }
+  };
+
+  const switchAccountNameMode = async () => {
+    if (!nameModeConfirm) return;
+    const mode = nameModeConfirm;
+    const generation = securityFlowGeneration.current;
+    setAccountBusy("name-mode");
+    setNameModeFeedback("");
+    try {
+      const response = await fetch("/api/auth/name-mode", {
+        method: "POST", credentials: "same-origin", cache: "no-store",
+        headers: { "Content-Type": "application/json", "X-Account-Owner": account.user?.id ?? "" }, body: JSON.stringify({ mode }),
+      });
+      const payload = await response.json() as { error?: string; availableAt?: string };
+      if (generation !== securityFlowGeneration.current) return;
+      setNameModeConfirm(null);
+      if (!response.ok) {
+        if (payload.error === "account_changed") clearSensitiveAccountInputs();
+        const availableAt = payload.availableAt ? new Date(payload.availableAt) : null;
+        setNameModeFeedback(payload.error === "name_mode_cooldown"
+          ? `还在冷却中${availableAt && Number.isFinite(availableAt.getTime()) ? `，可在 ${availableAt.toLocaleString("zh-CN")} 再次切换` : "，请稍后再试"}。`
+          : payload.error === "account_changed" ? "登录账号已变化，请刷新后重新操作。"
+          : payload.error === "name_mode_name_required" ? "请先提交自己的名字，管理员通过后即可切换。"
+          : response.status === 429 ? "操作太频繁，请稍后再试。" : "昵称暂时无法切换，请稍后再试。");
+        onAuthChanged();
+        return;
+      }
+      setNameModeFeedback(mode === "momo" ? "已切换为 momo，自己的名字已保留。" : "已切回自己的名字。");
+      onAuthChanged();
+    } catch { if (generation === securityFlowGeneration.current) setNameModeFeedback("昵称暂时无法切换，请稍后再试。"); }
+    finally { if (generation === securityFlowGeneration.current) setAccountBusy(""); }
+  };
+
+  const uploadAccountAvatar = async (file: File) => {
+    if (file.size > 5 * 1024 * 1024) {
+      setProfileFeedback("头像原图不能超过 5MB。");
+      return;
+    }
+    setAccountBusy("avatar");
+    setProfileFeedback("");
+    try {
+      const response = await fetch("/api/auth/profile/avatar", {
+        method: "PUT",
+        credentials: "same-origin",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      if (!response.ok) {
+        const messages: Record<string, string> = {
+          avatar_too_large: "头像原图不能超过 5MB。",
+          avatar_type_unsupported: "请使用 JPEG、PNG 或 WebP 图片。",
+          avatar_invalid: "图片无法识别，或尺寸不符合要求。",
+          avatar_rate_limit_exceeded: "头像修改太频繁，请稍后再试。",
+        };
+        setProfileFeedback(
+          messages[payload.error ?? ""] || "头像暂时无法保存，请稍后再试。",
+        );
+        return;
+      }
+      setProfileFeedback("头像已更新；原图与定位信息没有保留。");
+      onAuthChanged();
+    } catch {
+      setProfileFeedback("账号服务暂时离线，头像没有更改。");
+    } finally {
+      setAccountBusy("");
+    }
+  };
+
+  const deleteAccountAvatar = async () => {
+    setAccountBusy("avatar-delete");
+    setProfileFeedback("");
+    try {
+      const response = await fetch("/api/auth/profile/avatar", {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
+      if (!response.ok) {
+        setProfileFeedback("头像暂时无法删除，请稍后再试。");
+        return;
+      }
+      setProfileFeedback("头像已删除。");
+      onAuthChanged();
+    } catch {
+      setProfileFeedback("账号服务暂时离线，头像没有更改。");
+    } finally {
+      setAccountBusy("");
+    }
+  };
+
+  const requestEmailVerification = async () => {
+    const generation = securityFlowGeneration.current;
+    setAccountBusy("email-verification-request");
+    setProfileFeedback("");
+    try {
+      const response = await fetch("/api/auth/email/verification/request", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: emailVerificationPassword }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        debugToken?: string;
+        alreadyVerified?: boolean;
+      };
+      if (generation !== securityFlowGeneration.current) return;
+      if (!response.ok) {
+        const messages: Record<string, string> = {
+          email_verification_delivery_unavailable:
+            "暂时无法发送验证邮件，请稍后再试。",
+          email_verification_delivery_failed:
+            "验证邮件没有发出，请稍后再试。",
+          email_verification_rate_limit_exceeded:
+            "验证邮件请求太频繁，请稍后再试。",
+          email_verification_unavailable:
+            "当前邮箱无法发起验证，请刷新账号资料后重试。",
+          current_password_required: "请输入当前网站登录密码。",
+          invalid_credentials: "当前密码不正确，请重新输入。",
+          personal_security_unavailable: "账号验证暂时不可用，请稍后再试。",
+        };
+        setProfileFeedback(
+          messages[payload.error ?? ""] || "验证请求没有完成，请稍后再试。",
+        );
+        return;
+      }
+      if (payload.alreadyVerified) {
+        setProfileFeedback("邮箱已经验证。无需重复操作。");
+        onAuthChanged();
+      } else {
+        setEmailVerificationOpen(true);
+        setEmailVerificationToken(payload.debugToken ?? "");
+        setProfileFeedback(payload.debugToken ? "已生成邮箱验证令牌，请继续验证。"
+          : "验证邮件已发送，请在当前浏览器、当前账号中，于邮件注明的有效期内填写验证令牌。");
+      }
+    } catch {
+      if (generation === securityFlowGeneration.current) setProfileFeedback("账号服务暂时离线，没有发起验证。");
+    } finally {
+      if (generation === securityFlowGeneration.current) {
+        setEmailVerificationPassword("");
+        setAccountBusy("");
+      }
+    }
+  };
+
+  const confirmEmailVerification = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const generation = securityFlowGeneration.current;
+    setAccountBusy("email-verification-confirm");
+    setProfileFeedback("");
+    try {
+      const response = await fetch("/api/auth/email/verification/confirm", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: emailVerificationToken.trim() }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      if (generation !== securityFlowGeneration.current) return;
+      if (!response.ok) {
+        setProfileFeedback(
+          payload.error === "invalid_email_verification"
+            ? "邮箱验证令牌无效、已使用或已过期。请在申请邮件的浏览器与账号中操作。"
+            : "邮箱验证没有完成，请稍后再试。",
+        );
+        return;
+      }
+      setEmailVerificationToken("");
+      setEmailVerificationOpen(false);
+      setProfileFeedback("邮箱验证完成。");
+      onAuthChanged();
+    } catch {
+      if (generation === securityFlowGeneration.current) setProfileFeedback("账号服务暂时离线，邮箱状态没有更改。");
+    } finally {
+      if (generation === securityFlowGeneration.current) setAccountBusy("");
+    }
+  };
+
   return (
-    <div className="page-wrap me-page">
+    <div className={`page-wrap me-page ${meStyles.workspace}`}>
       <header className="workspace-heading">
         <div>
           <h1>我的</h1>
-          <p>
-            {account.status === "authenticated"
-              ? "课表、日程和作业跟着账号走。"
-              : "当前设备可直接使用；微信登录开放后支持多设备同步。"}
-          </p>
         </div>
-        <button onClick={onSetup}>
-          {saved.profile ? "修改专业班级" : "设置专业班级"}
-        </button>
       </header>
-      <div className="me-grid">
-        <article className="identity-card">
+      {academicSnapshot?.examStatus ? (
+        <section className={academicStyles.meExamSummary} aria-label="考试安排未同步">
+          <div>
+            <span>考试安排</span>
+            <strong>
+              {academicSnapshot.examStatus === "stale" ? "本次未更新" : "尚未同步"}
+            </strong>
+            <p>课表已保存；请从“课程”重新更新考试安排。</p>
+          </div>
+          <button onClick={onOpenCourses}>去更新</button>
+        </section>
+      ) : upcomingExams.length > 0 && (
+        <section className={academicStyles.meExamSummary} aria-label="我的考试">
+          <div>
+            <span>考试</span>
+            <strong>{upcomingExams[0].courseName || upcomingExams[0].courseCode}</strong>
+            <p>
+              {upcomingExams[0].date || "日期待定"} · {[upcomingExams[0].startTime, upcomingExams[0].endTime].filter(Boolean).join("–") || "时间待定"} · {upcomingExams[0].location || "考场待定"}
+            </p>
+          </div>
+          <button onClick={onOpenExams}>
+            {upcomingExams.length > 1 ? `查看 ${upcomingExams.length} 场考试` : "查看考试"}
+          </button>
+        </section>
+      )}
+      {trainingPlan && (
+        <section className={courseStyles.profileStudySummary} aria-label="本学期培养方案课程">
+          <div>
+            <span>本学期培养方案</span>
+            <strong>{currentPlanCourses.length} 门培养方案课程在修</strong>
+            <p>
+              {currentPlanCourses.length
+                ? currentPlanCourses.map((course) => course.courseName).join("、")
+                : `已修 ${formatPlanCredits(trainingPlan.earnedCredits ?? null)}，本学期暂未匹配到培养方案课程。`}
+            </p>
+          </div>
+          <button onClick={onOpenCourses}>查看课程</button>
+        </section>
+      )}
+      <section className={meStyles.overview} aria-label="个人概况">
+        <i>{saved.profile ? courseMark(major?.name ?? "我") : "我"}</i>
+        <div className={meStyles.identity}>
           <span>个人档案</span>
-          <i>{saved.profile ? courseMark(major?.name ?? "我") : "我"}</i>
           <h2>{major?.name ?? "尚未设置专业"}</h2>
           <p>
             {saved.profile
               ? `${saved.profile.entranceYear} 级 · ${saved.profile.className || "未选择班级"}`
-              : "选好班级，就能看到自己的课表。"}
+              : "设置专业和班级后，可按你的课程排序。"}
           </p>
-          <button onClick={onSetup}>编辑</button>
-        </article>
-        <article>
-          <span>课表方案</span>
-          <strong>{saved.plans.length}</strong>
-          <p>默认、旁听和备选课表分别保存。</p>
-        </article>
-        <article>
-          <span>保存状态</span>
-          <strong>{syncCopy[0]}</strong>
-          <p>{syncCopy[1]}。</p>
-        </article>
-        <article>
-          <span>隐私</span>
-          <strong>最少采集</strong>
-          <p>不使用 GPS，不采集与课程服务无关的信息。</p>
-        </article>
-      </div>
+        </div>
+        <dl>
+          <div>
+            <dt>课表方案</dt>
+            <dd>{saved.plans.length}</dd>
+          </div>
+          <div>
+            <dt>保存</dt>
+            <dd>{syncCopy[0]}</dd>
+          </div>
+        </dl>
+        <button onClick={onSetup}>编辑档案</button>
+      </section>
       <section
         className={`account-center account-${account.status}`}
         aria-labelledby="account-center-title"
@@ -3771,63 +6794,539 @@ function MePage({
             <span>账号与同步</span>
             <h2 id="account-center-title">
               {account.status === "authenticated"
-                ? account.user?.displayName || "微信用户"
+                ? account.user?.displayName || account.user?.username || "同学"
                 : account.status === "loading"
                   ? "正在查看登录状态"
-                  : "让课表跟着你走"}
+                  : "登录或创建账号"}
             </h2>
             <p>
               {account.status === "authenticated"
-                ? "这里管理同步、登录设备和账号。"
-                : "登录后会先合并本机内容，不会直接覆盖已有课表。"}
+                ? syncCopy[0]
+                : "登录后可在其他设备继续使用。"}
             </p>
           </div>
-          {account.status === "authenticated" ? (
-            account.user?.avatarUrl ? (
-              <span
-                className="account-avatar"
-                aria-hidden="true"
-                style={{
-                  backgroundImage: `url("${account.user.avatarUrl.replaceAll('"', "%22")}")`,
-                }}
-              />
-            ) : (
-              <i>{courseMark(account.user?.displayName || "我")}</i>
-            )
-          ) : (
-            <i>云</i>
-          )}
+          <button
+            type="button"
+            className={meStyles.accountToggle}
+            aria-expanded={accountOpen}
+            onClick={() => {
+              if (accountOpen) clearSensitiveAccountInputs();
+              setAccountOpen((current) => !current);
+            }}
+          >
+            {accountOpen
+              ? "收起"
+              : account.status === "authenticated"
+                ? "管理账号"
+                : "登录"}
+          </button>
         </header>
 
-        {account.status === "loading" && (
+        {accountOpen && account.status === "loading" && (
           <div className="account-loading" aria-live="polite">
             <span />
-            <p>稍等一下，正在确认这台设备。</p>
+            <p>正在确认这台设备的登录状态…</p>
           </div>
         )}
 
-        {account.status === "anonymous" && (
-          <div className="account-login">
-            <div>
+        {accountOpen && account.status === "anonymous" && (
+          <div className="account-login account-login-v2">
+            <div className="account-local-note">
               <b>现在的数据只保存在这台设备</b>
               <p>清理微信或浏览器缓存前，请先导出课表图片留存。</p>
             </div>
-            <button
-              onClick={onLogin}
-              disabled={!account.wechatAvailable}
-              title={
-                account.wechatAvailable
-                  ? "使用微信账号登录"
-                  : "微信网站应用正在审核"
-              }
-            >
-              {account.wechatAvailable ? "微信登录并同步" : "微信登录审核中"}
-            </button>
+            {account.credentialsAvailable ? (
+              <div className="credential-gateway">
+                <nav aria-label="账号操作">
+                  <button
+                    type="button"
+                    aria-pressed={credentialMode === "login"}
+                    onClick={() => changeCredentialMode("login")}
+                  >
+                    登录
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={credentialMode === "register"}
+                    onClick={() => changeCredentialMode("register")}
+                  >
+                    创建账号
+                  </button>
+                </nav>
+                <form onSubmit={submitCredentials}>
+                  {credentialMode === "register" && (
+                    <FormField label="用户名" className="credential-field">
+                      <input
+                        required
+                        autoComplete="username"
+                        value={credentialForm.username}
+                        onChange={(event) =>
+                          setCredentialForm((current) => ({
+                            ...current,
+                            username: event.target.value,
+                          }))
+                        }
+                        placeholder="起个名字吧"
+                      />
+                    </FormField>
+                  )}
+                  {credentialMode === "register" ? (
+                    <FormField label="邮箱" className="credential-field">
+                      <input
+                        required
+                        type="email"
+                        maxLength={254}
+                        autoComplete="email"
+                        disabled={accountBusy === "credential-code"}
+                        value={credentialForm.email}
+                        onChange={(event) => {
+                          setRegistrationChallengeId("");
+                          setCredentialForm((current) => ({
+                            ...current,
+                            email: event.target.value,
+                            registrationCode: "",
+                          }))
+                        }}
+                        placeholder="用于登录和找回密码"
+                      />
+                    </FormField>
+                  ) : (
+                    (credentialMode !== "reset" || !resetConfirmationOpen) && (
+                      <FormField
+                        label={credentialMode === "login" ? "用户名或邮箱" : "账号邮箱"}
+                        className="credential-field"
+                      >
+                        <input
+                          required
+                          maxLength={254}
+                          autoComplete={
+                            credentialMode === "login" ? "username" : "email"
+                          }
+                          value={credentialForm.identifier}
+                          onChange={(event) =>
+                            setCredentialForm((current) => ({
+                              ...current,
+                              identifier: event.target.value,
+                            }))
+                          }
+                          placeholder={
+                            credentialMode === "login"
+                              ? "海边自习室 / you@example.com"
+                              : "you@example.com"
+                          }
+                        />
+                      </FormField>
+                    )
+                  )}
+                  {credentialMode === "reset" && (
+                    <p className="credential-feedback">
+                      邮件找回仅适用于已验证邮箱。老账号可登录后自愿补验证；如果忘记密码且邮箱未验证，请联系站长人工恢复。
+                    </p>
+                  )}
+                  {credentialMode === "reset" && resetConfirmationOpen && (
+                    <FormField label="一次性重置码" hint="粘贴邮件中的完整 43 位重置码，请勿转发" className="credential-field">
+                      <input required maxLength={64} autoComplete="one-time-code" spellCheck={false}
+                        value={credentialForm.resetToken}
+                        onChange={(event) => setCredentialForm((current) => ({ ...current, resetToken: event.target.value }))}
+                        placeholder="邮件中的重置码" />
+                    </FormField>
+                  )}
+                  {credentialMode === "register" && (
+                    <FormField label="邮箱验证码" hint="5 分钟内有效，请在本浏览器完成注册" className="credential-field">
+                      <input required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6}
+                        value={credentialForm.registrationCode}
+                        onChange={(event) => setCredentialForm((current) => ({ ...current, registrationCode: event.target.value }))}
+                        placeholder="6 位数字" />
+                      <button type="button" disabled={Boolean(accountBusy) || registrationSeconds > 0 || !credentialForm.email}
+                        onClick={() => void requestRegistrationCode()}>
+                        {registrationSeconds > 0 ? `${registrationSeconds} 秒后可重发` : "发送验证码"}
+                      </button>
+                    </FormField>
+                  )}
+                  {(credentialMode !== "reset" || resetConfirmationOpen) && (
+                    <FormField
+                      label={credentialMode === "reset" ? "新密码" : "密码"}
+                      className="credential-field"
+                    >
+                      <input
+                        required
+                        type="password"
+                        minLength={credentialMode === "login" ? 1 : undefined}
+                        autoComplete={
+                          credentialMode === "login"
+                            ? "current-password"
+                            : "new-password"
+                        }
+                        value={credentialForm.password}
+                        onChange={(event) =>
+                          setCredentialForm((current) => ({
+                            ...current,
+                            password: event.target.value,
+                          }))
+                        }
+                        placeholder={
+                          credentialMode === "login"
+                            ? "输入密码"
+                            : "设置密码"
+                        }
+                      />
+                    </FormField>
+                  )}
+                  {credentialMode === "register" && (
+                    <FormField
+                      label="学号"
+                      hint="选填，不会自动认证身份"
+                      className="credential-field"
+                    >
+                      <input
+                        maxLength={32}
+                        autoComplete="off"
+                        value={credentialForm.schoolAccount}
+                        onChange={(event) =>
+                          setCredentialForm((current) => ({
+                            ...current,
+                            schoolAccount: event.target.value,
+                          }))
+                        }
+                        placeholder="填写学号"
+                      />
+                    </FormField>
+                  )}
+                  {credentialMode === "register" && (
+                    <label className="credential-nickname-option">
+                      <input type="checkbox" checked={useMomoName} onChange={(event) => setUseMomoName(event.target.checked)} />
+                      昵称使用 momo
+                    </label>
+                  )}
+                  {credentialFeedback && (
+                    <p className="credential-feedback" aria-live="polite">
+                      {credentialFeedback}
+                    </p>
+                  )}
+                  <button
+                    className="credential-submit"
+                    disabled={accountBusy.startsWith("credential-")}
+                  >
+                    {credentialMode === "login"
+                      ? "登录并同步"
+                      : credentialMode === "register"
+                        ? "创建账号"
+                        : resetConfirmationOpen
+                          ? "保存新密码"
+                          : "发送重置邮件"}
+                  </button>
+                </form>
+                <footer>
+                  {credentialMode === "login" && (
+                    <button
+                      type="button"
+                      disabled={!account.passwordResetAvailable}
+                      title={
+                        account.passwordResetAvailable
+                          ? "找回密码"
+                          : "暂时无法通过邮件找回密码"
+                      }
+                      onClick={() => changeCredentialMode("reset")}
+                    >
+                      {account.passwordResetAvailable
+                        ? "忘记密码？"
+                        : "暂不支持邮件找回"}
+                    </button>
+                  )}
+                  {credentialMode === "reset" && (
+                    <button type="button" disabled={Boolean(accountBusy)} onClick={() => {
+                      setResetConfirmationOpen((current) => !current);
+                      setCredentialForm((current) => ({ ...current, resetToken: "", password: "" }));
+                      setCredentialFeedback("");
+                    }}>
+                      {resetConfirmationOpen ? "重新申请重置邮件" : "已有重置码"}
+                    </button>
+                  )}
+                </footer>
+              </div>
+            ) : (
+              <p className="credential-unavailable">
+                账号服务正在维护，本机功能不受影响。
+              </p>
+            )}
+            <div className="wechat-login-row">
+              <span>微信入口</span>
+              <button
+                onClick={onLogin}
+                disabled={!account.wechatAvailable}
+                title={
+                  account.wechatAvailable
+                    ? "使用微信账号登录"
+                    : "微信登录暂未开放"
+                }
+              >
+                {account.wechatAvailable ? "微信登录" : "暂未开放"}
+              </button>
+            </div>
           </div>
         )}
 
-        {account.status === "authenticated" && (
+        {accountOpen && account.status === "authenticated" && (
           <>
+            <section className="account-profile" aria-labelledby="account-profile-title">
+              <header>
+                <div>
+                  <span>账号资料</span>
+                  <h3 id="account-profile-title">
+                    @{account.user?.username || "未设置用户名"}
+                  </h3>
+                </div>
+                <div className="account-profile-actions">
+                  <label>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      disabled={accountBusy === "avatar"}
+                      onChange={(event) => {
+                        const file = event.currentTarget.files?.[0];
+                        event.currentTarget.value = "";
+                        if (file) void uploadAccountAvatar(file);
+                      }}
+                    />
+                    <span>
+                      {accountBusy === "avatar" ? "正在处理" : "更换头像"}
+                    </span>
+                  </label>
+                  {account.user?.avatarUrl && (
+                    <button
+                      type="button"
+                      disabled={accountBusy === "avatar-delete"}
+                      onClick={() => void deleteAccountAvatar()}
+                    >
+                      删除头像
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!profileEditing) {
+                        setProfileForm({
+                          username: account.user?.username ?? "",
+                          displayName: ownAccountName,
+                          schoolAccount: account.user?.schoolAccount ?? "",
+                        });
+                      }
+                      setProfileEditing((current) => !current);
+                      setProfileFeedback("");
+                    }}
+                  >
+                    {profileEditing ? "取消" : "编辑资料"}
+                  </button>
+                </div>
+              </header>
+              {profileEditing ? (
+                <>
+                <form onSubmit={submitAccountNameChange}>
+                  <FormField label="用户名" className="profile-field">
+                    <input
+                      required={Boolean(account.user?.username)}
+                      autoComplete="username"
+                      value={profileForm.username}
+                      onChange={(event) =>
+                        setProfileForm((current) => ({
+                          ...current,
+                          username: event.target.value,
+                        }))
+                      }
+                    />
+                  </FormField>
+                  <FormField label="昵称" className="profile-field">
+                    <input
+                      required
+                      autoComplete="nickname"
+                      value={profileForm.displayName}
+                      onChange={(event) =>
+                        setProfileForm((current) => ({
+                          ...current,
+                          displayName: event.target.value,
+                        }))
+                      }
+                    />
+                  </FormField>
+                  <button disabled={Boolean(accountBusy) || nameChangeLoading || nameChange?.status === "pending"}>提交改名申请</button>
+                </form>
+                <form onSubmit={saveAccountProfile}>
+                  <FormField
+                    label="学号"
+                    hint="选填，修改后需重新验证"
+                    className="profile-field"
+                  >
+                    <input
+                      maxLength={32}
+                      autoComplete="off"
+                      value={profileForm.schoolAccount}
+                      onChange={(event) =>
+                        setProfileForm((current) => ({
+                          ...current,
+                          schoolAccount: event.target.value,
+                        }))
+                      }
+                    />
+                  </FormField>
+                  {profileFeedback && (
+                    <p aria-live="polite">{profileFeedback}</p>
+                  )}
+                  <button disabled={accountBusy === "profile"}>
+                    保存学号
+                  </button>
+                </form>
+                </>
+              ) : (
+                <dl>
+                  <div>
+                    <dt>邮箱</dt>
+                    <dd>{account.user?.email || "未绑定"}</dd>
+                    <small>
+                      {account.user?.emailVerified ? "已验证" : "待验证"}
+                    </small>
+                  </div>
+                  <div>
+                    <dt>学号</dt>
+                    <dd>{account.user?.schoolAccount || "未填写"}</dd>
+                    <small>
+                      {account.user?.schoolAccountVerified
+                        ? "已验证"
+                        : account.user?.schoolAccount
+                          ? "未验证，不作为学生身份凭据"
+                          : "选填"}
+                    </small>
+                  </div>
+                  <div>
+                    <dt>加入时间</dt>
+                    <dd>
+                      {account.user?.createdAt
+                        ? new Date(account.user.createdAt).toLocaleDateString(
+                            "zh-CN",
+                          )
+                        : "—"}
+                    </dd>
+                  </div>
+                </dl>
+              )}
+              {nameChange && nameChange.userId === account.user?.id && (
+                <p className="profile-feedback" aria-live="polite">
+                  {nameChange.status === "pending" ? "改名申请待审核" : nameChange.status === "approved" ? "改名申请已通过" : nameChange.status === "rejected" ? "改名申请未通过" : "改名申请已取消"}
+                  {nameChange.requestedUsername ? ` · 用户名：${nameChange.requestedUsername}` : ""}
+                  {nameChange.requestedDisplayName ? ` · 昵称：${nameChange.requestedDisplayName}` : ""}
+                  {nameChange.reason ? ` · ${nameChange.reason}` : ""}
+                </p>
+              )}
+              {nameChangeFeedback && <p className="profile-feedback" aria-live="polite">{nameChangeFeedback}</p>}
+              <div className="account-name-mode">
+                <div>
+                  <b>东财墙昵称</b>
+                  <p>{currentNameMode === "momo" ? <><MomoMark /> momo</> : ownAccountName || "尚未设置自己的名字"}</p>
+                </div>
+                {nameModeConfirm ? (
+                  <div>
+                    <p>切换为{ nameModeConfirm === "momo" ? " momo" : "自己的名字" }后，7 天内无法再次切换。</p>
+                    <button type="button" disabled={Boolean(accountBusy)} onClick={() => void switchAccountNameMode()}>确认切换</button>
+                    <button type="button" disabled={Boolean(accountBusy)} onClick={() => setNameModeConfirm(null)}>取消切换</button>
+                  </div>
+                ) : (
+                  <button type="button" disabled={Boolean(accountBusy) || nameModeCoolingDown || (currentNameMode === "momo" && !ownAccountName)} onClick={() => setNameModeConfirm(currentNameMode === "momo" ? "name" : "momo")}>
+                    {currentNameMode === "momo" ? "切回自己的名字" : "切换为 momo"}
+                  </button>
+                )}
+                {nameModeCoolingDown && <p>可在 {new Date(nameModeAvailableAt).toLocaleString("zh-CN")} 再次切换。</p>}
+                {currentNameMode === "momo" && !ownAccountName && <p>先提交自己的名字，管理员通过后即可切换。</p>}
+                {nameModeFeedback && <p aria-live="polite">{nameModeFeedback}</p>}
+              </div>
+              {!profileEditing &&
+                account.user?.email &&
+                !account.user.emailVerified && (
+                  <div className="account-email-verification">
+                    <div>
+                      <b>验证邮箱</b>
+                      <p>
+                        老账号仍可正常登录。验证邮箱后可用于找回密码；请确认这是自己的邮箱，验证令牌仅可使用一次，请勿转发。
+                      </p>
+                    </div>
+                    {emailVerificationOpen ? (
+                      <form onSubmit={confirmEmailVerification}>
+                        <FormField label="邮箱验证令牌" hint="粘贴邮件中的完整 43 位令牌" className="verification-field">
+                          <input
+                            required
+                            maxLength={64}
+                            autoComplete="one-time-code"
+                            spellCheck={false}
+                            value={emailVerificationToken}
+                            onChange={(event) =>
+                              setEmailVerificationToken(event.target.value)
+                            }
+                          />
+                        </FormField>
+                        <button
+                          disabled={
+                            accountBusy === "email-verification-confirm"
+                          }
+                        >
+                          {accountBusy === "email-verification-confirm"
+                            ? "正在验证"
+                            : "完成验证"}
+                        </button>
+                        <button type="button" disabled={Boolean(accountBusy)} onClick={() => {
+                          setEmailVerificationOpen(false);
+                          setEmailVerificationToken("");
+                          setEmailVerificationPassword("");
+                          setProfileFeedback("");
+                        }}>
+                          重新发送验证邮件
+                        </button>
+                      </form>
+                    ) : account.emailVerificationAvailable ? (
+                      <form onSubmit={(event) => { event.preventDefault(); void requestEmailVerification(); }}>
+                        <FormField label="当前密码" hint="填写网站登录密码，确认由本人发起验证" className="verification-field">
+                          <input required type="password" maxLength={256} autoComplete="current-password"
+                            value={emailVerificationPassword}
+                            onChange={(event) => setEmailVerificationPassword(event.target.value)} />
+                        </FormField>
+                        <button disabled={Boolean(accountBusy)}>
+                          {accountBusy === "email-verification-request" ? "正在发送" : "发送验证邮件"}
+                        </button>
+                        <button type="button" disabled={Boolean(accountBusy)} onClick={() => {
+                          setEmailVerificationOpen(true);
+                          setEmailVerificationPassword("");
+                          setEmailVerificationToken("");
+                          setProfileFeedback("");
+                        }}>
+                          我已收到验证邮件
+                        </button>
+                      </form>
+                    ) : (
+                      <small>邮件验证暂未开放</small>
+                    )}
+                  </div>
+                )}
+              {!profileEditing && profileFeedback && (
+                <p className="account-profile-feedback" aria-live="polite">
+                  {profileFeedback}
+                </p>
+              )}
+            </section>
+            {anonymousImportAvailable && (
+              <div className="account-import-notice" role="status">
+                <div>
+                  <b>这台设备还有未登录时保存的内容</b>
+                  <p>
+                    是否把这些课表、日程和作业导入当前账号？
+                  </p>
+                </div>
+                <div>
+                  <button onClick={onImportAnonymousData}>
+                    导入当前账号
+                  </button>
+                  <button onClick={onKeepAnonymousDataSeparate}>
+                    暂不导入
+                  </button>
+                </div>
+              </div>
+            )}
             <div className={`sync-state sync-${syncStatus}`}>
               <span>{syncStatus === "synced" ? "✓" : syncStatus === "conflict" ? "!" : "↻"}</span>
               <div>
@@ -3889,6 +7388,9 @@ function MePage({
             </div>
 
             <footer className="account-actions">
+              {account.user?.role === "admin" && (
+                <a href="/admin">管理后台</a>
+              )}
               <button
                 disabled={Boolean(accountBusy)}
                 onClick={async () => {
@@ -3904,18 +7406,26 @@ function MePage({
           </>
         )}
       </section>
-      <section className="campus-gateway" aria-labelledby="campus-gateway-title">
-        <header>
-          <span>东财常用</span>
-          <h2 id="campus-gateway-title">从这里直接打开</h2>
-          <p>在当前手机打开学校服务，不经过本站中转。</p>
-        </header>
+      <WallEntry />
+      {account.status === "authenticated" && (
+        <a className="community-personal-entry" href="/community/saved">
+          东财墙收藏与屏蔽 <span aria-hidden="true">→</span>
+        </a>
+      )}
+      {account.status === "authenticated" && <a className="community-personal-entry" href="/feedback">我的反馈 <span aria-hidden="true">→</span></a>}
+      <details className={`campus-gateway ${meStyles.campusDetails}`}>
+        <summary>
+          <span>
+            <b>学校服务</b>
+            <em>图书馆 · 校园码 · 白果云</em>
+          </span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+        </summary>
         <nav aria-label="东财常用服务">
           <a href={campusLinks.library} target="_blank" rel="noreferrer">
             <i>座</i>
             <span>
               <b>我去图书馆</b>
-              <small>预约常用座位</small>
             </span>
             <em>↗</em>
           </a>
@@ -3923,7 +7433,6 @@ function MePage({
             <i>码</i>
             <span>
               <b>东财校园码</b>
-              <small>打开个人校园码</small>
             </span>
             <em>↗</em>
           </a>
@@ -3931,31 +7440,53 @@ function MePage({
             <i>果</i>
             <span>
               <b>白果云</b>
-              <small>签到与课程通知</small>
             </span>
             <em>↗</em>
           </a>
         </nav>
-        {xiaoyingServiceUrl && (
-          <a className="campus-lab-entry" href={xiaoyingServiceUrl}>
-            小影内测通道 <span>需邀请码</span> →
+      </details>
+      <section className={meStyles.pluginDownload} aria-labelledby="ginkgo-plugin-title">
+        <div className={meStyles.pluginHeader}>
+          <div>
+            <small>Windows · Chrome / Edge</small>
+            <h2 id="ginkgo-plugin-title">白果云插件</h2>
+            <p>v0.1.0 · ZIP 安装包</p>
+          </div>
+          <a href={campusLinks.ginkgoPlugin} target="_blank" rel="noopener noreferrer" aria-label="下载白果云插件 ZIP">
+            下载插件 <span aria-hidden="true">↓</span>
           </a>
-        )}
+        </div>
+        <details className={meStyles.pluginGuide}>
+          <summary>怎么安装</summary>
+          <ol>
+            <li>下载后，解压 <code>DUFE-Ginkgo-Downloader-v0.1.0.zip</code>。</li>
+            <li>在电脑浏览器的地址栏输入 <code>chrome://extensions</code>；Edge 用户输入 <code>edge://extensions</code>。</li>
+            <li>开启“开发者模式”，点击“加载已解压的扩展程序”。</li>
+            <li>选择解压后的 <code>DUFE-Ginkgo-Downloader-v0.1.0</code> 文件夹。</li>
+            <li>登录白果云，打开课程或章节页面即可使用。</li>
+          </ol>
+        </details>
       </section>
+      <CompetitionsGateway />
+      <CampusAlmanac />
+      <KnowledgeTribute />
       <section className="trust-panel">
         <div>
           <h2>本机数据由你控制</h2>
         </div>
         <p>
-          清除后，这台设备上的专业、课表、日程和作业会被移除；已登录账号的云端内容不受影响。
+          {account.status === "authenticated"
+            ? "清除这台设备的缓存后会重新读取云端内容，不删除云端课表。尚未同步的本机修改会丢失。"
+            : "清除后，这台设备上的专业、课表、日程和作业会被移除。"}
         </p>
         <button
           onClick={() => {
-            if (confirm("确认清除当前浏览器里的个人档案和课表吗？"))
-              setSaved(emptySavedState);
+            if (confirm(account.status === "authenticated"
+              ? "确认清除本机缓存并重新同步？云端内容不删除，尚未同步的本机修改会丢失。"
+              : "确认清除这台设备上的专业、课表、日程和作业吗？")) onClearLocal();
           }}
         >
-          清除本机数据
+          {account.status === "authenticated" ? "清除缓存并重新同步" : "清除本机数据"}
         </button>
       </section>
       {deleteOpen && (
@@ -3978,6 +7509,8 @@ function MePage({
             <label>
               <span>输入“注销账号”继续</span>
               <input
+                name="delete-account-confirmation"
+                autoComplete="off"
                 value={deletePhrase}
                 onChange={(event) => setDeletePhrase(event.target.value)}
                 placeholder="注销账号"
@@ -4015,6 +7548,9 @@ function SearchCommand({
   kind,
   setKind,
   items,
+  loading,
+  unavailable,
+  onRetry,
   onSelect,
   onClose,
 }: {
@@ -4023,9 +7559,13 @@ function SearchCommand({
   kind: SearchKind;
   setKind: (v: SearchKind) => void;
   items: SearchItem[];
+  loading: boolean;
+  unavailable: boolean;
+  onRetry: () => void;
   onSelect: (item: SearchItem) => void;
   onClose: () => void;
 }) {
+  const panelRef = useModalFocus<HTMLElement>(true, onClose);
   const kinds: Array<[SearchKind, string]> = [
     ["all", "全部"],
     ["material", "资料"],
@@ -4034,23 +7574,39 @@ function SearchCommand({
     ["room", "教室"],
   ];
   return (
-    <div className="modal-backdrop" onMouseDown={onClose}>
+    <div className="modal-backdrop" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) { event.preventDefault(); onClose(); }
+    }}>
       <section
+        ref={panelRef}
         className="command-panel"
+        onKeyDown={(event) => {
+          if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+          const results = [...(panelRef.current?.querySelectorAll<HTMLButtonElement>(".command-results > button") ?? [])];
+          if (!results.length) return;
+          if (event.target !== panelRef.current?.querySelector("input") && !results.includes(event.target as HTMLButtonElement)) return;
+          event.preventDefault();
+          const current = results.indexOf(document.activeElement as HTMLButtonElement);
+          const next = current < 0 ? (event.key === "ArrowDown" ? 0 : results.length - 1) : (current + (event.key === "ArrowDown" ? 1 : -1) + results.length) % results.length;
+          results[next].focus();
+        }}
         onMouseDown={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label="全站搜索"
       >
         <header>
-          <span>⌕</span>
+          <span><UiIcon name="search" /></span>
           <input
             autoFocus
+            aria-label="搜索课程、资料、教师或教室"
+            name="global-search"
+            autoComplete="off"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="搜索课程、资料、教师或教室…"
           />
-          <button onClick={onClose}>ESC</button>
+          <button onClick={onClose} aria-label="关闭全站搜索">ESC</button>
         </header>
         <nav>
           {kinds.map(([id, label]) => (
@@ -4085,16 +7641,17 @@ function SearchCommand({
                 </button>
               ))
             ) : (
-              <div className="search-zero">
-                <strong>没有直接结果</strong>
+              <div className="search-zero" role="status">
+                <strong>{loading ? "正在查找…" : unavailable ? "部分搜索数据暂时未能加载" : "没搜到"}</strong>
                 <p>
-                  试试课程简称、课程号或教师姓名。
+                  {loading ? "课程与资料准备好后，结果会显示在这里。" : unavailable ? "请重试，或先从首页浏览教师评价与课程资料。" : "试试课程简称、课程号、教师姓名或教室。"}
                 </p>
+                {unavailable && !loading && <button onClick={onRetry}>重新加载搜索数据</button>}
               </div>
             )
           ) : (
             <div className="search-hints">
-              <span>快速开始</span>
+              <span>试着搜</span>
               <button onClick={() => setQuery("中财")}>中财</button>
               <button onClick={() => setQuery("高数")}>高数</button>
               <button onClick={() => setQuery("笃行楼")}>笃行楼</button>
@@ -4112,22 +7669,35 @@ function SearchCommand({
 }
 
 function CourseDrawer({
+  catalogId,
   course,
   materials,
+  materialsStatus,
   offerings,
   activeIds,
   activeSchedules,
+  addTarget,
   onAddMany,
   onClose,
+  selectedMeetingId = "",
+  fromRoom = false,
 }: {
+  catalogId: string;
   course: Course;
   materials: Material[];
+  materialsStatus: MaterialsLoadStatus;
   offerings: Schedule[];
   activeIds: Set<string>;
   activeSchedules: Schedule[];
+  addTarget: "课表" | "选课方案";
   onAddMany: (ids: string[], label?: string) => void;
   onClose: () => void;
+  selectedMeetingId?: string;
+  fromRoom?: boolean;
 }) {
+  const drawerRef = useModalFocus<HTMLElement>(true, onClose);
+  const returnTo = typeof window === "undefined" ? undefined : localHref(new URL(window.location.href));
+  const [showOtherSections, setShowOtherSections] = useState(!selectedMeetingId);
   const [sectionQuery, setSectionQuery] = useState("");
   const [teacherFilter, setTeacherFilter] = useState("all");
   const [weekdayFilter, setWeekdayFilter] = useState(0);
@@ -4148,18 +7718,17 @@ function CourseDrawer({
     sectionMap.set(sectionKey, section);
   }
   const sections = [...sectionMap.entries()]
-    .map(([id, meetings]) => ({
-      id,
-      meetings: meetings.sort(
-        (a, b) => a.weekday - b.weekday || a.block - b.block,
-      ),
-      conflict: meetings.some((meeting) =>
-        activeSchedules.some(
-          (active) =>
-            active.id !== meeting.id && schedulesOverlap(meeting, active),
+    .map(([id, meetings]) => {
+      const conflicts = scheduleConflictDetails(meetings, activeSchedules);
+      return {
+        id,
+        meetings: meetings.sort(
+          (a, b) => a.weekday - b.weekday || a.block - b.block,
         ),
-      ),
-    }))
+        conflict: conflicts.length > 0,
+        conflicts,
+      };
+    })
     .sort((a, b) => {
       const firstA = a.meetings[0];
       const firstB = b.meetings[0];
@@ -4177,7 +7746,9 @@ function CourseDrawer({
     ),
   ].sort((a, b) => a.localeCompare(b, "zh-CN"));
   const sectionNeedle = normalize(sectionQuery);
+  const focusedSection = sections.find((section) => section.meetings.some((meeting) => meeting.id === selectedMeetingId));
   const filteredSections = sections.filter((section) => {
+    if (!showOtherSections && section !== focusedSection) return false;
     const first = section.meetings[0];
     if (!first) return false;
     if (teacherFilter !== "all" && first.teacher !== teacherFilter) return false;
@@ -4225,7 +7796,7 @@ function CourseDrawer({
       return false;
     }
     return true;
-  });
+  }).sort((left, right) => Number(right === focusedSection) - Number(left === focusedSection));
   const comparedSections = compareIds
     .map((id) => sections.find((section) => section.id === id))
     .filter((section): section is (typeof sections)[number] => Boolean(section));
@@ -4243,18 +7814,22 @@ function CourseDrawer({
   return (
     <div className="modal-backdrop drawer-backdrop" onMouseDown={onClose}>
       <aside
+        ref={drawerRef}
         className="course-drawer"
         onMouseDown={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="course-drawer-title"
       >
-        <header>
-          <span>课程号 {course.id}</span>
-          <button onClick={onClose}>×</button>
+        <header className={courseStyles.contextHeader}>
+          {fromRoom ? <button className={courseStyles.contextBack} onClick={onClose}>← 返回教室课表</button> : <span>课程号 {course.id}</span>}
+          <button onClick={onClose} aria-label="关闭课程详情">×</button>
         </header>
         <div className="course-drawer-title">
           <i>{courseMark(course.title)}</i>
           <div>
             <p>{course.college}</p>
-            <h2>{course.title}</h2>
+            <h2 id="course-drawer-title">{course.title}</h2>
             <span>
               {course.credits
                 ? `${Number(course.credits)} 学分`
@@ -4262,23 +7837,29 @@ function CourseDrawer({
             </span>
           </div>
         </div>
+        <DataFeedback target={{ type: "course", courseId: course.id, ...(selectedMeetingId ? { meetingId: selectedMeetingId } : {}) }} />
         <section className="course-offerings-section">
           <div className="drawer-section-heading">
             <div>
-              <span className="drawer-label">选择教学班</span>
+              <span className="drawer-label">{!showOtherSections ? "当前教学班" : "选择教学班"}</span>
               <small>
-                {sections.length} 个班次 ·{" "}
+                {!showOtherSections && focusedSection ? (focusedSection.meetings[0].sectionCode ? `课序号 ${focusedSection.meetings[0].sectionCode}` : `课程号 ${course.id}`) : <>{sections.length} 个教学班 ·{" "}
                 {new Set(offerings.map((item) => item.teacher).filter(Boolean)).size}{" "}
-                位教师
+                位教师</>}
               </small>
             </div>
-            <em>最多保留 4 个候选比较</em>
+            {selectedMeetingId && sections.length > 1 && <button className={courseStyles.sectionSwitch} type="button" onClick={() => setShowOtherSections((value) => !value)}>
+              {showOtherSections ? "只看刚才的教学班" : `查看其他教学班（${sections.length - 1}）`}
+            </button>}
           </div>
-          <div className="section-filter-bar">
+          {showOtherSections && <><div className="section-filter-bar">
             <input
+              aria-label="搜索教学班"
+              name="section-search"
+              autoComplete="off"
               value={sectionQuery}
               onChange={(event) => setSectionQuery(event.target.value)}
-              placeholder="搜教师、班级或教室"
+              placeholder="搜教师、班级或教室…"
             />
             <select
               value={teacherFilter}
@@ -4357,7 +7938,7 @@ function CourseDrawer({
             </select>
           </div>
           <div className="section-filter-summary">
-            <span>找到 {filteredSections.length} 个班次</span>
+            <span>找到 {filteredSections.length} 个教学班</span>
             {(sectionQuery ||
               teacherFilter !== "all" ||
               weekdayFilter ||
@@ -4380,28 +7961,39 @@ function CourseDrawer({
               </button>
             )}
           </div>
+          </>}
           <div className="offering-list">
             {filteredSections.length ? (
               filteredSections.map((section) => {
                 const first = section.meetings[0];
                 const added = section.meetings.every((other) =>
-                  activeIds.has(other.id),
+                  activeIds.has(other.id) || activeSchedules.some((active) => isSameScheduledMeeting(other, active)),
                 );
                 const compared = compareIds.includes(section.id);
                 return (
                   <article
                     key={section.id}
+                    data-section-id={section.id}
+                    data-selected={section === focusedSection || undefined}
                     className={`${section.conflict ? "has-conflict" : ""} ${compared ? "is-compared" : ""}`}
                   >
                     <div>
                       <header>
-                        <strong>{first.teacher || "教师未标注"}</strong>
+                        {first.teacher ? (
+                          <TeacherRecordLink
+                            className="teacher-record-link"
+                            returnTo={returnTo}
+                            catalogId={catalogId}
+                            scheduleId={first.id}
+                            teacherName={first.teacher}
+                          />
+                        ) : <strong>教师未标注</strong>}
                         <span className={section.conflict ? "conflict" : "available"}>
-                          {section.conflict ? "与当前课表冲突" : "时间可用"}
+                          {section.conflict ? "与当前课表冲突" : "与课表不冲突"}
                         </span>
                       </header>
                       <small>
-                        {first.classNames || "班级未标注"} · {section.id}
+                        {first.classNames || "班级未标注"}
                       </small>
                       <div className="section-meetings">
                         {section.meetings.map((meeting) => (
@@ -4412,8 +8004,11 @@ function CourseDrawer({
                           </span>
                         ))}
                       </div>
+                      <ScheduleConflictReview conflicts={section.conflicts} />
                     </div>
                     <footer>
+                      <TeachingSectionLinks catalogId={catalogId} scheduleId={first.id}
+                        courseId={course.id} materialCount={materials.length} hasTextbook={Boolean(course.textbook)} returnTo={returnTo} />
                       <button
                         className={`compare-button ${compared ? "active" : ""}`}
                         onClick={() => toggleCompare(section.id)}
@@ -4430,26 +8025,39 @@ function CourseDrawer({
                           )
                         }
                       >
-                        {added ? "已在课表" : "加入课表"}
+                        {added ? "已添加" : `加入${addTarget}`}
                       </button>
                     </footer>
                   </article>
                 );
               })
             ) : (
-              <p className="quiet-empty">没找到合适的班次，少选一个条件试试。</p>
+              <p className="quiet-empty">{selectedMeetingId && !focusedSection ? "这个教学班已不在当前课程库中，请返回教室课表重新查看。" : "没找到合适的教学班，少选一个条件试试。"}</p>
             )}
           </div>
         </section>
 
-        {(course.textbook || materials.length > 0) && (
-          <section className="drawer-resources">
+        {(course.textbook ||
+          materials.length > 0 ||
+          materialsStatus !== "ready") && (
+          <section className="drawer-resources" id="course-drawer-resources">
             <div className="drawer-section-heading">
               <div>
                 <span className="drawer-label">教材与学习资料</span>
-                <small>{materials.length} 份资料 · 原件可下载</small>
+                <small>
+                  {materialsStatus === "idle" || materialsStatus === "loading"
+                    ? "正在读取资料…"
+                    : materialsStatus === "error"
+                      ? "资料清单暂不可用"
+                      : `${materials.length} 份资料 · 原件可下载`}
+                </small>
               </div>
             </div>
+            {materialsStatus === "error" && (
+              <p className="quiet-empty" role="alert">
+                资料清单没有加载成功。关闭课程后重新打开即可再试。
+              </p>
+            )}
             {course.textbook && (
               <div className="material-block">
                 <span>教材信息</span>
@@ -4496,7 +8104,7 @@ function CourseDrawer({
           <section className="section-compare-tray" aria-label="教学班比较">
             <header>
               <div>
-                <span>班次比较</span>
+                <span>教学班比较</span>
                 <b>{comparedSections.length} / 4</b>
               </div>
               <button onClick={() => setCompareIds([])}>清空</button>
@@ -4509,7 +8117,14 @@ function CourseDrawer({
                     <span className={section.conflict ? "conflict" : "available"}>
                       {section.conflict ? "冲突" : "可用"}
                     </span>
-                    <strong>{first.teacher || "教师未标注"}</strong>
+                    {first.teacher ? (
+                      <TeacherRecordLink
+                        className="teacher-record-link"
+                        catalogId={catalogId}
+                        scheduleId={first.id}
+                        teacherName={first.teacher}
+                      />
+                    ) : <strong>教师未标注</strong>}
                     <small>
                       {section.meetings
                         .map(
@@ -4539,176 +8154,113 @@ function CourseDrawer({
   );
 }
 
+function ClassSetupFrame({ children, onClose }: { children: ReactNode; onClose: () => void }) {
+  const panelRef = useModalFocus<HTMLElement>(true, onClose);
+  return (
+    <div className={classSetupStyles.backdrop} onMouseDown={(event) => {
+      if (event.target === event.currentTarget) { event.preventDefault(); onClose(); }
+    }}>
+      <section ref={panelRef} className={classSetupStyles.sheet} role="dialog"
+        aria-modal="true" aria-labelledby="class-setup-title">
+        <header className={classSetupStyles.header}>
+          <div><h2 id="class-setup-title">按班级添加课程</h2><p>添加班级课程后，可按自己的选课调整。</p></div>
+          <button type="button" onClick={onClose} aria-label="关闭班级设置">×</button>
+        </header>
+        {children}
+      </section>
+    </div>
+  );
+}
+
 function Onboarding({
-  data,
-  term,
-  initial,
-  onSkip,
-  onSave,
+  data, term, initial, onOpenCourses, onSkip, onSave, storageHint,
 }: {
   data: SiteData;
   term: Term;
   initial: Profile | null;
+  onOpenCourses: () => void;
   onSkip: () => void;
   onSave: (profile: Profile, scheduleIds: string[]) => void;
+  storageHint: string;
 }) {
-  const [step, setStep] = useState(1);
-  const [entranceYear, setEntranceYear] = useState(
-    initial?.entranceYear ?? 2025,
-  );
+  const [entranceYear, setEntranceYear] = useState(initial?.entranceYear ?? 0);
   const [college, setCollege] = useState(initial?.college ?? "");
   const [majorId, setMajorId] = useState(initial?.majorId ?? "");
   const [className, setClassName] = useState(initial?.className ?? "");
-  const majors = data.majors.filter(
-    (item) => !college || item.college === college,
-  );
-  const major = data.majors.find((item) => item.id === majorId);
-  const code = String(entranceYear).slice(-2);
+  const currentYear = new Date().getFullYear() - (new Date().getMonth() < 7 ? 1 : 0);
+  const years = [...new Set([currentYear, currentYear - 1, currentYear - 2, currentYear - 3, ...(initial ? [initial.entranceYear] : [])])].sort((a, b) => b - a);
+  const majors = data.majors.filter((item) => item.college === college);
+  const major = majors.find((item) => item.id === majorId);
   const aliases = major?.aliases ?? [];
-  const classes = [
-    ...new Set(
-      data.schedules
-        .flatMap((item) => splitClasses(item.classNames))
-        .filter((name) =>
-          aliases.some((alias) => name.startsWith(`${alias}${code}`)),
-        ),
-    ),
-  ].sort((a, b) => a.localeCompare(b, "zh-CN", { numeric: true }));
-  function chooseCollege(value: string) {
-    setCollege(value);
-    setMajorId("");
-    setClassName("");
-    setStep(2);
-  }
-  function chooseMajor(value: string) {
-    setMajorId(value);
-    setClassName("");
-    setStep(3);
-  }
-  function finish() {
-    if (!college || !majorId) return;
-    const selected = className
-      ? data.schedules
-          .filter(
-            (item) =>
-              item.term === term &&
-              splitClasses(item.classNames).includes(className),
-          )
-          .map((item) => item.id)
-      : [];
-    // 没选具体班级时不能替用户猜教师或课序号；专业课程索引仍可浏览，
-    // 具体班次由用户在课程池中选择。
-    onSave({ entranceYear, college, majorId, className }, selected);
+  const classes = [...new Set(data.schedules
+    .filter((item) => item.term === term)
+    .flatMap((item) => splitClasses(item.classNames))
+    .filter((name) => entranceYear && aliases.some((alias) => name.startsWith(`${alias}${String(entranceYear).slice(-2)}`)))
+  )].sort((a, b) => a.localeCompare(b, "zh-CN", { numeric: true }));
+  // Class identity is an explicit catalogue choice. Preserve every actual meeting.
+  const selected = classes.includes(className)
+    ? data.schedules.filter((item) => item.term === term && splitClasses(item.classNames).includes(className))
+    : [];
+  const courseCount = new Set(selected.map((item) => item.courseId)).size;
+  const profileReady = Boolean(entranceYear && college && major);
+  function save(includeClass: boolean) {
+    if (!profileReady || (includeClass && !selected.length)) return;
+    onSave({ entranceYear, college, majorId, className: includeClass ? className : "" },
+      includeClass ? selected.map((item) => item.id) : []);
   }
   return (
-    <div className="modal-backdrop onboarding-backdrop">
-      <section
-        className="onboarding"
-        role="dialog"
-        aria-modal="true"
-        aria-label="建立个人档案"
-      >
-        <header>
-          <Wordmark />
-          <button onClick={onSkip}>暂时跳过</button>
-        </header>
-        <div className="onboarding-progress">
-          <span className={step >= 1 ? "active" : ""}>01 年级</span>
-          <i />
-          <span className={step >= 2 ? "active" : ""}>02 学院与专业</span>
-          <i />
-          <span className={step >= 3 ? "active" : ""}>03 班级</span>
+    <ClassSetupFrame onClose={onSkip}>
+      <form onSubmit={(event) => { event.preventDefault(); save(true); }}>
+        <div className={classSetupStyles.fields}>
+          <label>入学年份
+            <select name="entrance-year" aria-label="入学年份" value={entranceYear || ""} onChange={(event) => {
+              setEntranceYear(Number(event.target.value)); setClassName("");
+            }}>
+              <option value="">请选择入学年份</option>
+              {years.map((year) => <option key={year} value={year}>{year} 级</option>)}
+            </select>
+          </label>
+          <label>学院
+            <select name="college" aria-label="学院" value={college} onChange={(event) => {
+              setCollege(event.target.value); setMajorId(""); setClassName("");
+            }}>
+              <option value="">请选择学院</option>
+              {data.colleges.map((item) => <option key={item.name} value={item.name}>{item.name}</option>)}
+            </select>
+          </label>
+          <label>专业
+            <select name="major" aria-label="专业" value={majorId} disabled={!college} onChange={(event) => {
+              setMajorId(event.target.value); setClassName("");
+            }}>
+              <option value="">{college ? "请选择专业" : "先选择学院"}</option>
+              {majors.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+          </label>
+          <label>班级
+            <select name="class" aria-label="班级" value={classes.includes(className) ? className : ""} disabled={!profileReady || !classes.length}
+              onChange={(event) => setClassName(event.target.value)}>
+              <option value="">{!profileReady ? "先选择年份和专业" : classes.length ? "请选择班级" : "本学期没有匹配班级"}</option>
+              {classes.map((name) => <option key={name} value={name}>{name}</option>)}
+            </select>
+          </label>
         </div>
-        <div className="onboarding-copy">
-          <p>课表设置</p>
-          <h2>选择年级、专业和班级</h2>
-          <span>选完即可生成本学期课表，之后仍可修改。</span>
+        <div className={classSetupStyles.preview} aria-live="polite" aria-atomic="true">
+          {selected.length ? <>
+            <span>{term === "fall" ? "上学期" : "下学期"} · {className}</span>
+            <strong>{courseCount} 门课程 · {selected.length} 个上课时段</strong>
+            <p>包含该班全部教师和时段。班级课程仅供参考，请核对个人选课。</p>
+          </> : <>
+            <strong>{profileReady && !classes.length ? "没有匹配班级？可以自己选课。" : "选择具体班级后，预览要添加的课程。"}</strong>
+            <p>仅选专业不会自动添加课程。</p>
+          </>}
         </div>
-        {step === 1 && (
-          <div className="choice-grid years">
-            {[2026, 2025, 2024, 2023].map((item) => (
-              <button
-                key={item}
-                className={entranceYear === item ? "active" : ""}
-                onClick={() => {
-                  setEntranceYear(item);
-                  setStep(2);
-                }}
-              >
-                <strong>{item}</strong>
-                <span>
-                  {item === 2026
-                    ? "新生"
-                    : `当前大${"一二三四"[Math.min(3, 2026 - item)]}`}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-        {step === 2 && (
-          <div className="onboarding-two">
-            <div>
-              <label>学院</label>
-              {data.colleges.map((item) => (
-                <button
-                  key={item.name}
-                  className={college === item.name ? "active" : ""}
-                  onClick={() => chooseCollege(item.name)}
-                >
-                  {item.name}
-                </button>
-              ))}
-            </div>
-            <div>
-              <label>专业</label>
-              {college ? (
-                majors.map((item) => (
-                  <button
-                    key={item.id}
-                    className={majorId === item.id ? "active" : ""}
-                    onClick={() => chooseMajor(item.id)}
-                  >
-                    {item.name}
-                  </button>
-                ))
-              ) : (
-                <p>请先选择学院</p>
-              )}
-            </div>
-          </div>
-        )}
-        {step === 3 && (
-          <div className="class-choice">
-            <label>选择班级（可跳过班级）</label>
-            <div>
-              {classes.map((item) => (
-                <button
-                  key={item}
-                  className={className === item ? "active" : ""}
-                  onClick={() => setClassName(item)}
-                >
-                  {item}
-                </button>
-              ))}
-              {!classes.length && (
-                <p>没有匹配班级。跳过后可自行选择教学班。</p>
-              )}
-            </div>
-            <button className="finish-button" onClick={finish}>
-              {className ? `使用 ${className} 开始` : "完成设置"}
-            </button>
-          </div>
-        )}
-        <footer>
-          <button
-            disabled={step === 1}
-            onClick={() => setStep((value) => Math.max(1, value - 1))}
-          >
-            ← 上一步
-          </button>
-          <span>设置会保存在当前设备，可随时清除。</span>
+        <footer className={classSetupStyles.actions}>
+          <button type="submit" disabled={!selected.length}>{selected.length ? `添加 ${courseCount} 门课程` : "选择班级后添加"}</button>
+          <button type="button" onClick={onOpenCourses}>手动选课</button>
+          <button type="button" disabled={!profileReady} onClick={() => save(false)}>只保存专业设置</button>
         </footer>
-      </section>
-    </div>
+        <p className={classSetupStyles.storage}>{storageHint}</p>
+      </form>
+    </ClassSetupFrame>
   );
 }

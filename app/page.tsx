@@ -1,15 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DufeHubV2 } from "./DufeHubV2";
+import { absoluteUrl, publicPagePaths, siteDescription, siteName } from "./seo";
 
 export const metadata: Metadata = {
   title: {
     absolute: "东财之影｜课表、空教室与学习资料",
   },
-  description:
-    "面向东北财经大学学生的课表、空教室、课程资料与个人日程工具。",
+  description: siteDescription,
+  verification: {
+    other: { "baidu-site-verification": "codeva-vXTtpeLyzP" },
+  },
   alternates: {
-    canonical: "/",
+    canonical: publicPagePaths.home,
   },
 };
 
@@ -21,17 +24,30 @@ export default function Home() {
       </a>
       <section className="preload-intro" aria-labelledby="preload-title">
         <div>
-          <span>DUFE · STUDENT DESK</span>
           <h1 id="preload-title">东财之影</h1>
-          <p>课表、空教室、课程资料和今天的安排。</p>
+          <p>{siteDescription}</p>
         </div>
         <nav aria-label="快捷入口">
           <Link href="/?view=schedule">我的课表</Link>
           <Link href="/?view=rooms">空教室</Link>
-          <Link href="/?view=catalog">课程与资料</Link>
+          <Link href="/?view=catalog">课程</Link>
+          <Link href="/teachers">教师评价</Link>
+          <Link href="/materials">学习资料</Link>
         </nav>
       </section>
       <DufeHubV2 />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "@id": `${absoluteUrl("/")}#website`,
+          name: siteName,
+          url: absoluteUrl("/"),
+          description: siteDescription,
+          inLanguage: "zh-CN",
+        }).replace(/</g, "\\u003c") }}
+      />
     </>
   );
 }

@@ -27,17 +27,29 @@ export class ReservationGuardRunner {
     if (this.running) return;
     this.running = true;
     try {
+      for (const guard of this.store.recoverExpiredReservationGuardLeases()) {
+        this.store.createNotification(guard.userId, {
+          kind: "reservation_guard_review_required",
+          title: "预约守护已暂停，请确认当前状态",
+          body: "服务曾在执行时中断。为避免重复取消或预约，小影没有自动继续。",
+          actionUrl: "/#library",
+          deduplicationKey: `reservation-guard-review-required:${guard.id}`,
+        });
+      }
       for (const guard of this.store.listDueReservationGuards(10)) {
-        if (!this.store.claimReservationGuard(guard.id)) continue;
+        const leaseToken = this.store.claimReservationGuard(guard.id);
+        if (!leaseToken) continue;
         try {
           const adapter = this.adapterForUser(guard.userId);
           const status = await adapter.getStatus();
           const reservation = status.currentReservation;
           if (!reservation) {
-            this.store.finishReservationGuardCheck(guard.id, {
+            const finished = this.store.finishReservationGuardCheck(guard.id, {
               status: "paused",
               errorCode: "NO_ACTIVE_RESERVATION",
+              leaseToken,
             });
+            if (!finished) continue;
             this.store.createNotification(guard.userId, {
               kind: "reservation_guard_paused",
               title: "预约守护已暂停",
@@ -54,6 +66,7 @@ export class ReservationGuardRunner {
               status: "active",
               delayMs: 60_000,
               errorCode: "EXPIRATION_UNKNOWN",
+              leaseToken,
             });
             continue;
           }
@@ -66,6 +79,7 @@ export class ReservationGuardRunner {
                 10_000,
                 Math.min(60_000, remainingMs - guard.rebookBeforeSeconds * 1_000),
               ),
+              leaseToken,
             });
             continue;
           }
@@ -82,11 +96,13 @@ export class ReservationGuardRunner {
           });
 
           const completed = guard.cycleCount + 1 >= guard.maxCycles;
-          this.store.finishReservationGuardCheck(guard.id, {
+          const finished = this.store.finishReservationGuardCheck(guard.id, {
             status: completed ? "completed" : "active",
             delayMs: 60_000,
             incrementCycle: true,
+            leaseToken,
           });
+          if (!finished) continue;
           this.store.createNotification(guard.userId, {
             kind: "reservation_guard_succeeded",
             title: `${reservation.seatName || reservation.seatKey} 已重新预约`,
@@ -95,10 +111,12 @@ export class ReservationGuardRunner {
             deduplicationKey: `reservation-guard-cycle:${guard.id}:${guard.cycleCount + 1}`,
           });
         } catch (error) {
-          this.store.finishReservationGuardCheck(guard.id, {
+          const finished = this.store.finishReservationGuardCheck(guard.id, {
             status: "paused",
             errorCode: error?.code || "REBOOK_FAILED",
+            leaseToken,
           });
+          if (!finished) continue;
           this.store.createNotification(guard.userId, {
             kind: "reservation_guard_failed",
             title: "预约守护没有完成",

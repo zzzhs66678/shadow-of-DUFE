@@ -1,0 +1,305 @@
+.workspace { --my-paper: #fbfaf6; --my-ink: #242724; --my-muted: #62645e; --my-line: #c9c1b5; --my-red: #a62126; }
+.workspace:global(.me-page) > :global(.workspace-heading) { display: block; padding: 0 0 14px; margin: 0 0 8px; min-height: 0; border: 0; border-bottom: 1px solid var(--my-line); }
+.workspace:global(.me-page) > :global(.workspace-heading)::before { display: none; }
+.workspace:global(.me-page) > :global(.workspace-heading h1) { font: 700 36px/1.2 var(--journal-display); margin: 0; letter-spacing: -.035em; }
+.workspace:global(.me-page) > :global(.account-center) { padding: 0; margin: 0 0 12px; border: 0; border-bottom: 1px solid var(--my-line); border-radius: 0; background: transparent; }
+.workspace:global(.me-page) > :global(.account-center > header) { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 0; border: 0; }
+.workspace:global(.me-page) :global(.account-center > header > div) { min-width: 0; }
+.workspace:global(.me-page) :global(.account-center > header span) { font: 600 11px/1.5 var(--journal-body); color: var(--my-muted); }
+.workspace:global(.me-page) :global(.account-center > header h2) { font: 600 18px/1.4 var(--journal-body); margin: 5px 0; overflow-wrap: anywhere; }
+.workspace:global(.me-page) :global(.account-center > header p) { font-size: 12px; line-height: 1.6; margin: 0; color: var(--my-muted); }
+.workspace:global(.me-page) :global(.account-login), .workspace:global(.me-page) :global(.account-profile), .workspace:global(.me-page) :global(.device-center), .workspace:global(.me-page) :global(.sync-state), .workspace:global(.me-page) :global(.account-actions) { margin-inline: 0; }
+.workspace:global(.me-page) > :global(.community-personal-entry) { margin: 0; border-bottom: 1px solid var(--my-line); min-height: 44px; padding: 12px 4px; font-size: 13px; }
+.workspace:global(.me-page) > :global(#wall-personal-entry) { margin: 0; border-top: 0; min-height: 44px; padding: 12px 0; font-size: 14px; }
+.workspace:global(.me-page) > :global(.campus-gateway) { display: block; margin-top: 24px; padding: 16px 20px; border: 0; border-radius: 4px; background: #1d1c19; }
+.workspace:global(.me-page) > :global(.knowledge-tribute) { margin-top: 28px; padding-top: 22px; gap: 4px 18px; grid-template-columns: 64px minmax(0, 1fr); border-top: 1px solid var(--my-line); }
+.workspace:global(.me-page) :global(.tribute-photo) { width: 64px; max-width: 64px; grid-row: 1 / span 2; margin: 0; animation: none; }
+.workspace:global(.me-page) :global(.tribute-photo img) { width: 64px; height: auto; border-radius: 2px; }
+.workspace:global(.me-page) :global(.tribute-photo figcaption) { font-size: 10px; line-height: 1.5; margin-top: 6px; }
+.workspace:global(.me-page) :global(.tribute-copy) { min-width: 0; }
+.workspace:global(.me-page) :global(.tribute-copy > span) { color: var(--my-muted); font: 500 10px/1.5 var(--journal-body); letter-spacing: 0; }
+.workspace:global(.me-page) :global(.tribute-copy h2) { font: 500 19px/1.5 var(--journal-display); margin: 6px 0; }
+.tributeLinks { grid-column: 2; min-width: 0; }
+.tributeLinks > summary { width: fit-content; min-height: 44px; display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; font-size: 12px; color: var(--my-muted); }
+.tributeLinks > summary::-webkit-details-marker { display: none; }
+.tributeLinks > summary span { color: var(--my-red); font-size: 16px; }
+.tributeLinks[open] > summary span { rotate: 90deg; }
+.tributeLinks > nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 20px; }
+.workspace .tributeLinks > nav a { display: flex; align-items: center; min-height: 44px; padding: 8px 0; background: transparent; border: 0; border-bottom: 1px solid var(--my-line); border-radius: 0; color: var(--my-ink); font-size: 12px; line-height: 1.5; text-decoration: none; }
+.workspace .tributeLinks > nav a:hover { color: var(--my-red); text-decoration: underline; text-underline-offset: 4px; }
+.tributeLinks > summary:focus-visible, .tributeLinks > nav a:focus-visible { outline: 2px solid var(--my-red); outline-offset: 3px; }
+.workspace:global(.me-page) > :global(.trust-panel) { background: transparent; border: 0; border-top: 1px solid var(--my-line); border-radius: 0; padding: 22px 0 0; margin-top: 24px; }
+.workspace:global(.me-page) :global(.trust-panel h2) { font: 600 16px/1.5 var(--journal-body); }
+.workspace:global(.me-page) :global(.trust-panel p) { font-size: 12px; line-height: 1.8; }
+.overview {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--my-line);
+  border-radius: 0;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 54px minmax(0, 1fr) auto auto;
+  margin: 0;
+  padding: 20px 0;
+}
+
+.overview > i {
+  align-items: center;
+  background: #ede5d9;
+  border-radius: 6px;
+  color: var(--my-red);
+  display: flex;
+  font-style: normal;
+  font-weight: 800;
+  height: 54px;
+  justify-content: center;
+  width: 54px;
+  white-space: nowrap;
+}
+
+.identity {
+  min-width: 0;
+}
+
+.identity > span {
+  color: var(--my-red);
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .1em;
+}
+
+.identity h2 {
+  font-size: 23px;
+  letter-spacing: -.025em;
+  margin: 6px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.identity p {
+  color: var(--my-muted);
+  font-size: 12px;
+  margin: 5px 0 0;
+}
+
+.overview dl {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+}
+
+.overview dl > div {
+  border-left: 1px solid var(--my-line);
+  min-width: 86px;
+  padding-left: 14px;
+}
+
+.overview dt {
+  color: var(--my-muted);
+  font-size: 11px;
+}
+
+.overview dd {
+  font-size: 14px;
+  font-weight: 750;
+  margin: 5px 0 0;
+}
+
+.overview > button,
+.accountToggle {
+  background: transparent;
+  border: 1px solid var(--my-ink);
+  border-radius: 6px;
+  color: var(--my-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  min-height: 44px;
+  padding: 0 16px;
+}
+
+.overview > button:hover,
+.overview > button:focus-visible,
+.accountToggle:hover,
+.accountToggle:focus-visible {
+  background: var(--my-ink);
+  color: #fff;
+}
+
+.accountToggle {
+  --my-ink: var(--journal-ink, #171717);
+  flex: 0 0 auto;
+}
+
+.campusDetails {
+  color: #fff;
+  overflow: hidden;
+}
+
+.campusDetails > summary {
+  align-items: center;
+  cursor: pointer;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  list-style: none;
+  min-height: 64px;
+  padding: 0;
+}
+
+.campusDetails > summary::-webkit-details-marker {
+  display: none;
+}
+
+.campusDetails > summary span,
+.campusDetails > summary b {
+  display: block;
+}
+
+.campusDetails > summary b {
+  font: 600 20px/1.4 var(--journal-body);
+}
+
+.campusDetails > summary em {
+  color: rgba(255, 255, 255, .7);
+  font-size: 11px;
+  font-style: normal;
+  margin-top: 5px;
+}
+.campusDetails > summary svg { color: #c7c3bb; }
+.campusDetails[open] > summary svg { rotate: 180deg; }
+.campusDetails > summary:focus-visible { outline: 2px solid #fff; outline-offset: 5px; }
+
+.campusDetails[open] > summary {
+  border-bottom: 1px solid rgba(255, 255, 255, .24);
+  margin-bottom: 18px;
+}
+
+.pluginDownload {
+  background: #1d1c19;
+  color: #fff;
+  margin-top: 12px;
+  padding: 20px;
+  border-radius: 4px;
+}
+
+.pluginHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.pluginHeader > div { flex: 1 1 128px; min-width: 0; }
+
+.pluginHeader small {
+  color: #e6b7ae;
+  font-size: 11px;
+}
+
+.pluginHeader h2 {
+  font: 600 20px/1.4 var(--journal-body);
+  margin: 6px 0;
+}
+
+.pluginHeader p {
+  color: #c7c3bb;
+  font-size: 12px;
+  margin: 0;
+}
+
+.pluginHeader > a {
+  align-items: center;
+  background: #f5f1e8;
+  color: #1d1c19;
+  display: inline-flex;
+  font-size: 14px;
+  font-weight: 700;
+  gap: 14px;
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  text-decoration: none;
+}
+
+.pluginHeader > a:hover {
+  background: #fff;
+}
+
+.pluginHeader > a:focus-visible,
+.pluginGuide > summary:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 5px;
+}
+
+.pluginGuide {
+  border-top: 1px solid #55524c;
+  margin-top: 16px;
+}
+
+.pluginGuide > summary {
+  cursor: pointer;
+  font-size: 13px;
+  padding: 12px 0 0;
+  min-height: 44px;
+}
+
+.pluginGuide ol {
+  color: #e5e1da;
+  font-size: 15px;
+  line-height: 1.8;
+  padding-left: 24px;
+  margin: 16px 0 0;
+}
+
+.pluginGuide li + li {
+  margin-top: 10px;
+}
+
+.pluginGuide code {
+  background: #34322e;
+  border-radius: 3px;
+  font-size: 13px;
+  padding: 2px 5px;
+  overflow-wrap: anywhere;
+  text-underline-offset: 4px;
+}
+
+@media (max-width: 680px) {
+  .workspace:global(.me-page) > :global(.workspace-heading h1) { font-size: 30px; }
+  .workspace:global(.me-page) > :global(.account-center > header) { padding: 16px 0; }
+  .workspace:global(.me-page) > :global(.campus-gateway) { padding: 14px 18px; }
+  .workspace:global(.me-page) > :global(.knowledge-tribute) { grid-template-columns: 56px minmax(0, 1fr); gap: 4px 14px; }
+  .workspace:global(.me-page) :global(.tribute-photo), .workspace:global(.me-page) :global(.tribute-photo img) { width: 56px; }
+  .workspace:global(.me-page) :global(.tribute-copy h2) { font-size: 17px; }
+  .tributeLinks > nav { grid-template-columns: 1fr; }
+  .pluginDownload { padding: 18px; }
+  .overview {
+    gap: 12px 14px;
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    padding: 18px 0;
+  }
+
+  .overview > i {
+    height: 46px;
+    width: 46px;
+  }
+
+  .overview dl {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .overview dl > div {
+    flex: 1;
+  }
+
+  .overview > button {
+    grid-column: 3;
+    grid-row: 1;
+    padding: 0 12px;
+  }
+  .identity h2 { font-size: 20px; }
+}

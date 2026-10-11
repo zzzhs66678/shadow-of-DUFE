@@ -94,6 +94,14 @@ const duplicateHashByPath = new Map(
   duplicateRows.map((item) => [item.relativePath, item.sha256]),
 );
 const courseData = JSON.parse(await readFile(courseDataPath, "utf8"));
+const courseYears = new Map();
+for (const relation of courseData.majorCourses) {
+  const years = courseYears.get(relation.courseId) ?? new Set();
+  years.add(relation.year);
+  courseYears.set(relation.courseId, years);
+}
+
+const generatedAt = new Date().toISOString();
 
 const materials = inventory.map((item) => {
   const extension = item.extension.toLowerCase();
@@ -113,15 +121,40 @@ const materials = inventory.map((item) => {
   const previewable =
     (extension === ".pdf" && sizeBytes <= 50 * 1024 * 1024) ||
     [".jpg", ".jpeg", ".png", ".txt"].includes(extension);
+  const teachers = [
+    ...new Set(matchingCourses.flatMap((course) => course.teachers ?? [])),
+  ].sort((a, b) => a.localeCompare(b, "zh-CN"));
+  const colleges = [
+    ...new Set(matchingCourses.map((course) => course.college).filter(Boolean)),
+  ].sort((a, b) => a.localeCompare(b, "zh-CN"));
+  const terms = [
+    ...new Set(matchingCourses.flatMap((course) => course.terms ?? [])),
+  ].sort();
+  const years = [
+    ...new Set(
+      matchingCourses.flatMap((course) => [
+        ...(courseYears.get(course.id) ?? []),
+      ]),
+    ),
+  ].sort((a, b) => a - b);
+  const category = item.category === item.fileName ? "其他" : item.category;
+  const kind = kindFor(extension);
   return {
     id,
     courseTitle: item.course,
     courseIds: matchingCourses.map((course) => course.id),
-    category: item.category === item.fileName ? "其他" : item.category,
+    teachers,
+    colleges,
+    terms,
+    years,
+    tags: [...new Set([category, kind].filter(Boolean))],
+    category,
     name: item.fileName,
-    kind: kindFor(extension),
+    kind,
     extension,
     sizeBytes,
+    catalogedAt: generatedAt,
+    description: `${item.course}的${category === "其他" ? "学习" : category}资料`,
     previewable,
     previewUrl: previewable ? `/resources/files/${relativeUrl}` : "",
     downloadUrl: `/resources/files/${relativeUrl}`,
@@ -129,7 +162,8 @@ const materials = inventory.map((item) => {
 });
 
 const manifest = {
-  generatedAt: new Date().toISOString(),
+  schemaVersion: 2,
+  generatedAt,
   previewLimitBytes: 50 * 1024 * 1024,
   materials,
 };

@@ -1,0 +1,307 @@
+.page {
+  background: var(--dufe-paper);
+  color: var(--dufe-ink);
+  min-height: 100dvh;
+}
+
+.hero {
+  align-items: end;
+  border-bottom: 1px solid color-mix(in srgb, var(--dufe-ink) 28%, transparent);
+  display: grid;
+  gap: 24px;
+  grid-template-columns: 1fr minmax(280px, .8fr);
+  padding: 24px clamp(20px, 5vw, 78px);
+}
+
+.heroCopy h1 {
+  font: 500 clamp(28px, 3vw, 36px)/1.2 var(--journal-display, "Noto Serif SC", SimSun, serif);
+  letter-spacing: -.05em;
+  margin: 0 0 10px;
+  max-width: 760px;
+}
+
+.heroCopy p,
+.results > header p,
+.textbooks > header p {
+  color: var(--dufe-muted);
+  font-size: 13px;
+  line-height: 1.8;
+  margin: 0;
+}
+
+.searchField {
+  border-bottom: 2px solid var(--dufe-ink);
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr auto;
+  padding: 0 0 12px;
+}
+
+.searchField > label { color: var(--dufe-muted); font-size: 12px; grid-column: 1 / -1; }
+.searchField input { background: transparent; border: 0; color: var(--dufe-ink); font: 16px/1.4 var(--journal-body, sans-serif); min-height: 44px; min-width: 0; outline: 0; }
+.searchField button { background: transparent; border: 0; color: var(--dufe-red); min-height: 44px; padding: 0 8px; }
+.searchField:focus-within { border-bottom-color: var(--dufe-red); }
+
+.personalContext {
+  align-items: center;
+  border-bottom: 1px solid var(--dufe-line);
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(180px, .45fr) minmax(0, 1fr);
+  padding: 18px clamp(20px, 5vw, 78px);
+}
+
+.personalContext > div:first-child > span {
+  color: var(--dufe-red-deep);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .1em;
+}
+
+.personalContext p {
+  color: var(--dufe-muted);
+  font-size: 11px;
+  line-height: 1.55;
+  margin: 5px 0 0;
+}
+
+.personalContext > div:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.personalContext button {
+  background: transparent;
+  border: 1px solid var(--dufe-ink);
+  border-radius: 999px;
+  color: var(--dufe-ink);
+  min-height: 44px;
+  padding: 0 14px;
+}
+
+.personalContext button:hover,
+.personalContext button:focus-visible {
+  background: var(--dufe-ink);
+  color: var(--dufe-paper);
+}
+
+.results { padding: 24px clamp(20px, 5vw, 78px) 80px; }
+.directoryHeader { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; margin-bottom: 16px; }
+.directoryHeader h2 { font: 500 22px/1.5 var(--journal-display, serif); margin: 0; }
+.directoryHeader button { background: transparent; border: 0; color: var(--dufe-red-deep); min-height: 44px; padding: 0; }
+.collegeList { display: grid; gap: 0 32px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.collegeList button { align-items: center; background: transparent; border: 0; border-bottom: 1px solid var(--dufe-line); color: var(--dufe-ink); display: grid; gap: 6px 12px; grid-template-columns: minmax(0, 1fr) auto; padding: 20px 8px; text-align: left; }
+.collegeList button > span:first-child { font: 500 20px/1.5 var(--journal-display, serif); overflow-wrap: anywhere; }
+.collegeList small { color: var(--dufe-muted); font: 12px/1.5 var(--journal-data, monospace); grid-column: 1; }
+.collegeList button > span:last-child { color: var(--dufe-red-deep); grid-column: 2; grid-row: 1 / 3; }
+.collegeList button:hover { background: var(--dufe-paper-raised); }
+.directoryFilter { align-items: center; display: flex; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 16px; }
+.directoryFilter label, .directoryFilter p { color: var(--dufe-muted); font-size: 13px; margin: 0; }
+.directoryFilter select { background: var(--dufe-paper-raised); border: 1px solid var(--dufe-line); border-radius: 0; color: var(--dufe-ink); font: 16px/1.5 var(--journal-body, sans-serif); max-width: 100%; min-height: 44px; min-width: 0; padding: 8px; }
+.directoryFilter p { margin-left: auto; }
+.page :is(button, select, a, summary):focus-visible { outline: 2px solid var(--dufe-red); outline-offset: 3px; }
+.page button { cursor: pointer; touch-action: manipulation; }
+.page button:disabled { cursor: not-allowed; }
+
+.teacherList { border-top: 1px solid var(--dufe-ink); }
+.teacherList > a {
+  align-items: center;
+  border-bottom: 1px solid color-mix(in srgb, var(--dufe-ink) 18%, transparent);
+  color: inherit;
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  min-height: 80px;
+  padding: 16px 12px 16px 0;
+  text-decoration: none;
+}
+.teacherList > a:hover, .teacherList > a:focus-visible { background: color-mix(in srgb, var(--dufe-red) 5%, transparent); }
+.teacherList > a:focus-visible { outline: 2px solid var(--dufe-red); outline-offset: 3px; }
+.teacherList small { color: var(--dufe-muted); font-size: 12px; }
+.teacherList h3 { font: 500 22px/1.4 var(--journal-display, serif); margin: 0 0 4px; overflow-wrap: anywhere; }
+.teacherReviewCount { color: var(--dufe-muted); font-size: 13px; }
+.openLabel { color: var(--dufe-red-deep); font-size: 12px; white-space: nowrap; }
+
+.state, .fullState { border-left: 4px solid var(--dufe-red); margin: 52px auto; max-width: 760px; padding: 24px 30px; }
+.state b, .fullState b { display: block; font: 500 24px/1.35 var(--journal-display, serif); }
+.state p { color: var(--dufe-muted); line-height: 1.7; }
+.state button, .fullState button, .fullState a { background: transparent; border: 0; border-bottom: 1px solid var(--dufe-red); color: var(--dufe-red-deep); display: inline-block; margin-top: 16px; min-height: 44px; padding: 0; text-decoration: none; }
+.fullState { margin-top: 12vh; }
+
+.loadMore { background: transparent; border: 1px solid var(--dufe-ink); color: var(--dufe-ink); display: block; margin: 34px auto 0; min-height: 46px; padding: 0 32px; }
+.loadMore:hover, .loadMore:focus-visible { background: var(--dufe-ink); color: var(--dufe-paper); }
+
+.profileHeader {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0 auto;
+  max-width: 800px;
+  padding: 16px 20px 12px;
+}
+.profileHeader > a { align-items: center; color: var(--dufe-muted); display: inline-flex; font-size: 13px; min-height: 44px; text-decoration: none; }
+.profileHeader h1 { font: 500 30px/1.25 var(--journal-display, serif); overflow-wrap: anywhere; margin: 0; }
+
+.profileContent { margin: 0 auto; max-width: 800px; padding: 0 20px 60px; }
+.teachingDetails { border-top: 1px solid var(--dufe-line); margin-top: 24px; }
+.teachingDetails > summary { color: var(--dufe-muted); cursor: pointer; font-size: 14px; min-height: 44px; padding: 12px 0; touch-action: manipulation; }
+.teachingDetails[open] > summary { color: var(--dufe-red-deep); }
+.courseLedger { padding: 16px 0; }
+.courseLedger h2, .textbooks h2 { font: 500 20px/1.4 var(--journal-display, serif); margin: 0 0 12px; }
+.courseLedger > div:not(.inlineEmpty) { border-top: 1px solid var(--dufe-line); display: grid; gap: 6px 12px; grid-template-columns: minmax(0, 1fr) auto; padding: 14px 0; }
+.courseLedger > div > span { color: var(--dufe-red-deep); font-size: 12px; }
+.courseLedger > div > strong { font: 500 16px/1.5 var(--journal-body, sans-serif); grid-column: 1; overflow-wrap: anywhere; }
+.courseLedger > div > small { color: var(--dufe-muted); grid-column: 2; grid-row: 1 / 3; overflow-wrap: anywhere; text-align: right; }
+
+.textbooks { padding: 12px 0; scroll-margin-top: 20px; }
+.textbooks article { border-top: 1px solid var(--dufe-line); padding: 14px 0; }
+.textbooks article small { color: var(--dufe-red-deep); font-size: 12px; }
+.textbooks article h3 { font: 500 18px/1.45 var(--journal-display, serif); margin: 8px 0; overflow-wrap: anywhere; }
+.textbooks article p, .textbooks article code { color: var(--dufe-muted); font-size: 12px; line-height: 1.6; }
+.textbooks article code { display: block; margin-top: 8px; }
+.reviewEntry { border-top: 1px solid var(--dufe-line); padding: 12px 0 4px; }
+.reviewEntryMeta { align-items: baseline; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.reviewEntryMeta > b { font-size: 14px; overflow-wrap: anywhere; }
+.reviewEntryMeta > small, .reviewEntryMeta time { color: var(--dufe-muted); font-size: 12px; }
+.reviewEntryBody { font: 16px/1.75 var(--journal-body, sans-serif); margin: 6px 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.reviewDiscussion { margin-top: 2px; }
+.reviewDiscussionBar { display: flex; flex-wrap: wrap; gap: 16px; }
+.reviewDiscussionBar button, .reviewThread button, .reviewThread a { background: transparent; border: 0; color: var(--dufe-red-deep); font-size: 13px; min-height: 44px; min-width: 44px; padding: 0; text-align: left; text-decoration: none; }
+.reviewDiscussionBar button, .reviewThread button, .reviewThread a { touch-action: manipulation; }
+.reviewDiscussionBar button:focus-visible, .reviewThread button:focus-visible, .reviewThread a:focus-visible { outline: 2px solid var(--dufe-red); outline-offset: 3px; }
+.reviewThread { margin: 4px 0 12px; }
+.reviewThread > p { color: var(--dufe-muted); font-size: 12px; }
+.reviewThread time { color: var(--dufe-muted); font-size: 12px; }
+.reviewThread > ol { list-style: none; margin: 0; padding: 0; }
+.reviewThread > ol > li { border-top: 1px solid var(--dufe-line); margin: 0; padding: 12px 0 4px; }
+.reviewThread > ol > li[data-reply="true"] { margin-left: clamp(18px, 5vw, 48px); }
+.reviewThread > ol > li > div { align-items: baseline; display: flex; flex-wrap: wrap; gap: 4px 12px; overflow-wrap: anywhere; }
+.reviewThread > ol > li > p { overflow-wrap: anywhere; font: 14px/1.8 var(--journal-body, sans-serif); margin: 9px 0 0; white-space: pre-wrap; }
+.reviewThread menu { display: flex; flex-wrap: wrap; gap: 12px; list-style: none; margin: 2px 0 0; padding: 0; }
+.reviewReplyForm { border-left: 1px solid var(--dufe-line); margin-top: 8px; padding-left: 12px; }
+.reviewReplyForm > header { align-items: center; display: flex; justify-content: space-between; }
+.reviewReplyForm textarea { resize: vertical; width: 100%; }
+.inlineEmpty { color: var(--dufe-muted); padding: 28px 0; }
+.inlineEmpty button { background: transparent; border: 0; border-bottom: 1px solid var(--dufe-red); color: var(--dufe-red-deep); min-height: 44px; padding: 0 2px; }
+
+.reviewFilterNotice { align-items: center; color: var(--dufe-muted); display: flex; flex-wrap: wrap; font-size: 13px; gap: 4px 12px; margin: 0 0 8px; overflow-wrap: anywhere; }
+.reviewFilterNotice button { background: transparent; border: 0; color: var(--dufe-red-deep); min-height: 44px; padding: 0; text-decoration: underline; text-underline-offset: 4px; }
+
+.reviewContribution { border-top: 1px solid var(--dufe-line); margin-top: 8px; padding-top: 12px; position: relative; scroll-margin-top: 20px; }
+.visuallyHidden { clip-path: inset(50%); height: 1px; margin: 0; overflow: hidden; position: absolute; white-space: nowrap; width: 1px; }
+.reviewContribution .compactField, .reviewReplyForm .compactField { gap: 0; margin-top: 0; }
+.reviewContribution textarea { font: 16px/1.75 var(--journal-body, sans-serif); resize: vertical; }
+.reviews { min-width: 0; position: relative; }
+.reviewPagination > p { color: var(--dufe-muted); font-size: 13px; line-height: 1.7; margin: 0; text-align: center; }
+.reviewPagination .loadMore { margin-top: 18px; }
+.reviewPagination .loadMore:disabled { cursor: progress; opacity: .65; }
+.bookFacts { margin: 12px 0 0; font: 13px/1.65 var(--journal-body, sans-serif); }
+.bookFacts > div { display: grid; grid-template-columns: 4em minmax(0, 1fr); gap: 12px; margin-top: 4px; }
+.bookFacts dt { color: var(--dufe-muted); }
+.bookFacts dd { margin: 0; overflow-wrap: anywhere; }
+.reviewContribution > div > p, .reviewContribution > p { color: var(--dufe-muted); line-height: 1.7; margin: 8px 0 0; }
+.reviewContribution > div > a, .reviewContribution > div > button {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--dufe-red);
+  color: var(--dufe-red-deep);
+  display: inline-flex;
+  margin-top: 0;
+  min-height: 44px;
+  padding: 0;
+  text-decoration: none;
+}
+.reviewActions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 4px; }
+.reviewActions button { background: transparent; border: 0; border-bottom: 1px solid var(--dufe-ink); color: var(--dufe-ink); min-height: 44px; padding: 0; }
+.reviewActions button:first-child { border-bottom-color: var(--dufe-red); color: var(--dufe-red-deep); font-weight: 700; }
+.reviewActions button:disabled { cursor: progress; opacity: .55; }
+.reviewActions span { color: var(--dufe-muted); font-size: 12px; }
+.reviewNotice { border-left: 3px solid var(--dufe-red); color: var(--dufe-ink) !important; margin-top: 18px !important; padding: 8px 0 8px 14px; }
+
+/* Course-page index only: keep the standalone directory and reviews unchanged. */
+.embedded {
+  --dufe-paper: #f4f1e9;
+  --dufe-paper-raised: #fbfaf5;
+  --dufe-ink: #1d1b18;
+  --dufe-muted: #706a62;
+  --dufe-red: #a52325;
+  --dufe-red-deep: var(--dufe-red);
+  --dufe-line: #cec6ba;
+  --journal-display: var(--journal-body, system-ui, sans-serif);
+  background: var(--dufe-paper);
+  color: var(--dufe-ink);
+  font: 14px/1.65 var(--journal-body, system-ui, sans-serif);
+  min-width: 0;
+}
+
+.embeddedSearch { padding: 16px 0; }
+.embedded .searchField { gap: 0 12px; padding: 0; }
+.embedded .searchField > label { font: 12px/1.5 var(--journal-data, ui-monospace, monospace); }
+.embedded .searchField input { padding: 8px 0; }
+.embedded .searchField input::placeholder { color: var(--dufe-muted); opacity: 1; }
+.embedded :is(button, select, a):focus-visible { outline: 2px solid var(--dufe-red); outline-offset: 3px; }
+.embedded :is(button, select, a) { min-height: 44px; min-width: 44px; touch-action: manipulation; }
+.embedded button { cursor: pointer; font-family: var(--journal-body, system-ui, sans-serif); }
+.embedded button:disabled { cursor: not-allowed; opacity: .65; }
+
+.embedded .personalContext { gap: 8px 20px; padding: 12px 0; }
+.embedded .personalContext > div:first-child > span { font: 600 12px/1.5 var(--journal-data, ui-monospace, monospace); letter-spacing: 0; }
+.embedded .personalContext p { font-size: 12px; }
+.embedded .personalContext > div:last-child { gap: 4px 12px; }
+.embedded .personalContext button { border: 0; border-bottom: 1px solid var(--dufe-line); border-radius: 0; padding: 0 8px; }
+.embedded .personalContext button:hover,
+.embedded .personalContext button:focus-visible { background: var(--dufe-paper-raised); color: var(--dufe-red); }
+
+.embedded .results { padding: 16px 0 24px; }
+.embedded .directoryHeader { gap: 4px 12px; margin-bottom: 8px; }
+.embedded .directoryHeader h2 { font: 600 18px/1.5 var(--journal-body, system-ui, sans-serif); overflow-wrap: anywhere; }
+.embedded .collegeList { gap: 0 24px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+.embedded .collegeList button { min-height: 72px; padding: 12px 0; }
+.embedded .collegeList button > span:first-child { font: 500 16px/1.5 var(--journal-body, system-ui, sans-serif); }
+.embedded .directoryFilter { gap: 8px 12px; margin: 0 0 12px; }
+.embedded .directoryFilter :is(label, p),
+.embedded .teacherList small,
+.embedded .teacherReviewCount,
+.embedded .openLabel { font: 12px/1.5 var(--journal-data, ui-monospace, monospace); }
+.embedded .teacherList > a { border-bottom-color: var(--dufe-line); gap: 12px; min-height: 72px; padding: 12px 0; }
+.embedded .teacherList > a:hover,
+.embedded .teacherList > a:focus-visible { background: var(--dufe-paper-raised); }
+.embedded .teacherList h3 { font: 600 18px/1.5 var(--journal-body, system-ui, sans-serif); margin-bottom: 2px; }
+.embedded .teacherList small { overflow-wrap: anywhere; }
+.embedded .teacherReviewCount { white-space: nowrap; }
+.embedded .inlineEmpty { padding: 16px 0; }
+.embedded .state { border-left-width: 2px; margin: 20px 0; padding: 12px 16px; }
+.embedded .state b { font: 600 18px/1.5 var(--journal-body, system-ui, sans-serif); }
+.embedded .loadMore { margin-top: 20px; min-height: 44px; }
+
+@media (max-width: 680px) {
+  .embedded .personalContext { grid-template-columns: minmax(0, 1fr); }
+  .embedded .teacherList > a { grid-template-columns: minmax(0, 1fr) auto; }
+  .embedded .openLabel { display: none; }
+}
+
+@media (max-width: 900px) {
+  .hero { align-items: stretch; grid-template-columns: 1fr; }
+  .searchField { grid-column: 1 / -1; }
+  .collegeList { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reviewReplyForm textarea { font-size: 16px; }
+}
+
+@media (max-width: 560px) {
+  .hero { gap: 18px; }
+  .collegeList { grid-template-columns: 1fr; }
+  .directoryFilter select { flex: 1; width: 0; }
+  .directoryFilter p { flex-basis: 100%; }
+  .personalContext { grid-template-columns: 1fr; }
+  .teacherList > a { gap: 12px; grid-template-columns: minmax(0, 1fr) auto; }
+  .openLabel { display: none; }
+  .profileHeader h1 { font-size: 28px; }
+  .courseLedger > div:not(.inlineEmpty) { grid-template-columns: minmax(0, 1fr); }
+  .courseLedger > div > small { grid-column: 1; grid-row: auto; text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .teacherList > a, .loadMore { transition: none; }
+}
