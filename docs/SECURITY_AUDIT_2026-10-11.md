@@ -130,6 +130,8 @@ Docker 映射显示 auth 3100/PostgreSQL 5432 未发布宿主端口，仅网关 
 
 **未运行/未验证**：修改既有staging、实际旧镜像回滚再前滚、持续生产负载及峰值内存、真实邮件收件箱/垃圾箱和延迟、微信内置浏览器/第三方回调、CDN/跨机回源/阿里云安全组/防火墙完整核查、真实学校账号/TLS/授权、报警接收、历史生产日志/备份敏感内容及学校challenge真实性。GitHub CI、CodeQL、Linux镜像/裁剪、真实PG角色ACL、生产备份隔离恢复、服务器128MiB短测、SMTP接受、当前代理peer及公开HTTPS/安全头已取得上表证据，不再列为全未验证。
 
+发布控制终端曾在镜像导入（60秒）及最后的`docker stats`组合检查（30秒）超时。后续读取服务器镜像摘要、持久snapshot和健康状态，确认导入、角色检查及发布完成；没有因超时重复切换容器。未取得该次stats内存数值，不记为通过。最终线上app/auth/PG/小影均healthy、重启0、OOM=false；web重启0但未定义Docker healthcheck。回滚Compose语法/环境解析及配置0600、目录0700验证通过，实际二进制回滚未运行。最终文档`gitleaks dir docs --redact`扫描0匹配；首个尝试使用本版不支持的排除参数报用法错误，纠正命令后执行成功。
+
 本地原生PG复跑：PGHOST=127.0.0.1、PGPORT=55439、POSTGRES_USER=dufesh_security_owner、合成库 `dufesh_production_security_test`；SECURITY_POSTGRES_TEST=true注册测试要求独立空库并自行应用0001–0028，已运行库须换符合名称限制的空库，不能覆盖。完整浏览器 `dufesh_production_ci` 先应用0001–0028，端口33137/33138/33139，配置只含合成凭据。续修真实角色库 `dufesh_continuation_acl_ci` 使用独立schema/migrator/runtime/import/backup角色、既有shell迁移入口及PostgreSQL17.10官方Windows客户端，备份恢复至全新 `dufesh_continuation_restore_ci`。角色测试实际用非owner请求，区别于前期owner浏览器fixture；不替代Linux镜像验证。临时客户端来源为 [PostgreSQL官方Windows二进制下载入口](https://www.postgresql.org/download/windows/)，未安装系统服务/WSL/Docker。专用PG已正常停止，测试端口释放；合成数据、dump与本地日志未提交，不包含生产数据。
 
 ## 尚未解决或需要后续验收的事项（统一清单）
