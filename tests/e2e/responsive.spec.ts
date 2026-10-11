@@ -156,7 +156,7 @@ test("personal course context reorders discovery without hiding schoolwide resul
     route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ materials: [schoolwideMaterial, currentMaterial] }),
+      body: JSON.stringify({ generatedAt: "2026-10-05T00:00:00.000Z", materials: [schoolwideMaterial, currentMaterial] }),
     }),
   );
   await page.route("**/api/teachers?*", (route) =>
