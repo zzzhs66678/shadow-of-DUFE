@@ -277,6 +277,71 @@ test("wheel and touch drive inertial motion without moving the page, rotation re
   await axe(page); await page.keyboard.press("Escape"); expect(checks.errors).toEqual([]); expect(checks.writes).toEqual([]);
 });
 
+test("one short horizontal touch swipe follows the finger and advances a photo on a phone", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const checks = await setup(page);
+  const { gallery } = await enter(page); await settle(page, 0);
+  const port = gallery.locator("[data-gallery-scroll]");
+  const camera = () => port.evaluate(element => Number((element as HTMLElement).dataset.camera));
+  const initial = await camera(), pageTop = await page.evaluate(() => window.scrollY);
+  const touch = await page.context().newCDPSession(page);
+  await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 245, y: 510 }] });
+  for (const x of [225, 205, 175]) await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y: 507 }] });
+  // Assert motion before release: snapping alone cannot pass this regression.
+  await expect.poll(camera).toBeGreaterThan(initial + 100);
+  await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await settle(page, 1);
+  await expect(gallery.getByRole("region", { name: "校园照片原图" })).toHaveCount(0);
+
+  await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 145, y: 510 }] });
+  for (const x of [165, 185, 215]) await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y: 513 }] });
+  await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await touch.detach(); await settle(page, 0);
+  expect(await page.evaluate(() => window.scrollY)).toBe(pageTop);
+  await expect(gallery.locator("[data-slot]")).toHaveCount(26);
+  await page.keyboard.press("Escape");
+  expect(checks.errors).toEqual([]); expect(checks.writes).toEqual([]);
+});
+
+test("a vertical touch gesture on the closed album keeps native page scrolling", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const checks = await setup(page);
+  const album = page.getByRole("region", { name: "校园相册", exact: true });
+  await album.scrollIntoViewIfNeeded();
+  const box = (await album.boundingBox())!;
+  const y = Math.max(120, Math.min(580, box.y + box.height * .3));
+  const before = await page.evaluate(() => window.scrollY);
+  expect(before).toBeGreaterThan(100);
+  const touch = await page.context().newCDPSession(page);
+  await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 160, y }] });
+  for (const delta of [35, 75, 125]) await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 162, y: y + delta }] });
+  await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] }); await touch.detach();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(before - 60);
+  await expect(page.getByRole("dialog", { name: "校园漫游", exact: true })).toHaveCount(0);
+  expect(checks.errors).toEqual([]); expect(checks.writes).toEqual([]);
+});
+
+test("reduced motion retains short horizontal touch navigation and native vertical scrolling", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" }); const checks = await setup(page);
+  const { gallery } = await enter(page); await settle(page, 0);
+  const port = gallery.locator("[data-gallery-scroll]");
+  await expect(port).toHaveCSS("touch-action", "pan-y pinch-zoom");
+  const touch = await page.context().newCDPSession(page);
+  await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 245, y: 510 }] });
+  for (const x of [220, 195, 175]) await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y: 509 }] });
+  await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] }); await settle(page, 1);
+  await expect(gallery.locator('button[data-active="true"]')).toHaveCSS("transform", "none");
+  const before = await port.evaluate(element => element.scrollTop);
+  await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 155, y: 620 }] });
+  for (const y of [575, 520, 470]) await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: 156, y }] });
+  await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] }); await touch.detach();
+  await expect.poll(() => port.evaluate(element => element.scrollTop)).toBeGreaterThan(before + 70);
+  await expect(port).toHaveAttribute("data-animating", "false");
+  await page.keyboard.press("Escape");
+  expect(checks.errors).toEqual([]); expect(checks.writes).toEqual([]);
+});
+
 test("reduced motion keeps all 26 originals, without parallax or expansion animation", async ({ page }) => {
   test.setTimeout(90000);
   await page.emulateMedia({ reducedMotion: "reduce" }); const checks = await setup(page);

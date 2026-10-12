@@ -8,13 +8,14 @@ export type PersonalStorage = Pick<
 >;
 
 const LEGACY_PERSONAL_STORAGE_KEY = "dufesh:student-profile:v2";
+const LEGACY_PERSONAL_STORAGE_BACKUP_KEY = "dufesh:student-profile:v2:migration-backup";
 const PERSONAL_STORAGE_PREFIX = "dufesh:student-profile:v3";
 
 export const anonymousPersonalScope: PersonalStorageScope = {
   kind: "anonymous",
 };
 
-export function userPersonalScope(userId: string): PersonalStorageScope {
+export function userPersonalScope(userId: string): Extract<PersonalStorageScope, { kind: "user" }> {
   const normalized = userId.trim();
   if (!normalized) throw new Error("userId is required for account storage");
   return { kind: "user", userId: normalized };
@@ -26,6 +27,30 @@ export function personalStorageKey(scope: PersonalStorageScope) {
     : `${PERSONAL_STORAGE_PREFIX}:user:${encodeURIComponent(scope.userId)}`;
 }
 
+function pendingCloudBootstrapKey(scope: PersonalStorageScope): string | null {
+  if (scope.kind !== "user" || typeof scope.userId !== "string" || !scope.userId.trim()) return null;
+  return `${personalStorageKey(scope)}:pending-cloud-bootstrap`;
+}
+
+export function isPersonalCloudBootstrapPending(
+  storage: PersonalStorage,
+  scope: PersonalStorageScope,
+) {
+  const key = pendingCloudBootstrapKey(scope);
+  return key !== null && storage.getItem(key) === "1";
+}
+
+export function setPersonalCloudBootstrapPending(
+  storage: PersonalStorage,
+  scope: PersonalStorageScope,
+  pending: boolean,
+) {
+  const key = pendingCloudBootstrapKey(scope);
+  if (key === null) return;
+  if (pending) storage.setItem(key, "1");
+  else storage.removeItem(key);
+}
+
 export function migrateLegacyPersonalStorage(storage: PersonalStorage) {
   const legacy = storage.getItem(LEGACY_PERSONAL_STORAGE_KEY);
   if (legacy === null) return false;
@@ -34,7 +59,16 @@ export function migrateLegacyPersonalStorage(storage: PersonalStorage) {
   if (storage.getItem(anonymousKey) === null) {
     storage.setItem(anonymousKey, legacy);
   }
-  storage.removeItem(LEGACY_PERSONAL_STORAGE_KEY);
+  // A legacy profile has no account identity. Keep its original bytes for an
+  // explicit recovery, including when an anonymous profile already exists.
+  try {
+    if (storage.getItem(LEGACY_PERSONAL_STORAGE_BACKUP_KEY) === null) {
+      storage.setItem(LEGACY_PERSONAL_STORAGE_BACKUP_KEY, legacy);
+    }
+    storage.removeItem(LEGACY_PERSONAL_STORAGE_KEY);
+  } catch {
+    // If the extra copy exceeds storage capacity, the source remains intact.
+  }
   return true;
 }
 
@@ -64,4 +98,5 @@ export function removePersonalStorage(
   scope: PersonalStorageScope,
 ) {
   storage.removeItem(personalStorageKey(scope));
+  setPersonalCloudBootstrapPending(storage, scope, false);
 }

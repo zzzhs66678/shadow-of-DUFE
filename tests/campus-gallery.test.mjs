@@ -1,6 +1,19 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { galleryDamp, galleryEndPadding, galleryLoopCamera, galleryLoopY, galleryNearest, gallerySpeeds, galleryTarget, galleryWrap } from "../app/campus-gallery.ts";
+import { galleryDamp, galleryEndPadding, galleryGestureAxis, galleryLoopCamera, galleryLoopY, galleryNearest, gallerySpeeds, gallerySwipeStep, galleryTarget, galleryTouchTravel, galleryWrap } from "../app/campus-gallery.ts";
+
+test("sideways touch browsing responds while mouse gestures retain vertical dragging", () => {
+  assert.equal(galleryGestureAxis(-60, 4, true), "horizontal");
+  assert.equal(galleryGestureAxis(-4, 60, true), "vertical");
+  assert.equal(galleryGestureAxis(-60, 4, false), null);
+  assert.equal(galleryGestureAxis(-60, 20, false), "vertical");
+  assert.equal(galleryGestureAxis(3, -2, true), null);
+  assert.ok(galleryTouchTravel(60, "horizontal") > 120);
+  assert.ok(galleryTouchTravel(60, "vertical") >= 60);
+  assert.equal(gallerySwipeStep(-60), 1);
+  assert.equal(gallerySwipeStep(60), -1);
+  assert.equal(gallerySwipeStep(-8), 0);
+});
 
 test("finite photo navigation finds the nearest layout landmark", () => {
   assert.equal(galleryNearest([], 0, 1000), 0);

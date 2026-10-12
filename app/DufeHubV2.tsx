@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-
 import {
   lazy,
   Suspense,
@@ -30,7 +28,9 @@ import {
 import {
   clearPersonalSyncMetadata,
   loadPersonalSyncMetadata,
+  mergeBootstrapPersonalState,
   mergeInitialPersonalState,
+  mergePersonalStateThreeWay,
   savePersonalSyncMetadata,
   synchronizePersonalState,
   normalizeAcademicTrainingPlan,
@@ -42,6 +42,7 @@ import { FormField } from "./FormField";
 import { loadPublishedCourseCore, loadPublishedCourseFull, loadPublishedMaterials } from "./published-catalog";
 import { DataFeedback } from "./DataFeedback";
 import { MomoMark } from "./community/MomoMark";
+import { Whiteboard } from "./whiteboard/Whiteboard";
 import { useModalFocus } from "./use-modal-focus";
 import { activityTimes, activityTimeLabel, activityTimesOverlap, activityStart, activityBlock, activityOccursOn, activityListOrder, clockMinutes, eventWeekDate, validEventTimes, validEventDate } from "./personal-events";
 import { TeacherRecordLink } from "./TeacherRecordLink";
@@ -60,22 +61,24 @@ import { useCourseWorkspace } from "./use-course-workspace";
 import { scoreCourseSearch } from "./course-search";
 import { discoveryKeys, localHref, pushDiscovery, readDiscovery, restoreDiscoveryPosition, roomContextUrl } from "./discovery-navigation";
 import homeStyles from "./home-workspace.module.css";
+import legacyHomeStyles from "./home-workspace-legacy.module.css";
 import classSetupStyles from "./class-setup.module.css";
 import shellStyles from "./campus-shell.module.css";
 import { CampusWordmark } from "./CampusWordmark";
 import meStyles from "./my-page.module.css";
 import { CampusAlbum } from "./CampusAlbum";
 import { CompetitionsGateway } from "./competitions/CompetitionsGateway";
-import { Whiteboard } from "./whiteboard/Whiteboard";
 import { WallEntry, WallOriginRestore } from "./community/WallEntry";
 import roomFilterStyles from "./room-time-filter.module.css";
 import { groupRoomsByFloor, roomFloor } from "./room-floors";
 import RoomWeekSchedule from "./RoomWeekSchedule";
 import {
   anonymousPersonalScope,
+  isPersonalCloudBootstrapPending,
   migrateLegacyPersonalStorage,
   readPersonalStorage,
   removePersonalStorage,
+  setPersonalCloudBootstrapPending,
   userPersonalScope,
   writePersonalStorage,
   type PersonalStorageScope,
@@ -995,6 +998,8 @@ function HubApp({ data: initialData }: { data: SiteData }) {
   const [previewScope, setPreviewScope] = useState("");
   const [saved, setSaved] = useState<SavedState>(emptySavedState);
   const [hydrated, setHydrated] = useState(false);
+  const [personalReadStatus, setPersonalReadStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [personalCacheOwner, setPersonalCacheOwner] = useState("");
   const [personalScope, setPersonalScope] =
     useState<PersonalStorageScope>(anonymousPersonalScope);
   const [anonymousImportAvailable, setAnonymousImportAvailable] =
@@ -1054,6 +1059,13 @@ function HubApp({ data: initialData }: { data: SiteData }) {
   const savedRef = useRef(saved);
   const termRef = useRef(term);
   const syncQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const personalSyncEpoch = useRef(0);
+  const personalSyncControllers = useRef(new Set<AbortController>());
+  const invalidatePersonalRequests = useCallback(() => {
+    personalSyncEpoch.current += 1;
+    personalSyncControllers.current.forEach((controller) => controller.abort());
+    personalSyncControllers.current.clear();
+  }, []);
   const materialsRequestRef = useRef<Promise<void> | null>(null);
   const [addFeedback, setAddFeedback] = useState("");
 
@@ -1277,8 +1289,12 @@ function HubApp({ data: initialData }: { data: SiteData }) {
 
   useEffect(() => {
     if (!hydrated) return;
+    const pending = personalScope.kind === "user" && personalCacheOwner !== personalScope.userId;
+    if (pending && !hasMeaningfulSavedState(saved)) return;
+    if (pending) setPersonalCloudBootstrapPending(localStorage, personalScope, true);
     writePersonalStorage(localStorage, personalScope, saved);
-  }, [hydrated, personalScope, saved]);
+    if (!pending) setPersonalCloudBootstrapPending(localStorage, personalScope, false);
+  }, [hydrated, personalScope, personalCacheOwner, saved]);
 
   useEffect(() => {
     savedRef.current = saved;
@@ -1287,7 +1303,18 @@ function HubApp({ data: initialData }: { data: SiteData }) {
 
   useEffect(() => {
     if (!hydrated) return;
+    invalidatePersonalRequests();
     const controller = new AbortController();
+    const epoch = personalSyncEpoch.current;
+    const isCurrent = () => !controller.signal.aborted && personalSyncEpoch.current === epoch;
+    const controllers = personalSyncControllers.current;
+    controllers.add(controller);
+    queueMicrotask(() => {
+      if (!isCurrent()) return;
+      setPersonalReadStatus("loading");
+      setPersonalCacheOwner("");
+      setCloudSyncReady(false);
+    });
 
     void (async () => {
       try {
@@ -1321,7 +1348,9 @@ function HubApp({ data: initialData }: { data: SiteData }) {
             wechatAvailable?: boolean;
           };
         };
+        if (!isCurrent()) return;
         if (!session.authenticated || !session.user?.id) {
+          setPersonalReadStatus("ready");
           setCloudUserId("");
           setCloudSyncReady(false);
           setCloudSyncStatus("local");
@@ -1345,9 +1374,10 @@ function HubApp({ data: initialData }: { data: SiteData }) {
 
         const userId = session.user.id;
         const userScope = userPersonalScope(userId);
-        const localAccountState = normalizeSavedState(
-          readPersonalStorage(localStorage, userScope),
-        );
+        const rawAccountState = readPersonalStorage(localStorage, userScope);
+        const completeAccountCache = rawAccountState !== null && !isPersonalCloudBootstrapPending(localStorage, userScope);
+        const localAccountState = normalizeSavedState(rawAccountState);
+        setPersonalCacheOwner(completeAccountCache ? userId : "");
         const anonymousState = normalizeSavedState(
           readPersonalStorage(localStorage, anonymousPersonalScope),
         );
@@ -1384,36 +1414,44 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           const devicePayload = (await devicesResponse.json()) as {
             devices: AccountDevice[];
           };
+          if (!isCurrent()) return;
           setAccountDevices(devicePayload.devices);
         }
+        if (!isCurrent()) return;
         const result = await synchronizePersonalState({
           userId,
           localState: localAtStart,
+          localStatePresent: completeAccountCache,
           priorMetadata: loadPersonalSyncMetadata(userId),
           signal: controller.signal,
         });
+        if (!isCurrent()) return;
         if (!result) {
           setCloudSyncStatus("offline");
+          setPersonalReadStatus("error");
           return;
         }
-        savePersonalSyncMetadata(result.metadata);
+        const liveState = toPersonalSyncState(savedRef.current, termRef.current);
+        const restored = completeAccountCache
+          ? mergePersonalStateThreeWay(localAtStart, liveState, result.state)
+          : { state: mergeBootstrapPersonalState(liveState, result.state), conflicts: [] };
+        const pendingConflicts = [...result.metadata.pendingConflicts, ...restored.conflicts];
+        savePersonalSyncMetadata({ ...result.metadata, pendingConflicts });
         setCloudSyncedAt(result.metadata.syncedAt);
-        setCloudSyncStatus(
-          result.status === "conflict" ? "conflict" : "synced",
-        );
-        if (
-          result.status !== "conflict" &&
-          JSON.stringify(
-            toPersonalSyncState(savedRef.current, termRef.current),
-          ) === JSON.stringify(localAtStart)
-        ) {
-          setSaved(fromPersonalSyncState(result.state));
-          setTerm(result.state.preferredTerm);
+        setCloudSyncStatus(pendingConflicts.length ? "conflict" : "synced");
+        if (!pendingConflicts.length) {
+          const restoredSaved = fromPersonalSyncState(restored.state);
+          savedRef.current = restoredSaved;
+          setSaved(restoredSaved);
+          setTerm(restored.state.preferredTerm);
         }
         setCloudSyncReady(true);
+        setPersonalCacheOwner(userId);
+        setPersonalReadStatus("ready");
       } catch (error) {
-        if ((error as { name?: string }).name !== "AbortError") {
+        if (isCurrent() && (error as { name?: string }).name !== "AbortError") {
           setCloudSyncStatus("offline");
+          setPersonalReadStatus("error");
           setAccount((current) =>
             current.status === "loading"
               ? {
@@ -1432,13 +1470,21 @@ function HubApp({ data: initialData }: { data: SiteData }) {
       }
     })();
 
-    return () => controller.abort();
-  }, [authRevision, hydrated]);
+    return () => {
+      controller.abort();
+      controllers.delete(controller);
+    };
+  }, [authRevision, hydrated, invalidatePersonalRequests]);
 
   useEffect(() => {
     if (!hydrated || !cloudSyncReady || !cloudUserId) return;
     const metadata = loadPersonalSyncMetadata(cloudUserId);
     if (metadata?.pendingConflicts.length) return;
+    const controller = new AbortController();
+    const epoch = personalSyncEpoch.current;
+    const isCurrent = () => !controller.signal.aborted && personalSyncEpoch.current === epoch;
+    const controllers = personalSyncControllers.current;
+    controllers.add(controller);
 
     const timer = window.setTimeout(() => {
       const localAtStart = toPersonalSyncState(
@@ -1448,13 +1494,15 @@ function HubApp({ data: initialData }: { data: SiteData }) {
       syncQueueRef.current = syncQueueRef.current
         .catch(() => undefined)
         .then(async () => {
+          if (!isCurrent()) return;
           setCloudSyncStatus("syncing");
           const result = await synchronizePersonalState({
             userId: cloudUserId,
             localState: localAtStart,
             priorMetadata: loadPersonalSyncMetadata(cloudUserId),
+            signal: controller.signal,
           });
-          if (!result) return;
+          if (!result || !isCurrent()) return;
           savePersonalSyncMetadata(result.metadata);
           setCloudSyncedAt(result.metadata.syncedAt);
           setCloudSyncStatus(
@@ -1471,12 +1519,17 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           }
         })
         .catch(() => {
+          if (!isCurrent()) return;
           setCloudSyncStatus("offline");
           console.warn("个人数据暂未同步，将在下次修改后重试。");
         });
     }, 1_500);
 
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+      controllers.delete(controller);
+    };
   }, [cloudSyncReady, cloudUserId, hydrated, saved, term]);
 
   useEffect(() => {
@@ -1873,7 +1926,12 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           onGo={go}
           onSearch={openSearch}
           onSetup={openOnboarding}
-          personalReady={hydrated}
+          personalReadStatus={personalReadStatus}
+          onAcademicImport={() => setAcademicImportOpen(true)}
+          workspaceMode={account.status !== "anonymous" || personalReadStatus !== "ready" || Boolean(
+            saved.profile || saved.plans.length > 1 || saved.plans.some((plan) => plan.scheduleIds.length) ||
+            saved.academicSnapshots.length || saved.trainingPlan || saved.activities.length || saved.assignments.length
+          )}
           onEditCalendar={setCalendarEditor}
           onToggleAssignment={(id) =>
             setSaved((state) => ({
@@ -1998,6 +2056,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
           saved={saved}
           onClearLocal={() => {
             if (account.status === "authenticated" && account.user?.id) {
+              invalidatePersonalRequests();
               clearPersonalSyncMetadata(account.user.id);
               removePersonalStorage(localStorage, userPersonalScope(account.user.id));
               // Never put an empty state through the cloud write effect. A fresh
@@ -2024,13 +2083,17 @@ function HubApp({ data: initialData }: { data: SiteData }) {
               `/api/auth/wechat/start?returnTo=${encodeURIComponent(localHref(new URL(window.location.href)))}`,
             );
           }}
-          onAuthChanged={() => setAuthRevision((current) => current + 1)}
+          onAuthChanged={() => {
+            invalidatePersonalRequests();
+            setAuthRevision((current) => current + 1);
+          }}
           onLogout={async () => {
             const response = await fetch("/api/auth/logout", {
               method: "POST",
               credentials: "same-origin",
             });
             if (!response.ok) return;
+            invalidatePersonalRequests();
             const signedOutUserId = cloudUserId || account.user?.id || "";
             if (signedOutUserId) {
               clearPersonalSyncMetadata(signedOutUserId);
@@ -2043,6 +2106,8 @@ function HubApp({ data: initialData }: { data: SiteData }) {
               readPersonalStorage(localStorage, anonymousPersonalScope),
             );
             setPersonalScope(anonymousPersonalScope);
+            setPersonalCacheOwner("");
+            setPersonalReadStatus("ready");
             setSaved(anonymousState);
             savedRef.current = anonymousState;
             setOnboarding(false);
@@ -2074,6 +2139,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
               currentSessionRevoked: boolean;
             };
             if (result.currentSessionRevoked) {
+              invalidatePersonalRequests();
               const revokedUserId = cloudUserId || account.user?.id || "";
               if (revokedUserId) {
                 clearPersonalSyncMetadata(revokedUserId);
@@ -2099,6 +2165,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
               }),
             });
             if (!response.ok) return false;
+            invalidatePersonalRequests();
             const deletedUserId = cloudUserId || account.user?.id || "";
             if (deletedUserId) {
               clearPersonalSyncMetadata(deletedUserId);
@@ -2111,6 +2178,8 @@ function HubApp({ data: initialData }: { data: SiteData }) {
               readPersonalStorage(localStorage, anonymousPersonalScope),
             );
             setPersonalScope(anonymousPersonalScope);
+            setPersonalCacheOwner("");
+            setPersonalReadStatus("ready");
             setSaved(anonymousState);
             savedRef.current = anonymousState;
             setOnboarding(false);
@@ -2321,7 +2390,7 @@ function HubApp({ data: initialData }: { data: SiteData }) {
       {onboarding && fullDataStatus !== "ready" && (
         <ClassSetupFrame onClose={() => setOnboarding(false)}>
           <div className={classSetupStyles.preview} role={fullDataStatus === "error" ? "alert" : "status"}>
-            <strong>{fullDataStatus === "error" ? "班级课程暂时没能加载" : "正在读取班级课程…"}</strong>
+            <strong>{fullDataStatus === "error" ? "班级信息暂时没能加载" : "正在读取班级信息…"}</strong>
             <p>{fullDataStatus === "error" ? "可以重试，或关闭后继续查资料、找空教室。" : "准备好后即可选择具体班级。你也可以随时关闭。"}</p>
           </div>
           {fullDataStatus === "error" && <div className={classSetupStyles.actions}>
@@ -2334,38 +2403,17 @@ function HubApp({ data: initialData }: { data: SiteData }) {
         <Onboarding
           key={personalOwner}
           data={data}
-          term={term}
           initial={saved.profile}
           storageHint={account.status === "authenticated" ? "账号同步状态可在“我的”查看。" : "保存在当前浏览器，可随时在“我的”调整。"}
-          onOpenCourses={() => {
-            setOnboarding(false);
-            go("catalog");
-          }}
           onSkip={() => {
             setOnboarding(false);
           }}
-          onSave={(profile, scheduleIds) => {
-            setShowPlanning(true);
-            setSaved((state) => {
-              const current = state.plans.find((plan) => plan.id === state.activePlanId);
-              // Profile-only edits must not clear a timetable. A different class
-              // becomes a new plan instead of overwriting existing selections.
-              if (!profile.className || !scheduleIds.length ||
-                  (current && current.scheduleIds.length === scheduleIds.length && scheduleIds.every((id) => current.scheduleIds.includes(id)))) {
-                return { ...state, profile, skipped: false };
-              }
-              if (current && !current.scheduleIds.length) {
-                return { ...state, profile, skipped: false,
-                  plans: state.plans.map((plan) => plan.id === current.id ? { ...plan, scheduleIds } : plan) };
-              }
-              const id = `class-plan-${Date.now()}`;
-              return { ...state, profile, skipped: false, activePlanId: id,
-                plans: [...state.plans, { id, name: `${profile.className}选课`, scheduleIds }] };
-            });
+          onSave={(profile) => {
+            setSaved((state) => ({ ...state, profile, skipped: false }));
             setCollege(profile.college);
             setMajorId(profile.majorId);
             setOnboarding(false);
-            setAddFeedback(scheduleIds.length ? `${profile.className} 的课程已添加，可在课表中调整。` : "专业设置已保存，可继续手动选课。");
+            setAddFeedback("班级信息已保存，课表保持原样。");
             window.setTimeout(() => setAddFeedback(""), 4500);
           }}
         />
@@ -2431,7 +2479,9 @@ function HomePage({
   onGo,
   onSearch,
   onSetup,
-  personalReady,
+  personalReadStatus,
+  onAcademicImport,
+  workspaceMode,
   onEditCalendar,
   onToggleAssignment,
   onDeleteCalendar,
@@ -2447,7 +2497,9 @@ function HomePage({
   onGo: (view: View) => void;
   onSearch: (kind?: SearchKind, query?: string) => void;
   onSetup: () => void;
-  personalReady: boolean;
+  personalReadStatus: "loading" | "ready" | "error";
+  onAcademicImport: () => void;
+  workspaceMode: boolean;
   onEditCalendar: (request: CalendarEditorRequest) => void;
   onToggleAssignment: (id: string) => void;
   onDeleteCalendar: (
@@ -2458,7 +2510,6 @@ function HomePage({
   const profileMajor = data.majors.find(
     (item) => item.id === saved.profile?.majorId,
   );
-  const [searchQuery, setSearchQuery] = useState("");
   const hasTimetable = activeSchedules.some((item) => item.term === term) || Boolean(academicSnapshot);
   const hasScheduledCourses = activeSchedules.some((item) => item.term === term);
   const confirmedEmptyTimetable = academicSnapshot?.sections.length === 0;
@@ -2590,16 +2641,19 @@ function HomePage({
     .filter((item) => item.kind === "assignment" ||
       clockMinutes(activityTimes(item.item)[1]) > new Date().getHours() * 60 + new Date().getMinutes())
     .slice(0, 3);
+  const campusServices = (
+    <nav className="campus-pins" aria-label="东财常用服务">
+      <span>校园直达</span>
+      <a href={campusLinks.library} target="_blank" rel="noreferrer"><i>座</i>我去图书馆 <em>↗</em></a>
+      <a href={campusLinks.campusCard} target="_blank" rel="noreferrer"><i>码</i>校园码 <em>↗</em></a>
+      <a href={campusLinks.ginkgo} target="_blank" rel="noreferrer"><i>果</i>白果云 <em>↗</em></a>
+    </nav>
+  );
 
   return (
-    <div className={`page-wrap today-page focus-page focus-page-v5 ${homeStyles.workspace}`} data-has-timetable={hasTimetable}>
+    <div className={`page-wrap today-page focus-page focus-page-v5 ${legacyHomeStyles.workspace}`} data-has-timetable={hasTimetable} data-home-mode={workspaceMode ? "workspace" : "discovery"}>
       <header className="focus-head focus-head-v5">
-        <div className={homeStyles.dayTitle}>
-          <time className={homeStyles.dateStamp} dateTime={todayISO()} aria-label={dateText}>
-            <small>{new Date().getMonth() + 1}月</small><b>{new Date().getDate()}</b>
-          </time>
-          <div><span>{new Intl.DateTimeFormat("zh-CN", { weekday: "long" }).format(new Date())}</span><h1>今天</h1></div>
-        </div>
+        <div><span>{dateText}</span><h1>今天</h1></div>
         <button onClick={() => onSearch()} aria-label="全站搜索">
           <UiIcon name="search" />
         </button>
@@ -2619,28 +2673,11 @@ function HomePage({
         <CampusTimeMark />
       </header>
 
-      <section className={homeStyles.discovery} aria-label="课程、教师与资料检索">
-        <div className={homeStyles.discoveryIntro}>
-          <p>{hasTimetable ? "课程、教师和资料，随时查。" : "查课程、看教师评价，找资料和空教室。"}</p>
-          <button onClick={() => onGo("rooms")}><UiIcon name="rooms" />找空教室 <span aria-hidden="true">→</span></button>
-        </div>
-        <form className={homeStyles.search} role="search" onSubmit={(event) => {
-          event.preventDefault();
-          onSearch("all", searchQuery);
-        }}>
-          <span aria-hidden="true"><UiIcon name="search" /></span>
-          <input aria-label="搜索课程、教师和资料" name="home-search" autoComplete="off"
-            value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="搜课程、教师、资料…" />
-          <button type="submit">搜索</button>
-        </form>
-        <div className={homeStyles.browse}>
-          <span>也可以浏览</span>
-          <button onClick={() => onGo("catalog")}>全校课程</button>
-          <Link href="/teachers">教师评价</Link>
-          <Link href="/materials">课程资料</Link>
-        </div>
-      </section>
+      {campusServices}
+
+      {personalReadStatus !== "ready" && hasTimetable && <p role="status">
+        {personalReadStatus === "loading" ? "正在同步账号课表，先展示本机已保存的课程。" : "账号课表暂未同步，当前展示本机已保存的课程。请在“我的”核对同步状态。"}
+      </p>}
 
       {academicSnapshot?.examStatus && (
         <section className={academicStyles.meExamSummary} aria-label="考试安排未同步">
@@ -2715,17 +2752,20 @@ function HomePage({
       )}
 
       <section className="today-command-deck" aria-label="今日关键信息" data-has-agenda={nextThree.length > 0}>
-        {!personalReady ? <article className={homeStyles.setupCard} aria-live="polite"><h2>正在读取你的课表…</h2></article> : !hasTimetable ? (
+        {personalReadStatus !== "ready" && !hasTimetable ? <article className="now-card" aria-live="polite">
+          <h2>{personalReadStatus === "loading" ? "正在读取你的课表…" : "账号课表暂未同步"}</h2>
+          <p>{personalReadStatus === "loading" ? "登录状态和云端课程读取完成后，会显示你的学习安排。" : "暂时无法读取课程，请在“我的”核对同步状态或刷新重试。"}</p>
+        </article> : !workspaceMode && !hasTimetable ? (
           <article className={homeStyles.setupCard}>
             <div>
               <span className={homeStyles.setupMark} aria-hidden="true"><UiIcon name="schedule" /></span>
-              <div><h2>添加你的课表</h2><p>按班级带入课程，或自己选择教学班。</p></div>
+              <div><h2>添加你的课表</h2><p>导入本学期教务课表，或手动添加课程。</p></div>
             </div>
             <div className={homeStyles.setupActions}>
-              <button onClick={onSetup}>按班级添加 <span aria-hidden="true">→</span></button>
+              <button onClick={onAcademicImport}>导入教务课表 <span aria-hidden="true">→</span></button>
               <button onClick={() => onGo("schedule")}>手动选课</button>
             </div>
-            <small>不登录也能使用；班级课程可按个人选课调整。</small>
+            <small><button className={homeStyles.profileSetup} onClick={onSetup}>选择班级</button>仅保存班级信息，不会改变课表。</small>
           </article>
         ) : <article className="now-card">
           <header>
@@ -2742,10 +2782,10 @@ function HomePage({
               <h2>
                 {primaryClass
                   ? primaryClass.title
-                  : hasScheduledCourses || confirmedEmptyTimetable ? "今天没有后续课程" : "课程时段尚未安排"}
+                  : !hasTimetable ? "把课表导进来吧" : hasScheduledCourses || confirmedEmptyTimetable ? "今天没有后续课程" : "课程时段尚未安排"}
               </h2>
               {primaryClass && <p>{`${data.periods[primaryClass.block - 1]?.time} · ${primaryClass.building}${primaryClass.room}`}</p>}
-              {!primaryClass && <p>{!hasScheduledCourses && !confirmedEmptyTimetable ? "已导入课程尚未安排上课时段，可在课表中核对。" : "可以安排自习、记录作业，或查找空教室。"}</p>}
+              {!primaryClass && <p>{!hasTimetable ? "可以导入教务课表，也可以在课程中手动添加。" : !hasScheduledCourses && !confirmedEmptyTimetable ? "已导入课程尚未安排上课时段，可在课表中核对。" : "可以安排自习、记录作业，或查找空教室。"}</p>}
               {primaryClass && (
                 <small>
                   {primaryClass.teacher || "教师未标注"} ·{" "}
@@ -2755,8 +2795,8 @@ function HomePage({
             </span>
           </div>
           <footer>
-            <button onClick={() => onGo("schedule")}>打开课表</button>
-            <button onClick={() => onEditCalendar({ kind: "activity" })}>添加日程</button>
+            <button onClick={() => onGo(hasTimetable ? "schedule" : "catalog")}>{hasTimetable ? "打开课表" : "设置本学期课程"}</button>
+            <button onClick={() => onGo("rooms")}>找空教室</button>
           </footer>
         </article>}
 
@@ -2820,9 +2860,10 @@ function HomePage({
         </article>}
       </section>
 
-      <Whiteboard compact />
 
-      {todayAgenda.length > 0 && <section className="focus-timeline unified-agenda">
+      {!workspaceMode && <Whiteboard compact />}
+
+      {(workspaceMode || todayAgenda.length > 0) && <section className="focus-timeline unified-agenda">
         <header>
           <div>
             <span>今天</span>
@@ -2887,7 +2928,7 @@ function HomePage({
         </div>
       </section>}
 
-      {upcomingAgenda.length > 0 && <section className="week-ahead">
+      {(workspaceMode || upcomingAgenda.length > 0) && <section className="week-ahead">
         <header>
           <div>
             <span>接下来七天</span>
@@ -2928,18 +2969,25 @@ function HomePage({
         </div>
       </section>}
 
-      <nav className="campus-pins" aria-label="东财常用服务">
-        <span>校园直达</span>
-        <a href={campusLinks.library} target="_blank" rel="noreferrer">我去图书馆 <em>↗</em></a>
-        <a href={campusLinks.campusCard} target="_blank" rel="noreferrer">校园码 <em>↗</em></a>
-        <a href={campusLinks.ginkgo} target="_blank" rel="noreferrer">白果云 <em>↗</em></a>
-      </nav>
 
-      <section className={homeStyles.personalTools} aria-label="日程与作业">
+      {workspaceMode ? <>
+        <section className="study-management">
+          <header><h2>课表与日程</h2></header>
+          <div>
+            <button onClick={() => onGo("schedule")}><i aria-hidden="true">表</i><b>编辑我的课表</b></button>
+            <button onClick={() => onEditCalendar({ kind: "activity" })}><i aria-hidden="true">程</i><b>添加个人日程</b></button>
+            <button onClick={() => onEditCalendar({ kind: "assignment" })}><i aria-hidden="true">交</i><b>添加课程作业</b></button>
+          </div>
+          {!hasTimetable && personalReadStatus === "ready" && <button onClick={onSetup}>选择班级</button>}
+        </section>
+        <a className="today-community-note" href="/community">
+          <span>课间有空再看</span><b>东财墙</b><em>同学们的讨论 →</em>
+        </a>
+      </> : <section className={homeStyles.personalTools} aria-label="日程与作业">
         <h2>日程与作业</h2>
         <button onClick={() => onEditCalendar({ kind: "activity" })}>＋ 添加日程</button>
         <button onClick={() => onEditCalendar({ kind: "assignment" })}>＋ 记录作业</button>
-      </section>
+      </section>}
 
 
     </div>
@@ -4715,7 +4763,7 @@ function SchedulePage({
             ＋ 添加作业
           </button>
           <button className="secondary" onClick={onSetup}>
-            {saved.profile ? "修改班级" : "导入班级课程"}
+            选择班级
           </button>
         </div>
       </header>
@@ -6783,7 +6831,7 @@ function MePage({
             <dd>{syncCopy[0]}</dd>
           </div>
         </dl>
-        <button onClick={onSetup}>编辑档案</button>
+        <button onClick={onSetup}>选择班级</button>
       </section>
       <section
         className={`account-center account-${account.status}`}
@@ -8163,7 +8211,7 @@ function ClassSetupFrame({ children, onClose }: { children: ReactNode; onClose: 
       <section ref={panelRef} className={classSetupStyles.sheet} role="dialog"
         aria-modal="true" aria-labelledby="class-setup-title">
         <header className={classSetupStyles.header}>
-          <div><h2 id="class-setup-title">按班级添加课程</h2><p>添加班级课程后，可按自己的选课调整。</p></div>
+          <div><h2 id="class-setup-title">选择班级</h2><p>保存班级信息，不会添加或修改课程。</p></div>
           <button type="button" onClick={onClose} aria-label="关闭班级设置">×</button>
         </header>
         {children}
@@ -8173,14 +8221,12 @@ function ClassSetupFrame({ children, onClose }: { children: ReactNode; onClose: 
 }
 
 function Onboarding({
-  data, term, initial, onOpenCourses, onSkip, onSave, storageHint,
+  data, initial, onSkip, onSave, storageHint,
 }: {
   data: SiteData;
-  term: Term;
   initial: Profile | null;
-  onOpenCourses: () => void;
   onSkip: () => void;
-  onSave: (profile: Profile, scheduleIds: string[]) => void;
+  onSave: (profile: Profile) => void;
   storageHint: string;
 }) {
   const [entranceYear, setEntranceYear] = useState(initial?.entranceYear ?? 0);
@@ -8193,24 +8239,17 @@ function Onboarding({
   const major = majors.find((item) => item.id === majorId);
   const aliases = major?.aliases ?? [];
   const classes = [...new Set(data.schedules
-    .filter((item) => item.term === term)
     .flatMap((item) => splitClasses(item.classNames))
     .filter((name) => entranceYear && aliases.some((alias) => name.startsWith(`${alias}${String(entranceYear).slice(-2)}`)))
   )].sort((a, b) => a.localeCompare(b, "zh-CN", { numeric: true }));
-  // Class identity is an explicit catalogue choice. Preserve every actual meeting.
-  const selected = classes.includes(className)
-    ? data.schedules.filter((item) => item.term === term && splitClasses(item.classNames).includes(className))
-    : [];
-  const courseCount = new Set(selected.map((item) => item.courseId)).size;
   const profileReady = Boolean(entranceYear && college && major);
-  function save(includeClass: boolean) {
-    if (!profileReady || (includeClass && !selected.length)) return;
-    onSave({ entranceYear, college, majorId, className: includeClass ? className : "" },
-      includeClass ? selected.map((item) => item.id) : []);
+  function save() {
+    if (!profileReady) return;
+    onSave({ entranceYear, college, majorId, className: classes.includes(className) ? className : "" });
   }
   return (
     <ClassSetupFrame onClose={onSkip}>
-      <form onSubmit={(event) => { event.preventDefault(); save(true); }}>
+      <form onSubmit={(event) => { event.preventDefault(); save(); }}>
         <div className={classSetupStyles.fields}>
           <label>入学年份
             <select name="entrance-year" aria-label="入学年份" value={entranceYear || ""} onChange={(event) => {
@@ -8239,25 +8278,17 @@ function Onboarding({
           <label>班级
             <select name="class" aria-label="班级" value={classes.includes(className) ? className : ""} disabled={!profileReady || !classes.length}
               onChange={(event) => setClassName(event.target.value)}>
-              <option value="">{!profileReady ? "先选择年份和专业" : classes.length ? "请选择班级" : "本学期没有匹配班级"}</option>
+              <option value="">{!profileReady ? "先选择年份和专业" : classes.length ? "暂不选择班级" : "没有匹配班级"}</option>
               {classes.map((name) => <option key={name} value={name}>{name}</option>)}
             </select>
           </label>
         </div>
         <div className={classSetupStyles.preview} aria-live="polite" aria-atomic="true">
-          {selected.length ? <>
-            <span>{term === "fall" ? "上学期" : "下学期"} · {className}</span>
-            <strong>{courseCount} 门课程 · {selected.length} 个上课时段</strong>
-            <p>包含该班全部教师和时段。班级课程仅供参考，请核对个人选课。</p>
-          </> : <>
-            <strong>{profileReady && !classes.length ? "没有匹配班级？可以自己选课。" : "选择具体班级后，预览要添加的课程。"}</strong>
-            <p>仅选专业不会自动添加课程。</p>
-          </>}
+          <strong>{className && classes.includes(className) ? className : "班级可稍后选择"}</strong>
+          <p>课程通过教务导入或手动添加；保存班级信息不会改变课表。</p>
         </div>
         <footer className={classSetupStyles.actions}>
-          <button type="submit" disabled={!selected.length}>{selected.length ? `添加 ${courseCount} 门课程` : "选择班级后添加"}</button>
-          <button type="button" onClick={onOpenCourses}>手动选课</button>
-          <button type="button" disabled={!profileReady} onClick={() => save(false)}>只保存专业设置</button>
+          <button type="submit" disabled={!profileReady}>保存班级信息</button>
         </footer>
         <p className={classSetupStyles.storage}>{storageHint}</p>
       </form>

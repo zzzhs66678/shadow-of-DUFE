@@ -18,7 +18,7 @@ for (const width of [390, 1280]) {
     });
     await page.goto("/?view=me");
     await expect(page.locator(".me-page")).toBeVisible();
-    await expect(page.getByRole("dialog", { name: "按班级添加课程" })).toHaveCount(0);
+    await expect(page.getByRole("dialog", { name: "选择班级" })).toHaveCount(0);
     await page.getByRole("button", { name: "登录", exact: true }).click();
     await page.getByRole("button", { name: "创建账号", exact: true }).click();
     const form = page.locator(".credential-gateway form");

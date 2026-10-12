@@ -105,6 +105,7 @@
 .setupCard h2 { font: 600 22px/1.5 var(--journal-display); margin: 0; }
 .setupCard p { margin: 5px 0 0; font-size: 14px; line-height: 1.8; color: var(--journal-muted); }
 .setupCard > small { color: var(--journal-muted); font-size: 12px; line-height: 1.7; }
+.profileSetup { min-height: 44px; padding: 0 10px 0 0; border: 0; background: transparent; color: var(--journal-red-deep); font-size: 13px; text-decoration: underline; text-underline-offset: 4px; }
 .setupActions { display: flex; gap: 12px; }
 .setupActions button { min-height: 44px; padding: 10px 18px; font-size: 14px; border-radius: 6px; border: 1px solid var(--journal-line); background: transparent; color: var(--journal-ink); }
 .setupActions button:first-child { background: var(--journal-red); color: white; border-color: var(--journal-red); }

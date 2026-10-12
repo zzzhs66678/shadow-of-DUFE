@@ -179,11 +179,16 @@ type CloudSnapshot = {
 
 const LEGACY_SYNC_METADATA_KEY = "dufesh:personal-sync:v1";
 const SYNC_METADATA_PREFIX = "dufesh:personal-sync:v2:user";
+const SYNC_RECOVERY_METADATA_PREFIX = "dufesh:personal-sync:v2:recovery:user";
 
 type MetadataStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 function syncMetadataKey(userId: string) {
   return `${SYNC_METADATA_PREFIX}:${encodeURIComponent(userId)}`;
+}
+
+function syncRecoveryMetadataKey(userId: string) {
+  return `${SYNC_RECOVERY_METADATA_PREFIX}:${encodeURIComponent(userId)}`;
 }
 
 function unique(values: string[], limit?: number) {
@@ -448,6 +453,62 @@ export function mergeInitialPersonalState(
   });
 }
 
+/** Bootstrap cache contains explicit additions, never a complete deletion base. */
+export function mergeBootstrapPersonalState(
+  partialLocalInput: PersonalSyncState,
+  cloudInput: PersonalSyncState,
+): PersonalSyncState {
+  const local = normalizeState(partialLocalInput);
+  const cloud = normalizeState(cloudInput);
+  const localPlans = new Map(local.plans.map((plan) => [plan.id, plan]));
+  const plans = cloud.plans.map((plan) => {
+    const partial = localPlans.get(plan.id);
+    return {
+      ...structuredClone(plan),
+      ...(partial && (partial.id !== "default" || partial.name !== "默认课表")
+        ? { name: partial.name }
+        : {}),
+      scheduleIds: unique([...plan.scheduleIds, ...(partial?.scheduleIds ?? [])]).sort(),
+    };
+  });
+  const cloudPlanIds = new Set(cloud.plans.map((plan) => plan.id));
+  plans.push(...local.plans
+    .filter((plan) => !cloudPlanIds.has(plan.id) &&
+      (plan.id !== "default" || plan.name !== "默认课表" || plan.scheduleIds.length > 0))
+    .map((plan) => structuredClone(plan)));
+  const localActivePlan = localPlans.get(local.activePlanId);
+  const explicitLocalPlan = local.activePlanId !== "default" || Boolean(localActivePlan?.scheduleIds.length);
+  const activePlanId = explicitLocalPlan && plans.some((plan) => plan.id === local.activePlanId)
+    ? local.activePlanId
+    : cloud.activePlanId;
+  const mergeRecords = <T extends { id: string }>(remote: T[], partial: T[]) => {
+    const partialById = new Map(partial.map((item) => [item.id, item]));
+    const remoteIds = new Set(remote.map((item) => item.id));
+    return [
+      ...remote.map((item) => structuredClone(partialById.get(item.id) ?? item)),
+      ...partial.filter((item) => !remoteIds.has(item.id)).map((item) => structuredClone(item)),
+    ];
+  };
+  // A fresh import supplies an explicit semester even when it is the default
+  // fall value. Without that evidence, default settings keep the cloud choice.
+  const explicitLocalTerm = local.preferredTerm !== "fall" ||
+    local.academicSnapshots.some((snapshot) => snapshot.term === local.preferredTerm);
+  return normalizeState({
+    profile: local.profile ?? cloud.profile,
+    skipped: local.profile ? local.skipped : cloud.skipped || local.skipped,
+    plans,
+    activePlanId,
+    activities: mergeRecords(cloud.activities, local.activities),
+    assignments: mergeRecords(cloud.assignments, local.assignments),
+    academicSnapshots: mergeRecords(cloud.academicSnapshots, local.academicSnapshots),
+    trainingPlan: local.trainingPlan ?? cloud.trainingPlan,
+    favoriteRooms: unique([...local.favoriteRooms, ...cloud.favoriteRooms], 100),
+    recentRooms: unique([...local.recentRooms, ...cloud.recentRooms], 50),
+    preferredTerm: explicitLocalTerm ? local.preferredTerm : cloud.preferredTerm,
+    theme: local.theme !== "system" ? local.theme : cloud.theme,
+  });
+}
+
 function mergeRecordSet<T extends { id: string }>(
   scope: "plan" | "activity" | "assignment" | "academic",
   base: T[],
@@ -660,16 +721,28 @@ export async function synchronizePersonalState({
   userId,
   localState,
   priorMetadata,
+  localStatePresent = true,
   signal,
 }: {
   userId: string;
   localState: PersonalSyncState;
   priorMetadata: PersonalSyncMetadata | null;
+  localStatePresent?: boolean;
   signal?: AbortSignal;
 }): Promise<PersonalSyncResult | null> {
   const local = normalizeState(localState);
   let remote = await readCloudSnapshot(signal);
   if (!remote) return null;
+
+  // A missing cache is not a user deletion. A retained synchronization base
+  // must never turn bootstrap's default empty state into a destructive PUT.
+  if (!localStatePresent) {
+    return {
+      state: remote.state,
+      metadata: metadata(userId, remote),
+      status: "downloaded",
+    };
+  }
 
   if (!priorMetadata || priorMetadata.userId !== userId) {
     const merged =
@@ -772,29 +845,24 @@ export async function synchronizePersonalState({
   };
 }
 
-export function loadPersonalSyncMetadata(
+function parseStoredSyncMetadata(
+  raw: string | null,
   userId: string,
-  storage: MetadataStorage = localStorage,
 ): PersonalSyncMetadata | null {
   try {
-    const key = syncMetadataKey(userId);
-    const scoped = storage.getItem(key);
-    const legacy = scoped === null
-      ? storage.getItem(LEGACY_SYNC_METADATA_KEY)
-      : null;
-    const parsed = JSON.parse(scoped ?? legacy ?? "null") as
+    const parsed = JSON.parse(raw ?? "null") as
       | PersonalSyncMetadata
       | null;
     if (
       parsed?.schemaVersion !== 1 ||
       parsed.userId !== userId ||
-      !Number.isSafeInteger(parsed.revision)
+      !userId.trim() ||
+      !Number.isSafeInteger(parsed.revision) ||
+      parsed.revision < 0 ||
+      !parsed.baseState ||
+      typeof parsed.baseState !== "object"
     ) {
       return null;
-    }
-    if (scoped === null && legacy !== null) {
-      storage.setItem(key, legacy);
-      storage.removeItem(LEGACY_SYNC_METADATA_KEY);
     }
     return {
       ...parsed,
@@ -808,18 +876,109 @@ export function loadPersonalSyncMetadata(
   }
 }
 
+function hasRecoverablePersonalState(state: PersonalSyncState) {
+  return Boolean(
+    state.profile ||
+    state.skipped ||
+    state.plans.length > 1 ||
+    state.plans.some((plan) => plan.scheduleIds.length > 0) ||
+    state.activities.length ||
+    state.assignments.length ||
+    state.academicSnapshots.length ||
+    state.trainingPlan ||
+    state.favoriteRooms.length ||
+    state.recentRooms.length,
+  );
+}
+
+function preserveSyncRecoveryMetadata(
+  userId: string,
+  raw: string | null,
+  storage: MetadataStorage,
+) {
+  const candidate = parseStoredSyncMetadata(raw, userId);
+  if (!candidate || !hasRecoverablePersonalState(candidate.baseState)) return;
+  const recoveryKey = syncRecoveryMetadataKey(userId);
+  const previous = parseStoredSyncMetadata(storage.getItem(recoveryKey), userId);
+  // Keep one bounded, account-scoped last nonempty base. Empty sync results
+  // cannot destroy this recovery source, and recovery always needs user action.
+  if (!previous || candidate.revision > previous.revision) {
+    try {
+      storage.setItem(recoveryKey, raw!);
+    } catch {
+      // A full browser store must not prevent read-only cloud bootstrap.
+    }
+  }
+}
+
+export function loadPersonalSyncRecoveryMetadata(
+  userId: string,
+  storage: MetadataStorage = localStorage,
+): PersonalSyncMetadata | null {
+  try {
+    return [
+      storage.getItem(syncRecoveryMetadataKey(userId)),
+      storage.getItem(syncMetadataKey(userId)),
+      storage.getItem(LEGACY_SYNC_METADATA_KEY),
+    ]
+      .map((raw) => parseStoredSyncMetadata(raw, userId))
+      .filter((candidate): candidate is PersonalSyncMetadata =>
+        Boolean(candidate && hasRecoverablePersonalState(candidate.baseState)))
+      .sort((left, right) => right.revision - left.revision)[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function loadPersonalSyncMetadata(
+  userId: string,
+  storage: MetadataStorage = localStorage,
+): PersonalSyncMetadata | null {
+  try {
+    const key = syncMetadataKey(userId);
+    const scoped = storage.getItem(key);
+    const legacy = scoped === null
+      ? storage.getItem(LEGACY_SYNC_METADATA_KEY)
+      : null;
+    const raw = scoped ?? legacy;
+    const parsed = parseStoredSyncMetadata(raw, userId);
+    if (!parsed) return null;
+    preserveSyncRecoveryMetadata(userId, raw, storage);
+    if (scoped === null && legacy !== null) {
+      storage.setItem(key, legacy);
+      storage.removeItem(LEGACY_SYNC_METADATA_KEY);
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 export function savePersonalSyncMetadata(
   value: PersonalSyncMetadata,
   storage: MetadataStorage = localStorage,
 ) {
+  preserveSyncRecoveryMetadata(value.userId, storage.getItem(syncMetadataKey(value.userId)), storage);
+  const legacy = storage.getItem(LEGACY_SYNC_METADATA_KEY);
+  const ownedLegacy = parseStoredSyncMetadata(legacy, value.userId);
+  if (ownedLegacy) preserveSyncRecoveryMetadata(value.userId, legacy, storage);
+  preserveSyncRecoveryMetadata(value.userId, JSON.stringify(value), storage);
   storage.setItem(syncMetadataKey(value.userId), JSON.stringify(value));
-  storage.removeItem(LEGACY_SYNC_METADATA_KEY);
+  if (ownedLegacy) storage.removeItem(LEGACY_SYNC_METADATA_KEY);
 }
 
 export function clearPersonalSyncMetadata(
   userId?: string,
   storage: MetadataStorage = localStorage,
 ) {
-  if (userId) storage.removeItem(syncMetadataKey(userId));
-  storage.removeItem(LEGACY_SYNC_METADATA_KEY);
+  if (userId) {
+    storage.removeItem(syncMetadataKey(userId));
+    storage.removeItem(syncRecoveryMetadataKey(userId));
+    const legacy = storage.getItem(LEGACY_SYNC_METADATA_KEY);
+    if (parseStoredSyncMetadata(legacy, userId)) {
+      storage.removeItem(LEGACY_SYNC_METADATA_KEY);
+    }
+  } else {
+    storage.removeItem(LEGACY_SYNC_METADATA_KEY);
+  }
 }

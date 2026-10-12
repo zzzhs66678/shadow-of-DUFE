@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type RefObject } from "react";
-import { galleryDamp, galleryEndPadding, galleryLoopCamera, galleryLoopY, galleryNearest, gallerySpeeds, galleryTarget, galleryWrap } from "./campus-gallery";
+import { galleryDamp, galleryEndPadding, galleryGestureAxis, galleryLoopCamera, galleryLoopY, galleryNearest, gallerySpeeds, gallerySwipeStep, galleryTarget, galleryTouchTravel, galleryWrap, type GalleryGestureAxis } from "./campus-gallery";
 
 type Motion = { seek: (slot: number, instant?: boolean) => void; nudge: (distance: number) => void; freeze: () => void; pause: (value: boolean) => void };
 type Elements = {
@@ -27,7 +27,7 @@ export function useCampusMotion({ open, mode, scroll, canvas, tiles, photos, act
     let frame = 0, previousTime = 0, measured = false, dirty = true, paused = false;
     let width = 0, height = 0, cycle = 0, camera = 0, target = 0;
     let tops: number[] = [], heights: number[] = [], visible: boolean[] = [];
-    let pointer: { id: number; start: number; last: number } | null = null;
+    let pointer: { id: number; touch: boolean; startX: number; startY: number; lastX: number; lastY: number; slot: number; axis: GalleryGestureAxis | null } | null = null;
     // A narrow screen uses one staggered stream: differing speeds would make
     // its large photographs overtake and cover each other. Inertia stays on.
     const speed = (slot: number) => width <= 760 ? 1 : gallerySpeeds[slot % gallerySpeeds.length];
@@ -120,7 +120,7 @@ export function useCampusMotion({ open, mode, scroll, canvas, tiles, photos, act
       if (media.matches) port.scrollBy({ top: distance, behavior: "instant" });
       else { target += distance; port.dataset.animating = "true"; queue(); }
     };
-    const freeze = () => { target = camera; window.cancelAnimationFrame(frame); frame = 0; previousTime = 0; port.dataset.animating = "false"; };
+    const freeze = () => { pointer = null; target = camera; window.cancelAnimationFrame(frame); frame = 0; previousTime = 0; port.dataset.animating = "false"; };
     controller.current = { seek, nudge, freeze, pause: value => { paused = value; if (value) freeze(); else queue(); } };
     const wheel = (event: WheelEvent) => {
       if (media.matches || paused || event.ctrlKey) return;
@@ -129,19 +129,46 @@ export function useCampusMotion({ open, mode, scroll, canvas, tiles, photos, act
       nudge(delta * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? height : 1));
     };
     const down = (event: PointerEvent) => {
-      if (media.matches || paused || !event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
-      pointer = { id: event.pointerId, start: event.clientY, last: event.clientY }; dragged.current = false;
+      const touch = event.pointerType === "touch";
+      if ((media.matches && !touch) || paused || !event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
+      if (touch) freeze();
+      pointer = { id: event.pointerId, touch, startX: event.clientX, startY: event.clientY, lastX: event.clientX, lastY: event.clientY, slot: active.current, axis: null };
+      dragged.current = false;
     };
     const move = (event: PointerEvent) => {
-      if (!pointer || pointer.id !== event.pointerId) return;
-      if (Math.abs(event.clientY - pointer.start) > 7) {
-        dragged.current = true;
-        if (!port.hasPointerCapture(event.pointerId)) port.setPointerCapture(event.pointerId);
-        nudge(pointer.last - event.clientY);
+      if (!pointer || pointer.id !== event.pointerId || paused) return;
+      const firstMove = pointer.axis === null;
+      pointer.axis ??= galleryGestureAxis(event.clientX - pointer.startX, event.clientY - pointer.startY, pointer.touch);
+      if (!pointer.axis) return;
+      // Reduced motion keeps vertical touch scrolling entirely native. CSS
+      // pan-y lets the browser cancel this pointer when it starts scrolling.
+      if (media.matches && pointer.axis === "vertical") { pointer = null; return; }
+      dragged.current = true;
+      if (!port.hasPointerCapture(event.pointerId)) port.setPointerCapture(event.pointerId);
+      const distance = pointer.axis === "horizontal"
+        ? (firstMove ? pointer.startX : pointer.lastX) - event.clientX
+        : (firstMove ? pointer.startY : pointer.lastY) - event.clientY;
+      if (pointer.touch) {
+        const travel = galleryTouchTravel(distance, pointer.axis);
+        if (media.matches) port.scrollBy({ top: travel, behavior: "instant" });
+        else {
+          // Finger travel paints directly, without the wheel/mouse damping
+          // delay. The release seek retains the existing gentle settling.
+          camera = target = target + travel;
+          queue();
+        }
+      } else {
+        nudge(distance);
       }
-      pointer.last = event.clientY;
+      pointer.lastX = event.clientX; pointer.lastY = event.clientY;
     };
-    const up = () => { pointer = null; };
+    const up = (event: PointerEvent) => {
+      if (!pointer || pointer.id !== event.pointerId) return;
+      const completed = pointer; pointer = null;
+      if (event.type === "pointercancel" || paused || !completed.touch || completed.axis !== "horizontal") return;
+      const step = gallerySwipeStep(event.clientX - completed.startX);
+      if (step) seek(completed.slot + step, media.matches);
+    };
     const click = (event: MouseEvent) => { if (dragged.current) { event.preventDefault(); event.stopPropagation(); dragged.current = false; } };
     const focus = (event: FocusEvent) => {
       if (paused || media.matches || !(event.target instanceof HTMLElement)) return;
@@ -150,7 +177,7 @@ export function useCampusMotion({ open, mode, scroll, canvas, tiles, photos, act
       if (tile && !visible[slot]) seek(slot, true);
       port.scrollTop = 0;
     };
-    const refresh = () => { dirty = true; measured = false; cancelReveals(); visible = []; queue(); };
+    const refresh = () => { pointer = null; dirty = true; measured = false; cancelReveals(); visible = []; queue(); };
     const nativeScroll = () => { if (media.matches) queue(); else if (port.scrollTop) { port.scrollTop = 0; queue(); } };
     const observer = new ResizeObserver(() => { dirty = true; queue(); }); observer.observe(port); observer.observe(stage);
     port.addEventListener("wheel", wheel, { passive: false });

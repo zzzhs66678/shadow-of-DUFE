@@ -556,7 +556,7 @@ test("community remains outside the five-item primary navigation with a persiste
   const homeSource = component.slice(homeStart, catalogStart);
   const meSource = component.slice(meStart, searchStart);
 
-  assert.doesNotMatch(homeSource, /today-community-note/);
+  assert.match(homeSource, /workspaceMode \? <>[\s\S]*today-community-note/);
   assert.match(component, /<WallEntry view=\{view\} compact/);
   assert.match(meSource, /<WallEntry/);
   assert.doesNotMatch(component, /id: "community"/);

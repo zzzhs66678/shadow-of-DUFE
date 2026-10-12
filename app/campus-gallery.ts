@@ -1,6 +1,26 @@
 /** Geometry shared by the inertial loop and its reduced-motion native fallback. */
 export const gallerySpeeds = [1.3, .8, 1.15, .7, 1.25, .85] as const;
 
+export type GalleryGestureAxis = "horizontal" | "vertical";
+
+/** Touch supports a sideways browse gesture; mouse dragging stays vertical. */
+export function galleryGestureAxis(dx: number, dy: number, touch: boolean): GalleryGestureAxis | null {
+  if (touch) {
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 6) return null;
+    return Math.abs(dx) > Math.abs(dy) ? "horizontal" : "vertical";
+  }
+  return Math.abs(dy) > 7 ? "vertical" : null;
+}
+
+export function galleryTouchTravel(distance: number, axis: GalleryGestureAxis) {
+  return distance * (axis === "horizontal" ? 2.2 : 1.35);
+}
+
+/** A short intentional sideways swipe advances one photo, in either direction. */
+export function gallerySwipeStep(dx: number) {
+  return Math.abs(dx) >= 32 ? (dx < 0 ? 1 : -1) : 0;
+}
+
 export function galleryWrap(value: number, cycle: number) {
   return cycle > 0 ? ((value % cycle) + cycle) % cycle : 0;
 }

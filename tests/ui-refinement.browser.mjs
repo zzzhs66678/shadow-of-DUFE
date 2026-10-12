@@ -18,7 +18,7 @@ try {
       activePlanId: 'default', activities: [], assignments: [], academicSnapshots: [], favoriteRooms: [], recentRooms: [],
     })));
     await page.goto(base);
-    const setup = page.getByRole('button', { name: '按班级添加', exact: true });
+    const setup = page.getByRole('button', { name: '选择班级', exact: true });
     await setup.waitFor();
     assert.equal(await setup.count(), 1);
     assert.ok((await setup.boundingBox()).y < 750, 'primary action should not be below the first screen');
@@ -28,7 +28,7 @@ try {
     assert.equal(await page.locator('.agenda-glance').count(), 0, 'do not repeat an empty daily agenda');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     await setup.click();
-    await page.getByRole('dialog', { name: '按班级添加课程', exact: true }).waitFor();
+    await page.getByRole('dialog', { name: '选择班级', exact: true }).waitFor();
     await page.getByRole('button', { name: '关闭班级设置', exact: true }).click();
     await page.getByRole('button', { name: '手动选课', exact: true }).click();
     await page.locator('.schedule-page').waitFor();
