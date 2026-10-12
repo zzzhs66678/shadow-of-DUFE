@@ -22,6 +22,7 @@ import { createCatalogRequestHandler } from "./catalog/routes.mjs";
 import { createWhiteboardRequestHandler } from "./whiteboard-routes.mjs";
 import { createTeacherRequestHandler } from "./teacher-routes.mjs";
 import { createAcademicRequestHandler } from "./academic-routes.mjs";
+import { createMiniProgramRequestHandler } from "./miniprogram-routes.mjs";
 import {
   normalizeLoginIdentifier,
   normalizeEmail,
@@ -219,6 +220,8 @@ export function createAuthServer({
   });
 
   const policy = config.registrationPolicy ?? REGISTRATION_POLICY;
+  const handleMiniProgram = createMiniProgramRequestHandler({ store, config, passwordService, dummyPasswordHash,
+    authLimit, readJsonBody, sendJson, methodNotAllowed });
   const registrationCookie = config.registrationCookie ?? "__Host-dufesh_registration";
 
   async function authLimit(request, identifier, stage) {
@@ -290,6 +293,7 @@ export function createAuthServer({
         return;
       }
 
+      if (await handleMiniProgram(request, response, url)) return;
       if (await handleWhiteboardRequest(request, response, url)) return;
       if (await handleDataFeedbackRequest(request, response, url)) return;
       if (await handleMaterialBookmarkRequest(request, response, url)) return;

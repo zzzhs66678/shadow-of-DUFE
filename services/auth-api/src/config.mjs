@@ -254,6 +254,7 @@ export function loadConfig(env = process.env) {
       true,
       "AUTH_CREDENTIALS_ENABLED",
     ),
+    miniProgramEnabled: booleanValue(env.AUTH_MINIPROGRAM_ENABLED, false, "AUTH_MINIPROGRAM_ENABLED"),
     academicImportEnabled: booleanValue(
       env.AUTH_ACADEMIC_IMPORT_ENABLED,
       false,
