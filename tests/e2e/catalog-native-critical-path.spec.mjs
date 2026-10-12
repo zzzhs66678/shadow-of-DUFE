@@ -38,13 +38,15 @@ test('real native publication reaches search, SSR details, file bytes and bookma
     const seededPersonal = await checkReply(await userContext.request.get('/api/auth/sync'));
     expect(seededPersonal.state.plans[0].scheduleIds).toContain(fixture.course.meetingId);
     expect(seededPersonal.state.assignments[0].title).toBe('合成原始作业');
-    // The existing first-login merge also carries this clean browser's empty
-    // default plan. Establish its ordinary synced state before publications,
-    // and separately prove the original cloud records survived that merge.
+    // A clean browser must download the existing account snapshot without
+    // adding an empty default plan or requiring an initialization write.
     await user.goto(`/?view=catalog&course=${encodeURIComponent(fixture.course.id)}`);
     await expect(user.getByRole('heading', { name: fixture.course.title, exact: true, level: 2 })).toBeVisible();
-    await expect.poll(async () => (await checkReply(await userContext.request.get('/api/auth/sync'))).revision).toBeGreaterThan(seededPersonal.revision);
+    await expect.poll(() => user.evaluate(key => JSON.parse(localStorage.getItem(key) || 'null')?.activePlanId,
+      `dufesh:student-profile:v3:user:${encodeURIComponent(fixture.seeds.user.id)}`)).toBe(seededPersonal.state.activePlanId);
     const beforePersonal = await checkReply(await userContext.request.get('/api/auth/sync'));
+    expect(beforePersonal.revision).toBe(seededPersonal.revision);
+    expect(beforePersonal.state).toEqual(seededPersonal.state);
     expect(beforePersonal.state.plans.find(item => item.id === 'original-plan')).toEqual(seededPersonal.state.plans[0]);
     expect(beforePersonal.state.assignments).toEqual(seededPersonal.state.assignments);
     expect(beforePersonal.state.activePlanId).toBe(seededPersonal.state.activePlanId);
