@@ -1,0 +1,16 @@
+{
+  "pages": ["pages/home/index", "pages/courses/index", "pages/timetable/index", "pages/rooms/index", "pages/detail/index", "pages/classes/index", "pages/settings/index", "pages/about/index", "pages/planner/index", "pages/room-detail/index", "pages/me/index", "pages/account/index", "pages/cloud-detail/index"],
+  "window": { "navigationBarTitleText": "冬菜之影", "navigationBarBackgroundColor": "#f4f1e9", "navigationBarTextStyle": "black", "backgroundColor": "#f4f1e9" },
+  "tabBar": {
+    "color": "#706a62", "selectedColor": "#a52325", "backgroundColor": "#fbfaf5", "borderStyle": "white",
+    "list": [
+      { "pagePath": "pages/timetable/index", "text": "我的课表", "iconPath": "assets/calendar.png", "selectedIconPath": "assets/calendar-active.png" },
+      { "pagePath": "pages/rooms/index", "text": "空教室", "iconPath": "assets/building.png", "selectedIconPath": "assets/building-active.png" },
+      { "pagePath": "pages/home/index", "text": "今天", "iconPath": "assets/home.png", "selectedIconPath": "assets/home-active.png" },
+      { "pagePath": "pages/courses/index", "text": "课程", "iconPath": "assets/book.png", "selectedIconPath": "assets/book-active.png" },
+      { "pagePath": "pages/me/index", "text": "我的", "iconPath": "assets/person.png", "selectedIconPath": "assets/person-active.png" }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

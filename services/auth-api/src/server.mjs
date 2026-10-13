@@ -23,6 +23,7 @@ import { createWhiteboardRequestHandler } from "./whiteboard-routes.mjs";
 import { createTeacherRequestHandler } from "./teacher-routes.mjs";
 import { createAcademicRequestHandler } from "./academic-routes.mjs";
 import { createMiniProgramRequestHandler } from "./miniprogram-routes.mjs";
+import { createMiniProgramWechatProvider } from "./miniprogram-wechat-provider.mjs";
 import {
   normalizeLoginIdentifier,
   normalizeEmail,
@@ -185,6 +186,7 @@ export function createAuthServer({
   adminSecurity,
   rateLimiters = createApiRateLimiters(),
   academicConnector = null,
+  miniProgramWechatProvider = null,
 }) {
   if (
     (config.registrationMode === "smtp" || config.passwordResetMode === "smtp" ||
@@ -221,15 +223,26 @@ export function createAuthServer({
 
   const policy = config.registrationPolicy ?? REGISTRATION_POLICY;
   const handleMiniProgram = createMiniProgramRequestHandler({ store, config, passwordService, dummyPasswordHash,
+    miniProgramWechatProvider: miniProgramWechatProvider ?? createMiniProgramWechatProvider(config),
     authLimit, readJsonBody, sendJson, methodNotAllowed });
   const registrationCookie = config.registrationCookie ?? "__Host-dufesh_registration";
 
-  async function authLimit(request, identifier, stage) {
-    const results = await Promise.all([
-      (rateLimiters.authNetwork ?? rateLimiters.write).consume(tokenDigest(`auth-network:${clientAddress(request, config)}`, config.tokenPepper)),
-      (rateLimiters.authAccount ?? rateLimiters.credential).consume(tokenDigest(`auth-account:${identifier}`, config.tokenPepper)),
-      (rateLimiters[stage] ?? rateLimiters.credential).consume(tokenDigest(`${stage}:${identifier}`, config.tokenPepper)),
-    ]);
+  async function authLimit(request, identifier, stage, phase = "all") {
+    // Anonymous native WeChat calls have no verified account yet. Apply the
+    // network budget before exchange and an identity budget only after WeChat
+    // has authenticated the identity. Other callers retain the three budgets.
+    const checks = [];
+    if (phase !== "identity") {
+      checks.push((rateLimiters.authNetwork ?? rateLimiters.write).consume(
+        tokenDigest(`auth-network:${clientAddress(request, config)}`, config.tokenPepper)));
+    }
+    if (phase !== "network") {
+      checks.push((rateLimiters.authAccount ?? rateLimiters.credential).consume(
+        tokenDigest(`auth-account:${identifier}`, config.tokenPepper)));
+      checks.push((rateLimiters[stage] ?? rateLimiters.credential).consume(
+        tokenDigest(`${stage}:${identifier}`, config.tokenPepper)));
+    }
+    const results = await Promise.all(checks);
     return results.every(Boolean);
   }
 

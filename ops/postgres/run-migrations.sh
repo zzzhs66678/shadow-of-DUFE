@@ -223,6 +223,10 @@ SELECT format(
     :'runtime_user'
 ) \gexec
 SELECT format(
+    'REVOKE UPDATE, DELETE, TRUNCATE ON miniprogram_wechat_identities FROM %I',
+    :'runtime_user'
+) \gexec
+SELECT format(
     'REVOKE UPDATE, DELETE, TRUNCATE ON catalog_releases, catalog_publication_events, catalog_schedule_origins FROM %I',
     :'runtime_user'
 ) \gexec

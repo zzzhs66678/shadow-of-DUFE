@@ -1,0 +1,11 @@
+<view class="page">
+  <view class="eyebrow">{{termLabel}} · 班级公共课表</view><view class="title">先确认你的班级</view><view class="notice">公共课表仅作参考，不能代替个人教务课表。未选择具体班级时，不会自动导入课程。</view>
+  <input class="field" placeholder="搜索完整班级名，如审计2401" value="{{query}}" bindinput="input" maxlength="60" aria-label="搜索班级" />
+  <block wx:if="{{selected}}">
+    <view class="rule"><view class="course-title">{{selected}} · {{sections.length}}个教学班</view><view wx:for="{{sections}}" wx:key="id" class="card"><view>{{item.title}}</view><view class="muted">{{item.teacher}}</view><view wx:for="{{item.meetings}}" wx:for-item="meeting" wx:key="id" class="meeting small">{{meeting.weekdayLabel}} {{meeting.periodLabel}} · {{meeting.weeksLabel}}<view>{{meeting.location}}</view></view></view></view>
+    <button class="primary full" bindtap="importClass">确认并合并到个人课表</button>
+  </block>
+  <view class="rule muted">选择具体班级</view><button wx:for="{{rows}}" wx:key="*this" class="quiet full space" bindtap="choose" data-name="{{item}}">{{item}}</button>
+  <view wx:if="{{!rows.length}}" class="empty muted">未找到班级，试试较短的名称，或到设置中切换学期。</view>
+  <button wx:if="{{more}}" class="quiet full space" bindtap="more">查看更多班级</button>
+</view>

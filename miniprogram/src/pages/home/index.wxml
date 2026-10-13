@@ -1,0 +1,35 @@
+<view class="page home-page">
+  <view class="home-head">
+    <view class="home-head-main"><view class="home-date">{{dateLabel}}</view><view class="home-title-row"><view class="home-title">今天</view><button class="home-search-entry" bindtap="search" aria-label="搜索课程、教师或班级">搜索</button></view><view class="home-term">{{termLabel}} · {{week ? '第' + week + '周' : weekLabel}}</view></view>
+    <view class="campus-time"><view class="muted small">校园时间</view><view class="campus-clock">{{clock}}</view><view class="time-rail"><view class="time-dot" style="left:{{timePosition}}%;"></view></view></view>
+  </view>
+  <view class="campus-pins">
+    <button bindtap="copy" data-key="library">我去图书馆<view class="campus-link-hint">复制入口</view></button>
+    <button bindtap="copy" data-key="campusCard">校园码<view class="campus-link-hint">复制入口</view></button>
+    <button bindtap="copy" data-key="ginkgo">白果云<view class="campus-link-hint">复制入口</view></button>
+  </view>
+  <view wx:if="{{examNotice}}" class="notice">{{examNotice}}</view>
+  <view wx:if="{{exams.length}}" class="exam-notice">
+    <view class="home-section-head"><view><text>最近考试</text><text class="muted small">{{examCount}} 场已安排</text></view><button class="home-text-button" bindtap="planner">全部安排 →</button></view>
+    <view wx:for="{{exams}}" wx:key="id" class="exam-row"><view class="exam-date"><view>{{item.dateLabel}}</view><view class="small muted">{{item.timeLabel}}</view></view><view class="exam-copy"><view class="course-title">{{item.title}}</view><view class="small muted">{{item.locationLabel}}</view><view wx:if="{{item.seat || item.examNumber}}" class="small">{{item.seat ? '座位 '+item.seat : ''}} {{item.examNumber ? '考号 '+item.examNumber : ''}}</view></view></view>
+  </view>
+  <view wx:if="{{manual}}" class="home-week-hint"><text>手动第{{week}}周</text><button class="home-text-button" bindtap="settings">设置开学日期 →</button></view>
+  <view wx:elif="{{!week && (!readOnly || cloudReady)}}" class="home-week-hint"><text>{{weekLabel}}</text><button class="home-text-button" bindtap="settings">{{readOnly ? '网站账号 →' : '设置教学周 →'}}</button></view>
+  <view wx:if="{{readOnly && !cloudReady}}" class="home-setup"><view class="course-title">网站课表尚未读取</view><button class="home-text-button" bindtap="account">读取网站课表 →</button></view>
+  <view wx:elif="{{!hasTimetable}}" class="home-setup"><view class="course-title">{{readOnly ? '网站课表还没有课程' : '添加你的课表'}}</view><view class="muted">{{readOnly ? '在网站保存后，回来刷新即可查看。' : '读取网站已有课表，或手动选择教学班。'}}</view><view class="home-actions"><button class="primary" bindtap="account">网站账号</button><button wx:if="{{!readOnly}}" class="quiet" bindtap="courses">手动选课</button><button wx:else class="quiet" bindtap="timetable">打开课表</button></view></view>
+  <view wx:else class="now-card">
+    <view class="now-header"><text>{{primaryLabel}}</text><text class="muted small">{{primary ? primary.periodLabel : '课后时间'}}</text></view>
+    <view class="now-body"><view class="now-mark">{{primaryMark}}</view><view class="now-copy"><view class="now-course">{{primary ? primary.title : '今天没有后续课程'}}</view><view class="now-location">{{primary ? primaryDateLabel + (primary.blockTime ? primary.blockTime + ' · ' : '') + primary.location : '可以安排自习、记录作业，或查找空教室。'}}</view><view wx:if="{{primary}}" class="muted small">{{primary.teacher || '教师未标注'}} · {{primary.weeksLabel}}</view></view></view>
+    <view class="home-actions"><button class="primary" bindtap="timetable">打开课表</button><button class="quiet" bindtap="rooms">找空教室</button></view>
+  </view>
+  <view wx:if="{{tasks.length}}" class="home-assignment">
+    <view class="home-section-head"><text>最近作业</text><text class="red small">{{tasks[0].dueLabel}}</text></view><view class="course-title">{{tasks[0].title}}</view><view class="home-assignment-actions"><button wx:if="{{!readOnly}}" class="home-text-button" bindtap="complete" data-id="{{tasks[0].id}}">标记完成</button><button class="home-text-button" bindtap="planner">查看作业 →</button></view>
+  </view>
+  <view class="home-timeline">
+    <view class="home-section-head"><view><text>今天</text><text class="muted small">{{agenda.length}} 项安排</text></view><button wx:if="{{!readOnly}}" class="home-text-button" bindtap="planner" data-kind="event">＋ 日程</button><button wx:else class="home-text-button" bindtap="planner">全部安排 →</button></view>
+    <view wx:for="{{agenda}}" wx:key="key" class="agenda-row {{item.past ? 'past' : ''}}"><view class="agenda-time">{{item.time}}</view><view class="agenda-copy"><view class="agenda-kind">{{item.kindLabel}}</view><view class="agenda-title">{{item.title}}</view><view class="muted small">{{item.meta}}</view></view><button class="quiet" bindtap="agendaOpen" data-id="{{item.id}}" data-kind="{{item.kind}}">查看</button></view>
+    <view wx:if="{{!agenda.length}}" class="home-agenda-empty">{{readOnly && !cloudReady ? '读取课表后显示今日安排。' : '今天暂无安排。'}}</view>
+    <view wx:if="{{!readOnly}}" class="home-planner-link"><button bindtap="planner" data-kind="task">＋ 记录作业</button><button bindtap="planner">管理日程与作业 →</button></view>
+  </view>
+  <view class="home-footer">学生自建 · 非官方。课程与考试如有变动，以学校官方系统为准。</view>
+</view>

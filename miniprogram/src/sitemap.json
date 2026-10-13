@@ -1,0 +1,1 @@
+{ "desc": "仅公开课程查询页面可被索引，个人课表不参与索引", "rules": [{ "action": "allow", "page": "pages/courses/index" }, { "action": "allow", "page": "pages/detail/index" }, { "action": "disallow", "page": "*" }] }

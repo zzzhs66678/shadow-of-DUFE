@@ -204,6 +204,15 @@ export function loadConfig(env = process.env) {
   if (catalogUploadDir && (!isAbsolute(catalogUploadDir) || /[\u0000-\u001f]/u.test(catalogUploadDir))) {
     throw new Error("AUTH_CATALOG_UPLOAD_DIR must be an absolute path");
   }
+  const miniProgramEnabled = booleanValue(env.AUTH_MINIPROGRAM_ENABLED, false, "AUTH_MINIPROGRAM_ENABLED");
+  const credentialsEnabled = booleanValue(env.AUTH_CREDENTIALS_ENABLED, true, "AUTH_CREDENTIALS_ENABLED");
+  const miniProgramWechatEnabled = booleanValue(env.AUTH_MINIPROGRAM_WECHAT_ENABLED, false, "AUTH_MINIPROGRAM_WECHAT_ENABLED");
+  const miniProgramWechatAppId = String(env.AUTH_MINIPROGRAM_WECHAT_APP_ID ?? "");
+  const miniProgramWechatAppSecret = String(env.AUTH_MINIPROGRAM_WECHAT_APP_SECRET ?? "");
+  if (miniProgramWechatEnabled && (!miniProgramEnabled || !credentialsEnabled ||
+      !/^wx[0-9a-f]{16}$/u.test(miniProgramWechatAppId) || !/^[A-Za-z0-9]{32}$/u.test(miniProgramWechatAppSecret))) {
+    throw new Error("Native WeChat login requires native/password login and valid server-side app credentials");
+  }
   return {
     nodeEnv,
     catalogUploadDir,
@@ -249,12 +258,11 @@ export function loadConfig(env = process.env) {
       password: databasePassword,
     },
     publicOrigin: publicOrigin.origin,
-    credentialsEnabled: booleanValue(
-      env.AUTH_CREDENTIALS_ENABLED,
-      true,
-      "AUTH_CREDENTIALS_ENABLED",
-    ),
-    miniProgramEnabled: booleanValue(env.AUTH_MINIPROGRAM_ENABLED, false, "AUTH_MINIPROGRAM_ENABLED"),
+    credentialsEnabled,
+    miniProgramEnabled,
+    miniProgramWechatEnabled,
+    miniProgramWechatAppId,
+    miniProgramWechatAppSecret,
     academicImportEnabled: booleanValue(
       env.AUTH_ACADEMIC_IMPORT_ENABLED,
       false,

@@ -1,0 +1,120 @@
+page { --dufe-paper: #f4f1e9; --dufe-paper-raised: #fbfaf5; --dufe-paper-deep: #e7e1d6; --dufe-ink: #1d1b18; --dufe-muted: #706a62; --dufe-line: #cec6ba; --dufe-red: #a52325; --dufe-red-deep: #751719; --dufe-red-soft: #ead8d2; --dufe-pine: #315f4d;
+  --dufe-display: "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", STSong, SimSun, serif; --dufe-body: "Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif;
+  background: var(--dufe-paper); color: var(--dufe-ink); font-family: var(--dufe-body); font-size: 30rpx; line-height: 1.65; }
+.page { padding: 32rpx 36rpx 64rpx; }
+.eyebrow { color: var(--dufe-muted); font-size: 24rpx; letter-spacing: 3rpx; }
+.title { font-family: var(--dufe-display); font-size: 60rpx; font-weight: 600; line-height: 1.25; margin: 12rpx 0 24rpx; }
+.course-page .title { font-family: var(--dufe-body); font-weight: 800; font-size: 76rpx; }
+.subtitle { color: var(--dufe-muted); margin-bottom: 28rpx; font-size: 28rpx; }
+.red { color: var(--dufe-red); }
+.muted { color: var(--dufe-muted); font-size: 26rpx; }
+.small { font-size: 24rpx; }
+.rule { border-top: 1rpx solid var(--dufe-line); padding-top: 28rpx; margin-top: 28rpx; }
+.row { display: flex; gap: 16rpx; align-items: center; flex-wrap: wrap; }
+.between { justify-content: space-between; }
+.card { background: var(--dufe-paper-raised); border: 1rpx solid var(--dufe-line); border-radius: 12rpx; padding: 26rpx; margin: 18rpx 0; }
+.course-title { font-size: 34rpx; font-weight: 600; line-height: 1.5; margin-bottom: 12rpx; overflow-wrap: break-word; }
+.notice { border-left: 5rpx solid var(--dufe-red); padding: 6rpx 0 6rpx 22rpx; color: var(--dufe-muted); font-size: 26rpx; margin: 24rpx 0; }
+.empty { padding: 48rpx 12rpx; }
+.empty-title { font-size: 34rpx; font-weight: 600; margin-bottom: 12rpx; }
+button { margin: 0; width: auto; min-width: 0; font-size: 28rpx; font-weight: 400; line-height: 1.4; min-height: 48px; padding: 26rpx 28rpx; border-radius: 10rpx; color: var(--dufe-ink); background: var(--dufe-paper-deep); box-sizing: border-box; }
+button::after { border: none; }
+button.primary { color: var(--dufe-paper-raised); background: var(--dufe-red); }
+button.quiet { background: transparent; border: 1rpx solid var(--dufe-line); }
+button[disabled] { color: var(--dufe-muted); background: var(--dufe-paper-deep); }
+button.full { width: 100%; }
+.row > button { width: auto; margin-left: 0; margin-right: 0; }
+.picker { background: var(--dufe-paper-raised); border: 1rpx solid var(--dufe-line); padding: 22rpx 24rpx; border-radius: 10rpx; min-height: 96rpx; box-sizing: border-box; }
+.field { display: block; width: 100%; background: var(--dufe-paper-raised); border: 1rpx solid var(--dufe-line); border-radius: 10rpx; height: 100rpx; padding: 0 24rpx; margin: 18rpx 0; box-sizing: border-box; }
+.label { display: block; font-size: 26rpx; color: var(--dufe-muted); margin: 26rpx 0 10rpx; }
+.chips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8rpx; margin: 22rpx 0; }
+button.chip { width: 100%; }
+.chip { flex: 1; min-width: 0; padding: 20rpx 0; text-align: center; background: var(--dufe-paper-deep); border-radius: 8rpx; font-size: 24rpx; }
+.chip.active { background: var(--dufe-red); color: var(--dufe-paper-raised); }
+.meeting { border-left: 3rpx solid var(--dufe-line); padding-left: 18rpx; margin: 18rpx 0; }
+.stamp { font-size: 24rpx; color: var(--dufe-red); border: 1rpx solid var(--dufe-red); padding: 2rpx 12rpx; border-radius: 4rpx; }
+.date-number { font-size: 110rpx; line-height: 1; font-weight: 600; letter-spacing: -6rpx; }
+.date-head { display: flex; gap: 24rpx; align-items: flex-end; margin: 28rpx 0; }
+.guide { color: var(--dufe-muted); margin: 20rpx 0; }
+.space { margin-top: 24rpx; }
+.room-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16rpx; margin-top: 26rpx; }
+.room-grid button.room { width: 100%; min-width: 0; }
+.room { padding: 24rpx; border: 1rpx solid var(--dufe-line); background: var(--dufe-paper-raised); border-radius: 10rpx; }
+.room-number { font-size: 38rpx; font-weight: 600; }
+.room { text-align: left; }
+.week-table { border: 1rpx solid var(--dufe-line); border-radius: 8rpx; overflow: hidden; }
+.week-heading, .week-row { display: flex; }
+.week-heading { background: var(--dufe-paper-deep); font-size: 22rpx; }
+.week-period { width: 58rpx; flex-shrink: 0; padding: 16rpx 2rpx; font-size: 20rpx; text-align: center; }
+.week-day { flex: 1; min-width: 0; padding: 16rpx 0; text-align: center; }
+.week-row { border-top: 1rpx solid var(--dufe-line); min-height: 120rpx; }
+.week-cell { flex: 1; min-width: 0; border-left: 1rpx solid var(--dufe-line); }
+button.week-course { min-height: 48px; width: 100%; border-radius: 0; font-size: 12px; padding: 14rpx 5rpx; color: var(--dufe-red); background: var(--dufe-red-soft); text-align: left; overflow-wrap: anywhere; margin-bottom: 4rpx; }
+.week-location { font-size: 11px; color: var(--dufe-muted); margin-top: 8rpx; }
+.week-free { padding: 20rpx 0; text-align: center; color: #a49a89; }
+.room-meeting { text-align: left; margin-top: 12rpx; }
+.notes-field { width: 100%; box-sizing: border-box; border: 1rpx solid var(--dufe-line); border-radius: 10rpx; background: var(--dufe-paper-raised); padding: 20rpx; min-height: 160rpx; }
+.planner-notes { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 26rpx; margin-top: 16rpx; }
+.home-page { padding: 32rpx 28rpx 64rpx; }
+.home-head { display: flex; justify-content: space-between; gap: 24rpx; padding-bottom: 30rpx; border-bottom: 1rpx solid var(--dufe-ink); margin-bottom: 28rpx; }
+.home-head-main { flex: 1; min-width: 0; }
+.home-title { font-family: var(--dufe-display); font-size: 72rpx; line-height: 1.2; font-weight: 600; padding: 12rpx 0 20rpx; border-bottom: 1rpx solid var(--dufe-ink); margin-bottom: 24rpx; }
+.campus-time { width: 164rpx; text-align: right; padding-top: 38rpx; }
+.campus-clock { font-family: var(--dufe-display); font-size: 44rpx; font-variant-numeric: tabular-nums; font-weight: 600; line-height: 1.3; }
+.time-rail { height: 1rpx; background: var(--dufe-line); position: relative; margin-top: 24rpx; }
+.time-dot { position: absolute; width: 16rpx; height: 16rpx; background: var(--dufe-red); border-radius: 50%; top: -8rpx; transform: translateX(-50%); }
+.campus-pins { display: flex; gap: 16rpx; }
+.campus-pins button { flex: 1; width: 0; min-width: 0; font-size: 26rpx; font-weight: 400; padding: 20rpx 6rpx; }
+.home-setup { border-left: 5rpx solid var(--dufe-red); margin: 28rpx 0 52rpx; padding: 30rpx; }
+.home-setup .course-title { font-family: var(--dufe-display); font-size: 38rpx; }
+.home-actions { display: flex; gap: 16rpx; margin-top: 26rpx; }
+.home-actions button { flex: 1; width: 0; min-width: 0; padding-left: 10rpx; padding-right: 10rpx; }
+.now-card { background: var(--dufe-paper-raised); border: 1rpx solid var(--dufe-line); border-radius: 0 72rpx 0 0; padding: 32rpx; margin: 28rpx 0; }
+.now-course { font-family: var(--dufe-display); font-size: 42rpx; line-height: 1.5; margin: 26rpx 0 12rpx; }
+.home-planner-link { display: flex; gap: 16rpx; align-items: center; flex-wrap: wrap; margin: 32rpx 0; }
+.home-planner-link > text { font-size: 26rpx; }
+.home-planner-link button { display: flex; align-items: center; justify-content: center; width: auto; margin: 0; background: transparent; border-bottom: 1rpx solid var(--dufe-line); padding: 10rpx 2rpx; border-radius: 0; font-size: 24rpx; line-height: 1.5; }
+.agenda-row { display: flex; gap: 18rpx; border-top: 1rpx solid var(--dufe-line); padding: 22rpx 0; align-items: center; }
+.agenda-time { width: 126rpx; flex-shrink: 0; font-size: 24rpx; color: var(--dufe-red); }
+.agenda-copy { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.agenda-row button { padding: 16rpx 10rpx; font-size: 24rpx; }
+.profile-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18rpx; padding: 26rpx 0; border-top: 1rpx solid var(--dufe-line); border-bottom: 1rpx solid var(--dufe-line); }
+.profile-number { font-size: 52rpx; font-family: var(--dufe-display); }
+.schedule-page { padding: 28rpx 24rpx 64rpx; }
+.schedule-heading { display: flex; align-items: center; justify-content: space-between; }
+.schedule-heading .title { font-family: var(--dufe-body); font-size: 48rpx; margin: 0; font-weight: 650; }
+.schedule-heading button { min-height: 36px; padding: 12rpx 20rpx; font-size: 24rpx; }
+.schedule-term { display: flex; gap: 24rpx; color: var(--dufe-muted); font-size: 24rpx; margin: 18rpx 0; }
+.schedule-week-controls { display: flex; align-items: center; gap: 14rpx; margin: 24rpx 0 16rpx; }
+.schedule-week-controls picker { flex: 1; min-width: 0; text-align: center; }
+.schedule-week-controls .picker { min-height: 36px; padding: 10rpx 8rpx; }
+.schedule-week-controls button { width: auto; min-height: 36px; padding: 12rpx; font-size: 24rpx; }
+.schedule-view-switch { display: flex; gap: 12rpx; }
+.schedule-view-switch button { flex: 1; width: 0; min-height: 36px; padding: 14rpx 0; font-size: 24rpx; }
+.schedule-grid-tools { display: flex; align-items: center; justify-content: space-between; margin: 16rpx 0 8rpx; }
+.schedule-grid-tools button { min-height: 36px; padding: 8rpx 2rpx; border: 0; font-size: 22rpx; }
+.schedule-swatch { display: inline-block; width: 18rpx; height: 18rpx; margin-right: 10rpx; border: 1rpx solid #a69c91; background: #ecd7d2; }
+.schedule-page .week-table { border-radius: 0; }
+.schedule-page .week-period { width: 56rpx; padding: 12rpx 0; font-size: 18rpx; }
+.schedule-block-number { font-size: 30rpx; line-height: 1.3; margin-bottom: 10rpx; }
+.schedule-page .week-day { font-size: 22rpx; padding: 14rpx 0; }
+.schedule-page .week-row { min-height: 160rpx; }
+.schedule-page .week-cell { padding: 4rpx; }
+.schedule-page button.week-course { text-align: left; border: 1rpx solid #cfc8bb; border-left: 4rpx solid #a62126; padding: 8rpx 4rpx; margin: 0 0 4rpx; background: #ecd7d2; color: #211f1b; line-height: 1.4; min-height: 0; }
+.schedule-course-name { font-size: 22rpx; font-weight: 650; overflow-wrap: anywhere; }
+.schedule-page .week-location, .week-teacher { font-size: 20rpx; line-height: 1.4; margin-top: 6rpx; color: #514c45; overflow-wrap: anywhere; }
+.week-weeks { font-size: 18rpx; margin-top: 6rpx; color: #514c45; }
+.schedule-empty { padding: 28rpx 0; display: flex; flex-wrap: wrap; align-items: center; gap: 12rpx; font-size: 26rpx; }
+.schedule-empty > view { flex-basis: 100%; color: var(--dufe-muted); }
+.schedule-empty button { width: auto; min-height: 36px; padding: 12rpx 20rpx; font-size: 24rpx; }
+.schedule-term button { margin-left: auto; min-height: 30px; padding: 6rpx 12rpx; font-size: 22rpx; }
+.schedule-page button.academic-course { background: var(--dufe-paper-raised); }
+.schedule-heading button, .schedule-term button, .schedule-week-controls button, .schedule-view-switch button, .schedule-grid-tools button { display: flex; align-items: center; justify-content: center; }
+.schedule-heading button { width: 96rpx; flex: 0 0 96rpx; }
+.schedule-term { flex-wrap: wrap; align-items: center; }
+.schedule-term button { width: 144rpx; flex: 0 0 144rpx; }
+.exam-notice { border-top: 3rpx solid var(--dufe-red); background: var(--dufe-paper-raised); padding: 20rpx 24rpx; margin: 24rpx 0; }
+.exam-notice button { display: flex; align-items: center; min-height: 40px; font-size: 24rpx; padding: 8rpx 12rpx; border: 0; }
+.exam-row { display: flex; align-items: flex-start; gap: 24rpx; padding: 20rpx 0; border-top: 1rpx solid var(--dufe-line); }
+.exam-date { width: 148rpx; flex-shrink: 0; color: var(--dufe-red); font-size: 32rpx; }
+.exam-copy { flex: 1; min-width: 0; overflow-wrap: anywhere; }

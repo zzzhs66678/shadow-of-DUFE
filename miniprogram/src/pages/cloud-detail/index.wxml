@@ -1,0 +1,5 @@
+<view class="page"><block wx:if="{{meeting}}"><view class="eyebrow">{{meeting.origin === 'academic' ? '教务导入' : '网站选课方案'}}</view>
+  <view class="title">{{meeting.title}}</view><view class="course-title">{{meeting.teacher}}</view>
+  <view class="rule">{{meeting.weekdayLabel}} · {{meeting.periodLabel}}</view><view>{{meeting.location}}</view><view>{{meeting.weeksLabel}}</view>
+  <view class="rule muted">课程号 {{meeting.courseCode || meeting.courseId}}<view>课序号 {{meeting.sectionCode || meeting.classNames}}</view></view>
+</block><view wx:else class="notice">此时段已无法读取，请返回并重新读取网站课表。</view></view>

@@ -1,0 +1,26 @@
+<view class="page account-page"><view class="title">账号与课表</view>
+  <block wx:if="{{!user}}"><view class="subtitle">登录已有账号，查看网站保存的课表、日程和作业。</view>
+    <button wx:if="{{wechatAvailable}}" class="primary full" bindtap="wechat" disabled="{{busy}}">微信快捷登录</button>
+    <view wx:if="{{linkRequired}}" class="notice">这个微信还没有绑定网站账号。请先登录已有账号，再确认绑定。</view>
+    <input class="field" value="{{identifier}}" placeholder="账号或邮箱" maxlength="254" bindinput="field" data-field="identifier" disabled="{{busy}}" />
+    <input class="field" value="{{password}}" password="true" placeholder="密码" maxlength="256" bindinput="field" data-field="password" disabled="{{busy}}" />
+    <button class="{{wechatAvailable ? 'quiet' : 'primary'}} full" bindtap="login" disabled="{{busy}}">{{busy ? '正在登录…' : linkRequired ? '登录并继续绑定' : '网站账号登录'}}</button>
+    <button class="quiet full space" bindtap="register">复制官网地址，注册或找回密码</button>
+  </block>
+  <block wx:else><view class="course-title">{{user.displayName || user.username}}</view><view class="muted">账号 {{user.username}}</view>
+    <view wx:if="{{wechatLinked}}" class="small muted">{{wechatAvailable ? '已绑定微信，下次可快捷登录。' : '已绑定微信。'}}</view>
+    <button wx:elif="{{wechatBindingAvailable && !bindingPrompt}}" class="quiet full space" bindtap="wechat" disabled="{{busy}}">绑定微信，方便下次登录</button>
+    <view wx:if="{{bindingPrompt}}" class="card"><view class="course-title">确认绑定 {{user.username}}</view><view class="muted">将当前微信绑定到这个网站账号，原有课表和个人内容继续保留。</view>
+      <input class="field" value="{{password}}" password="true" placeholder="输入网站密码确认" maxlength="256" bindinput="field" data-field="password" disabled="{{busy}}" />
+      <button class="primary full" bindtap="confirmBinding" disabled="{{busy}}">确认绑定</button><button class="quiet full space" bindtap="cancelBinding" disabled="{{busy}}">取消</button>
+    </view>
+    <view class="rule">{{emptyWebsiteState ? '网站尚未保存课表' : ready ? '已读取网站课表' : '尚未读取网站课表'}}</view><view wx:if="{{ready && !emptyWebsiteState}}" class="muted">{{plans}}个课表方案</view>
+    <button class="primary full space" bindtap="timetable" disabled="{{!ready || busy}}">查看网站课表</button>
+    <button class="quiet full space" bindtap="reload" disabled="{{busy}}">{{busy ? '正在读取…' : '重新读取网站内容'}}</button>
+    <button class="quiet full space" bindtap="logout" disabled="{{busy}}">退出网站账号</button>
+  </block>
+  <view wx:if="{{error}}" class="notice">{{error}}</view>
+  <view class="rule muted">网站内容目前供查看，编辑请在官网完成。本机原有课表不会被网站内容覆盖。</view>
+  <button class="quiet full space" bindtap="local">查看与编辑本机课表</button>
+  <button class="quiet full space" bindtap="about">项目与隐私说明</button>
+</view>

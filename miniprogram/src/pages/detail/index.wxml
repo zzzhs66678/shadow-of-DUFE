@@ -1,0 +1,19 @@
+<view class="page">
+  <block wx:if="{{course}}">
+    <view class="eyebrow">{{termLabel}} · {{course.id}}</view><view class="title">{{course.title}}</view><view class="subtitle">{{course.college}} · {{course.credits}}学分 · {{course.category}}</view>
+    <view class="notice">请选择与你实际选课一致的教学班。加入课表会保存该班的全部上课时段，不代表完成教务选课。</view>
+    <view class="notice" wx:if="{{staleMeeting}}">原上课时段已失效，未自动换成同名课程或其他教学班。请返回课程目录重新查询。</view>
+    <view class="rule course-title">{{focused ? '原上课时段所属教学班' : '选择教学班'}} · {{sections.length}}个</view>
+    <button wx:if="{{focused && !staleMeeting}}" class="quiet full" bindtap="expand">{{showAll ? '只看原教学班' : '查看其他教学班（共' + totalSections + '个）'}}</button>
+    <view wx:for="{{sections}}" wx:key="id" wx:for-item="section" class="card">
+      <view class="row between"><text class="course-title">{{section.teacher || '教师待确认'}}</text><text wx:if="{{section.added}}" class="stamp">已加入</text></view>
+      <view class="muted">{{section.classNames || '未标注主修班级'}}</view><view class="muted small">教学班：{{section.id}}</view>
+      <view wx:for="{{section.meetings}}" wx:key="id" wx:for-item="meeting" class="meeting"><view>{{meeting.weekdayLabel}} · {{meeting.periodLabel}}</view><view>{{meeting.location}}</view><view class="muted">{{meeting.weeksLabel}}</view></view>
+      <view wx:if="{{section.conflicts}}" class="notice">与{{section.conflicts}}有时间冲突</view>
+      <button class="primary full" disabled="{{section.added}}" bindtap="add" data-id="{{section.id}}">{{section.added ? '已加入课表' : '加入全部时段'}}</button>
+    </view>
+    <view wx:if="{{!sections.length}}" class="empty"><view class="empty-title">本学期暂无可查教学班</view><view class="muted">该课程的上课安排尚未包含在数据中，请以教务通知为准。</view></view>
+    <view class="rule"><view class="course-title">教材信息</view><view>{{course.textbook || '暂无教材信息'}}</view><view class="muted">{{course.author}}</view><view class="muted">{{course.publisher}}</view></view>
+  </block>
+  <view wx:else class="empty"><view class="empty-title">未找到这门课程</view><view class="muted">返回课程目录重新查询。</view></view>
+</view>

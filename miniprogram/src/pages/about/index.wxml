@@ -1,0 +1,9 @@
+<view class="page">
+  <view class="eyebrow">冬菜之影</view><view class="title">学生自建，陪你上课</view>
+  <view class="guide">冬菜之影是东财之影网站的学习工具小程序，由学生自主开发，用于课程查询、个人课表、日程与作业整理和按课程安排查询教室。项目不是学校官方服务，不代表学校发布通知或办理教务业务。</view>
+  <view class="rule course-title">数据说明</view><view>来源：{{source}}</view><view>数据生成日期：{{generatedAt}}</view><view class="guide">{{disclaimer}}</view>
+  <view class="rule course-title">隐私说明</view><view class="guide">本机学习工具可不登录使用。选择登录网站账号时，账号或邮箱与密码通过HTTPS发送至dufesh.cn用于验证；密码不保存在设备。登录凭据保存在微信本地存储，最长24小时有效，可在网站账号页退出。</view><view class="guide">登录后从网站读取该账号已保存的课表、日程、作业等私人内容，仅供当前账号查看。本版本不向网站写入课表或合并本机内容，不收集学校密码、手机号或定位。</view><view class="guide">本机教学班、学期设置、日程与作业独立保留。更换设备或清理微信存储可能导致本机内容丢失；可在设置页主动清除。网站内容的处理规则见dufesh.cn/privacy；微信平台自身的数据处理规则请查阅微信隐私政策。</view>
+  <view class="guide">微信快捷登录开放后，选择该功能时会向本站服务器发送微信临时登录凭证，用于核验登录身份。首次绑定需你登录已有网站账号并确认，原账号与个人内容继续保留；微信登录不代表学校学生身份认证。</view>
+  <view class="rule course-title">核对与反馈</view><view class="guide">发现课程信息与学校实际安排不一致时，请优先核对学校官方通知。项目网站：dufesh.cn，可通过网站已有反馈入口联系开发者。</view>
+  <view class="guide">点击校园入口时，小程序仅把对应的公开网址写入剪贴板，不读取已有剪贴板内容。请用浏览器打开；学校及第三方服务的登录和数据处理由相应平台负责。</view>
+</view>

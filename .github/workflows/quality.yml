@@ -258,7 +258,7 @@ jobs:
           PGPASSWORD="$POSTGRES_PASSWORD" createdb --host "$PGHOST" --port "$PGPORT" --username "$POSTGRES_USER" dufesh_ci_security_test
           POSTGRES_DB=dufesh_ci_security_test SECURITY_POSTGRES_TEST=true node --test tests/registration-security.test.mjs
       - name: Verify PostgreSQL roles and real auth/community flows
-        run: node --test tests/postgres-runtime-integration.test.mjs tests/postgres-product-extensions.test.mjs tests/account-recovery-security.test.mjs tests/account-name-security.test.mjs tests/miniprogram-account.integration.test.mjs
+        run: node --test tests/postgres-runtime-integration.test.mjs tests/postgres-product-extensions.test.mjs tests/account-recovery-security.test.mjs tests/account-name-security.test.mjs tests/miniprogram-account.integration.test.mjs tests/miniprogram-wechat.integration.test.mjs
       - name: Verify catalog publication on isolated native PostgreSQL
         run: |
           PGPASSWORD="$POSTGRES_PASSWORD" createdb --host "$PGHOST" --port "$PGPORT" --username "$POSTGRES_USER" catalog_acl_ci_native
@@ -403,6 +403,19 @@ jobs:
           node scripts/export-ui-copy.mjs --self-test
           npm test --prefix services/auth-api
           npm run test:xiaoying
+      # Native sources use their explicitly recorded website release.
+      - name: Check the native mini-program against its recorded website source
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { execFileSync } from 'node:child_process';
+          const source = JSON.parse(fs.readFileSync('miniprogram/release-source.json','utf8')).websiteCommit;
+          if (!/^[a-f0-9]{40}$/.test(source)) throw new Error('Invalid native website source');
+          try { execFileSync('git',['cat-file','-e',source],{stdio:'ignore'}); }
+          catch { execFileSync('git',['fetch','--depth=1','origin',source],{stdio:'inherit'}); }
+          NODE
+          npm --prefix miniprogram test
+          npm --prefix miniprogram run check
       - name: Validate the isolated staging topology
         run: |
           config_dir="$(mktemp -d)"

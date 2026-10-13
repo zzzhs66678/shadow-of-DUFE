@@ -1,0 +1,36 @@
+<view class="page schedule-page">
+  <view class="schedule-heading"><view class="title">我的课表</view><button class="quiet" bindtap="settings">{{readOnly ? '网站账号' : '设置'}}</button></view>
+  <view class="schedule-term"><text>{{sourceLabel}} · {{academicYear ? academicYear + ' ' : ''}}{{termLabel}}</text><text>{{selectedCount}}个教学班{{readOnly ? ' · 供查看' : ''}}</text><button wx:if="{{!readOnly}}" class="quiet" bindtap="account">登录网站账号</button></view>
+  <view wx:if="{{readOnly && ready}}" class="schedule-plan-bar">
+    <picker class="schedule-term-picker" range="{{terms}}" value="{{termIndex}}" bindchange="termChange"><view class="picker">{{termLabel}} ▾</view></picker>
+    <scroll-view class="schedule-plan-scroll" scroll-x="true" enhanced="true" show-scrollbar="false"><view class="schedule-plan-tabs">
+      <button wx:if="{{hasAcademic}}" class="schedule-plan-tab {{!planning ? 'active' : ''}}" bindtap="modeChange" data-mode="academic">教务课表</button>
+      <button wx:for="{{plans}}" wx:key="id" class="schedule-plan-tab {{(!hasAcademic || planning) && planIndex === index ? 'active' : ''}}" bindtap="selectPlan" data-plan="{{item.id}}"><text>{{item.name}}</text><text class="schedule-plan-count">{{item.count}}</text></button>
+    </view></scroll-view>
+  </view>
+  <view class="notice" wx:if="{{notice}}">{{notice}}<button wx:if="{{!ready}}" class="quiet" bindtap="account">读取网站课表</button></view>
+  <view class="notice" wx:if="{{missing}}">{{missing}}{{readOnly ? '个已保存时段' : '个教学班'}}在当前目录中未找到，原标识仍保留。{{readOnly ? '请在官网核对。' : '请核对课程目录。'}}</view>
+  <view class="notice" wx:if="{{partial}}">{{partial}}个教学班只保存了部分时段，按网站记录展示。</view>
+  <view class="schedule-week-controls"><button class="quiet" bindtap="shiftWeek" data-step="-1" disabled="{{weekIndex === 0}}">上一周</button><picker range="{{weeks}}" value="{{weekIndex}}" bindchange="weekChange"><view class="picker">第{{weekIndex + 1}}周 ▾</view></picker><button class="quiet" bindtap="shiftWeek" data-step="1" disabled="{{weekIndex === weeks.length - 1}}">下一周</button></view>
+  <view class="schedule-view-switch"><button class="{{view === 'week' ? 'primary' : 'quiet'}}" bindtap="viewChange" data-view="week">一周</button><button class="{{view === 'day' ? 'primary' : 'quiet'}}" bindtap="viewChange" data-view="day">按日</button></view>
+  <block wx:if="{{view === 'week'}}">
+    <view class="schedule-grid-tools"><view class="schedule-source-legend"><text class="schedule-swatch {{hasAcademic && !planning ? 'official-swatch' : ''}}"></text>{{hasAcademic && !planning ? '教务导入' : '手动添加'}}</view><button class="quiet" bindtap="toggleWeekends">{{showFullWeek ? '隐藏空白周末' : '显示完整七天'}}</button></view>
+    <view class="week-table {{dayHeaders.length > 5 ? 'seven-day-table' : ''}}"><view class="week-heading"><view class="week-period">节次</view><view wx:for="{{dayHeaders}}" wx:key="weekday" class="week-day {{item.today ? 'today' : ''}}">{{item.label}}</view></view>
+      <view wx:for="{{grid}}" wx:key="block" wx:for-item="row" class="week-row"><view class="week-period"><view class="schedule-block-number">{{row.block}}</view><view class="schedule-period-label">{{row.label}}节</view></view>
+        <view wx:for="{{row.days}}" wx:key="weekday" wx:for-item="day" class="week-cell {{day.conflict ? 'conflict' : ''}}"><button wx:for="{{day.meetings}}" wx:key="id" class="week-course {{item.origin === 'academic' ? 'academic-course' : ''}}" bindtap="open" data-id="{{item.id}}"><view class="schedule-course-name">{{item.title}}</view><view class="week-location">{{item.location}}</view><view wx:if="{{item.teacher}}" class="week-teacher">{{item.teacher}}</view><view class="week-weeks">{{item.weeksLabel}}</view></button><view wx:if="{{day.conflict}}" class="schedule-conflict-label">时间重叠</view><view wx:if="{{!day.meetings.length}}" class="week-free">—</view></view>
+      </view>
+    </view><view wx:if="{{!selectedCount && !readOnly}}" class="schedule-empty"><view>还没有添加课程</view><button class="primary" bindtap="courses">选课</button><button class="quiet" bindtap="classes">按班级导入</button></view>
+    <view wx:if="{{readOnly && ready && !selectedCount}}" class="schedule-empty"><view>{{hasAcademic && !planning ? '网站保存的教务课表为空。' : '这个学期的方案还没有课程。'}}</view></view>
+    <view wx:elif="{{selectedCount && !activeCount}}" class="schedule-empty"><view>所选教学周没有课程，可切换周次查看。</view></view>
+    <view class="schedule-footnote">{{readOnly ? '点课程查看具体时段' : '点课程查看详情 · 按日可移除教学班'}}</view>
+  </block>
+  <block wx:else>
+  <view class="chips"><button wx:for="{{days}}" wx:key="*this" class="chip {{weekday === index + 1 ? 'active' : ''}}" bindtap="dayChange" data-day="{{index + 1}}">{{item}}</button></view>
+  <view wx:for="{{meetings}}" wx:key="id" class="card schedule-day-card">
+    <button class="schedule-day-main" bindtap="open" data-id="{{item.id}}"><view class="red small">{{item.periodLabel}} · {{item.weeksLabel}}</view><view class="course-title">{{item.title}}</view><view>{{item.location}}</view><view wx:if="{{item.teacher}}" class="muted">{{item.teacher}}</view><view wx:if="{{item.classNames}}" class="small muted">{{item.origin === 'academic' ? '课序号' : '主修班级'}}：{{item.classNames}}</view></button>
+    <button wx:if="{{!readOnly}}" class="quiet full space" bindtap="remove" data-section="{{item.sectionId}}">移除该教学班</button>
+  </view>
+  <view wx:if="{{!meetings.length}}" class="empty"><view class="empty-title">所选周的这一天没有课程</view><view class="muted">{{readOnly ? '可以切换教学周、学期或课表方案查看。' : '添加具体教学班，或明确选择班级后导入该班的课程。'}}</view></view>
+  </block>
+  <view wx:if="{{!readOnly}}" class="row schedule-local-actions"><button class="primary" bindtap="courses">添加课程</button><button class="quiet" bindtap="classes">按班级导入</button></view>
+</view>

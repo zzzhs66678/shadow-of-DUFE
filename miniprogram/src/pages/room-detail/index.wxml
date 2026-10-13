@@ -1,0 +1,3 @@
+<view class="page"><view class="eyebrow">{{termLabel}} · 教室一周排课</view><view class="title">{{building}} {{room}}</view><view class="notice">按公开课程数据展示，不代表实时占用或开放状态。</view><picker range="{{weeks}}" value="{{weekIndex}}" bindchange="weekChange"><view class="picker">第{{weekIndex + 1}}周 ▾</view></picker>
+  <view wx:for="{{days}}" wx:key="weekday" wx:for-item="day" class="rule"><view class="course-title">{{day.label}}</view><button wx:for="{{day.meetings}}" wx:key="id" class="quiet full room-meeting" bindtap="open" data-id="{{item.id}}"><view>{{item.periodLabel}} · {{item.title}}</view><view class="muted">{{item.teacher}} · {{item.weeksLabel}}</view></button><view wx:if="{{!day.meetings.length}}" class="muted">无已知排课</view></view>
+</view>

@@ -1,0 +1,10 @@
+<view class="page">
+  <view class="eyebrow">按课程安排推算</view><view class="title">空教室</view><view class="notice">这里只显示课程数据中出现过的教室。“未排课”不代表实时空闲，也不代表教室开放；考试、活动、临时调课请以现场和学校通知为准。</view>
+  <view class="row"><picker range="{{terms}}" value="{{termIndex}}" data-field="termIndex" bindchange="change"><view class="picker">{{terms[termIndex]}} ▾</view></picker><picker range="{{weeks}}" value="{{weekIndex}}" data-field="weekIndex" bindchange="change"><view class="picker">第{{weekIndex + 1}}周 ▾</view></picker><picker range="{{days}}" value="{{dayIndex}}" data-field="dayIndex" bindchange="change"><view class="picker">{{days[dayIndex]}} ▾</view></picker></view>
+  <picker range="{{blocks}}" value="{{blockIndex}}" data-field="blockIndex" bindchange="change"><view class="picker space">{{blocks[blockIndex]}} ▾</view></picker>
+  <picker range="{{buildings}}" value="{{buildingIndex}}" data-field="buildingIndex" bindchange="change"><view class="picker space">{{buildings[buildingIndex]}} ▾</view></picker>
+  <view class="rule muted">{{count}}间教室在所选大节无已知排课</view>
+  <view class="room-grid"><button wx:for="{{rows}}" wx:key="id" class="room" bindtap="open" data-id="{{item.id}}"><view class="room-number">{{item.room}}</view><view class="muted">{{item.building}}</view><view class="small red">无已知排课 · 查看一周</view></button></view>
+  <view wx:if="{{!rows.length}}" class="empty"><view class="empty-title">所选条件下没有结果</view><view class="muted">试试其他教学楼或时间段。</view></view>
+  <button wx:if="{{more}}" class="quiet full space" bindtap="more">查看更多教室</button>
+</view>

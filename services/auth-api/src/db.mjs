@@ -9,6 +9,7 @@ import { createCatalogStore } from "./catalog/store.mjs";
 import { createWhiteboardStore } from "./whiteboard-store.mjs";
 import { createTeacherReviewStore } from "./teacher-review-store.mjs";
 import { createTeacherStore } from "./teacher-store.mjs";
+import { createMiniProgramWechatStore } from "./miniprogram-wechat-store.mjs";
 
 import { createRegistrationStore, consumeRegistrationProof } from "./registration-security.mjs";
 
@@ -185,6 +186,7 @@ export function createAuthStore(pool, { catalogUploadDir = null } = {}) {
     ...teacherStore,
     ...createAdminUserDetailsStore(pool),
     ...createRegistrationStore(pool),
+    ...createMiniProgramWechatStore({ pool, claimAnonymousDevice }),
     async health() {
       await pool.query("SELECT 1");
     },

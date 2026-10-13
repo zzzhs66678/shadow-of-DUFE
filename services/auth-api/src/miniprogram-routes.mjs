@@ -1,5 +1,6 @@
 import { createOpaqueToken, isOpaqueToken, tokenDigest } from "./tokens.mjs";
 import { validateLogin } from "./credentials.mjs";
+import { createMiniProgramWechatRequestHandler } from "./miniprogram-wechat-routes.mjs";
 
 // Domain separation prevents a native bearer token from being a website Cookie,
 // and prevents an existing website session token from authorizing native routes.
@@ -17,14 +18,17 @@ function userView(user) {
     accountName: user.accountName ?? user.displayName, nameMode: user.nameMode ?? "name",
     nameModeAvailableAt: user.nameModeAvailableAt ?? null };
 }
-export function createMiniProgramRequestHandler({ store, config, passwordService, dummyPasswordHash,
+export function createMiniProgramRequestHandler({ store, config, passwordService, dummyPasswordHash, miniProgramWechatProvider,
   authLimit, readJsonBody, sendJson, methodNotAllowed }) {
+  const wechat = createMiniProgramWechatRequestHandler({ store, config, provider: miniProgramWechatProvider,
+    passwordService, dummyPasswordHash, authLimit, readJsonBody, sendJson, methodNotAllowed, bearer, userView, miniSessionDigest });
   return async function handleMiniProgram(request, response, url) {
     if (!url.pathname.startsWith("/api/auth/miniprogram/")) return false;
     if (!config.miniProgramEnabled) { sendJson(response, 503, { error: "miniprogram_unavailable" }); return true; }
     // Native endpoints never consume browser cookies or relax website CSRF checks.
     if (Object.hasOwn(request.headers, "origin")) { sendJson(response, 403, { error: "native_client_required" }); return true; }
     if (url.search) { sendJson(response, 400, { error: "invalid_native_query" }); return true; }
+    if (await wechat.handleRequest(request, response, url)) return true;
     if (url.pathname === "/api/auth/miniprogram/login") {
       if (request.method !== "POST") { methodNotAllowed(response, "POST"); return true; }
       if (config.credentialsEnabled === false || !passwordService) {
@@ -79,7 +83,12 @@ export function createMiniProgramRequestHandler({ store, config, passwordService
       await store.revokeSession(miniSessionDigest(token, config.tokenPepper)); sendJson(response, 200, { ok: true }); return true;
     }
     if (url.pathname.endsWith("/session")) {
-      sendJson(response, 200, { authenticated: true, user: userView(session), session: { expiresAt: session.expiresAt } }); return true;
+      const linked = await wechat.linkedState(session.userId);
+      const current = await store.getActiveSession(miniSessionDigest(token, config.tokenPepper));
+      if (!current || current.id !== session.id || current.userId !== session.userId) {
+        sendJson(response, 401, { error: "authentication_required" }); return true;
+      }
+      sendJson(response, 200, { authenticated: true, user: userView(current), session: { expiresAt: current.expiresAt }, ...linked }); return true;
     }
     const snapshot = await store.getPersonalState(session.userId);
     // Recheck the exact session after the private query, including logout/reset races.

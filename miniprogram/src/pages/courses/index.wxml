@@ -1,0 +1,11 @@
+<view class="page course-page">
+  <view class="eyebrow">课程中心</view><view class="title">课程</view><view class="subtitle">查课程、看教学班，整理本学期课表。</view>
+  <picker range="{{terms}}" value="{{termIndex}}" bindchange="termChange"><view class="picker">{{terms[termIndex]}} ▾</view></picker>
+  <input class="field" placeholder="课程、课程号、教师或班级" value="{{query}}" bindinput="input" confirm-type="search" bindconfirm="search" maxlength="80" aria-label="搜索课程" />
+  <view class="muted">找到{{count}}门课程</view>
+  <view wx:for="{{rows}}" wx:key="id" class="card" bindtap="open" data-id="{{item.id}}" role="button">
+    <view class="course-title">{{item.title}}</view><view class="muted">{{item.id}} · {{item.college}}</view><view class="row between space"><text class="small">{{item.credits}}学分 · {{item.category}}</text><text class="red small">{{item.sectionCount}}个教学班 ›</text></view>
+  </view>
+  <view wx:if="{{!rows.length}}" class="empty"><view class="empty-title">没有匹配的课程</view><view class="muted">试试课程号、较短的课程名称，或切换学期。</view></view>
+  <button wx:if="{{more}}" class="quiet full" bindtap="more">查看更多课程</button>
+</view>

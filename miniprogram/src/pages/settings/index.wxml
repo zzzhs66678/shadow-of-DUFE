@@ -1,0 +1,11 @@
+<view class="page">
+  <view class="eyebrow">课表设置</view><view class="title">把时间对准你的学期</view>
+  <view class="notice">上、下学期对应课程来源表中的学期，不自动认定为当前学年。请核对课程数据和学校安排。</view>
+  <text class="label">当前学期</text><picker range="{{terms}}" value="{{termIndex}}" bindchange="termChange"><view class="picker">{{terms[termIndex]}} ▾</view></picker>
+  <view class="row between rule"><text>按开学日期自动算周</text><switch color="#a52325" checked="{{auto}}" bindchange="autoChange" aria-label="自动计算教学周" /></view>
+  <text class="label">第1教学周的起始日期（通常为周一）</text><picker mode="date" value="{{startDate}}" bindchange="dateChange"><view class="picker">{{startDate || '请选择日期'}} ▾</view></picker>
+  <view class="muted space">请按学校通知填写；未设置日期时，可以手动选周。自动模式在18周范围外不会把假期当成上课周。</view>
+  <text class="label">手动教学周 / 查询默认周</text><picker range="{{weeks}}" value="{{weekIndex}}" bindchange="weekChange"><view class="picker">第{{weekIndex + 1}}周 ▾</view></picker>
+  <button class="primary full space" bindtap="save">保存设置</button>
+  <view class="rule"><button class="quiet full" bindtap="about">项目说明与隐私说明</button><button class="quiet full space" bindtap="reset">清除本机课表及设置</button><button class="quiet full space" bindtap="resetPlanner">清除本机日程与作业</button></view>
+</view>
