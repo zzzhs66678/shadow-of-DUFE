@@ -79,6 +79,14 @@ jobs:
             --entrypoint node dufesh-auth-api:ci \
             --max-old-space-size=64 --max-semi-space-size=4 scripts/catalog-native-store-load-check.mjs
           test "$(docker inspect --format '{{.State.OOMKilled}}' catalog-capacity-ci)" = false
+      - name: Cache official staging infrastructure images
+        run: |
+          # Keep Compose and production settings unchanged. Cache the same
+          # official versions locally so CI does not depend on the mirror gateway.
+          docker pull postgres:17-alpine
+          docker tag postgres:17-alpine docker.m.daocloud.io/library/postgres:17-alpine
+          docker pull caddy:2.10-alpine
+          docker tag caddy:2.10-alpine docker.m.daocloud.io/library/caddy:2.10-alpine
       - name: Start and smoke-test the isolated staging stack
         run: |
           docker tag dufesh-app:ci "dufesh-app:$GITHUB_SHA"
