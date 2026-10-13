@@ -161,7 +161,7 @@ try {
   await migrator.query('CREATE TABLE schema_migrations(version text PRIMARY KEY,checksum text NOT NULL,applied_at timestamptz NOT NULL DEFAULT now())');
   const migrationDir = join(root, 'ops/postgres/migrations');
   const migrations = (await readdir(migrationDir)).filter(name => /^\d{4}_.+\.sql$/u.test(name)).sort();
-  assert.equal(migrations.length, 32);
+  assert.ok(migrations.includes('0033_miniprogram_wechat_binding.sql'), 'Native fixture must exercise the WeChat binding schema.');
   for (const name of migrations) {
     const sql = await readFile(join(migrationDir, name), 'utf8');
     await migrator.query('BEGIN');
@@ -263,7 +263,7 @@ try {
   }
   assert.ok(ready, `Built app did not become ready: ${appOutput}`);
   appReady = true;
-  console.log(`Catalog native fixture ready at ${origin}; PostgreSQL17+,32 migrations,actual runtime LOGIN; synthetic users only.`);
+  console.log(`Catalog native fixture ready at ${origin}; PostgreSQL17+,${migrations.length} migrations,actual runtime LOGIN; synthetic users only.`);
   await new Promise(() => {});
 } catch (error) {
   console.error(error.message);

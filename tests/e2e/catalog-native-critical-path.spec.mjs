@@ -1,6 +1,6 @@
 // Requires the dedicated native fixture; this suite never mocks business APIs.
 import { expect, test } from '@playwright/test';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { CATALOG_COLUMNS, exportCatalogRows, writeCatalogCsv } from '../../services/auth-api/src/catalog/import-contract.mjs';
 
 async function checkReply(response, status = 200) {
@@ -25,7 +25,9 @@ async function previewAndPublish(page, kind) {
 
 test('real native publication reaches search, SSR details, file bytes and bookmarks while original personal data survives rollback', async ({ browser, request }, testInfo) => {
   const fixture = await checkReply(await request.get('/__catalog_fixture'));
-  expect(fixture.migrationCount).toBe(32);
+  const migrations = (await readdir(new URL('../../ops/postgres/migrations/', import.meta.url)))
+    .filter(name => /^\d{4}_.+\.sql$/u.test(name));
+  expect(fixture.migrationCount).toBe(migrations.length);
   expect(fixture.runtimeRole).toMatch(/^catalog_browser_runtime_/);
   const adminContext = await browser.newContext({ baseURL: fixture.origin });
   const userContext = await browser.newContext({ baseURL: fixture.origin });
