@@ -140,9 +140,11 @@ export function createMiniProgramWechatStore({ pool, claimAnonymousDevice }) {
     async createMiniProgramWechatSession(input) {
       return transaction(pool, async client => {
         await activePrincipal(client, input.userId);
+        // The account lock blocks deletion; runtime mappings are immutable.
+        // PostgreSQL row locks here would require the deliberately denied UPDATE privilege.
         const identity = await client.query(
           `SELECT id FROM miniprogram_wechat_identities
-           WHERE app_id = $1 AND openid_hash = $2 AND user_id = $3 FOR KEY SHARE`,
+           WHERE app_id = $1 AND openid_hash = $2 AND user_id = $3`,
           [input.appId, input.openidHash, input.userId]);
         if (identity.rowCount !== 1) throw rejected("MINI_AUTHENTICATION_REQUIRED");
         const deviceId = await claimAnonymousDevice(client, input.anonymousDeviceId, input.userId);

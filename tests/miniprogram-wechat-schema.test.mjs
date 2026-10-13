@@ -54,12 +54,19 @@ test("0033 preserves existing accounts, password sessions and complete personal 
         VALUES($1,'wx0000000000000000',$2,statement_timestamp()+interval '6 minutes')`, ["c".repeat(64), "d".repeat(64)]), { code: "23514" });
     });
 
-    await t.test("runtime role cannot replace/remove mappings; deleting its own account still cascades cleanly", async () => {
+    await t.test("runtime role can create a linked session without mapping write privileges; deletion still cascades cleanly", async () => {
       await db.exec(`CREATE ROLE mini_schema_runtime;
         GRANT USAGE ON SCHEMA public TO mini_schema_runtime;
         GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO mini_schema_runtime;
         REVOKE UPDATE,DELETE,TRUNCATE ON miniprogram_wechat_identities FROM mini_schema_runtime;
         SET ROLE mini_schema_runtime;`);
+      // Use the real store under runtime grants: SELECT row locks also require
+      // UPDATE privilege in PostgreSQL. Owner-only integration hides this bug.
+      const device = await store.getOrCreateAnonymousDevice("c".repeat(64));
+      const created = await store.createMiniProgramWechatSession({ appId: "wx0000000000000000", openidHash: "a".repeat(64),
+        userId: owner, anonymousDeviceId: device.id, sessionTokenHash: "e".repeat(64), sessionExpiresAt: new Date(Date.now() + 60000) });
+      assert.ok(created.sessionId);
+      assert.equal((await store.getActiveSession("e".repeat(64))).userId, owner);
       for (const sql of ["UPDATE miniprogram_wechat_identities SET user_id = user_id", "DELETE FROM miniprogram_wechat_identities", "TRUNCATE miniprogram_wechat_identities"]) {
         await assert.rejects(pool.query(sql), { code: "42501" });
       }
