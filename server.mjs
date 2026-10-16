@@ -43,7 +43,7 @@ const contentTypes = new Map([
   [".zip", "application/zip"],
 ]);
 
-function documentContentSecurityPolicy(nonce) {
+function documentContentSecurityPolicy(nonce, pathname) {
   return [
     "default-src 'self'",
     "base-uri 'self'",
@@ -54,7 +54,9 @@ function documentContentSecurityPolicy(nonce) {
     "font-src 'self' data:",
     "media-src 'self'",
     "connect-src 'self'",
-    "frame-src 'self'",
+    pathname === "/admin" || pathname === "/admin/"
+      ? "frame-src 'self' https://baiguo.dufesh.cn"
+      : "frame-src 'self'",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
     `script-src 'self' 'nonce-${nonce}'`,
@@ -119,7 +121,7 @@ async function servePublicAsset(req, res, pathname) {
 
 function proxyToVinext(req, res) {
   const nonce = randomBytes(18).toString("base64url");
-  const contentSecurityPolicy = documentContentSecurityPolicy(nonce);
+  const contentSecurityPolicy = documentContentSecurityPolicy(nonce, new URL(req.url, "http://localhost").pathname);
   const upstream = createProxyRequest(
     {
       host: "127.0.0.1",

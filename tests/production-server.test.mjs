@@ -76,6 +76,12 @@ test(
         assert.match(script[1], new RegExp(`nonce="${nonce}"`));
       }
       const secondPage = await fetch(`http://127.0.0.1:${port}/`);
+      assert.match(contentSecurityPolicy, /frame-src 'self';/);
+      assert.doesNotMatch(contentSecurityPolicy, /baiguo\.dufesh\.cn/);
+      for (const path of ["/admin", "/admin/"]) {
+        const admin = await fetch(`http://127.0.0.1:${port}${path}`);
+        assert.match(admin.headers.get("content-security-policy"), /frame-src 'self' https:\/\/baiguo\.dufesh\.cn;/);
+      }
       const secondNonce = (secondPage.headers.get("content-security-policy") ?? "").match(
         /script-src[^;]*'nonce-([^']+)'/,
       )?.[1];

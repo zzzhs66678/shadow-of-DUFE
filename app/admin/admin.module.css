@@ -27,6 +27,20 @@
 .watchStatus { display: flex; gap: 14px; align-items: center; color: var(--admin-muted); font-size: 11px; }
 .watchStatus button { background: transparent; border: 1px solid var(--admin-line); border-radius: 5px; padding: 9px 12px; min-height: 40px; color: var(--admin-ink); }
 .panel { min-width: 0; }
+.baiguoDesk { background: white; border: 1px solid var(--admin-line); border-radius: 10px; overflow: hidden; min-width: 0; }
+.baiguoToolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 24px; border-bottom: 1px solid var(--admin-line); }
+.baiguoToolbar p, .baiguoNote { color: var(--admin-muted); font-size: 12px; line-height: 1.7; margin: 0; }
+.baiguoToolbar a { display: inline-flex; align-items: center; min-height: 44px; flex-shrink: 0; color: var(--admin-red); font-size: 12px; text-decoration: none; }
+.baiguoFrame { display: block; width: 100%; border: 0; background: white; }
+.baiguoState { padding: 20px 24px; color: var(--admin-muted); font-size: 13px; line-height: 1.8; }
+.baiguoState p { margin: 0; }
+.baiguoState button { border: 1px solid var(--admin-line); border-radius: 5px; background: white; min-height: 44px; padding: 8px 16px; margin-top: 12px; color: var(--admin-red); }
+.baiguoNote { padding: 16px 24px; border-top: 1px solid var(--admin-line); }
+@media (max-width: 720px) {
+  .baiguoToolbar { align-items: flex-start; padding: 12px 16px; }
+  .baiguoToolbar p { max-width: 22em; }
+  .baiguoNote, .baiguoState { padding: 16px; }
+}
 .ledger { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 24px; padding: 20px 0; border-top: 1px solid var(--admin-line); border-bottom: 1px solid var(--admin-line); }
 .ledger > div { padding: 0 24px; border-left: 1px solid var(--admin-line); }
 .ledger > div:first-child { padding-left: 0; border-left: 0; }

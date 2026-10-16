@@ -1,0 +1,95 @@
+.dufesh-embed {
+  --mist: #f3f5f4;
+  --navy: #202a2a;
+  --blue: #a12027;
+  --green: #326653;
+  --gray: #626d6d;
+  --line: #dce3e1;
+  --soft-blue: #f9eeee;
+  --soft-green: #edf4ef;
+  background: white;
+}
+.dufesh-embed .site-header { border: 0; padding: 0 24px; justify-content: flex-end; min-height: 44px; }
+.dufesh-embed .brand { display: none; }
+.dufesh-embed .page-shell { padding: 16px 24px 0; }
+.dufesh-embed .button, .dufesh-embed .icon-button, .dufesh-embed .text-button { min-height: 44px; }
+.dufesh-embed .icon-button { min-width: 44px; }
+.dufesh-embed .button, .dufesh-embed .icon-button, .dufesh-embed input:not([type=radio]) { border-radius: 5px; }
+.dufesh-embed :is(button,a,input,.week-scroll):focus-visible { outline-color: var(--blue); }
+.dufesh-embed .button-primary:hover { background: #851b21; border-color: #851b21; }
+.dufesh-embed .button-quiet:hover { background: var(--mist); }
+.dufesh-embed .button:hover { border-color: var(--line); }
+.dufesh-embed .login-intro { display: none; }
+.dufesh-embed .login-layout { display: block; min-height: 0; max-width: 420px; padding: 36px 0 72px; }
+.dufesh-embed .login-card { border-radius: 8px; box-shadow: none; margin: 0; }
+.dufesh-embed .overview { display: block; margin-bottom: 24px; }
+.dufesh-embed .overview-heading { margin-bottom: 14px; }
+.dufesh-embed .overview-heading .eyebrow { display: none; }
+.dufesh-embed .overview-heading h1 { position: absolute; height: 1px; width: 1px; margin: 0; overflow: hidden; clip-path: inset(50%); }
+.dufesh-embed .overview-heading > .muted { max-width: none; font-size: 12px; line-height: 1.7; }
+.dufesh-embed .status-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 1fr); gap: 8px 28px; background: var(--mist); border-color: var(--line); border-radius: 8px; padding: 20px 24px 14px; }
+.dufesh-embed .status-heading { grid-column: 1; }
+.dufesh-embed .status-heading h2 { font-size: 16px; letter-spacing: normal; }
+.dufesh-embed .status-detail { grid-column: 1; margin: 0; padding: 0; font-size: 12px; }
+.dufesh-embed .status-facts { grid-column: 2; grid-row: 1 / span 2; align-content: center; }
+.dufesh-embed .status-facts dt { font-size: 11px; }
+.dufesh-embed .status-facts dd { font-size: 13px; }
+.dufesh-embed .status-facts .fact-meta { font-size: 11px; }
+.dufesh-embed .status-footnote { grid-column: 1 / -1; margin: 4px 0 0; padding-top: 10px; border-color: var(--line); font-size: 11px; }
+.dufesh-embed .schedule-section, .dufesh-embed .adjustments-section, .dufesh-embed .activity-section { border-radius: 8px; border-color: var(--line); box-shadow: none; }
+.dufesh-embed .section-heading { padding: 20px 24px 16px; }
+.dufesh-embed .section-heading h2, .dufesh-embed .section-heading-small h2 { font-size: 17px; line-height: 1.5; font-weight: 600; letter-spacing: normal; }
+.dufesh-embed .section-heading .eyebrow { display: none; }
+.dufesh-embed .section-heading-small { padding: 20px 0 12px; }
+.dufesh-embed .eyebrow { letter-spacing: normal; }
+.dufesh-embed .lower-grid { gap: 20px; margin-top: 20px; }
+.dufesh-embed .section-description { font-size: 12px; }
+.dufesh-embed .empty-state p + p { font-size: 11px; }
+.dufesh-embed .week-grid { grid-template-columns: 44px repeat(7, minmax(110px, 1fr)); min-width: 820px; }
+.dufesh-embed .week-scroll { scrollbar-color: #c3ceca transparent; }
+.dufesh-embed .time-axis, .dufesh-embed .time-tick, .dufesh-embed .empty-day { color: var(--gray); font-size: 10px; }
+.dufesh-embed .day-tag, .dufesh-embed .adjustment-tag { background: #f9eeee; color: #803b40; }
+.dufesh-embed .week-toolbar { padding: 0 24px 16px; }
+.dufesh-embed .week-controls { gap: 12px; }
+.dufesh-embed .week-label { min-width: 120px; }
+.dufesh-embed .schedule-legend { padding: 12px 24px; }
+.dufesh-embed .schedule-sync { margin: 0 24px 16px; font-size: 11px; }
+.dufesh-embed .legend-course, .dufesh-embed .course-block { background: #f0dbdc; }
+.dufesh-embed .legend-window, .dufesh-embed .monitor-band { background: var(--soft-blue); border-color: #d7b1b4; }
+.dufesh-embed .course-block:hover { background: #e9cbcd; box-shadow: none; }
+.dufesh-embed .course-block .course-time { color: #803b40; }
+.dufesh-embed .course-block.extra { background: var(--soft-green); }
+.dufesh-embed .day-detail { background: #fafbfa; }
+.dufesh-embed .window-chip { border-color: #e4c6c8; }
+.dufesh-embed .loading-view { min-height: 240px; }
+.dufesh-embed dialog { border-radius: 10px; top: 20px; bottom: auto; margin: 0 auto; max-height: calc(var(--embed-viewport-height, 600px) - 40px); overflow-y: auto; overscroll-behavior: contain; }
+.dufesh-embed .window-chip span { color: var(--navy); }
+.dufesh-embed .dialog-heading h2 { font-size: 22px; letter-spacing: normal; }
+.dufesh-embed dialog::backdrop { background: #202a2a66; backdrop-filter: none; }
+.dufesh-embed .segmented-field, .dufesh-embed .segmented-field span { border-radius: 5px; }
+.dufesh-embed .dialog-description, .dufesh-embed .field-note { font-size: 12px; }
+.dufesh-embed .page-footer > span:first-child { display: none; }
+.dufesh-embed .page-footer { justify-content: flex-end; padding: 12px 0 20px; }
+.dufesh-embed .page-footer > span:last-child { max-width: none; font-size: 11px; }
+.dufesh-embed #today-button { white-space: nowrap; }
+@media (max-width: 760px) {
+  .dufesh-embed .site-header { padding: 0 16px; }
+  .dufesh-embed .page-shell { padding: 8px 12px 0; }
+  .dufesh-embed .login-layout { padding: 12px 0 48px; }
+  .dufesh-embed .status-panel { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 18px; }
+  .dufesh-embed .status-facts { grid-column: 1; grid-row: auto; margin-top: 2px; }
+  .dufesh-embed .section-heading { padding: 18px 16px 14px; }
+  .dufesh-embed .section-heading-small { padding: 18px 0 12px; }
+  .dufesh-embed .section-heading > .button-small { font-size: 12px; }
+  .dufesh-embed .schedule-sync { margin: 0 16px 14px; }
+  .dufesh-embed .schedule-legend { padding: 12px 16px; flex-wrap: wrap; }
+  .dufesh-embed .schedule-legend .schedule-hint { margin-left: 0; width: 100%; font-size: 11px; }
+  .dufesh-embed .week-toolbar { padding: 0 16px 14px; }
+  .dufesh-embed .week-label { min-width: 96px; }
+  .dufesh-embed .week-controls { gap: 6px; }
+  .dufesh-embed .week-grid { grid-template-columns: 44px repeat(7, 170px); min-width: 1234px; }
+  .dufesh-embed .page-footer { flex-wrap: wrap; }
+  .dufesh-embed .week-toolbar { flex-wrap: wrap; }
+  .dufesh-embed .week-controls { width: 100%; justify-content: space-between; }
+  .dufesh-embed #today-button { margin-left: auto; }
+}
