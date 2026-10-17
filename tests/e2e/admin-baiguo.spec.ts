@@ -33,6 +33,7 @@ for (const width of [320, 390, 1280]) {
     page.on("pageerror", error => errors.push(error.message));
     await mockAdmin(page);
     const root = process.env.BAIGUO_BUNDLE;
+    const dashboard = structuredClone(preview);
     let connected = false;
     const adjustments: Array<Record<string, unknown>> = [];
     await page.route("https://baiguo.dufesh.cn/**", async route => {
@@ -40,7 +41,7 @@ for (const width of [320, 390, 1280]) {
       if (root) {
         if (path === "/api/session") { await route.fulfill({ json: { authenticated: connected, csrf: "synthetic-csrf" } }); return; }
         if (path === "/api/login") { connected = true; await route.fulfill({ json: { authenticated: true, csrf: "synthetic-csrf" } }); return; }
-        if (path === "/api/dashboard") { await route.fulfill({ json: preview }); return; }
+        if (path === "/api/dashboard") { await route.fulfill({ json: dashboard }); return; }
         if (path === "/api/schedule") { adjustments.push(route.request().postDataJSON()); await route.fulfill({ json: { saved: true, revision: "synthetic-v2" } }); return; }
         const name = path === "/" ? "index.html" : path.slice(1);
         if (!["index.html", "app.js", "style.css", "dufesh-embed.js", "dufesh-embed.css"].includes(name)) throw new Error(`Unexpected Baiguo request: ${path}`);
@@ -52,7 +53,9 @@ for (const width of [320, 390, 1280]) {
     });
     // Keep the real main origin for exact frame-ancestors and postMessage checks.
     await page.route("https://dufesh.cn/**", async route => {
-      if (new URL(route.request().url()).pathname.startsWith("/api/")) return route.fallback();
+      const pathname = new URL(route.request().url()).pathname;
+      if (pathname.startsWith("/api/")) return route.fallback();
+      if (pathname === "/favicon.svg") return route.fulfill({ status: 204 });
       const response = await route.fetch({ url: `${process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000"}${new URL(route.request().url()).pathname}` });
       await route.fulfill({ response });
     });
@@ -76,6 +79,22 @@ for (const width of [320, 390, 1280]) {
       await frame.getByRole("button", { name: "进入课表" }).click();
       await expect(frame.getByRole("heading", { name: "本周课程", exact: true })).toBeVisible();
       expect(await frame.locator("html").evaluate(node => node.scrollWidth <= innerWidth)).toBe(true);
+      const grid = frame.locator("#week-grid");
+      await expect(grid).toHaveAttribute("data-visible-days", "5");
+      await expect(frame.locator(".day-column:visible")).toHaveCount(5);
+      const geometry = await grid.evaluate(node => {
+        const timeline = node.querySelector<HTMLElement>(".day-timeline")!;
+        const course = node.querySelector<HTMLElement>(".course-block")!;
+        const band = node.querySelector<HTMLElement>(".monitor-band")!;
+        const scroll = node.parentElement!;
+        return { height: timeline.getBoundingClientRect().height, courseTop: parseFloat(course.style.top), courseHeight: parseFloat(course.style.height), bandTop: parseFloat(band.style.top), bandHeight: parseFloat(band.style.height), width: node.getBoundingClientRect().width, available: scroll.clientWidth };
+      });
+      expect(geometry.height).toBe(420);
+      expect(geometry.courseTop).toBeCloseTo(28);
+      expect(geometry.courseHeight).toBeCloseTo(100 * 28 / 60);
+      expect(geometry.bandTop).toBeCloseTo(50 * 28 / 60);
+      expect(geometry.bandHeight).toBeCloseTo(120 * 28 / 60);
+      expect(geometry.width).toBeLessThanOrEqual(geometry.available + 1);
       const dashboardAccessibility = await new AxeBuilder({ page }).analyze();
       expect(dashboardAccessibility.violations.filter(item => ["serious", "critical"].includes(item.impact ?? "")).map(item => ({ id: item.id, targets: item.nodes.map(node => node.target) }))).toEqual([]);
       await page.screenshot({ path: testInfo.outputPath(`timetable-${width}.png`), fullPage: true });
@@ -93,10 +112,23 @@ for (const width of [320, 390, 1280]) {
       await dialog.getByRole("button", { name: "添加补课", exact: true }).click();
       await expect(dialog).toBeHidden();
       expect(adjustments).toEqual([{ operation: "add", name: "补课（示例）", date: "2026-10-17", start: "10:00", end: "11:00", revision: "synthetic-v1" }]);
+      await frame.getByRole("button", { name: "显示完整七天", exact: true }).click();
+      await expect(frame.locator(".day-column:visible")).toHaveCount(7);
+      await frame.getByRole("button", { name: "隐藏空白周末", exact: true }).click();
+      await expect(frame.locator(".day-column:visible")).toHaveCount(5);
+      dashboard.week.days[5].sessions.push({ name: "周末补课（示例）", start: "21:00", end: "22:30", kind: "extra" });
+      dashboard.week.days[5].windows.push({ start: "2026-10-17T20:50:00+08:00", end: "2026-10-17T22:40:00+08:00", courses: ["周末补课（示例）"] });
+      await frame.locator("html").evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+      await expect(frame.locator(".day-column:visible")).toHaveCount(7);
+      await expect(frame.getByRole("button", { name: "隐藏空白周末", exact: true })).toBeHidden();
+      const weekend = frame.locator('.day-column[data-date="2026-10-17"]');
+      await expect(weekend.getByRole("button", { name: /周末补课（示例）/ })).toBeAttached();
+      expect(await weekend.locator(".day-timeline").evaluate(node => node.getBoundingClientRect().height)).toBe(448);
     }
     await page.getByRole("navigation", { name: "管理功能" }).getByRole("button", { name: "用户", exact: true }).click();
     await expect(page.locator("iframe")).toHaveCount(0);
     expect(errors).toEqual([]);
+    await page.unrouteAll({ behavior: "wait" });
   });
 }
 

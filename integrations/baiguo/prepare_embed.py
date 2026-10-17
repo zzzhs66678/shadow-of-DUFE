@@ -36,12 +36,18 @@ def prepare(source: Path, destination: Path):
                         '  <link rel="stylesheet" href="/dufesh-embed.css">\n'
                         '  <script src="/dufesh-embed.js" defer></script>\n'
                         '  <script src="/app.js" defer></script>')
+    app_js = (source / "web/app.js").read_text(encoding="utf-8")
+    scale = "const pixelsPerMinute = 44 / 60;"
+    if app_js.count(scale) != 1:
+        raise ValueError("Dashboard timeline changed; review the compact scale")
+    app_js = app_js.replace(scale,
+                            'const pixelsPerMinute = (new URLSearchParams(location.search).get("embed") === "dufesh" ? 28 : 44) / 60;', 1)
     destination.mkdir(parents=True)
     (destination / "web").mkdir()
     (destination / "dashboard.py").write_text(dashboard, encoding="utf-8", newline="\n")
     (destination / "web/index.html").write_text(html, encoding="utf-8", newline="\n")
-    for name in ("app.js", "style.css"):
-        shutil.copyfile(source / "web" / name, destination / "web" / name)
+    (destination / "web/app.js").write_text(app_js, encoding="utf-8", newline="\n")
+    shutil.copyfile(source / "web/style.css", destination / "web/style.css")
     for name in ("dufesh-embed.js", "dufesh-embed.css"):
         shutil.copyfile(Path(__file__).parent / name, destination / "web" / name)
 

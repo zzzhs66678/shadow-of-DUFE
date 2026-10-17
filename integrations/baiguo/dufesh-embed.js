@@ -7,6 +7,25 @@ if (new URLSearchParams(location.search).get("embed") === "dufesh") {
     if (logout) logout.textContent = "退出白果云";
     const boundary = document.getElementById("boundary-note");
     if (boundary) boundary.textContent = "监控仅在淡红色时段内运行。";
+    const grid = document.getElementById("week-grid");
+    const weekToggle = document.createElement("button");
+    weekToggle.type = "button";
+    weekToggle.className = "button button-quiet button-small compact-week-toggle";
+    weekToggle.setAttribute("aria-controls", "week-grid");
+    let fullWeek = false;
+    const compactWeek = () => {
+      const weekendBusy = [...grid.querySelectorAll(".day-column.is-weekend")]
+        .some(day => day.querySelector(".course-block, .monitor-band, .day-tag"));
+      const expanded = fullWeek || weekendBusy;
+      grid.dataset.visibleDays = expanded ? "7" : "5";
+      weekToggle.hidden = weekendBusy;
+      weekToggle.setAttribute("aria-pressed", String(expanded));
+      weekToggle.textContent = expanded ? "隐藏空白周末" : "显示完整七天";
+    };
+    weekToggle.addEventListener("click", () => { fullWeek = !fullWeek; compactWeek(); });
+    document.querySelector(".week-toolbar").append(weekToggle);
+    new MutationObserver(compactWeek).observe(grid, { childList: true });
+    compactWeek();
     let pending = 0;
     const notify = () => {
       cancelAnimationFrame(pending);
