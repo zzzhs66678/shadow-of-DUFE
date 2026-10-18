@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 sys.path[:0] = [os.environ["BAIGUO_BUNDLE"], os.environ["BAIGUO_SOURCE"]]
 from diagnostics import Recorder
-from runtime_status import public_status, public_events
+from runtime_status import public_status, public_events, publish_health
 
 
 class RuntimeTests(unittest.TestCase):
@@ -95,6 +95,14 @@ class RuntimeTests(unittest.TestCase):
         self.assertNotIn("SECRET", json.dumps(public))
         self.status.with_name("runtime-events.json").write_text("invalid")
         self.health(authentication_state="auth_required", last_auth_rejected_at="2026-10-16T12:00:00+08:00")
+        self.assertEqual("auth_rejected", self.events()[0]["kind"])
+
+    def test_failed_history_write_retries_the_transition(self):
+        raw = {"updated_at": "2026-10-16T12:00:00+08:00", "authentication_state": "auth_required", "last_auth_rejected_at": "2026-10-16T11:59:00+08:00"}
+        with self.assertRaises(OSError):
+            publish_health(self.status, raw, lambda path, data: (_ for _ in ()).throw(OSError("simulated full disk")))
+        self.assertFalse(self.status.exists())
+        publish_health(self.status, raw, lambda path, data: path.write_text(json.dumps(data)))
         self.assertEqual("auth_rejected", self.events()[0]["kind"])
 
 

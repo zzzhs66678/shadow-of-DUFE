@@ -109,6 +109,8 @@ def publish_health(path, raw, write):
         if action["updated_at"]:
             events.append({"kind": "attendance", "at": action["updated_at"], "activity_id": action["activity_id"], "status": action["status"]})
     events = public_events(events)
-    write(path, current)
     if events != before or not events_path.exists():
         write(events_path, events)
+    # Commit the comparison snapshot last, so a failed history write is retried
+    # on the next health update instead of consuming the transition.
+    write(path, current)
