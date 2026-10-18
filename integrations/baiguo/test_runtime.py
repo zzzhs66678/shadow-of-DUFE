@@ -99,8 +99,12 @@ class RuntimeTests(unittest.TestCase):
 
     def test_failed_history_write_retries_the_transition(self):
         raw = {"updated_at": "2026-10-16T12:00:00+08:00", "authentication_state": "auth_required", "last_auth_rejected_at": "2026-10-16T11:59:00+08:00"}
+        def failed_history(path, data):
+            if path.name == "runtime-events.json":
+                raise OSError("simulated full disk")
+            path.write_text(json.dumps(data))
         with self.assertRaises(OSError):
-            publish_health(self.status, raw, lambda path, data: (_ for _ in ()).throw(OSError("simulated full disk")))
+            publish_health(self.status, raw, failed_history)
         self.assertFalse(self.status.exists())
         publish_health(self.status, raw, lambda path, data: path.write_text(json.dumps(data)))
         self.assertEqual("auth_rejected", self.events()[0]["kind"])
