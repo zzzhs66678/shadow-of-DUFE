@@ -1,3 +1,23 @@
+.runtime-panel { margin: 16px 0; padding: 18px 20px; border: 1px solid var(--line); border-radius: 8px; background: white; }
+.runtime-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px 20px; flex-wrap: wrap; }
+.runtime-heading h2 { margin: 0; font-size: 16px; }
+#runtime-freshness, .runtime-meta { font-size: 11px; line-height: 1.7; color: var(--gray); overflow-wrap: anywhere; }
+.runtime-account { font-size: 13px; margin: 12px 0; }
+.runtime-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 0; }
+.runtime-facts dt { font-size: 11px; color: var(--gray); }
+.runtime-facts dd { margin: 4px 0 0; font-size: 12px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.runtime-facts dd.runtime-meta { font-size: 11px; }
+.runtime-history { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 6px; }
+.runtime-history summary { min-height: 44px; padding: 12px 0; cursor: pointer; font-size: 12px; }
+#runtime-count { color: var(--gray); margin-left: 8px; }
+#runtime-events { padding: 0; list-style: none; max-height: 420px; overflow-y: auto; }
+.runtime-event { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 6px 16px; border-bottom: 1px solid var(--line); padding: 10px 0; font-size: 12px; }
+.runtime-event time { font-variant-numeric: tabular-nums; }
+@media (max-width: 760px) {
+  .runtime-panel { padding: 16px; }
+  .runtime-facts { grid-template-columns: 1fr; gap: 12px; }
+  .runtime-event { grid-template-columns: 1fr; gap: 2px; }
+}
 .dufesh-embed {
   --mist: #f3f5f4;
   --navy: #202a2a;

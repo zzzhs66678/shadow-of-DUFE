@@ -5,6 +5,15 @@ import AxeBuilder from "@axe-core/playwright";
 const preview = {
   server_time: "2026-10-16T20:00:00+08:00", phase: "waiting", authentication_state: "authenticated", health_stale: false,
   last_auth_accepted_at: "2026-10-16T19:55:00+08:00", last_poll_completed_at: "2026-10-16T19:59:55+08:00",
+  updated_at: "2026-10-16T20:00:00+08:00", last_auth_rejected_at: "2026-10-16T19:30:00+08:00",
+  session_renewal: { status: "success", last_attempt: "2026-10-16T19:31:00+08:00", last_result: "success" },
+  runtime_events: [
+    { kind: "attendance", at: "2026-10-16T19:50:00+08:00", activity_id: "88", status: "pending_confirmation" },
+    { kind: "attendance", at: "2026-10-16T19:40:00+08:00", activity_id: "87", status: "confirmed" },
+    { kind: "renew_success", at: "2026-10-16T19:32:00+08:00" },
+    { kind: "renew_started", at: "2026-10-16T19:31:00+08:00" },
+    { kind: "auth_rejected", at: "2026-10-16T19:30:00+08:00" },
+  ],
   automatic_submit: true, notifications_enabled: true, recent_actions: [], active_courses: [],
   schedule_revision: "synthetic-v1", monitoring: { message_seconds: 5, course_seconds: 15 },
   next_window: "2026-10-19T07:50:00+08:00",
@@ -78,6 +87,14 @@ for (const width of [320, 390, 1280]) {
     if (root) {
       await frame.getByRole("button", { name: "进入课表" }).click();
       await expect(frame.getByRole("heading", { name: "本周课程", exact: true })).toBeVisible();
+      await expect(frame.getByRole("heading", { name: "账号与签到记录", exact: true })).toBeVisible();
+      await expect(frame.locator("#runtime-rejected")).toContainText("19:30:00");
+      await expect(frame.locator("#runtime-renewal-time")).toContainText("19:31:00");
+      await expect(frame.locator("#runtime-attendance-time")).toContainText("19:40:00");
+      await expect(frame.locator("#runtime-attendance-status")).toContainText("活动 87");
+      await frame.locator(".runtime-history > summary").click();
+      await expect(frame.locator("#runtime-events")).toContainText("签到 88 · 已提交，待确认");
+      await expect(frame.locator("#runtime-events")).toContainText("自动重登已更新凭据");
       expect(await frame.locator("html").evaluate(node => node.scrollWidth <= innerWidth)).toBe(true);
       const grid = frame.locator("#week-grid");
       await expect(grid).toHaveAttribute("data-visible-days", "5");
@@ -124,6 +141,12 @@ for (const width of [320, 390, 1280]) {
       const weekend = frame.locator('.day-column[data-date="2026-10-17"]');
       await expect(weekend.getByRole("button", { name: /周末补课（示例）/ })).toBeAttached();
       expect(await weekend.locator(".day-timeline").evaluate(node => node.getBoundingClientRect().height)).toBe(448);
+      dashboard.authentication_state = "auth_unverified";
+      await frame.locator("html").evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+      await expect(frame.locator("#runtime-account")).toHaveText("学校登录尚未验证");
+      dashboard.health_stale = true;
+      await frame.locator("html").evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+      await expect(frame.locator("#runtime-account")).toContainText("当前登录与签到情况暂不能确认");
     }
     await page.getByRole("navigation", { name: "管理功能" }).getByRole("button", { name: "用户", exact: true }).click();
     await expect(page.locator("iframe")).toHaveCount(0);

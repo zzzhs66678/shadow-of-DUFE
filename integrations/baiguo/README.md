@@ -20,10 +20,22 @@ $env:PYTHONDONTWRITEBYTECODE = '1'
 python integrations/baiguo/test_embed.py -q
 ```
 
-适配包包含 `dashboard.py` 与 `web/` 下五个静态文件。
-正式安装前先备份这六个文件，仅替换同名代码、增加两个适配资产，并单独重启 `baiguo-dashboard`。
+适配包包含 `dashboard.py`、`diagnostics.py`、`runtime_status.py` 与 `web/` 下五个静态文件。
+正式安装前先备份同名代码。账号与签到记录由监控现有 Recorder 输出到独立白名单镜像，
+首次安装本功能需在课外、且没有重登任务运行时重启 monitor 和 dashboard，复用既有持久状态。
+仅修改界面时无需重启 monitor。
 不得覆盖 `control/`、`dashboard-private/`、`dashboard-state/`、`.env` 或学校授权数据。
-原监控进程无需重启。回滚时恢复备份的代码、移除新增适配资产并重启 dashboard。
+回滚时恢复备份代码；若变更了 diagnostics，则也在安全时段重启 monitor，不恢复或覆盖业务数据。
+
+账号与签到区显示发现登录失效、自动重登尝试、排队/最早重试时间、结果及学校验证状态。
+“凭据更新成功”不等同于“学校登录验证通过”。签到的待确认、自动提交后确认与查询发现已签到分别保留。
+记录使用北京时间精确到秒，时间为后台发现/确认时间；不推测学校实际登出时间或历史签到发生时间。
+时间线最多100条，首次启用只从现有安全状态和签到记录保留已知时间；不读取或公开原始请求日志。
+dashboard 仍只读取白名单镜像，不能访问学校凭据或私有诊断目录。
+
+```powershell
+python integrations/baiguo/test_runtime.py -q
+```
 
 只有 `/?embed=dufesh` 和 `/index.html?embed=dufesh` 文档允许 `https://dufesh.cn` 作为嵌入来源。
 其他文档和 API 继续发送 `DENY`、`frame-ancestors 'none'`，不增加 CORS。
