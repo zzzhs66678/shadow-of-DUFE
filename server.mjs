@@ -43,7 +43,45 @@ const contentTypes = new Map([
   [".zip", "application/zip"],
 ]);
 
-function documentContentSecurityPolicy(nonce) {
+async function serveBaiguoSession(req, res) {
+  const reply = (status, value) => {
+    res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Cross-Origin-Resource-Policy": "same-origin" });
+    res.end(JSON.stringify(value));
+  };
+  req.resume();
+  if (req.method !== "POST") return reply(405, { error: "method_not_allowed" });
+  if (req.headers.origin !== (process.env.DUFESH_PUBLIC_ORIGIN || "https://dufesh.cn") || req.headers["content-type"]?.split(";")[0] !== "application/json") return reply(403, { error: "same_origin_required" });
+  if (!req.headers.cookie) return reply(401, { error: "authentication_required" });
+  try {
+    const sessionURL = new URL("/api/admin/session", process.env.DUFESH_ADMIN_SESSION_ORIGIN || "https://dufesh.cn");
+    const verify = async () => {
+      const response = await fetch(sessionURL, { headers: { Cookie: req.headers.cookie }, redirect: "error", cache: "no-store", signal: AbortSignal.timeout(5000) });
+      if ([401, 403].includes(response.status)) return { status: response.status };
+      if (!response.ok) return { status: 503 };
+      const session = await response.json();
+      const until = Date.parse(session.elevatedUntil || "");
+      return session.role === "admin" && session.elevated === true && until > Date.now() ? { status: 200, until } : { status: 403 };
+    };
+    const access = await verify();
+    if (access.status !== 200) return reply(access.status, { error: "admin_verification_required" });
+    const password = process.env.BAIGUO_MANAGEMENT_KEY;
+    if (!password || password.length < 12 || password.length > 256) return reply(503, { error: "connection_unavailable" });
+    const expiresAt = Math.min(access.until, Date.now() + 30000) / 1000;
+    if (expiresAt * 1000 - Date.now() < 1000) return reply(403, { error: "admin_verification_required" });
+    const childOrigin = process.env.BAIGUO_DASHBOARD_ORIGIN || "https://baiguo.dufesh.cn";
+    const response = await fetch(new URL("/api/handoff", childOrigin), { method: "POST", redirect: "error", signal: AbortSignal.timeout(5000), headers: { "Content-Type": "application/json", Origin: childOrigin }, body: JSON.stringify({ password, expires_at: expiresAt }) });
+    if (!response.ok) return reply(503, { error: "connection_unavailable" });
+    const { ticket } = await response.json();
+    const current = await verify();
+    if (current.status !== 200 || current.until < access.until) return reply(current.status === 200 ? 403 : current.status, { error: "admin_verification_required" });
+    if (typeof ticket !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(ticket)) throw new Error("invalid_handoff");
+    reply(200, { ticket });
+  } catch {
+    reply(503, { error: "connection_unavailable" });
+  }
+}
+
+function documentContentSecurityPolicy(nonce, pathname) {
   return [
     "default-src 'self'",
     "base-uri 'self'",
@@ -54,7 +92,9 @@ function documentContentSecurityPolicy(nonce) {
     "font-src 'self' data:",
     "media-src 'self'",
     "connect-src 'self'",
-    "frame-src 'self'",
+    pathname === "/admin" || pathname === "/admin/"
+      ? "frame-src 'self' https://baiguo.dufesh.cn"
+      : "frame-src 'self'",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
     `script-src 'self' 'nonce-${nonce}'`,
@@ -119,7 +159,7 @@ async function servePublicAsset(req, res, pathname) {
 
 function proxyToVinext(req, res) {
   const nonce = randomBytes(18).toString("base64url");
-  const contentSecurityPolicy = documentContentSecurityPolicy(nonce);
+  const contentSecurityPolicy = documentContentSecurityPolicy(nonce, new URL(req.url, "http://localhost").pathname);
   const upstream = createProxyRequest(
     {
       host: "127.0.0.1",
@@ -170,6 +210,7 @@ await startProdServer({
 
 const server = createServer(async (req, res) => {
   const pathname = new URL(req.url ?? "/", "http://localhost").pathname;
+  if (pathname === "/admin/baiguo-session") return serveBaiguoSession(req, res);
   if (await servePublicAsset(req, res, pathname)) return;
   proxyToVinext(req, res);
 });

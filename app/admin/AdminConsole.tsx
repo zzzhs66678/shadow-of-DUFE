@@ -14,6 +14,7 @@ import { TeacherReviewDesk } from "./TeacherReviewDesk";
 import { AccountNameReview } from "./AccountNameReview";
 import { CatalogDesk } from "./CatalogDesk";
 import { WhiteboardDesk } from "../whiteboard/WhiteboardDesk";
+import { BaiguoDesk } from "./BaiguoDesk";
 
 type AccessState = {
   role: "admin";
@@ -213,7 +214,7 @@ export function AdminConsole() {
   useEffect(() => {
     const readLocation = () => {
       const [section, review] = window.location.hash.slice(1).split("-");
-      if (["catalog", "users", "review", "whiteboard", "notices", "audit"].includes(section)) setWorkspace(section);
+      if (["catalog", "users", "review", "whiteboard", "notices", "audit", "baiguo"].includes(section)) setWorkspace(section);
       if (["reports", "content", "history"].includes(review)) setReviewTab(review);
     };
     const frame = window.requestAnimationFrame(readLocation);
@@ -509,7 +510,7 @@ export function AdminConsole() {
           <aside className={styles.sidebar}>
             <span className={styles.sidebarLabel}>管理</span>
             <nav aria-label="管理功能">
-              {[["catalog", "课程与资料"], ["users", "用户"], ["review", "内容审核"], ["whiteboard", "小白板"], ["notices", "通知"], ["audit", "操作记录"]].map(([key, label]) => (
+              {[["catalog", "课程与资料"], ["users", "用户"], ["review", "内容审核"], ["whiteboard", "小白板"], ["notices", "通知"], ["audit", "操作记录"], ["baiguo", "白果云课表"]].map(([key, label]) => (
                 <button key={key} aria-pressed={workspace === key} onClick={() => navigate(key)}>{label}</button>
               ))}
             </nav>
@@ -518,10 +519,11 @@ export function AdminConsole() {
           </aside>
           <div className={styles.workspaceBody}>
             <header className={styles.deskHeading}>
-              <div><h1>{{ catalog: "课程与资料", users: "用户管理", review: "内容审核", whiteboard: "小白板", notices: "通知公告", audit: "操作记录" }[workspace]}</h1></div>
+              <div><h1>{{ catalog: "课程与资料", users: "用户管理", review: "内容审核", whiteboard: "小白板", notices: "通知公告", audit: "操作记录", baiguo: "白果云课表" }[workspace]}</h1></div>
               <div className={styles.watchStatus}><span>验证有效至 {access?.elevatedUntil ? new Date(access.elevatedUntil).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false }) : "—"}</span><button onClick={endWatch} disabled={busy === "leave"}>退出管理</button></div>
             </header>
             {feedback && <div className={styles.feedback} role="status">{feedback}</div>}
+            {workspace === "baiguo" && <BaiguoDesk onMfaExpired={handleMfaExpired} />}
             <div className={styles.panel} hidden={workspace !== "catalog"}><CatalogDesk active={workspace === "catalog"} onMfaExpired={handleMfaExpired} onAuditChanged={loadAudit} /></div>
             <div className={styles.panel} hidden={workspace !== "users"}>
               <section className={styles.ledger} aria-label="账号概况">

@@ -207,8 +207,9 @@ test("official timetable excludes preselected courses; planning preserves them w
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem("dufesh:student-profile:v3:anonymous")!).plans[0].scheduleIds)).toEqual([manual.id]);
   await page.goto("/?view=schedule");
   await expect(page.locator(".draggable-schedule")).toHaveCount(0);
-  // Removing the import for this isolated fixture restores the untouched legacy timetable.
-  await page.evaluate(() => {
+  // Apply this fixture change in the next document, so the outgoing React
+  // page cannot race it with its own persisted state during navigation.
+  await page.addInitScript(() => {
     const key = "dufesh:student-profile:v3:anonymous";
     const state = JSON.parse(localStorage.getItem(key)!);
     state.academicSnapshots = [];

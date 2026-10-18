@@ -151,6 +151,7 @@ test("logging in restores the previous workspace only after the account's cloud 
 });
 
 test("a failed account read stays in the workspace and reports unavailable courses instead of a new-user setup", async ({ page }) => {
+  await page.clock.setFixedTime(new Date(now));
   const userId = "offline-course-fixture";
   const cloud = { ...savedState({ academicSnapshots: [official] }), preferredTerm: "fall", theme: "system" };
   let offline = true;
