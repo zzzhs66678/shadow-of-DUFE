@@ -18,6 +18,7 @@
   .runtime-facts { grid-template-columns: 1fr; gap: 12px; }
   .runtime-event { grid-template-columns: 1fr; gap: 2px; }
 }
+.dufesh-autoconnect #logout-button { display: none; }
 .dufesh-embed {
   --mist: #f3f5f4;
   --navy: #202a2a;

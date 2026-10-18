@@ -38,6 +38,36 @@ def prepare(source: Path, destination: Path):
     dashboard = replace_once(dashboard,
         'from dashboard_state import public_actions, public_status',
         'from dashboard_state import public_actions\nfrom runtime_status import public_status, public_events')
+    dashboard = replace_once(dashboard, 'CREATE INDEX IF NOT EXISTS failures_at ON failures(at);',
+        'CREATE INDEX IF NOT EXISTS failures_at ON failures(at);\n                CREATE TABLE IF NOT EXISTS handoffs (token TEXT PRIMARY KEY, expires REAL NOT NULL);')
+    dashboard = replace_once(dashboard, 'def authenticate(self, password, ip):', 'def authenticate(self, password, ip, *, handoff_until=None):')
+    dashboard = replace_once(dashboard, '            db.execute("INSERT INTO sessions VALUES (?,?,?)", (self.digest(token), csrf, now + SESSION_SECONDS))',
+        '''            if handoff_until is not None:
+                if type(handoff_until) not in (int, float) or not now < handoff_until <= now + 30:
+                    raise ControlError("连接凭证已过期，请重新连接", 401)
+                db.execute("DELETE FROM handoffs WHERE expires<=?", (now,))
+                db.execute("DELETE FROM handoffs WHERE token IN (SELECT token FROM handoffs ORDER BY expires DESC LIMIT -1 OFFSET 20)")
+                db.execute("INSERT INTO handoffs VALUES (?,?)", (self.digest(token), handoff_until))
+                return token, ""
+            db.execute("INSERT INTO sessions VALUES (?,?,?)", (self.digest(token), csrf, now + SESSION_SECONDS))''')
+    dashboard = replace_once(dashboard, '    def get(self, token):',
+        (Path(__file__).parent / 'handoff-session.py').read_text(encoding='utf-8') + '\n    def get(self, token):')
+    dashboard = replace_once(dashboard, 'if path == "/api/login":', 'if path in {"/api/login", "/api/handoff"}:')
+    dashboard = replace_once(dashboard, '                token, csrf = self.server.app.sessions.authenticate(password, ip)',
+        '''                if path == "/api/handoff":
+                    expires_at = request.get("expires_at")
+                    if type(expires_at) not in (int, float) or not time.time() < expires_at <= time.time() + 30:
+                        raise ControlError("连接凭证已过期，请重新连接", 401)
+                    ticket, _ = self.server.app.sessions.authenticate(password, ip, handoff_until=expires_at)
+                    self.reply(200, {"ticket": ticket})
+                    return
+                token, csrf = self.server.app.sessions.authenticate(password, ip)''')
+    dashboard = replace_once(dashboard, '            elif path == "/api/logout":',
+        '''            elif path == "/api/handoff/exchange":
+                token, csrf = self.server.app.sessions.exchange_handoff(request.get("ticket"))
+                self.server.app.sessions.delete(self.token())
+                self.reply(200, {"authenticated": True, "csrf": csrf}, cookie=self.cookie(token))
+            elif path == "/api/logout":''')
     dashboard = replace_once(dashboard,
         '"phase", "authentication_state", "last_auth_accepted_at", "last_poll_completed_at",',
         '"phase", "authentication_state", "last_auth_accepted_at", "last_auth_rejected_at", "session_renewal", "last_poll_completed_at",')
@@ -70,6 +100,17 @@ def prepare(source: Path, destination: Path):
     app_js = app_js.replace(scale,
                             'const pixelsPerMinute = (new URLSearchParams(location.search).get("embed") === "dufesh" ? 28 : 44) / 60;', 1)
     app_js = replace_once(app_js, '    renderStatus();', '    renderStatus();\n    renderRuntime();')
+    app_js = replace_once(app_js, 'path !== "/api/login"', 'path !== "/api/login" && path !== "/api/handoff/exchange"')
+    app_js = replace_once(app_js, '    setText("login-error", message);',
+        '''    setText("login-error", message);
+    if (new URLSearchParams(location.search).get("autoconnect") === "1" && new URLSearchParams(location.search).get("embed") === "dufesh") {
+      $("login-view").hidden = true;
+      $("loading-view").hidden = false;
+      document.documentElement.classList.add("dufesh-autoconnect");
+      window.parent.postMessage({ type: "dufesh:baiguo-auth-required" }, "https://dufesh.cn");
+    }''')
+    app_js = replace_once(app_js, '  $("login-form").addEventListener("submit",',
+        (Path(__file__).parent / 'handoff-client.js').read_text(encoding='utf-8') + '\n  $("login-form").addEventListener("submit",')
     app_js = replace_once(app_js, '  function disabledDates()',
         (Path(__file__).parent / "runtime-panel.js").read_text(encoding="utf-8") + '\n  function disabledDates()')
     diagnostics = (source / "diagnostics.py").read_text(encoding="utf-8")

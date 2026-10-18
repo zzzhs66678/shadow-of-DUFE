@@ -26,6 +26,7 @@ const preview = {
 };
 
 async function mockAdmin(page: Page, { status = 200, elevated = true, seconds = 600 } = {}) {
+  await page.route("**/admin/baiguo-session", route => route.fulfill({ status: status === 200 && elevated ? 200 : 403, json: { ticket: "A".repeat(43) } }));
   await page.route("**/api/admin/**", async route => {
     const path = new URL(route.request().url()).pathname;
     let payload: object = { users: [], items: [], reports: [], announcements: [], candidates: [], events: [], requests: [], nextCursor: null };
@@ -50,6 +51,11 @@ for (const width of [320, 390, 1280]) {
       if (root) {
         if (path === "/api/session") { await route.fulfill({ json: { authenticated: connected, csrf: "synthetic-csrf" } }); return; }
         if (path === "/api/login") { connected = true; await route.fulfill({ json: { authenticated: true, csrf: "synthetic-csrf" } }); return; }
+        if (path === "/api/handoff/exchange") {
+          expect(route.request().postDataJSON()).toEqual({ ticket: "A".repeat(43) });
+          connected = true;
+          await route.fulfill({ json: { authenticated: true, csrf: "synthetic-csrf" } }); return;
+        }
         if (path === "/api/dashboard") { await route.fulfill({ json: dashboard }); return; }
         if (path === "/api/schedule") { adjustments.push(route.request().postDataJSON()); await route.fulfill({ json: { saved: true, revision: "synthetic-v2" } }); return; }
         const name = path === "/" ? "index.html" : path.slice(1);
@@ -63,7 +69,7 @@ for (const width of [320, 390, 1280]) {
     // Keep the real main origin for exact frame-ancestors and postMessage checks.
     await page.route("https://dufesh.cn/**", async route => {
       const pathname = new URL(route.request().url()).pathname;
-      if (pathname.startsWith("/api/")) return route.fallback();
+      if (pathname.startsWith("/api/") || pathname === "/admin/baiguo-session") return route.fallback();
       if (pathname === "/favicon.svg") return route.fulfill({ status: 204 });
       const response = await route.fetch({ url: `${process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000"}${new URL(route.request().url()).pathname}` });
       await route.fulfill({ response });
@@ -76,16 +82,15 @@ for (const width of [320, 390, 1280]) {
     await expect(page.getByText("正在连接白果云课表…", { exact: true })).toBeHidden();
     const frame = page.frameLocator('iframe[title="白果云私人课表管理"]');
     if (root) {
-      await expect(frame.getByRole("heading", { name: "进入私人课表" })).toBeVisible();
-      await expect(frame.locator("html")).toHaveClass("dufesh-embed");
-      await frame.getByLabel("管理口令", { exact: true }).fill("synthetic-unsent-password");
+      await expect(frame.getByRole("heading", { name: "本周课程", exact: true })).toBeVisible();
+      await expect(frame.getByLabel("管理口令", { exact: true })).toBeHidden();
+      await expect(frame.locator("html")).toHaveClass(/dufesh-embed/);
     } else await expect(frame.getByRole("heading", { name: "私人课表测试" })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     const results = await new AxeBuilder({ page }).analyze();
     expect(results.violations.filter(item => ["serious", "critical"].includes(item.impact ?? ""))).toEqual([]);
     await page.screenshot({ path: testInfo.outputPath(`baiguo-${width}.png`), fullPage: true });
     if (root) {
-      await frame.getByRole("button", { name: "进入课表" }).click();
       await expect(frame.getByRole("heading", { name: "本周课程", exact: true })).toBeVisible();
       await expect(frame.getByRole("heading", { name: "账号与签到记录", exact: true })).toBeVisible();
       await expect(frame.locator("#runtime-rejected")).toContainText("19:30:00");

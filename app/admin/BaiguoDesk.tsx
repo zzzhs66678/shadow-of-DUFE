@@ -65,9 +65,25 @@ export function BaiguoDesk({ onMfaExpired }: { onMfaExpired: () => void }) {
     if (access !== "ready") return;
     const timeout = setTimeout(() => setConnection("error"), 20_000);
     let previousScroll: number | null = null;
+    const controller = new AbortController();
+    let connecting = false;
+    const connect = async () => {
+      if (connecting) return;
+      connecting = true;
+      try {
+        const response = await fetch("/admin/baiguo-session", { method: "POST", credentials: "same-origin", cache: "no-store", signal: controller.signal, headers: { "Content-Type": "application/json" }, body: "{}" });
+        if ([401, 403].includes(response.status)) { onMfaExpired(); return; }
+        if (!response.ok) throw new Error("connection_unavailable");
+        const { ticket } = await response.json() as { ticket?: string };
+        if (!controller.signal.aborted && typeof ticket === "string") frame.current?.contentWindow?.postMessage({ type: "dufesh:baiguo-login", ticket }, origin);
+      } catch { if (!controller.signal.aborted) setConnection("error"); }
+      finally { connecting = false; }
+    };
     const viewport = () => frame.current?.contentWindow?.postMessage({ type: "dufesh:baiguo-viewport", height: window.innerHeight }, origin);
     const receive = (event: MessageEvent) => {
       if (event.origin !== origin || event.source !== frame.current?.contentWindow) return;
+      if (event.data?.type === "dufesh:baiguo-auth-required") { void connect(); return; }
+      if (event.data?.type === "dufesh:baiguo-auth-failed") { setConnection("error"); return; }
       if (event.data?.type === "dufesh:baiguo-dialog") {
         if (event.data.open === true && frame.current && previousScroll === null) {
           previousScroll = window.scrollY;
@@ -89,8 +105,8 @@ export function BaiguoDesk({ onMfaExpired }: { onMfaExpired: () => void }) {
     };
     window.addEventListener("message", receive);
     window.addEventListener("resize", viewport);
-    return () => { clearTimeout(timeout); window.removeEventListener("message", receive); window.removeEventListener("resize", viewport); };
-  }, [access, attempt]);
+    return () => { controller.abort(); clearTimeout(timeout); window.removeEventListener("message", receive); window.removeEventListener("resize", viewport); };
+  }, [access, attempt, onMfaExpired]);
 
   return (
     <section className={styles.baiguoDesk} aria-label="白果云私人课表">
@@ -111,13 +127,13 @@ export function BaiguoDesk({ onMfaExpired }: { onMfaExpired: () => void }) {
           ref={frame}
           className={styles.baiguoFrame}
           title="白果云私人课表管理"
-          src={`${origin}/?embed=dufesh`}
+          src={`${origin}/?embed=dufesh&autoconnect=1`}
           height={height}
           referrerPolicy="no-referrer"
           sandbox="allow-scripts allow-same-origin allow-forms"
         />
       )}
-      <p className={styles.baiguoNote}>首次使用需输入白果云管理口令；退出白果云请使用课表内的退出按钮。</p>
+      <p className={styles.baiguoNote}>管理员身份通过验证后自动连接白果云。</p>
     </section>
   );
 }

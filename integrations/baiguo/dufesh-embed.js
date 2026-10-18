@@ -2,6 +2,7 @@
 
 if (new URLSearchParams(location.search).get("embed") === "dufesh") {
   document.documentElement.classList.add("dufesh-embed");
+  if (new URLSearchParams(location.search).get("autoconnect") === "1") document.documentElement.classList.add("dufesh-autoconnect");
   document.addEventListener("DOMContentLoaded", () => {
     const logout = document.getElementById("logout-button");
     if (logout) logout.textContent = "退出白果云";
